@@ -1,0 +1,1699 @@
+/* Home page sections (src/components/site/home). Tokens and the frame live in site.css. */
+
+/* ---------- section intro: heading left, aside on the right ---------- */
+.w-intro {
+  align-items: end;
+  row-gap: 20px;
+  margin-bottom: clamp(48px, 5.5vw, 88px);
+}
+.w-intro > :first-child {
+  grid-column: 1 / 7;
+}
+.w-intro__aside {
+  grid-column: 8 / 13;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .w-intro > :first-child,
+  .w-intro__aside {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- hero: the arch (Hero.tsx, ArchDrawing.tsx, ArchMotion.tsx, ArchDust.ts) ----------
+ * The one part of the public site outside the identity system, by the user's decision. A dark room in
+ * the header's black. The central bay of the Arch of the Centuries stands on the ground line in fine gold,
+ * its opening lit by the Main Building at dusk, with the headline split by that opening and the eight
+ * results running along the ground. Newsreader (loaded by the root layout), light and tight, is its face.
+ * Everything is sized from one length, --arch-w, the width of the opening: the photograph's clip, the
+ * drawing (100 units to the opening) and the headline's columns. ArchMotion grows it with --s as the
+ * visitor walks through, and draws the room's light on the canvas.
+ */
+@property --open {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+@property --arch-w {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+.w-arch {
+  --a-ink: #f0eeeb; /* off-white with a trace of the stone, never cream */
+  --a-dim: #bab4aa; /* 8.9:1 on the ground */
+  --a-gold: #d2b06c; /* the lamplight of the photograph, as line and dust */
+  --a-gold-hi: #f7e2b0;
+  --a-ground: #050609; /* the header's black, so the bar and the room are one */
+  --band: clamp(46px, 6svh, 60px);
+  --ground: var(--band);
+  --stage-h: max(560px, calc(100svh - var(--header-h)));
+  --arch-w: min(25vw, calc((var(--stage-h) - var(--band) - 6px) / 2.3));
+  /* the headline keeps clear of the opening's reveal, and each half gets the ground beyond it */
+  --gap: calc(var(--arch-w) * 0.12 + 12px);
+  --col: calc(50vw - var(--arch-w) / 2 - var(--gap) - var(--margin));
+  /* the longer half of the headline in ems of its face, with a little room: "by the world" is 5.1em */
+  --fit: 5.25;
+  --lift: clamp(22px, 3.6svh, 40px);
+  --travel: 100svh;
+  --shift: 0px;
+  position: relative;
+  background: var(--a-ground);
+  color: var(--a-ink);
+}
+/* The home page has no page tabs under the header, so scrolling to a target clears the header alone.
+   With the site's 152px, Next's check on arriving from another page found the hero's top "hidden" under
+   the padding and scrolled the page, landing the visitor halfway through the arch. */
+html:has(.w-arch) {
+  scroll-padding-top: 84px;
+}
+@media (max-width: 1180px) {
+  html:has(.w-arch) {
+    scroll-padding-top: 72px;
+  }
+}
+.w-arch__stage {
+  position: relative;
+  height: var(--stage-h);
+  overflow: hidden;
+}
+/* ArchMotion adds the travel: the stage holds still while the visitor walks through the opening */
+.w-arch.is-live {
+  height: calc(var(--stage-h) + var(--travel));
+}
+.w-arch.is-live .w-arch__stage {
+  position: sticky;
+  top: var(--header-h);
+}
+
+/* the opening, the building beyond it, and the bay drawn around it */
+.w-arch__door {
+  display: contents;
+}
+.w-arch__view {
+  --aw: calc(var(--arch-w) * var(--s, 1) * var(--open));
+  --ah: calc(var(--arch-w) * 1.5 * var(--s, 1));
+  position: absolute;
+  inset: 0 0 var(--ground);
+  overflow: hidden;
+  background: #0d1526; /* the dusk sky's own blue while the photograph arrives */
+  clip-path: inset(calc(100% - var(--ah)) calc(50% - var(--aw) / 2) 0 round calc(var(--aw) / 2) calc(var(--aw) / 2) 0 0);
+}
+/* a dark veil over the picture's foot, for the closing line once the visitor is through */
+.w-arch__view::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(12 10 9 / 0.8), rgb(12 10 9 / 0) 46%); /* taste-skill-ignore: neutral scrim under the closing line */
+  opacity: var(--pass, 0);
+}
+.w-arch__pan {
+  position: absolute;
+  inset: -3%;
+  display: block;
+  /* the pointer moves the building against the words, and walking in tilts the view up to the tower */
+  transform: translate3d(
+      calc(var(--mx, 0) * -14px),
+      calc(var(--my, 0) * -10px + var(--shift) * pow(1 - var(--pass, 0), 3)),
+      0
+    )
+    scale(calc(1 + var(--pass, 0) * 0.1));
+}
+.w-arch__pan img {
+  object-fit: cover;
+  object-position: 50% 44%;
+}
+.w-arch__monument {
+  position: absolute;
+  z-index: 1;
+  left: calc(50% - var(--arch-w) * 1.76);
+  bottom: calc(var(--ground) - var(--arch-w) * 0.02);
+  width: calc(var(--arch-w) * 3.52);
+  height: calc(var(--arch-w) * 2.34);
+  transform: scale(var(--s, 1));
+  transform-origin: 50% calc(100% - var(--arch-w) * 0.02);
+  opacity: calc(1 - var(--pass, 0) * 1.6);
+  pointer-events: none;
+  /* strongest around the opening, dissolving towards the sides where the headline stands */
+  -webkit-mask-image: radial-gradient(ellipse 56% 82% at 50% 76%, #000 38%, rgb(0 0 0 / 0.4) 70%, transparent 100%); /* taste-skill-ignore: a mask, not a fill */
+  mask-image: radial-gradient(ellipse 56% 82% at 50% 76%, #000 38%, rgb(0 0 0 / 0.4) 70%, transparent 100%); /* taste-skill-ignore: a mask, not a fill */
+}
+.w-arch__drawing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.w-arch__ink path {
+  fill: none;
+  stroke: var(--a-gold);
+  stroke-width: var(--arch-ink, 0.32);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.w-arch__ink .t0 {
+  opacity: 0.5;
+}
+.w-arch__ink .t1 {
+  opacity: 0.82;
+}
+.w-arch__ink .t2 {
+  stroke: var(--a-gold-hi);
+}
+.w-arch__dust {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - var(--band));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2.4s ease;
+}
+.w-arch__dust.is-on {
+  opacity: 1;
+}
+
+/* the headline, split by the opening and pushed aside by its jambs */
+.w-arch__title {
+  margin: 0;
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-size: calc(var(--col) / var(--fit));
+  font-weight: 340;
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+  font-kerning: none;
+  font-variant-numeric: lining-nums proportional-nums;
+  color: var(--a-ink);
+  /* the room's black hugs each letter, so the gold lines and the dust stop short of the strokes */
+  --glow: 0 0 0.04em var(--a-ground), 0 0 0.12em rgb(5 6 9 / 0.85), 0 0 0.4em rgb(5 6 9 / 0.55);
+  text-shadow: var(--glow);
+}
+.w-arch__half {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% - var(--band) - var(--arch-w) * 0.8);
+  width: var(--col);
+  padding-block: 0.08em 0.2em;
+  overflow: clip;
+  translate: 0 -50%;
+  /* and a soft pool of it behind each half, fading out before the box's edges */
+  background: radial-gradient(closest-side, rgb(5 6 9 / 0.62), rgb(5 6 9 / 0.3) 62%, transparent); /* taste-skill-ignore: scrim behind the headline */
+}
+.w-arch__half > span {
+  position: relative;
+  display: block;
+  white-space: nowrap;
+}
+.w-arch__half--a {
+  right: calc(50% + var(--arch-w) / 2 + var(--gap));
+  text-align: right;
+  transform: translate3d(calc((1 - var(--s, 1)) * var(--arch-w) * 0.64 + var(--mx, 0) * 6px), calc(var(--my, 0) * 4px), 0);
+}
+.w-arch__half--b {
+  left: calc(50% + var(--arch-w) / 2 + var(--gap));
+  transform: translate3d(calc((var(--s, 1) - 1) * var(--arch-w) * 0.64 + var(--mx, 0) * 6px), calc(var(--my, 0) * 4px), 0);
+}
+.w-arch__char {
+  display: inline-block;
+}
+/* a digit in the headline is set on a counter wheel: the digit holds its place in the text, the wheel shows it */
+.w-arch__wheel {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  text-shadow: none;
+  clip-path: inset(-0.14em -0.32em);
+}
+.w-arch__wheel::before {
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9";
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9" / "";
+  position: absolute;
+  top: 0;
+  left: -0.2em;
+  right: -0.2em;
+  color: var(--a-ink);
+  line-height: 1.7;
+  text-align: center;
+  white-space: pre;
+  text-shadow: var(--glow);
+  /* rows 1.7em apart, so a neighbour never shows in the window; the stopping row sits on the baseline */
+  transform: translateY(calc((20 + var(--n)) * -1lh - (1lh - 0.9em) / 2));
+}
+/* now and then a band of gilt light crosses the words, as on gold-leaf lettering */
+.w-arch__half > span::after {
+  content: attr(data-text);
+  content: attr(data-text) / "";
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  text-shadow: none; /* the glint is drawn as text; a shadow of it would darken the letters */
+  background: linear-gradient(100deg, transparent 41%, rgb(222 178 98 / 0.95) 47%, #fff3d2 50%, rgb(222 178 98 / 0.95) 53%, transparent 59%); /* taste-skill-ignore: gilt glint the user asked for, as on the header */
+  background-position: 100% 0;
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text; /* taste-skill-ignore: the gilt glint */
+  background-clip: text; /* taste-skill-ignore: the gilt glint */
+  pointer-events: none;
+}
+
+/* the sentence and the actions stand on either side of the opening's foot */
+.w-arch__foot {
+  position: absolute;
+  z-index: 3;
+  left: var(--margin);
+  bottom: calc(var(--band) + var(--lift));
+  display: grid;
+  gap: 14px;
+  width: min(28ch, var(--col));
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-size: var(--step-lead);
+}
+.w-arch__lead,
+.w-arch__caption {
+  margin: 0;
+  font-family: var(--font-newsreader), Georgia, serif;
+}
+.w-arch__lead {
+  font-size: 1em;
+  line-height: 1.38;
+  color: var(--a-ink);
+  opacity: calc(1 - var(--pass, 0) * 3);
+}
+.w-arch__caption {
+  font-size: clamp(0.875rem, 0.82rem + 0.2vw, 1rem);
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--a-dim);
+}
+/* live, the caption waits under the sentence and is the one line left once the visitor is through */
+.w-arch.is-live .w-arch__foot > * {
+  grid-area: 1 / 1;
+  align-self: end;
+}
+.w-arch.is-live .w-arch__caption {
+  font-size: var(--step-lead);
+  line-height: 1.38;
+  color: var(--a-ink);
+  opacity: clamp(0, calc((var(--pass, 0) - 0.62) * 4), 1);
+}
+.w-arch__actions {
+  position: absolute;
+  z-index: 3;
+  right: var(--margin);
+  bottom: calc(var(--band) + var(--lift));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px 28px;
+  width: var(--col);
+  opacity: calc(1 - var(--pass, 0) * 3);
+}
+.w-arch .w-btn--light {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--a-ink);
+  translate: var(--pull-x, 0px) var(--pull-y, 0px);
+  transition:
+    translate 0.45s var(--ease-out),
+    transform var(--t-press) var(--ease-out),
+    background-color var(--t-hover) ease,
+    color var(--t-hover) ease;
+}
+/* a band of light that crosses the button when it is pointed at */
+.w-arch .w-btn--light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 36%, rgb(255 255 255 / 0.85) 50%, transparent 64%); /* taste-skill-ignore: light crossing the button on hover */
+  translate: -120% 0;
+  transition: translate 0.75s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-arch .w-btn--light:hover {
+    background: var(--a-gold);
+  }
+  .w-arch .w-btn--light:hover::after {
+    translate: 120% 0;
+  }
+}
+/* once through, what has faded can no longer be focused or clicked */
+.w-arch.is-through :is(.w-arch__lead, .w-arch__actions) {
+  visibility: hidden;
+}
+
+/* the eight results, running along the ground the arch stands on */
+.w-arch__ticker {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  height: var(--band);
+  overflow: hidden;
+  background: var(--a-ground);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); /* taste-skill-ignore: the row fades at its ends, a mask */
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); /* taste-skill-ignore: the row fades at its ends, a mask */
+}
+.w-arch__ticker-track {
+  display: flex;
+  flex: none;
+  width: max-content;
+  animation: w-arch-ticker 70s linear infinite;
+}
+.w-arch__ticker:hover .w-arch__ticker-track {
+  animation-play-state: paused;
+}
+/* with the keyboard, the row holds still and scrolls to whichever result has focus */
+.w-arch__ticker:focus-within {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.w-arch__ticker:focus-within .w-arch__ticker-track {
+  animation: none;
+}
+.w-arch__ticker-list {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.w-arch__ticker-list li {
+  display: flex;
+  align-items: center;
+}
+.w-arch__ticker-list li::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-inline: clamp(24px, 2.8vw, 44px);
+  background: var(--a-gold);
+  rotate: 45deg;
+}
+.w-arch__tick {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding-block: 6px;
+  color: var(--a-ink);
+  font-family: var(--font-newsreader), Georgia, serif;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.w-arch__tick-fig {
+  font-size: clamp(1.125rem, 0.92rem + 0.6vw, 1.5rem);
+  letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums;
+}
+.w-arch__tick-name {
+  color: var(--a-dim);
+  font-size: clamp(0.875rem, 0.82rem + 0.22vw, 1.0625rem);
+  font-style: italic;
+  transition: color var(--t-hover) ease;
+}
+.w-arch__tick-up {
+  align-self: center;
+  width: 0.62em;
+  height: 0.62em;
+  fill: var(--a-gold);
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-arch__tick:hover .w-arch__tick-name {
+    color: var(--a-ink);
+  }
+}
+
+/* phones and narrow tablets: the words stacked above, the arch standing on the ground beneath them */
+@media (max-width: 900px) {
+  .w-arch {
+    --band: 46px;
+    --travel: 80svh;
+  }
+  .w-arch__stage {
+    display: flex;
+    flex-direction: column;
+    padding: clamp(18px, 3.4svh, 40px) var(--margin) var(--band);
+  }
+  .w-arch:not(.is-live) .w-arch__stage {
+    height: auto;
+    min-height: var(--stage-h);
+  }
+  .w-arch__title {
+    font-size: clamp(3.25rem, min(17.5vw, 11svh), 9.5rem);
+  }
+  .w-arch__half {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    display: block;
+    width: auto;
+    padding-block: 0.04em 0.14em;
+    translate: none;
+    background: none;
+    opacity: calc(1 - var(--pass, 0) * 2.4);
+  }
+  .w-arch__half--a {
+    text-align: left;
+    transform: translate3d(calc(var(--pass, 0) * -90vw), 0, 0);
+  }
+  .w-arch__half--b {
+    text-align: right;
+    transform: translate3d(calc(var(--pass, 0) * 90vw), 0, 0);
+  }
+  .w-arch__foot {
+    position: static;
+    width: auto;
+    max-width: 36ch;
+    margin-top: clamp(12px, 2.2svh, 24px);
+    font-size: 1.0625rem;
+  }
+  .w-arch.is-live .w-arch__caption {
+    position: absolute;
+    z-index: 3;
+    right: var(--margin);
+    bottom: calc(var(--band) + 22px);
+    left: var(--margin);
+    font-size: 1.0625rem;
+  }
+  .w-arch__actions {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: auto;
+    justify-content: flex-start;
+    margin-top: clamp(14px, 2.4svh, 24px);
+  }
+  .w-arch__door {
+    --ground: 0px;
+    position: relative;
+    display: block;
+    flex: 1 1 0;
+    min-height: 220px;
+    margin: clamp(18px, 3svh, 32px) calc(-1 * var(--margin)) 0;
+    container-type: size;
+  }
+  .w-arch:not(.is-live) .w-arch__door > * {
+    --arch-w: min(52cqw, calc(100cqh / 1.62));
+  }
+  /* live, the building covers the whole stage and ArchMotion sets the opening from the door's box */
+  .w-arch.is-live .w-arch__door {
+    --ground: var(--band);
+    position: static;
+    container-type: normal;
+  }
+  .w-arch__tick-fig {
+    font-size: 1.125rem;
+  }
+  .w-arch__tick-name {
+    font-size: 0.875rem;
+  }
+}
+
+/* ---------- the eight rankings as a two-column menu ---------- */
+.w-rkmenu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 64px;
+}
+.w-rkmenu__jump {
+  display: none;
+}
+.w-rkmenu__cat {
+  grid-column: 1 / -1;
+}
+.w-rkmenu__cat + .w-rkmenu__cat {
+  margin-top: clamp(104px, 8vw, 128px);
+}
+/* bodies with a single ranking sit side by side on the last row */
+.w-rkmenu__cat:nth-last-child(-n + 2) {
+  grid-column: auto;
+}
+.w-rkmenu__cat:nth-last-child(-n + 2) .w-rkmenu__items {
+  grid-template-columns: minmax(0, 1fr);
+}
+.w-rkmenu__cathead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 40px;
+}
+.w-rkmenu__body {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: var(--step-head);
+  line-height: 1.02;
+}
+.w-rkmenu__body .w-dot {
+  width: 0.32em;
+  height: 0.32em;
+  margin-right: 0.12em;
+}
+.w-rkmenu__count {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--step-small);
+}
+.w-rkmenu__items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px 64px;
+}
+.w-rkitem {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  color: inherit;
+  text-decoration: none;
+}
+.w-rkitem__pic {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--stone);
+}
+.w-rkitem__pic img {
+  object-fit: cover;
+  transition: transform 0.6s var(--ease-out);
+}
+.w-rkitem__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.w-rkitem__name {
+  font-size: var(--step-body);
+  font-weight: 700;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--t-hover) ease;
+}
+.w-rkitem__res {
+  flex: none;
+  font-family: var(--font-display);
+  font-size: var(--step-lead);
+  font-weight: 500;
+  line-height: 1.1;
+  white-space: nowrap;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.w-rkitem__desc {
+  display: block;
+  max-width: 44ch;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: var(--step-body);
+  line-height: 1.5;
+}
+.w-rkitem__note {
+  display: block;
+  margin-top: 8px;
+  font-size: var(--step-small);
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-rkitem:hover .w-rkitem__name {
+    text-decoration-color: currentColor;
+  }
+  .w-rkitem:hover .w-rkitem__pic img {
+    transform: scale(1.08);
+  }
+}
+@media (max-width: 900px) {
+  .w-rkmenu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .w-rkmenu__cat:nth-last-child(-n + 2) {
+    grid-column: 1 / -1;
+  }
+  .w-rkmenu__items {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+  .w-rkmenu__cathead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .w-rkitem {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .w-rkitem__pic {
+    width: 56px;
+    height: 56px;
+  }
+  .w-rkmenu__jump {
+    position: sticky;
+    top: var(--header-h);
+    z-index: 5;
+    display: flex;
+    gap: 22px;
+    margin: -12px calc(var(--margin) * -1) 28px;
+    padding: 12px var(--margin);
+    background: var(--paper);
+  }
+  .w-rkmenu__jump a {
+    font-size: var(--step-body);
+    font-weight: 600;
+  }
+}
+
+/* ---------- the live band: where your work counts ---------- */
+.w-counts {
+  padding-block: clamp(88px, 10vw, 168px);
+  background: var(--black);
+  color: var(--on-dark);
+}
+.w-counts__in {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: center;
+  column-gap: var(--gutter);
+  row-gap: 56px;
+}
+.w-counts__copy {
+  grid-column: 1 / 6;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.w-counts__copy .w-lead {
+  max-width: 34ch;
+}
+.w-counts__board {
+  grid-column: 7 / 13;
+}
+.w-counts__dims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+}
+.w-counts__opt {
+  position: relative;
+  display: inline-flex;
+}
+.w-counts__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.w-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--charcoal);
+  color: var(--on-dark);
+  font-size: var(--step-body);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--t-hover) ease,
+    color var(--t-hover) ease,
+    transform var(--t-press) var(--ease-out);
+}
+.w-chip:active {
+  transform: scale(0.96);
+}
+.w-counts__input:checked + .w-chip {
+  background: var(--gold);
+  color: var(--black);
+}
+.w-counts__input:focus-visible + .w-chip {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-counts__input:not(:checked) + .w-chip:hover {
+    background: #3d3934;
+  }
+}
+.w-counts__rings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 22px);
+  max-width: 760px;
+}
+.w-counts__rk {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 14%;
+  border-radius: 50%;
+  background: var(--charcoal);
+  color: var(--on-dark-muted);
+  font-size: var(--step-small);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  transition:
+    background-color 0.5s var(--ease-out) calc(var(--k) * 45ms),
+    color 0.5s var(--ease-out) calc(var(--k) * 45ms);
+}
+.w-counts__state {
+  position: absolute;
+  bottom: 13%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--black);
+  opacity: 0;
+  transition: opacity 0.4s ease calc(var(--k) * 45ms);
+}
+.w-counts__notes {
+  min-height: 9.5em;
+  margin-top: 36px;
+}
+.w-counts__note {
+  display: none;
+  max-width: 58ch;
+}
+.w-counts__n {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: var(--step-head);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+@supports not selector(:has(*)) {
+  .w-counts__note {
+    display: block;
+    margin-bottom: 20px;
+  }
+}
+@media (max-width: 1100px) {
+  .w-counts__copy,
+  .w-counts__board {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .w-counts__rings {
+    gap: 8px;
+  }
+  .w-counts__rk {
+    padding: 8%;
+  }
+  .w-counts__notes {
+    margin-top: 80px;
+  }
+  .w-chip {
+    padding: 0 15px;
+  }
+}
+
+/* ---------- process: accordion of tinted panels ---------- */
+.w-process__intro {
+  align-items: end;
+  row-gap: 20px;
+  margin-bottom: clamp(48px, 5vw, 72px);
+}
+.w-process__intro > h2 {
+  grid-column: 1 / 6;
+}
+.w-process__intro > p {
+  grid-column: 7 / 12;
+}
+.w-stages {
+  --open: 0.58;
+  display: flex;
+  height: clamp(460px, 58vh, 560px);
+}
+.w-stage {
+  --fg: var(--black);
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  transition: flex-grow 0.45s var(--ease-in-out);
+}
+.w-stage--1 {
+  --bg: var(--tint-1);
+  --fg: var(--on-dark);
+}
+.w-stage--2 {
+  --bg: var(--tint-2);
+  --fg: var(--on-dark);
+}
+.w-stage--3 {
+  --bg: var(--tint-3);
+}
+.w-stage--4 {
+  --bg: var(--tint-4);
+}
+.w-stage--5 {
+  --bg: var(--tint-5);
+}
+.w-stage--6 {
+  --bg: var(--tint-6);
+  border-top-right-radius: var(--arc);
+}
+.w-stage:has(.w-stage__input:checked) {
+  flex-grow: 7;
+}
+.w-stage__input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px; /* taste-skill-ignore: a visually hidden radio button, not a rule */
+  margin: 0;
+  opacity: 0;
+}
+.w-stage__tab {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  padding: 24px 0 28px;
+  cursor: pointer;
+}
+.w-stage__tab span {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  font-size: var(--step-lead);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.w-stage:has(.w-stage__input:checked) .w-stage__tab {
+  display: none;
+}
+.w-stage__input:focus-visible ~ .w-stage__tab,
+.w-stage__input:focus-visible ~ .w-stage__body {
+  outline: 3px solid var(--fg);
+  outline-offset: -8px;
+}
+.w-stage__body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  grid-template-rows: auto 1fr auto;
+  column-gap: clamp(20px, 2.4vw, 40px);
+  width: calc((100vw - 2 * var(--margin)) * var(--open));
+  max-width: calc(1920px * var(--open));
+  padding: clamp(24px, 2.6vw, 40px);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0.25s;
+}
+.w-stage:has(.w-stage__input:checked) .w-stage__body {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 0.4s ease 0.22s,
+    visibility 0s linear 0s;
+}
+.w-stage__name {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: var(--step-head);
+}
+.w-stage__text {
+  grid-column: 1;
+  grid-row: 3;
+  max-width: 36ch;
+  font-size: var(--step-body);
+}
+.w-stage__count {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  max-width: 22ch;
+  font-size: var(--step-body);
+  line-height: 1.35;
+}
+.w-stage__count b {
+  display: block;
+  font-size: var(--step-display);
+}
+.w-stage__pic {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.w-stage__pic img {
+  object-fit: cover;
+}
+@media (max-width: 900px) {
+  .w-process__intro > h2,
+  .w-process__intro > p {
+    grid-column: 1 / -1;
+  }
+  .w-stages {
+    flex-direction: column;
+    height: auto;
+  }
+  .w-stage {
+    flex: none;
+  }
+  .w-stage--6 {
+    border-top-right-radius: 0;
+  }
+  .w-stage__tab,
+  .w-stage:has(.w-stage__input:checked) .w-stage__tab {
+    position: relative;
+    inset: auto;
+    display: flex;
+    align-items: center;
+    height: 64px;
+    padding: 0 20px;
+  }
+  .w-stage__tab span {
+    writing-mode: horizontal-tb;
+    transform: none;
+    font-size: var(--step-body);
+  }
+  .w-stage__body,
+  .w-stage:has(.w-stage__input:checked) .w-stage__body {
+    position: static;
+    display: none;
+    grid-template-columns: minmax(0, 1fr) 34%;
+    grid-template-rows: auto auto;
+    column-gap: 16px;
+    width: auto;
+    max-width: none;
+    padding: 0 20px 24px;
+    visibility: visible;
+    opacity: 1;
+  }
+  .w-stage:has(.w-stage__input:checked) .w-stage__body {
+    display: grid;
+  }
+  .w-stage__name {
+    display: none;
+  }
+  .w-stage__text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .w-stage__count {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 16px;
+  }
+  .w-stage__count b {
+    display: inline;
+    margin-right: 8px;
+    font-size: var(--step-head);
+  }
+  .w-stage__pic {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+  }
+}
+
+/* ---------- stories: stacked folders with tabs ---------- */
+.w-folders {
+  padding-top: var(--section);
+}
+.w-folders__head {
+  align-items: end;
+  row-gap: 20px;
+  margin-bottom: 48px;
+}
+.w-folders__head > h2 {
+  grid-column: 1 / 7;
+}
+.w-folders__intro {
+  grid-column: 8 / 13;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.w-folder {
+  --strip: 58px;
+  --band: var(--black);
+  --band-ink: var(--on-dark);
+  --tab: var(--gold);
+  --tab-ink: var(--black);
+  position: sticky;
+  top: calc(var(--header-h) + var(--i) * var(--strip));
+  display: flex;
+  flex-direction: column;
+  height: calc(100svh - var(--header-h) - var(--i) * var(--strip));
+  min-height: 420px;
+  max-height: 820px;
+  background: var(--band);
+  color: var(--band-ink);
+}
+.w-folder--2 {
+  --band: var(--gold);
+  --band-ink: var(--black);
+  --tab: var(--black);
+  --tab-ink: var(--paper);
+}
+.w-folder--3 {
+  --band: var(--stone);
+  --band-ink: var(--black);
+  --tab: var(--gold);
+}
+.w-folder--4 {
+  --band: var(--charcoal);
+  --band-ink: var(--on-dark);
+  --tab: var(--paper);
+}
+.w-folder--5 {
+  --band: var(--stone-2);
+  --band-ink: var(--black);
+  --tab: var(--black);
+  --tab-ink: var(--paper);
+}
+.w-folder--6 {
+  --band: var(--gold-soft);
+  --band-ink: var(--black);
+  --tab: var(--black);
+  --tab-ink: var(--paper);
+}
+.w-folder__strip {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--strip);
+}
+.w-folder__tab {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 34px 0 20px;
+  border-radius: 0 0 999px 0;
+  background: var(--tab);
+  color: var(--tab-ink);
+  font-family: var(--font-display);
+  font-size: var(--step-lead);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+.w-folder__kind {
+  padding-top: 14px;
+  font-size: var(--step-small);
+  font-weight: 600;
+}
+.w-folder__body {
+  flex: 1;
+  min-height: 0;
+  align-items: start;
+  padding-block: 12px clamp(28px, 3vw, 44px);
+}
+.w-folder__pic {
+  position: relative;
+  grid-column: 1 / 8;
+  height: 100%;
+  min-height: 220px;
+  overflow: hidden;
+  border-top-right-radius: var(--arc);
+  background: var(--charcoal);
+}
+.w-folder__pic img {
+  object-fit: cover;
+}
+.w-folder__text {
+  grid-column: 9 / 13;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-height: 100%;
+  overflow: hidden;
+}
+.w-folder__title {
+  font-size: var(--step-lead);
+  line-height: 1.12;
+}
+.w-folder__unit {
+  font-size: var(--step-small);
+  font-weight: 700;
+}
+.w-folder__fig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin-top: 4px;
+  font-size: var(--step-body);
+  line-height: 1.35;
+}
+.w-folder__fig .w-figure {
+  font-size: var(--step-head);
+}
+.w-folder__desc {
+  font-size: var(--step-body);
+  line-height: 1.5;
+}
+.w-folder__btn {
+  margin-top: 6px;
+}
+.w-folder--1 .w-folder__btn,
+.w-folder--4 .w-folder__btn {
+  background: var(--gold);
+}
+.w-folder--2 .w-folder__btn,
+.w-folder--3 .w-folder__btn,
+.w-folder--5 .w-folder__btn,
+.w-folder--6 .w-folder__btn {
+  background: var(--black);
+  color: var(--paper);
+}
+/* While the next folder slides over, this one's text fades and hides before it is covered (the strip and
+   tab stay readable), and its picture recedes a little. Only where the folders stick. */
+@media (min-width: 901px) and (min-height: 761px) {
+  @supports (animation-timeline: view()) and (timeline-scope: none) {
+    .w-folder__text {
+      animation: w-cover linear both;
+      animation-timeline: var(--next);
+      animation-range: entry 22% entry 40%;
+    }
+  }
+  /* the last folder has nothing sliding over it */
+  .w-folder:last-child .w-folder__text,
+  .w-folder:last-child .w-folder__pic {
+    animation: none !important;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) and (timeline-scope: none) {
+      .w-folder__pic {
+        animation: w-recede linear both;
+        animation-timeline: var(--next);
+        animation-range: entry 0% entry 100%;
+      }
+    }
+  }
+}
+@keyframes w-cover {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes w-recede {
+  to {
+    scale: 0.94;
+  }
+}
+@media (max-height: 760px), (max-width: 900px) {
+  .w-folder {
+    position: relative;
+    top: auto;
+    height: auto;
+    max-height: none;
+  }
+}
+@media (max-width: 900px) {
+  .w-folders__head > h2,
+  .w-folders__intro {
+    grid-column: 1 / -1;
+  }
+  .w-folder__strip {
+    height: auto;
+    padding-bottom: 16px;
+  }
+  .w-folder__tab {
+    height: 40px;
+    padding: 0 26px 0 16px;
+  }
+  .w-folder__kind {
+    padding-top: 10px;
+    text-align: right;
+  }
+  .w-folder__pic {
+    grid-column: 1 / -1;
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+  .w-folder__text {
+    grid-column: 1 / -1;
+    max-height: none;
+    margin-top: 22px;
+  }
+}
+
+/* ---------- units: large marks on tiles ---------- */
+.w-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.w-board__lead,
+.w-board__tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  border-top-right-radius: var(--arc);
+}
+.w-board__lead {
+  grid-column: span 2;
+  padding: clamp(22px, 2.4vw, 34px);
+  background: var(--gold);
+  color: var(--black);
+}
+.w-board__lead p {
+  max-width: 40ch;
+  font-size: var(--step-body);
+}
+.w-board__tile {
+  aspect-ratio: 3 / 2;
+  padding: clamp(18px, 1.8vw, 26px);
+  background: var(--stone);
+}
+.w-board__name {
+  font-family: var(--font-display);
+  font-size: var(--step-lead);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.005em;
+}
+.w-board__meta {
+  color: var(--muted);
+  font-size: var(--step-small);
+}
+.w-units__note {
+  max-width: 64ch;
+  margin-top: 32px;
+}
+@media (max-width: 1100px) {
+  .w-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .w-board__lead {
+    grid-column: 1 / -1;
+  }
+  .w-board__tile {
+    aspect-ratio: auto;
+    min-height: 180px;
+  }
+  .w-board__tile:nth-child(n + 11) {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .w-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .w-board__tile {
+    min-height: 150px;
+  }
+  .w-board__tile:nth-child(n + 8) {
+    display: none;
+  }
+}
+
+/* ---------- the Office: inset panel with a shaped portrait ---------- */
+.w-office {
+  padding-inline: 20px;
+}
+.w-office__panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: auto 1fr;
+  column-gap: var(--gutter);
+  min-height: clamp(760px, 110svh, 1040px);
+  overflow: hidden;
+  padding: clamp(32px, 3.9vw, 56px);
+  background: var(--black);
+  color: var(--on-dark);
+  border-top-right-radius: var(--arc);
+}
+.w-office__title {
+  grid-column: 1 / 7;
+  grid-row: 1;
+  max-width: 11ch;
+}
+.w-office__disc {
+  position: absolute;
+  left: clamp(32px, 3.9vw, 56px);
+  bottom: calc(min(38vw, 640px) * -0.2);
+  width: min(38vw, 640px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: clamp(8px, 0.9vw, 14px) solid var(--gold);
+  border-radius: 50%;
+  background: var(--charcoal);
+}
+.w-office__disc img {
+  object-fit: cover;
+}
+.w-office__text {
+  grid-column: 8 / 12;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(36px, 4.4vw, 64px);
+  max-width: 34ch;
+  padding-top: 10px;
+}
+.w-office__sub {
+  margin-bottom: 12px;
+  font-size: var(--step-lead);
+}
+@media (max-width: 900px) {
+  .w-office {
+    padding-inline: 10px;
+  }
+  .w-office__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+    min-height: 0;
+    padding-bottom: calc(86vw * 0.78);
+  }
+  .w-office__title {
+    max-width: none;
+  }
+  .w-office__text {
+    max-width: none;
+  }
+  .w-office__disc {
+    left: 50%;
+    bottom: calc(86vw * -0.25);
+    width: 86vw;
+    translate: -50% 0;
+  }
+}
+
+/* ---------- adapt a practice: the clip-out coupon ---------- */
+.w-coupon {
+  --notch: 15px;
+  display: grid;
+  grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
+  width: min(100%, calc((100vw - 2 * var(--margin)) * 10 / 12));
+  min-height: 440px;
+  margin-inline: auto;
+  background: var(--gold);
+  color: var(--black);
+  border-top-right-radius: var(--arc);
+  /* two semicircular notches at the perforation */
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 46% 0, transparent calc(var(--notch) - 0.5px), #000 var(--notch)) top / 100% 51% no-repeat, /* taste-skill-ignore: a mask that cuts the notch, never painted */
+    radial-gradient(circle var(--notch) at 46% 100%, transparent calc(var(--notch) - 0.5px), #000 var(--notch)) bottom / 100% 51% no-repeat; /* taste-skill-ignore: as above */
+  mask:
+    radial-gradient(circle var(--notch) at 46% 0, transparent calc(var(--notch) - 0.5px), #000 var(--notch)) top / 100% 51% no-repeat, /* taste-skill-ignore: as above */
+    radial-gradient(circle var(--notch) at 46% 100%, transparent calc(var(--notch) - 0.5px), #000 var(--notch)) bottom / 100% 51% no-repeat; /* taste-skill-ignore: as above */
+}
+.w-coupon__left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: clamp(28px, 3.4vw, 48px);
+  border-right: 6px dotted var(--paper);
+}
+.w-coupon__title {
+  font-size: var(--step-head);
+}
+.w-coupon__left p {
+  max-width: 38ch;
+  font-size: var(--step-body);
+}
+.w-coupon__right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(28px, 3.4vw, 48px);
+}
+.w-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: 8px 18px;
+  background: var(--gold-soft);
+  border-radius: 14px;
+  cursor: text;
+}
+.w-field:focus-within {
+  outline: 2px solid var(--black);
+  outline-offset: 2px;
+}
+.w-field__label {
+  font-size: var(--step-small);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.w-field input,
+.w-field select {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--black);
+  font-family: var(--font-text);
+  font-size: var(--step-body);
+  line-height: 1.4;
+  outline: none;
+}
+.w-field select {
+  appearance: none;
+  background-image: none;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.w-coupon__submit {
+  min-height: 56px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--black);
+  color: var(--paper);
+  font-family: var(--font-text);
+  font-size: var(--step-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--t-press) var(--ease-out),
+    background-color var(--t-hover) ease;
+}
+.w-coupon__submit:active {
+  transform: scale(0.98);
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-coupon__submit:hover {
+    background: #3a3631;
+  }
+}
+.w-coupon__alt {
+  font-size: var(--step-small);
+}
+@media (max-width: 900px) {
+  .w-coupon {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    -webkit-mask: none;
+    mask: none;
+  }
+  .w-coupon__left {
+    border-right: 0;
+    border-bottom: 6px dotted var(--paper);
+  }
+}
+
+/* ---------- motion: the hero's entrance ----------
+ * Once the loader has gone (site.css holds all of this at its first frame until then): the bay draws
+ * itself in gold from the ground up, the opening parts like a gate and the building settles into it while
+ * its light kindles (ArchDust), the letters rise one by one as the year spins up on its wheels, and the
+ * sentence, the actions and the row of results follow. Then the bay keeps its life: lights climb every
+ * one of its lines (ArchDust), and a glint crosses the headline now and then. The walk through the opening is
+ * ArchMotion's. Scroll-driven values sit on other elements, or take over once these have run.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .js .w-arch__ink path {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+    animation: w-arch-draw 1.5s cubic-bezier(0.65, 0, 0.35, 1) var(--d) forwards;
+  }
+  .js .w-arch__view {
+    animation: w-arch-open 1.9s var(--ease-in-out) 1.05s both;
+  }
+  .js .w-arch__pan img {
+    animation: w-arch-light 2.8s var(--ease-soft) 1.05s both;
+  }
+  .js .w-arch__char {
+    animation: w-arch-letter 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(1.15s + var(--c) * 55ms) both;
+  }
+  /* a wheel sets off on its letter's beat and spins a little longer than the one before it */
+  .js .w-arch__wheel::before {
+    animation: w-arch-wheel calc(1.7s + var(--w, 0) * 0.25s) cubic-bezier(0.12, 0.72, 0.1, 1) calc(1.15s + var(--c) * 55ms) both;
+  }
+  .js .w-arch__half > span::after {
+    animation: w-arch-glint 9s ease-in-out 4.6s infinite;
+  }
+  .js .w-arch__half--b > span::after {
+    animation-delay: 4.95s;
+  }
+  .js .w-arch__lead {
+    animation: w-arch-rise 0.9s var(--ease-out) 2.2s backwards;
+  }
+  .js .w-arch__actions {
+    animation: w-arch-rise 0.9s var(--ease-out) 2.35s backwards;
+  }
+  .js .w-arch__ticker {
+    animation: w-arch-band 1.1s var(--ease-out) 2.5s backwards;
+  }
+}
+/* stacked on a phone, the letters rise from their baseline without the turn */
+@media (prefers-reduced-motion: no-preference) and (max-width: 900px) {
+  .js .w-arch__char {
+    animation-name: w-arch-letter-up;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .w-arch__ticker {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .w-arch__ticker-track {
+    animation: none;
+  }
+}
+@keyframes w-arch-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes w-arch-open {
+  from {
+    --open: 0;
+  }
+}
+@keyframes w-arch-light {
+  from {
+    opacity: 0;
+    scale: 1.16;
+  }
+  45% {
+    opacity: 1;
+  }
+}
+@keyframes w-arch-letter {
+  from {
+    opacity: 0;
+    transform: translateY(0.62em) rotate(8deg);
+    filter: blur(10px);
+  }
+  60% {
+    filter: blur(0);
+  }
+}
+@keyframes w-arch-letter-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.7em);
+  }
+}
+@keyframes w-arch-wheel {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+}
+@keyframes w-arch-glint {
+  0% {
+    background-position: 100% 0;
+  }
+  17%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+@keyframes w-arch-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+@keyframes w-arch-band {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+@keyframes w-arch-ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+/* the inner pages' heroes (site-pages.css) open with these */
+@keyframes w-open {
+  from {
+    clip-path: circle(0% at 30% 50%);
+  }
+  to {
+    clip-path: circle(75% at 50% 50%);
+  }
+}
+@keyframes w-settle {
+  from {
+    transform: scale(1.14);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes w-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

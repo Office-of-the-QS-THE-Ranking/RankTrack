@@ -1,0 +1,23 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+.taste-skill/inspect
+.DS_Store
+.taste-skill/shots
+
+# Governance store and recovery points written by the running Hub
+.data
+
+# Secrets: keep keys out of git; .env.example documents them
+.env*
+!.env.example
+
+# Python caches from scripts/
+__pycache__/
+*.pyc
+
+# Supabase CLI local state
+supabase/.temp
+supabase/.branches

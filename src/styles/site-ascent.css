@@ -1,0 +1,1274 @@
+/*
+ * Home: "Up in four rankings this year", the four results that rose (home/Movers.tsx, AscentChart.tsx,
+ * AscentMotion.tsx, AscentDust.ts). A showpiece by the user's request, so it carries the hero's night and
+ * its lamplight gold instead of the paper of the sections below, and keeps the hero's licence for glints,
+ * glows and light (each marked taste-skill-ignore). UST Gold (#fcbf15) is the one solid accent: this
+ * year's band, the four arches that rose, the rail's progress. Newsreader sets the figures, as in the
+ * hero; Source Sans 3 the small print.
+ *
+ * Static by default (phones, reduced motion, no script): an intro, then the four results as blocks, each
+ * with its own small chart. .is-live (AscentMotion, wide screens with motion) turns the blocks into a stage
+ * that holds still while the track scrolls past. .is-armed means the script is running, so a figure may
+ * wait on last year's digits until it rolls; without it every figure shows as published.
+ */
+@property --hx {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+.w-asc {
+  --asc-ground: #050609; /* the header's and the hero's black */
+  --asc-rung: #0d1017; /* the night system's one step up */
+  --asc-ink: #f0eeeb;
+  --asc-dim: #bab4aa; /* 9.4:1 on the ground */
+  --asc-muted: #948d80; /* 6.1:1 */
+  --asc-gold: #d2b06c; /* the hero's lamplight */
+  --asc-gold-hi: #f7e2b0;
+  --asc-gold-rest: #8f7748; /* this year's arch on a line that is not the one in focus */
+  --asc-ust: #fcbf15;
+  --asc-serif: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --travel: 260svh;
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  overflow: clip;
+  background: var(--asc-ground);
+  color: var(--asc-ink);
+  border-radius: 0 0 var(--arc) var(--arc);
+}
+
+/* ---------- intro: the claim, and the eight results as arches, four of them lit ---------- */
+.w-asc__intro {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  row-gap: 36px;
+  align-items: end;
+  padding-top: clamp(104px, 11vw, 200px);
+  padding-bottom: clamp(48px, 6vw, 104px);
+}
+/* the night sky of the header and the footer, carried on above the claim */
+.w-asc__intro > .w-stars {
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent); /* taste-skill-ignore: the sky fades out, a mask */
+  mask-image: linear-gradient(to bottom, #000 40%, transparent); /* taste-skill-ignore: the sky fades out, a mask */
+}
+.w-asc__intro > :not(.w-stars) {
+  position: relative;
+}
+.w-asc__title {
+  grid-column: 1 / 9;
+  margin: 0;
+  font-family: var(--asc-serif);
+  font-size: clamp(2.25rem, 0.9rem + 5.1vw, 6.75rem);
+  font-weight: 300;
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+  font-variant-numeric: lining-nums;
+  color: var(--asc-ink);
+}
+.w-asc__lineup {
+  display: block;
+  overflow: clip;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+.w-asc__lineup > span {
+  position: relative;
+  display: block;
+  white-space: nowrap;
+}
+/* a band of gilt light crosses the words once they have risen, as on the hero's headline */
+.w-asc__lineup > span::after,
+.w-asc__digits::after {
+  content: attr(data-text);
+  content: attr(data-text) / "";
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background: linear-gradient(100deg, transparent 40%, rgb(222 178 98 / 0.95) 47%, #fff3d2 50%, rgb(222 178 98 / 0.95) 53%, transparent 60%); /* taste-skill-ignore: the gilt glint of the hero, carried into its showpiece */
+  background-position: 100% 0;
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text; /* taste-skill-ignore: the gilt glint */
+  background-clip: text; /* taste-skill-ignore: the gilt glint */
+  pointer-events: none;
+}
+.w-asc__aside {
+  grid-column: 9 / 13;
+  display: grid;
+  gap: clamp(28px, 3vw, 44px);
+  padding-bottom: 0.3em;
+}
+.w-asc__lead {
+  max-width: 36ch;
+  margin: 0;
+  font-family: var(--asc-serif);
+  font-size: clamp(1.0625rem, 0.96rem + 0.34vw, 1.3125rem);
+  line-height: 1.5;
+  color: var(--asc-ink);
+}
+.w-asc__tally {
+  display: grid;
+  gap: 16px;
+}
+.w-asc__arches {
+  --ah: clamp(30px, 2.6vw, 40px);
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(8px, 0.9vw, 13px);
+  height: calc(var(--ah) * 1.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.w-asc__arches li {
+  display: flex;
+}
+/* the four that rose stand half as tall again as the rest */
+.w-asc__arch {
+  position: relative;
+  display: block;
+  width: calc(var(--ah) * 0.62);
+  height: var(--ah);
+  border-radius: 999px 999px 3px 3px;
+  background: rgb(255 255 255 / 0.14);
+  transform-origin: 50% 100%;
+  transition: transform var(--t-hover) var(--ease-out);
+}
+.w-asc__arch.is-rose {
+  height: calc(var(--ah) * 1.5);
+  background: var(--asc-ust);
+}
+/* now and then a band of light rises through each gold arch, out of step with its neighbours */
+.w-asc__arch.is-rose::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to top, transparent 35%, rgb(255 250 232 / 0.85) 50%, transparent 65%) 0 0 / 100% 300% no-repeat; /* taste-skill-ignore: light rising through the gold */
+  background-position: 0 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.w-asc__arch-tip {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  padding: 9px 13px;
+  border-radius: 10px;
+  background: #1a1e28; /* two steps up from the night: the tone alone lifts it */
+  color: var(--asc-ink);
+  font: 400 0.875rem/1.3 var(--font-text);
+  white-space: nowrap;
+  opacity: 0;
+  translate: -50% 6px;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    translate 240ms var(--ease-out);
+}
+.w-asc__arch-tip b {
+  margin-right: 0.3em;
+  font-weight: 600;
+}
+.w-asc__arch:focus-visible .w-asc__arch-tip {
+  opacity: 1;
+  translate: -50% 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-asc__arch:hover {
+    transform: translateY(-4px);
+  }
+  .w-asc__arch:hover .w-asc__arch-tip {
+    opacity: 1;
+    translate: -50% 0;
+  }
+}
+.w-asc__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin: 0;
+  color: var(--asc-dim);
+  font: 400 0.875rem/1.3 var(--font-text);
+}
+.w-asc__key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.w-asc__key span::before {
+  content: "";
+  width: 9px;
+  height: 14px;
+  border-radius: 99px 99px 1px 1px;
+  background: rgb(255 255 255 / 0.2);
+}
+.w-asc__key .is-rose::before {
+  background: var(--asc-ust);
+}
+
+/* ---------- the four results: blocks by default ---------- */
+.w-asc__track {
+  position: relative;
+}
+.w-asc__stage {
+  position: relative;
+  padding-bottom: clamp(96px, 11vw, 176px);
+}
+.w-asc__blocks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(72px, 8vw, 128px) var(--gutter);
+}
+.w-asc__board,
+.w-asc__rail,
+.w-asc__dust,
+.w-asc__lamp {
+  display: none;
+}
+.w-asc__block {
+  --fig-max: 10.5rem;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.w-asc__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.w-asc__who h3 {
+  margin: 0;
+  font-family: var(--asc-serif);
+  font-size: clamp(1.25rem, 1.05rem + 0.6vw, 1.75rem);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--asc-ink);
+}
+.w-asc__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fam);
+  outline: 3px solid rgb(255 255 255 / 0.1); /* the family colour kept apart from the night */
+}
+.w-asc__ed {
+  color: var(--asc-dim);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* the figure: one line, as large as its column allows, every digit on a wheel */
+.w-asc__fig {
+  position: relative;
+  margin: clamp(10px, 1.8svh, 20px) 0 0;
+  font-family: var(--asc-serif);
+  font-size: min(var(--fig-max), calc(185cqi / var(--len, 7)));
+  font-weight: 300;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  font-kerning: none;
+  font-variant-numeric: lining-nums proportional-nums;
+  white-space: nowrap;
+  color: var(--asc-ink);
+}
+.w-asc__digits {
+  position: relative;
+  display: inline-block;
+}
+.w-asc__wheel {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  clip-path: inset(-0.12em -0.32em);
+}
+.w-asc__wheel::before {
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9";
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9" / "";
+  position: absolute;
+  top: 0;
+  left: -0.3em;
+  right: -0.3em;
+  color: var(--asc-ink);
+  line-height: 1.7;
+  text-align: center;
+  white-space: pre;
+  /* rows 1.7em apart so no neighbour shows; the third run stops on the digit, centred in the 0.92em line */
+  transform: translateY(calc((20 + var(--n)) * -1lh - (1lh - 0.92em) / 2));
+}
+.w-asc__sup {
+  display: inline-block;
+  margin-left: 0.05em;
+  font-size: 0.32em;
+  letter-spacing: 0;
+  line-height: 1;
+  vertical-align: top;
+  translate: 0 0.3em;
+  color: var(--asc-dim);
+}
+.w-asc__move {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: clamp(10px, 1.8svh, 20px) 0 0;
+  color: var(--asc-ink);
+  font: 400 clamp(1.0625rem, 0.98rem + 0.3vw, 1.25rem) / 1.3 var(--asc-serif);
+}
+.w-asc__move svg {
+  width: 0.66em;
+  height: 0.66em;
+  fill: var(--asc-ust);
+}
+.w-asc__line {
+  max-width: 34ch;
+  margin: clamp(14px, 2.2svh, 26px) 0 0;
+  color: var(--asc-ink);
+  font: 400 clamp(1.0625rem, 0.98rem + 0.3vw, 1.25rem) / 1.5 var(--asc-serif);
+}
+.w-asc__nb {
+  white-space: nowrap;
+}
+.w-asc__proof {
+  margin-top: clamp(18px, 3svh, 34px);
+}
+.w-asc__proof-cap {
+  max-width: 26ch;
+  margin: 0;
+  color: var(--asc-dim);
+  font: 400 0.9375rem/1.4 var(--font-text);
+}
+.w-asc__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(18px, 3svh, 34px);
+  color: var(--asc-ink);
+  font: 600 1rem/1.2 var(--font-text);
+  text-decoration: underline;
+  text-decoration-color: rgb(240 238 235 / 0.35);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.32em;
+  transition: text-decoration-color var(--t-hover) ease;
+}
+.w-asc__link svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: translate var(--t-hover) var(--ease-out);
+}
+.w-asc__link:active svg {
+  translate: 6px 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-asc__link:hover {
+    text-decoration-color: var(--asc-ust);
+  }
+  .w-asc__link:hover svg {
+    translate: 4px 0;
+  }
+}
+
+/* the proof beside each figure: */
+/* THE Impact, the two goals in their SDG colours, each ringed in gold */
+.w-asc__sdgs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 30px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.w-asc__sdgs li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.w-asc__sdg {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 0;
+  background: var(--sdg);
+  color: #ffffff;
+  font: 700 1.25rem/1 var(--font-text);
+  font-variant-numeric: lining-nums;
+}
+.w-asc__sdg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.w-asc__sdg-name {
+  display: grid;
+  color: var(--asc-ink);
+  font: 600 0.9375rem/1.3 var(--font-text);
+}
+.w-asc__sdg-name span {
+  color: var(--asc-dim);
+  font-weight: 400;
+}
+
+/* WURI and QS Sustainability: a second figure on wheels beside what it counts */
+.w-asc__count {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.w-asc__count-num {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.16em;
+  font-family: var(--asc-serif);
+  font-size: clamp(3rem, 2rem + 2.4vw, 4.25rem);
+  font-weight: 300;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  font-kerning: none;
+  font-variant-numeric: lining-nums proportional-nums;
+  white-space: nowrap;
+}
+.w-asc__count-body {
+  display: grid;
+  gap: 11px;
+}
+/* WURI, one small arch for each category placed in the Top 100 */
+.w-asc__count-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.w-asc__count-row li {
+  width: 9px;
+  height: 20px;
+  border-radius: 99px 99px 1px 1px;
+  background: var(--asc-ust);
+  box-shadow: 0 0 10px rgb(252 191 21 / 0.35); /* taste-skill-ignore: the twelve arches are lit */
+  transform-origin: 50% 100%;
+}
+
+/* QS, the band crossing the line of the top 1,000, on a scale from 1,200 (left) to 900 */
+.w-asc__gate {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 380px);
+}
+.w-asc__gate-scale {
+  position: relative;
+  height: 12px;
+  margin: 30px 0 30px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.09);
+}
+.w-asc__gate-zone {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: calc(var(--cut) * 100%);
+  border-radius: 0 999px 999px 0;
+  background: rgb(252 191 21 / 0.16);
+}
+.w-asc__gate-band {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--asc-ust);
+  clip-path: inset(0 calc((1 - var(--b1)) * 100%) 0 calc(var(--b0) * 100%) round 999px);
+}
+.w-asc__gate-cut {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: calc(var(--cut) * 100%);
+  translate: -50% 0;
+  color: var(--asc-ink);
+  font: 600 0.8125rem/1 var(--font-text);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+}
+.w-asc__gate-cut::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  width: 2px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--asc-gold-hi);
+  translate: -50% 0;
+}
+.w-asc__gate-from,
+.w-asc__gate-to {
+  position: absolute;
+  top: calc(100% + 11px);
+  translate: -50% 0;
+  font: 400 0.8125rem/1 var(--font-text);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+}
+.w-asc__gate-from {
+  left: calc((var(--a0) + var(--a1)) / 2 * 100%);
+  color: var(--asc-muted);
+}
+.w-asc__gate-to {
+  left: calc((var(--b0) + var(--b1)) / 2 * 100%);
+  color: var(--asc-ink);
+}
+
+/* QS Sustainability, the fewest places an exact rank can have climbed from last year's band */
+.w-asc__count--climb .w-asc__count-num::before {
+  content: "";
+  width: 0.3em;
+  height: 0.26em;
+  background: var(--asc-ust);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* ---------- the chart (AscentChart): positions are fractions of the plot ---------- */
+.w-asc-chart {
+  --bw: 14px;
+  position: relative;
+  height: 100%;
+  padding: 18px 128px 48px 64px;
+  color: var(--asc-muted);
+  font-family: var(--font-text);
+}
+.w-asc-chart__plot {
+  position: relative;
+  height: 100%;
+}
+/* the ladder: a step of tone every 200 places instead of grid lines */
+.w-asc-chart__rung {
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  top: calc(var(--top) * 100%);
+  height: calc((var(--bottom) - var(--top)) * 100%);
+  border-radius: 4px;
+}
+.w-asc-chart__rung:nth-child(odd) {
+  background: var(--asc-rung);
+}
+.w-asc-chart__tick {
+  position: absolute;
+  right: calc(100% + 20px);
+  top: calc(var(--y) * 100%);
+  translate: 0 -50%;
+  font-size: 0.8125rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* the line of the top 1,000, shown while a result that crossed it is in focus */
+.w-asc-chart__gate {
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  top: calc(var(--y) * 100%);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--asc-gold-hi);
+  translate: 0 -1px;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.w-asc-chart__gate span {
+  position: absolute;
+  left: 16px;
+  bottom: 8px;
+  color: var(--asc-ink);
+  font: 600 0.8125rem/1 var(--font-text);
+  white-space: nowrap;
+}
+.w-asc-chart:has(.w-asc-chart__series.is-on[data-gate]) .w-asc-chart__gate {
+  opacity: 0.8;
+}
+.w-asc-chart__inner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--bw) / 2 + 4px);
+  right: calc(var(--bw) / 2 + 4px);
+}
+/* the latest edition stands in a column of light, cut to the arch */
+.w-asc-chart--stage .w-asc-chart__inner::before {
+  content: "";
+  position: absolute;
+  top: -18px;
+  bottom: -6px;
+  left: 100%;
+  width: 180px;
+  background: radial-gradient(ellipse 34% 75% at 50% 0%, rgb(247 226 176 / 0.085), rgb(247 226 176 / 0.025) 55%, rgb(247 226 176 / 0) 100%); /* taste-skill-ignore: light falling on this year's edition */
+  translate: -50% 0;
+  pointer-events: none;
+}
+.w-asc-chart__year {
+  position: absolute;
+  top: calc(100% + 18px);
+  left: calc(var(--x) * 100%);
+  translate: -50% 0;
+  font-size: 0.875rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.w-asc-chart__year.is-now {
+  color: var(--asc-ink);
+  font-weight: 600;
+}
+.w-asc-chart__series {
+  position: absolute;
+  inset: 0;
+}
+/* the line is revealed up to the edition it has reached */
+.w-asc-chart__line {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(-24px calc((1 - var(--hx)) * 100%) -24px -24px);
+}
+.w-asc-chart__line svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.w-asc-chart__line path {
+  fill: none;
+  stroke: var(--asc-gold);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* each edition's band as an arch drawn in the hero's gold line, opening out from where the line crosses
+   it as the line arrives; this year's is solid */
+.w-asc-chart__band {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  top: calc(var(--top) * 100%);
+  width: var(--bw);
+  height: max(var(--bw), calc((var(--bottom) - var(--top)) * 100%));
+  border: 1.5px solid var(--asc-gold);
+  border-radius: calc(var(--bw) / 2) calc(var(--bw) / 2) 2px 2px;
+  background: rgb(210 176 108 / 0.12);
+  translate: -50% 0;
+  transform-origin: 50% calc((var(--y) - var(--top)) / max(0.0001, var(--bottom) - var(--top)) * 100%);
+  opacity: clamp(0, calc((var(--hx) - var(--x)) * 24 + 1), 1);
+  scale: 1 clamp(0, calc((var(--hx) - var(--x)) * 24 + 1), 1);
+}
+.w-asc-chart__band.is-exact {
+  top: calc(var(--y) * 100%);
+  height: var(--bw);
+  border-radius: 50%;
+  translate: -50% -50%;
+  transform-origin: 50% 50%;
+  scale: clamp(0.15, calc((var(--hx) - var(--x)) * 24 + 1), 1);
+}
+.w-asc-chart__band.is-now {
+  border-color: var(--asc-ust);
+  background: var(--asc-ust);
+}
+/* a ring of gold opens from this year's arch when the line arrives */
+.w-asc-chart__band.is-now::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1.5px solid var(--asc-ust);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+.w-asc-chart__end {
+  position: absolute;
+  left: calc(100% + var(--bw) / 2 + 14px);
+  top: calc(var(--y) * 100%);
+  display: grid;
+  gap: 4px;
+  translate: 0 -50%;
+  white-space: nowrap;
+  opacity: clamp(0, calc((var(--hx) - 0.97) * 34), 1);
+}
+.w-asc-chart__end b {
+  color: var(--asc-ink);
+  font: 400 1.375rem/1 var(--asc-serif);
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums;
+}
+.w-asc-chart__end span {
+  color: var(--asc-dim);
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+.w-asc-chart__head {
+  position: absolute;
+  left: calc(var(--head-x, 0) * 100%);
+  top: calc(var(--head-y, 0) * 100%);
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: #fff7df;
+  box-shadow: 0 0 0 3px rgb(252 191 21 / 0.3), 0 0 18px 6px rgb(252 191 21 / 0.6); /* taste-skill-ignore: the light at the head of the line */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.w-asc-chart.is-drawing .w-asc-chart__head {
+  opacity: 1;
+}
+
+/* on the stage: the line in focus is lit, the others stay as faint context ending in their current arch */
+.w-asc-chart--stage .w-asc-chart__line path {
+  stroke: rgb(210 176 108 / 0.42);
+  stroke-width: 1.5;
+  transition:
+    stroke 0.6s ease,
+    stroke-width 0.6s ease;
+}
+.w-asc-chart--stage .w-asc-chart__series.is-on .w-asc-chart__line path,
+.w-asc.is-finale .w-asc-chart--stage .w-asc-chart__line path {
+  stroke: var(--asc-gold-hi);
+  stroke-width: 2.25;
+}
+.w-asc-chart--stage .w-asc-chart__series.is-on .w-asc-chart__line {
+  filter: drop-shadow(0 0 5px rgb(252 191 21 / 0.55)); /* taste-skill-ignore: the line in focus is lit */
+}
+.w-asc-chart--stage .w-asc-chart__series.is-on {
+  z-index: 1;
+}
+.w-asc-chart--stage .w-asc-chart__series:not(.is-on) .w-asc-chart__band:not(.is-now) {
+  opacity: 0;
+  scale: 1 0.3;
+  transition:
+    opacity 0.35s ease,
+    scale 0.35s ease;
+}
+.w-asc-chart--stage .w-asc-chart__series:not(.is-on) .w-asc-chart__band.is-now {
+  border-color: var(--asc-gold-rest);
+  background: var(--asc-gold-rest);
+}
+.w-asc-chart--stage .w-asc-chart__series.is-on .w-asc-chart__band.is-now,
+.w-asc.is-finale .w-asc-chart--stage .w-asc-chart__band.is-now {
+  border-color: var(--asc-ust);
+  background: var(--asc-ust);
+  box-shadow: 0 0 24px 4px rgb(252 191 21 / 0.42); /* taste-skill-ignore: this year's arch is lit */
+}
+.w-asc-chart--stage .w-asc-chart__series:not(.is-on) .w-asc-chart__end b {
+  color: var(--asc-dim);
+  font-size: 1.0625rem;
+}
+.w-asc.is-finale .w-asc-chart--stage .w-asc-chart__end b {
+  color: var(--asc-ink);
+  font-size: 1.375rem;
+}
+/* the edition under the pointer, and every result at it */
+.w-asc-chart__hover {
+  position: absolute;
+  top: -14px;
+  bottom: -14px;
+  left: calc(var(--hover-x, 0) * 100%);
+  width: 48px;
+  border-radius: 24px;
+  background: rgb(247 226 176 / 0.06);
+  translate: -50% 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    left 0.28s var(--ease-out);
+}
+.w-asc-chart__tip {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--hover-x, 0) * 100%);
+  top: calc(var(--hover-y, 0.3) * 100%);
+  min-width: 220px;
+  padding: 14px 16px 15px;
+  border-radius: 14px;
+  background: #1a1e28; /* two steps up from the night: the tone alone lifts it */
+  color: var(--asc-ink);
+  font-size: 0.875rem;
+  translate: 34px -50%;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    left 0.28s var(--ease-out),
+    top 0.28s var(--ease-out);
+}
+.w-asc-chart__tip.is-left {
+  translate: calc(-100% - 34px) -50%;
+}
+.w-asc-chart.is-hovering :is(.w-asc-chart__hover, .w-asc-chart__tip) {
+  opacity: 1;
+}
+.w-asc-chart__tip-year {
+  margin: 0 0 9px;
+  color: var(--asc-dim);
+  font: italic 400 0.9375rem/1.2 var(--asc-serif);
+}
+.w-asc-chart__tip-rows {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.w-asc-chart__tip-rows li {
+  display: grid;
+  grid-template-columns: 14px auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  color: var(--asc-dim);
+}
+.w-asc-chart__tip-rows li::before {
+  content: "";
+  align-self: center;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgb(210 176 108 / 0.5);
+}
+.w-asc-chart__tip-rows li.is-on::before {
+  background: var(--asc-ust);
+}
+.w-asc-chart__tip-rows b {
+  color: var(--asc-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* small charts inside the blocks, same scale for all four */
+.w-asc-chart--mini {
+  --bw: 10px;
+  align-self: stretch;
+  height: clamp(220px, 46vw, 300px);
+  margin-top: clamp(20px, 2.4vw, 32px);
+  padding: 8px 92px 38px 46px;
+}
+.w-asc-chart--mini .w-asc-chart__tick,
+.w-asc-chart--mini .w-asc-chart__year {
+  font-size: 0.8125rem;
+}
+.w-asc-chart--mini .w-asc-chart__end b {
+  font-size: 1.125rem;
+}
+.w-asc-chart--mini .w-asc-chart__band.is-now {
+  box-shadow: 0 0 18px 3px rgb(252 191 21 / 0.35); /* taste-skill-ignore: this year's arch is lit */
+}
+.w-asc__mini {
+  align-self: stretch;
+}
+
+/* ---------- the stage: wide screens with motion (AscentMotion) ---------- */
+.w-asc.is-live {
+  padding-bottom: clamp(24px, 6svh, 72px);
+}
+.w-asc.is-live .w-asc__track {
+  height: calc(100svh + var(--travel));
+}
+.w-asc.is-live .w-asc__stage {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto;
+  column-gap: var(--gutter);
+  row-gap: clamp(16px, 3.2svh, 40px);
+  height: 100svh;
+  overflow: hidden;
+  /* the header slides away on the way down and back on the way up, so its height stays clear */
+  padding-top: calc(var(--header-h) + clamp(8px, 2.4svh, 32px));
+  padding-bottom: clamp(18px, 3svh, 34px);
+}
+.w-asc.is-live :is(.w-asc__dust, .w-asc__lamp) {
+  display: block;
+}
+.w-asc.is-live .w-asc__blocks {
+  position: relative;
+  z-index: 1;
+  grid-column: 1 / 6;
+  grid-row: 1;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
+  translate: calc(var(--mx, 0) * -8px) calc(var(--my, 0) * -6px);
+}
+.w-asc.is-live .w-asc__block {
+  --fig-max: min(10.5rem, 18svh);
+  grid-area: 1 / 1;
+  visibility: hidden;
+  transition: visibility 0s linear 0.45s;
+}
+.w-asc.is-live .w-asc__block.is-active {
+  visibility: visible;
+  transition: none;
+}
+.w-asc.is-live .w-asc__block > * {
+  opacity: 0;
+  translate: 0 -16px;
+  transition:
+    opacity 0.32s ease,
+    translate 0.45s var(--ease-out);
+}
+.w-asc.is-live .w-asc__block.is-active > * {
+  opacity: 1;
+  translate: none;
+  animation: w-asc-in 0.9s var(--ease-out) calc(var(--s) * 70ms + 120ms) both;
+}
+.w-asc.is-live .w-asc__mini {
+  display: none;
+}
+.w-asc.is-live .w-asc__line {
+  max-width: 30ch;
+}
+.w-asc.is-live .w-asc__board {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  grid-column: 6 / 13;
+  grid-row: 1;
+  min-height: 0;
+  margin: 0;
+  translate: calc(var(--mx, 0) * 6px) calc(var(--my, 0) * 4px);
+}
+.w-asc__legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 22px;
+  margin: 0 0 4px;
+  color: var(--asc-dim);
+  font: 400 0.8125rem/1.3 var(--font-text);
+}
+.w-asc__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.w-asc__legend-arch::before,
+.w-asc__legend-dot::before {
+  content: "";
+  width: 9px;
+  height: 14px;
+  border-radius: 99px 99px 2px 2px;
+  background: var(--asc-ust);
+}
+.w-asc__legend-dot::before {
+  height: 9px;
+  border-radius: 50%;
+}
+.w-asc__board .w-asc-chart {
+  flex: 1;
+  min-height: 0;
+}
+
+/* the rail: the four stops, each filling in gold as its stretch of scroll passes */
+.w-asc.is-live .w-asc__rail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--gutter);
+}
+.w-asc__stop {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 2px 6px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--asc-dim);
+  font: 500 0.9375rem/1.2 var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-hover) ease;
+}
+.w-asc__stop::before,
+.w-asc__fill {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px; /* taste-skill-ignore: a progress track, filled in gold, not a divider */
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.12);
+}
+.w-asc__fill {
+  background: var(--asc-ust);
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+}
+.w-asc__stop-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.w-asc__stop-fig {
+  color: inherit;
+  font: 400 1.1875rem/1 var(--asc-serif);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+}
+.w-asc__stop.is-current {
+  color: var(--asc-ink);
+}
+.w-asc__stop:active {
+  transform: translateY(1px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-asc__stop:hover {
+    color: var(--asc-ink);
+  }
+}
+
+/* the room's light: a lamp that follows the pointer, and the dust (AscentDust) */
+.w-asc__dust {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.w-asc__lamp {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 820px;
+  height: 820px;
+  margin: -410px 0 0 -410px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(214 170 90 / 0.12), rgb(214 170 90 / 0.045) 48%, transparent); /* taste-skill-ignore: a lamp carried through the dark room */
+  transform: translate3d(var(--lx, 50vw), var(--ly, 50vh), 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+}
+.w-asc__stage.is-lamp .w-asc__lamp {
+  opacity: 1;
+}
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* intro: the two lines rise out of their masks, then the glint, then the arches stand and four light */
+  .w-asc.is-armed .w-asc__intro:not(.is-in) .w-asc__lineup > span {
+    opacity: 0;
+    translate: 0 108%;
+  }
+  .w-asc__lineup > span {
+    transition:
+      translate 1.1s var(--ease-out) calc(var(--l) * 110ms),
+      opacity 0.5s ease calc(var(--l) * 110ms);
+  }
+  .w-asc__intro.is-in .w-asc__lineup > span::after {
+    animation: w-asc-glint 1.9s var(--ease-in-out) calc(var(--l) * 160ms + 1.05s) both;
+  }
+  .w-asc.is-armed .w-asc__intro:not(.is-in) .w-asc__lead {
+    opacity: 0;
+    translate: 0 22px;
+  }
+  .w-asc__lead {
+    transition:
+      opacity 0.8s ease 0.28s,
+      translate 1s var(--ease-out) 0.28s;
+  }
+  .w-asc.is-armed .w-asc__intro:not(.is-in) .w-asc__arch {
+    scale: 1 0;
+  }
+  .w-asc__arch {
+    transition:
+      transform var(--t-hover) var(--ease-out),
+      scale 0.75s var(--ease-out) calc(var(--k) * 70ms + 0.5s),
+      background-color 0.5s ease calc(var(--k) * 140ms + 1.15s);
+  }
+  .w-asc.is-armed .w-asc__intro:not(.is-in) .w-asc__arch.is-rose {
+    background-color: rgb(255 255 255 / 0.14);
+  }
+  .w-asc.is-armed .w-asc__intro:not(.is-in) .w-asc__key {
+    opacity: 0;
+  }
+  .w-asc__intro.is-in .w-asc__arch.is-rose::before {
+    animation: w-asc-rise 6s ease-in-out calc(var(--k) * 0.45s + 2.6s) infinite;
+  }
+  .w-asc__key {
+    transition: opacity 0.6s ease 1.6s;
+  }
+
+  /* the wheels wait on last year's digits until the block rolls, then spin to this year's */
+  /* last year's digits wait as a ghost, so they are never read as this year's figure, and light as they roll */
+  .w-asc.is-armed .w-asc__block:not(.is-rolled) .w-asc__wheel::before {
+    opacity: 0.2;
+    transform: translateY(calc(var(--f) * -1lh - (1lh - 0.92em) / 2));
+    transition: none;
+  }
+  .w-asc__wheel::before {
+    transition:
+      transform 1.3s cubic-bezier(0.16, 0.82, 0.14, 1) calc(var(--w) * 85ms + 120ms),
+      opacity 0.9s ease calc(var(--w) * 85ms + 120ms);
+  }
+  .w-asc__block.is-glint .w-asc__digits::after {
+    animation: w-asc-glint 1.5s var(--ease-in-out) both;
+  }
+  /* the proofs play after the figure */
+  .w-asc.is-armed .w-asc__block:not(.is-rolled) .w-asc__sdg {
+    opacity: 0;
+    scale: 0.55;
+    transition: none;
+  }
+  .w-asc__sdg {
+    transition:
+      opacity 0.5s ease calc(var(--k) * 150ms + 0.55s),
+      scale 0.8s var(--ease-out) calc(var(--k) * 150ms + 0.55s);
+  }
+  .w-asc.is-armed .w-asc__block:not(.is-rolled) .w-asc__count-row li {
+    opacity: 0.25;
+    scale: 1 0;
+    transition: none;
+  }
+  .w-asc__count-row li {
+    transition:
+      opacity 0.4s ease calc(var(--k) * 75ms + 0.5s),
+      scale 0.6s var(--ease-out) calc(var(--k) * 75ms + 0.5s);
+  }
+  .w-asc.is-armed .w-asc__block:not(.is-rolled) .w-asc__gate-band {
+    clip-path: inset(0 calc((1 - var(--a1)) * 100%) 0 calc(var(--a0) * 100%) round 999px);
+    transition: none;
+  }
+  .w-asc__gate-band {
+    transition: clip-path 1.5s var(--ease-in-out) 0.65s;
+  }
+  .w-asc.is-armed .w-asc__block:not(.is-rolled) .w-asc__gate-to {
+    opacity: 0;
+    transition: none;
+  }
+  .w-asc__gate-to {
+    transition: opacity 0.5s ease 1.9s;
+  }
+
+  /* without the stage: each block arrives in reading order, and its small chart draws */
+  .w-asc.is-armed:not(.is-live) .w-asc__block:not(.is-in) > * {
+    opacity: 0;
+    translate: 0 26px;
+  }
+  .w-asc:not(.is-live) .w-asc__block > * {
+    transition:
+      opacity 0.7s ease calc(var(--s) * 70ms),
+      translate 0.9s var(--ease-out) calc(var(--s) * 70ms);
+  }
+  .w-asc.is-armed:not(.is-live) .w-asc__mini .w-asc-chart:not(.is-in) .w-asc-chart__series {
+    --hx: var(--x0);
+  }
+  .w-asc__mini .w-asc-chart__series {
+    transition: --hx 2.2s var(--ease-in-out) 0.45s;
+  }
+
+  .w-asc-chart--stage .w-asc-chart__series.is-on.is-full .w-asc-chart__band.is-now::after,
+  .w-asc.is-finale .w-asc-chart--stage .w-asc-chart__band.is-now::after {
+    animation: w-asc-ripple 1.5s var(--ease-out) both;
+  }
+  .w-asc-chart--stage .w-asc-chart__series.is-on.is-full .w-asc-chart__band.is-exact::after,
+  .w-asc.is-finale .w-asc-chart--stage .w-asc-chart__band.is-exact::after {
+    animation-name: w-asc-ripple-dot;
+  }
+}
+@keyframes w-asc-ripple {
+  from {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.8, 1.35);
+  }
+}
+@keyframes w-asc-ripple-dot {
+  from {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+@keyframes w-asc-glint {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+@keyframes w-asc-in {
+  from {
+    opacity: 0;
+    translate: 0 28px;
+  }
+}
+@keyframes w-asc-rise {
+  0% {
+    opacity: 1;
+    background-position: 0 0;
+  }
+  30%,
+  100% {
+    opacity: 1;
+    background-position: 0 100%;
+  }
+}
+
+/* ---------- smaller screens: the blocks stack ---------- */
+@media (max-width: 900px) {
+  .w-asc__title,
+  .w-asc__aside {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 720px) {
+  .w-asc__intro {
+    padding-bottom: 96px;
+  }
+  .w-asc__blocks {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 128px;
+  }
+  .w-asc__block {
+    --fig-max: 7.5rem;
+  }
+  .w-asc-chart--mini {
+    padding-right: 96px;
+  }
+  .w-asc-chart--mini .w-asc-chart__end b {
+    font-size: 1rem;
+  }
+}

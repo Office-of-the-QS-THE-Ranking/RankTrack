@@ -1,0 +1,280 @@
+/* Reset, base typography, focus and utilities. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--top-h) + 16px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  line-height: 1.55;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+p,
+figure,
+blockquote,
+dl,
+dd,
+ol,
+ul {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+p,
+li,
+dd {
+  text-wrap: pretty;
+}
+
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+::selection {
+  background: var(--gold-300);
+  color: var(--on-gold);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip {
+  position: fixed;
+  left: 12px;
+  top: -80px;
+  z-index: var(--z-toast);
+  background: var(--gold-500);
+  color: var(--on-gold);
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--sh-md);
+}
+.skip:focus {
+  top: 12px;
+}
+
+/* Tabular figures only where numbers align in columns (tables, axes, meta rows). */
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.serif {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.muted {
+  color: var(--text-3);
+}
+
+.text-2 {
+  color: var(--text-2);
+}
+
+.small {
+  font-size: var(--fs-13);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+.row.nowrap {
+  flex-wrap: nowrap;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.measure {
+  max-width: 68ch;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap, var(--s-4));
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap, var(--s-3));
+  flex-wrap: wrap;
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+.mt-2 { margin-top: var(--s-2); }
+.mt-3 { margin-top: var(--s-3); }
+.mt-4 { margin-top: var(--s-4); }
+.mt-6 { margin-top: var(--s-6); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .meter__fill,
+  .status__shape {
+    forced-color-adjust: none;
+  }
+}
+
+/* Native search decorations clash with the design; Esc and explicit Clear buttons cover clearing. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  body {
+    background: var(--surface);
+    font-size: 11pt;
+  }
+  .side,
+  .side__scrim,
+  .top,
+  .foot,
+  .skip,
+  .toasts,
+  .tabs,
+  .ph__actions,
+  .card__actions,
+  .btn,
+  .pills,
+  .viewtoggle {
+    display: none !important;
+  }
+  .app {
+    display: block;
+  }
+  .content {
+    max-width: none;
+    padding: 0;
+  }
+  .content > * {
+    animation: none !important;
+  }
+  .card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  .table-wrap {
+    overflow: visible;
+  }
+  a {
+    text-decoration: none;
+  }
+}

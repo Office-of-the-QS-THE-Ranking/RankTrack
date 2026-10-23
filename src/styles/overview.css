@@ -1,0 +1,537 @@
+/*
+ * Executive overview (/admin): a compact analytics board. KPI strip, a three-column bento of
+ * readiness, dimension and per-ranking charts, then one action table. Rides on the portal system
+ * (portal.css): white tiles, capsule controls, ink with gold as the accent.
+ */
+
+.ov {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* ---------- Head ---------- */
+.ov__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding: 4px 2px 6px;
+}
+.ov__title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.ov__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ov__actions {
+  display: flex;
+  gap: 8px;
+}
+.ov__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+/* ---------- Chips ---------- */
+.ov-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.ov-chip--up {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.ov-chip--down {
+  background: var(--revise-bg);
+  color: var(--revise);
+}
+
+/* ---------- KPI strip ---------- */
+.ov-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.ov-kpi {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    box-shadow var(--t) ease,
+    transform var(--t) var(--ease-out);
+}
+.ov-kpi:hover {
+  box-shadow: var(--sh-sm);
+  transform: translateY(-1px);
+}
+.ov-kpi__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.ov-kpi__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ov-kpi__value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* ---------- Bento ---------- */
+.ov-bento {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.ov-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 16px;
+}
+.ov-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+.ov-tile__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ov-tile__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.ov-tile__btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+.ov-tile__btns .btn {
+  justify-content: center;
+}
+.ov-iconbtn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  transition: background-color var(--t) ease;
+}
+.ov-iconbtn:hover {
+  background: var(--n-150);
+}
+
+.ov-big,
+.ov-mid {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+.ov-big {
+  font-size: 44px;
+}
+.ov-mid {
+  font-size: 32px;
+}
+.ov-big small,
+.ov-mid small {
+  margin-left: 2px;
+  font-size: 0.45em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-3);
+}
+.ov-sub {
+  font-size: 13px;
+  color: var(--text-3);
+}
+.ov-sub--row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+.ov-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* Readiness progress: a glowing gold track */
+.ov-progress {
+  position: relative;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.ov-progress__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
+  box-shadow: 0 0 14px rgb(242 183 5 / 0.45);
+  animation: ov-grow 1.1s var(--ease-out) both;
+  transform-origin: left;
+}
+.ov-progress__goal {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+.ov-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.ov-stats dt {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.ov-stats dd {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Dimension index: eight mini columns, a tick for each target */
+.ov-dim {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ov-dim__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 56px;
+}
+.ov-dim__bars span {
+  position: relative;
+  width: 9px;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+.ov-dim__bars span::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--h);
+  border-radius: inherit;
+  background: linear-gradient(180deg, var(--n-600), var(--ink));
+  animation: ov-rise 0.9s var(--ease-out) both;
+  transform-origin: bottom;
+}
+.ov-dim__bars span::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  bottom: var(--t);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--gold-500);
+}
+
+/* Units engaged: one tick per unit */
+.ov-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+.ov-line b {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.ov-line .ov-chip {
+  margin-left: auto;
+}
+.ov-ticks {
+  display: grid;
+  grid-template-columns: repeat(51, minmax(0, 1fr));
+  gap: 2px;
+  height: 30px;
+  margin-top: auto;
+}
+.ov-ticks i {
+  border-radius: 2px;
+  background: var(--n-150);
+}
+.ov-ticks i.is-on {
+  background: linear-gradient(180deg, var(--n-500), var(--ink));
+}
+
+/* Per-ranking column chart */
+.ov-rkhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ov-rkhead .ov-sub {
+  font-weight: 400;
+}
+.ov-cols {
+  display: grid;
+  gap: 10px;
+}
+.ov-cols__seg {
+  width: 100%;
+}
+.ov-cols__seg .seg__opt {
+  flex: 1;
+}
+.ov-cols__plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  height: 168px;
+}
+.ov-cols__axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--chart-label);
+  font-variant-numeric: tabular-nums;
+  padding-top: 12px;
+  margin-bottom: -6px;
+}
+.ov-cols__line {
+  position: absolute;
+  left: 36px;
+  right: 0;
+  height: 0;
+  border-top: 1.5px dashed var(--gold-600);
+  pointer-events: none;
+  z-index: 1;
+}
+.ov-cols__col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+.ov-cols__val {
+  height: 18px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ov-cols__track {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  max-width: 26px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.ov-cols__bar {
+  position: absolute;
+  inset: auto 0 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 70%, var(--surface)), var(--c));
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55);
+  transform-origin: bottom;
+  animation: ov-rise 0.8s var(--ease-out) both;
+  transition: height 0.5s var(--ease-out);
+}
+.ov-cols__col:hover .ov-cols__track {
+  box-shadow: 0 0 0 2px var(--n-150);
+}
+.ov-cols__names {
+  display: grid;
+  grid-template-columns: 30px repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: var(--text-3);
+  text-align: center;
+}
+.ov-cols__names i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  margin: 0 auto 3px;
+  border-radius: 2px;
+}
+
+/* ---------- Action table ---------- */
+.ov-table {
+  overflow: hidden;
+}
+.ov-table__head {
+  padding: 18px 20px 12px;
+}
+.ov-table .count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-grid;
+  place-items: center;
+}
+
+@keyframes ov-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes ov-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ov-progress__fill,
+  .ov-dim__bars span::before,
+  .ov-cols__bar {
+    animation: none;
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) {
+  .ov-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ov-bento > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 900px) {
+  .ov-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .ov-bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ov-kpi {
+    padding: 16px;
+  }
+  .ov-kpi__value {
+    font-size: 26px;
+  }
+  .ov-cols__val {
+    font-size: 9.5px;
+  }
+}
+
+/* ---------- View switch: Submissions / Rankings ---------- */
+.ov-switch {
+  display: inline-flex;
+  justify-self: start;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ov-switch__opt {
+  flex: none;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--t) ease,
+    color var(--t) ease,
+    box-shadow var(--t) ease;
+}
+.ov-switch__opt:hover {
+  color: var(--text);
+}
+.ov-switch__opt[aria-current="page"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 3px 8px -3px rgb(0 0 0 / 0.12);
+}
+.ov-rankings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
