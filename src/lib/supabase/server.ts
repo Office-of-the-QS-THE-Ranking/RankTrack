@@ -8,6 +8,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import type { Database } from "./database.types";
 
 function env(name: string) {
   const value = process.env[name];
@@ -28,11 +29,11 @@ export async function authClient() {
   });
 }
 
-const g = globalThis as typeof globalThis & { __hubDb?: SupabaseClient };
+const g = globalThis as typeof globalThis & { __hubDb?: SupabaseClient<Database> };
 
 /** The database as the Hub itself. The secret key never leaves the server. */
 export function adminDb() {
-  return (g.__hubDb ??= createClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("SUPABASE_SECRET_KEY"), {
+  return (g.__hubDb ??= createClient<Database>(env("NEXT_PUBLIC_SUPABASE_URL"), env("SUPABASE_SECRET_KEY"), {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   }));
 }

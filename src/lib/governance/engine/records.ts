@@ -3,12 +3,12 @@
  * innovation proposals, assistance requests, report exports and notifications. Each is authorized by
  * role and by organizational scope, and audited.
  */
-import { RANKINGS } from "@/lib/data";
 import type { Command, CommandResult } from "../commands";
 import { evidenceBodies, featureOn, mappingActive } from "../derive";
 import { descendants, has } from "../rbac";
-import { evidenceById } from "../records";
-import type { EvidenceRecord } from "../types";
+import { cleanFileName, evidenceMime, evidencePath } from "../evidence-files";
+import { evidenceById, evidenceList, requirementUnit } from "../records";
+import type { EvidenceFile, EvidenceRecord } from "../types";
 import { can, clean, cleanText, deny, invalid, log, nextId, notify, ok, unitById, type Ctx } from "./core";
 import { publishStory } from "./mutations";
 import { needsApproval, openRequest, workflowOn } from "./requests";
@@ -40,9 +40,26 @@ function placement(ctx: Ctx, unitSlug: string, module: "evidence" | "data" | "st
 
 const targetOf = (e: EvidenceRecord) => ({ unitId: e.programId ?? e.unitSlug, bodies: evidenceBodies(e.mappedTo) });
 
-function ext(name: string) {
-  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/);
-  return m ? m[1].toUpperCase() : "";
+/**
+ * Uploaded files as the record keeps them, checked against System Configuration's upload rules: each an upload of
+ * its own (/media/evidence/…) of an accepted type, at most maxFiles altogether. Sizes were read from storage by
+ * the action that ran the command.
+ */
+function attachments(ctx: Ctx, files: unknown, already = 0): EvidenceFile[] | string {
+  const up = ctx.state.config.uploads;
+  if (!Array.isArray(files)) return "Attach the files again.";
+  if (files.length + already > up.maxFiles) return `Attach at most ${up.maxFiles} files.`;
+  const out: EvidenceFile[] = [];
+  for (const f of files as { name?: unknown; sizeMB?: unknown; src?: unknown }[]) {
+    const name = typeof f?.name === "string" ? cleanFileName(f.name) : "";
+    if (!name || typeof f.src !== "string" || !evidencePath(f.src)) return "A file didn’t finish uploading. Remove it and attach it again.";
+    if (!evidenceMime(name, up.types)) return `${name} is not an accepted file type (${up.types.join(", ")}).`;
+    const sizeMB = typeof f.sizeMB === "number" && Number.isFinite(f.sizeMB) ? f.sizeMB : NaN;
+    if (!(sizeMB >= 0) || sizeMB > up.maxFileMB) return `${name} is larger than ${up.maxFileMB} MB.`;
+    if (out.some((x) => x.src === f.src) || evidenceList(ctx.state).some((e) => e.attachments?.some((x) => x.src === f.src))) return `${name} is already attached.`;
+    out.push({ name, src: f.src, bytes: Math.round(sizeMB * 1_048_576) });
+  }
+  return out;
 }
 
 export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence.submit" }>): CommandResult {
@@ -62,15 +79,11 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
   if (!clean(i.result)) return invalid("Enter the measurable result.");
   if (!clean(i.beneficiaries)) return invalid("Say who benefited.");
   if (!i.sdgs.length || i.sdgs.some((n) => n < 1 || n > 17)) return invalid("Select at least one SDG.");
-  const up = ctx.state.config.uploads;
-  if (i.files.length > up.maxFiles) return invalid(`Attach at most ${up.maxFiles} files.`);
-  const wrong = i.files.find((f) => !up.types.includes(ext(f.name)));
-  if (wrong) return invalid(`${wrong.name} is not an accepted file type (${up.types.join(", ")}).`);
-  const big = i.files.find((f) => f.sizeMB > up.maxFileMB);
-  if (big) return invalid(`${big.name} is larger than ${up.maxFileMB} MB.`);
-  const url = i.url.trim();
+  const attached = attachments(ctx, i.files);
+  if (typeof attached === "string") return invalid(attached);
+  const url = typeof i.url === "string" ? i.url.trim() : "";
   if (url && !/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url)) return invalid("Enter a full public URL starting with https://");
-  if (!i.files.length && !url) return invalid("Attach a file or give a public URL.");
+  if (!attached.length && !url) return invalid("Attach a file or give a public URL.");
   const mapped = [...new Set(i.mappedTo.filter((m) => mappingActive(ctx.state, m)))];
   if (!mapped.length) return invalid("Keep at least one ranking indicator.");
   const id = nextId(ctx, "evidence", "EV-", 4);
@@ -83,6 +96,7 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
     period: period.label,
     submitted: ctx.day,
     submittedBy: ctx.actor.name,
+    submittedById: ctx.actor.id,
     status: "For review",
     stage: 0,
     level: i.level,
@@ -91,7 +105,8 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
     summary: cleanText(i.summary, 1200),
     result: clean(i.result, 200),
     beneficiaries: clean(i.beneficiaries, 200),
-    files: [...i.files.map((f) => f.name), ...(url ? [url] : [])],
+    files: [...attached.map((f) => f.name), ...(url ? [url] : [])],
+    ...(attached.length ? { attachments: attached } : {}),
     comments: [],
   };
   ctx.state.records.evidence[id] = rec;
@@ -106,7 +121,8 @@ export function review(ctx: Ctx, id: string, decision: "accept" | "revise", text
   const action = decision === "accept" ? "evidence.accept" : "evidence.revise";
   if (!can(ctx, "evidence", "approve", targetOf(e)))
     return deny(ctx, action, "Approval", evRes(e), "This submission is outside the units or ranking bodies you review.");
-  if (e.submittedBy === ctx.actor.name) return deny(ctx, action, "Approval", evRes(e), "You submitted this item, so another reviewer must decide it.");
+  if (e.submittedById ? e.submittedById === ctx.actor.id : e.submittedBy === ctx.actor.name)
+    return deny(ctx, action, "Approval", evRes(e), "You submitted this item, so another reviewer must decide it.");
   const t = cleanText(text, 1000);
   if (decision === "revise" && t.length < 5) return invalid("Say what the unit should change before requesting a revision.");
   const unit = unitById(ctx, e.unitSlug);
@@ -141,21 +157,23 @@ export function remap(ctx: Ctx, id: string, add?: string, remove?: string): Comm
   return ok(add ? `Mapped to ${add}.` : `Removed ${remove}.`);
 }
 
-export function respond(ctx: Ctx, id: string, text: string, file?: string): CommandResult {
+export function respond(ctx: Ctx, id: string, text: string, file?: { name: string; sizeMB: number; src: string }): CommandResult {
   const e = evidenceById(ctx.state, id);
   if (!e) return invalid("That submission no longer exists.");
   if (!can(ctx, "evidence", "edit", { unitId: e.programId ?? e.unitSlug })) return deny(ctx, "evidence.respond", "Data", evRes(e), "This submission belongs to another unit.");
   if (e.status !== "Needs revision") return invalid("Only items waiting for a revision can be resubmitted.");
   const t = cleanText(text, 1000);
   if (t.length < 5) return invalid("Write a reply so the reviewer knows what changed.");
-  const f = file ? clean(file, 120) : "";
-  if (f && !ctx.state.config.uploads.types.includes(ext(f))) return invalid(`${f} is not an accepted file type (${ctx.state.config.uploads.types.join(", ")}).`);
+  const added = attachments(ctx, file ? [file] : [], e.files.length);
+  if (typeof added === "string") return invalid(added);
+  const f = added[0]?.name ?? "";
   const unit = unitById(ctx, e.unitSlug);
   ctx.state.records.evidence[e.id] = {
     ...e,
     status: "For review",
     stage: 1,
     files: f ? [...e.files, f] : e.files,
+    ...(added.length ? { attachments: [...(e.attachments ?? []), ...added] } : {}),
     comments: [...e.comments, { by: ctx.actor.name, role: unit?.name ?? e.unitSlug, date: ctx.day, text: f ? `${t}\n\nAttached: ${f}` : t }],
   };
   log(ctx, "evidence.resubmit", "Data", evRes(e), "Success", f ? `Corrected file ${f}` : "Reply without a new file");
@@ -167,8 +185,10 @@ export function submitValues(ctx: Ctx, unitSlug: string, values: { id: string; l
   const unit = unitById(ctx, unitSlug);
   if (!unit) return invalid("Choose the unit.");
   if (!featureOn(ctx.state, "data-entry")) return invalid("Reporting-period data entry is switched off in System Configuration.");
-  const target = { type: "Data values", id: unit.id, label: `${values.length} values, ${unit.name}` };
+  const target = { type: "Data values", id: unit.id, label: `${Array.isArray(values) ? values.length : 0} values, ${unit.name}` };
   if (!placement(ctx, unit.id, "data", "submit")) return deny(ctx, "data.submit", "Data", target, `You cannot submit data for ${unit.name}.`);
+  if (!Array.isArray(values) || values.some((v) => !v || typeof v.id !== "string" || typeof v.value !== "string" || typeof v.source !== "string")) return invalid("Every value needs a number and its source document.");
+  if (values.some((v) => requirementUnit(v.id) !== unit.id)) return deny(ctx, "data.submit", "Data", target, `Those requirements don't belong to ${unit.name}.`);
   const good = values.filter((v) => /^\d{1,3}(,\d{3})*(\.\d+)?$|^\d+(\.\d+)?$/.test(v.value.trim()) && v.source.trim());
   if (!good.length) return invalid("Every value needs a number and its source document.");
   for (const v of good) ctx.state.records.values[v.id] = { value: v.value.trim(), source: clean(v.source, 200), status: "For review", by: ctx.actor.id, at: ctx.iso };
@@ -187,7 +207,7 @@ export function proposeStory(ctx: Ctx, cmd: Extract<Command, { type: "story.prop
   if (clean(i.title).length < 4 || cleanText(i.challenge).length < 10 || !clean(i.figure) || !clean(i.beneficiaries)) return invalid("Complete the title, challenge, outcome figure and beneficiaries.");
   const base = clean(i.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "story";
   let slug = base;
-  for (let n = 2; ctx.state.records.proposals.some((p) => p.slug === slug) || RANKINGS.some((r) => r.slug === slug); n++) slug = `${base}-${n}`;
+  for (let n = 2; ctx.state.records.proposals.some((p) => p.slug === slug) || ctx.ref.rankings.some((r) => r.slug === slug); n++) slug = `${base}-${n}`;
   const id = nextId(ctx, "story", "ST-", 4);
   ctx.state.records.proposals.unshift({
     slug,
@@ -244,6 +264,9 @@ export function requestAssistance(ctx: Ctx, unitSlug: string, topic: string, urg
   const unit = unitById(ctx, unitSlug);
   if (!unit) return invalid("Choose the unit.");
   if (!featureOn(ctx.state, "assistance")) return invalid("Assistance requests are switched off in System Configuration.");
+  // Only people who contribute for the unit ask for help on its behalf.
+  const contributes = placement(ctx, unit.id, "evidence", "submit") || placement(ctx, unit.id, "data", "submit") || placement(ctx, unit.id, "stories", "create");
+  if (!contributes) return deny(ctx, "assistance.request", "Data", { type: "Assistance request", id: "new", label: clean(topic) || "Assistance" }, `You cannot ask for assistance on behalf of ${unit.name}.`);
   if (!clean(topic) || cleanText(message).length < 10) return invalid("Choose a topic and write at least a sentence.");
   const id = nextId(ctx, "assistance", "AR-", 4);
   ctx.state.records.assistance.unshift({ id, topic: clean(topic), unitSlug: unit.id, by: ctx.actor.id, at: ctx.iso, urgent });
@@ -276,7 +299,7 @@ export function exportReport(ctx: Ctx, report: string, cycle: string, rows: numb
   }
   const worst = ["Restricted", "Confidential", "Internal", "Public"].find((c) => classes.includes(c)) ?? "Public";
   log(ctx, "report.export", "Export", target, "Success", `CSV, ${rows} rows · ${worst}${sec.watermark && worst !== "Public" ? " · watermarked" : ""}`);
-  const recent = [...ctx.state.audit, ...ctx.drafts].filter((e) => e.actorId === ctx.actor.id && e.action === "report.export" && e.outcome === "Success" && ctx.now.getTime() - Date.parse(e.at) < 10 * 60_000).length;
+  const recent = [...ctx.state.recentAudit, ...ctx.drafts].filter((e) => e.actorId === ctx.actor.id && e.action === "report.export" && e.outcome === "Success" && ctx.now.getTime() - Date.parse(e.at) < 10 * 60_000).length;
   if (recent >= 4 && recent % 4 === 0) raiseAlert(ctx, "Unusual export", "Low", `${ctx.actor.name} exported ${recent} reports in ten minutes.`, ctx.actor.id);
   return ok(`${report} exported with ${rows} rows.`, { data: { watermark: sec.watermark && worst !== "Public" ? `${worst} · exported by ${ctx.actor.name} on ${ctx.day}` : null } });
 }

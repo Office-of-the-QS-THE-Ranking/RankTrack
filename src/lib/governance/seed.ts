@@ -1,73 +1,24 @@
 /*
- * The starting state of the governance store: the University directory, datasets, policies, workflows
- * and configuration, and nothing else. No accounts, records, requests or history: the first University
+ * The starting state of the governance store: the University directory (from Supabase's unit_directory),
+ * datasets, policies, workflows and configuration, and nothing else. No accounts, records, requests or history: the first University
  * Administrator is created at their first Google sign-in (bootstrapAdmin in server/signin.ts) and
  * invites everyone else from the Administration console. The roles are fixed in catalog.ts.
  */
-import { RANKINGS } from "@/lib/data";
+import type { Reference } from "@/lib/reference";
 import { importUstDirectory } from "./directory";
-import type { AuditEvent, Dataset, GovernanceState, OrgKind, OrgUnit, QualityRule, TermMeta, Workflow } from "./types";
+import type { AuditEvent, Dataset, GovernanceState, OrgUnit, QualityRule, TermMeta, Workflow } from "./types";
 
-export const SCHEMA = 8;
+export const SCHEMA = 9;
 
 export const SYSTEM_ACTOR = { id: "system", name: "Hub automation", role: "System" };
 
 /* ---------- Directory ---------- */
 
-function unit(id: string, code: string, name: string, kind: OrgKind, parentId: string | null, at: string, extra: Partial<OrgUnit> = {}): OrgUnit {
-  return { id, code, name, kind, parentId, status: "Active", adminIds: [], history: [{ at, by: "system", change: "Imported from the University directory" }], ...extra };
-}
-
-const directory = (at: string): OrgUnit[] => [
-  unit("ust", "UST", "University of Santo Tomas", "University", null, at, { established: "1611-04-28" }),
-  unit("rector", "OR", "Office of the Rector", "Office", "ust", at),
-  unit("rankings-office", "OQTR", "Office of QS/THE Rankings", "Office", "rector", at),
-  unit("secgen", "OSG", "Office of the Secretary General", "Office", "ust", at),
-  unit("internal-audit", "IAO", "Internal Audit Office", "Office", "rector", at),
-  unit("vraa", "OVRAA", "Office of the Vice-Rector for Academic Affairs", "Office", "ust", at),
-  unit("vrri", "OVRRI", "Office of the Vice-Rector for Research and Innovation", "Office", "ust", at),
-  unit("rcnas", "RCNAS", "Research Center for the Natural and Applied Sciences", "Research Centre", "vrri", at),
-  unit("rcsse", "RCSSE", "Research Center for Social Sciences and Education", "Research Centre", "vrri", at),
-  unit("rccah", "RCCAH", "Research Center for Culture, Arts and Humanities", "Research Centre", "vrri", at),
-
-  unit("engineering", "ENG", "Faculty of Engineering", "Faculty", "ust", at),
-  unit("eng-ce", "ENG-CE", "Department of Civil Engineering", "Department", "engineering", at),
-  unit("eng-ce-bs", "BSCE", "BS Civil Engineering", "Program", "eng-ce", at),
-  unit("eng-ee", "ENG-EE", "Department of Electrical Engineering", "Department", "engineering", at),
-  unit("eng-ee-bs", "BSEE", "BS Electrical Engineering", "Program", "eng-ee", at),
-  unit("eng-me", "ENG-ME", "Department of Mechanical Engineering", "Department", "engineering", at),
-  unit("eng-me-bs", "BSME", "BS Mechanical Engineering", "Program", "eng-me", at),
-  unit("eng-che", "ENG-CHE", "Department of Chemical Engineering", "Department", "engineering", at),
-  unit("eng-che-bs", "BSCHE", "BS Chemical Engineering", "Program", "eng-che", at),
-  unit("eng-ie", "ENG-IE", "Department of Industrial Engineering", "Department", "engineering", at),
-  unit("eng-ie-bs", "BSIE", "BS Industrial Engineering", "Program", "eng-ie", at),
-  unit("eng-ece", "ENG-ECE", "Department of Electronics Engineering", "Department", "engineering", at),
-  unit("eng-ece-bs", "BSECE", "BS Electronics Engineering", "Program", "eng-ece", at),
-
-  unit("medicine", "MED", "Faculty of Medicine and Surgery", "Faculty", "ust", at),
-  unit("med-md", "MD", "Doctor of Medicine", "Program", "medicine", at),
-  unit("science", "SCI", "College of Science", "College", "ust", at),
-  unit("sci-bio", "SCI-BIO", "Department of Biological Sciences", "Department", "science", at),
-  unit("sci-chem", "SCI-CHEM", "Department of Chemistry", "Department", "science", at),
-  unit("sci-mp", "SCI-MP", "Department of Mathematics and Physics", "Department", "science", at),
-  unit("education", "EDU", "College of Education", "College", "ust", at),
-  unit("pharmacy", "PHA", "Faculty of Pharmacy", "Faculty", "ust", at),
-  unit("architecture", "ARC", "College of Architecture", "College", "ust", at),
-  unit("nursing", "NUR", "College of Nursing", "College", "ust", at),
-  unit("arts-letters", "AB", "Faculty of Arts and Letters", "Faculty", "ust", at),
-  unit("cics", "CICS", "College of Information and Computing Sciences", "College", "ust", at),
-  unit("cics-cs", "CICS-CS", "Department of Computer Science", "Department", "cics", at),
-  unit("cics-it", "CICS-IT", "Department of Information Technology", "Department", "cics", at),
-
-  unit("fmo", "FMO", "Facilities Management Office", "Office", "ust", at),
-  unit("oirp", "OIRP", "Office of International Relations and Programs", "Office", "ust", at),
-  unit("simbahayan", "SIMB", "Office for Community Development (SIMBAHAYAN)", "Office", "ust", at),
-  unit("hrd", "HRD", "Human Resource Department", "Office", "ust", at),
-  unit("library", "LIB", "Miguel de Benavides Library", "Office", "ust", at),
-  unit("careers", "OCS", "Office for Career Services", "Office", "ust", at),
-  unit("industry", "OIL", "Office for Industry Linkages", "Office", "ust", at),
-  unit("it-services", "ITS", "University IT Services", "Office", "ust", at),
-];
+/** The University itself; every unit of the directory (unit_directory) is imported beneath it. */
+const university = (at: string): OrgUnit => ({
+  id: "ust", code: "UST", name: "University of Santo Tomas", kind: "University", parentId: null, status: "Active", adminIds: [],
+  established: "1611-04-28", history: [{ at, by: "system", change: "Created with the Hub" }],
+});
 
 /* ---------- Data governance ---------- */
 
@@ -299,7 +250,8 @@ export const WORKFLOWS: Workflow[] = [
 
 /* ---------- The document ---------- */
 
-export function buildSeed(now = new Date()): Omit<GovernanceState, "audit"> & { audit: Omit<AuditEvent, "prev" | "hash">[] } {
+/** The directory comes from unit_directory and the tracked rankings from ranking_frameworks (the reference data). */
+export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = new Date()): Omit<GovernanceState, "auditHead" | "recentAudit"> & { audit: Omit<AuditEvent, "prev" | "hash" | "seq">[] } {
   const at = now.toISOString();
   const day = at.slice(0, 10);
   return {
@@ -308,7 +260,7 @@ export function buildSeed(now = new Date()): Omit<GovernanceState, "audit"> & { 
     sessions: [],
     challenges: [],
     failures: [],
-    units: importUstDirectory(directory(at), at),
+    units: importUstDirectory([university(at)], ref.directory, at),
     datasets: DATASETS.map((d) => ({ ...d, stewardId: "", records: 0, version: 1, versions: [{ v: 1, at, by: "system", note: "Created with the Hub" }], updatedAt: at })),
     rules: RULES,
     duplicates: [],
@@ -345,7 +297,7 @@ export function buildSeed(now = new Date()): Omit<GovernanceState, "audit"> & { 
         { key: "WURI", name: "World University Rankings for Innovation", short: "WURI", enabled: true, website: "https://www.wuri.world" },
         { key: "AHE", name: "AppliedHE Private University Rankings", short: "AppliedHE", enabled: false, website: "https://appliedhe.com" },
       ],
-      rankings: RANKINGS.map((r) => ({ slug: r.slug, enabled: true, public: true, deadline: r.deadline })),
+      rankings: ref.rankings.map((r) => ({ slug: r.slug, enabled: true, public: true, deadline: r.deadline })),
       cycles: [
         { id: "2026–2027", status: "Current" },
         { id: "2025–2026", status: "Closed" },
@@ -404,7 +356,6 @@ export function buildSeed(now = new Date()): Omit<GovernanceState, "audit"> & { 
     records: {
       evidence: {},
       posts: [],
-      postViews: {},
       postViewsStartedAt: at,
       stories: {},
       proposals: [],

@@ -1,24 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import {
-  LATEST_EDITION,
-  QSS_PILLARS,
-  SDG_COLORS,
-  SDG_NAMES,
-  SDG_TILES,
-  SUBJECT_AREAS,
-  SUBJECT_PORTFOLIO,
-  WURI_PLACEMENTS,
-  inkOn,
-  type Ranking,
-} from "@/lib/data";
-import { PHOTOS, RANKING_PHOTO, movement, splitResult } from "@/lib/site";
+import { WURI_PLACEMENTS, inkOn, type Ranking } from "@/lib/data";
+import { movement, splitResult } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
 import { Spark, Trajectory } from "./Trajectory";
+import { serverViews } from "@/lib/governance/server/views";
 
 const FOCUS_TITLE: Record<string, string> = {
   "the-impact": "The SDGs UST was rated on",
@@ -30,16 +20,18 @@ const FOCUS_TITLE: Record<string, string> = {
 };
 
 /** Whether a ranking's focus section has anything to show yet: the pillars and parts are the method's own, the rest is UST's. */
-function hasFocus(r: Ranking) {
-  if (r.slug === "the-impact") return SDG_TILES.some((t) => t.submittedForRating);
+async function hasFocus(r: Ranking) {
+  const { sdgTiles, subjectPortfolio } = await serverViews();
+  if (r.slug === "the-impact") return sdgTiles.some((t) => t.submittedForRating);
   if (r.slug === "wuri") return WURI_PLACEMENTS.length > 0;
-  if (r.slug === "the-subject" || r.slug === "qs-subject") return SUBJECT_PORTFOLIO.some((q) => q.subjects.length);
+  if (r.slug === "the-subject" || r.slug === "qs-subject") return subjectPortfolio.some((q) => q.subjects.length);
   return r.slug in FOCUS_TITLE;
 }
 
-function Focus({ r }: { r: Ranking }): ReactNode {
+async function Focus({ r }: { r: Ranking }) {
+  const { qssPillars, sdgColors, sdgNames, sdgTiles, subjectAreas, subjectPortfolio } = await serverViews();
   if (r.slug === "the-impact") {
-    const rated = SDG_TILES.filter((t) => t.submittedForRating).map((t) => t.sdg);
+    const rated = sdgTiles.filter((t) => t.submittedForRating).map((t) => t.sdg);
     return (
       <>
         <ul className="w-sdgs">
@@ -47,11 +39,11 @@ function Focus({ r }: { r: Ranking }): ReactNode {
             <li
               key={n}
               className="w-sdg"
-              style={{ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]), ["--d" as string]: `${i * 80}ms` } as CSSProperties}
+              style={{ background: sdgColors[n], color: inkOn(sdgColors[n]), ["--d" as string]: `${i * 80}ms` } as CSSProperties}
               data-reveal
             >
               <span className="w-sdg__n w-figure">{n}</span>
-              <span className="w-sdg__name">{SDG_NAMES[n]}</span>
+              <span className="w-sdg__name">{sdgNames[n]}</span>
             </li>
           ))}
         </ul>
@@ -77,13 +69,13 @@ function Focus({ r }: { r: Ranking }): ReactNode {
   if (r.slug === "the-subject" || r.slug === "qs-subject") {
     return (
       <div className="w-quads">
-        {SUBJECT_PORTFOLIO.map((q, i) => (
+        {subjectPortfolio.map((q, i) => (
           <div key={q.quadrant} className="w-quad" data-reveal style={{ ["--d" as string]: `${i * 80}ms` }}>
             <h3 className="w-quad__title">{q.quadrant}</h3>
             <ul>
               {q.subjects.map((s) => (
                 <li key={s.name}>
-                  <i className="w-dot" style={{ background: SUBJECT_AREAS[s.area] } as CSSProperties} aria-hidden="true" />
+                  <i className="w-dot" style={{ background: subjectAreas[s.area] } as CSSProperties} aria-hidden="true" />
                   <span>
                     <b>{s.name}</b>
                     {s.note}
@@ -99,7 +91,7 @@ function Focus({ r }: { r: Ranking }): ReactNode {
   if (r.slug === "qs-sustainability") {
     return (
       <div className="w-pillars">
-        {QSS_PILLARS.map((p, i) => (
+        {qssPillars.map((p, i) => (
           <div key={p.name} className="w-pillar" data-reveal style={{ ["--d" as string]: `${i * 90}ms` }}>
             <span className="w-pillar__w w-figure">{p.weight}</span>
             <h3 className="w-pillar__name">{p.name}</h3>
@@ -133,6 +125,7 @@ function Focus({ r }: { r: Ranking }): ReactNode {
 
 /** One ranking: the published result, its trajectory, what it measures and the Thomasian work behind it. */
 export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
+  const { latestEdition, photos, rankingPhoto } = await serverViews();
   // Siblings, neighbours and stories are limited to what the public website may show.
   const { rankings: RANKINGS, bodies: BODIES, stories: PUBLISHED_STORIES } = await siteData();
   const body = BODIES.find((b) => b.rankings.some((x) => x.slug === r.slug))!;
@@ -143,7 +136,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
   const next = RANKINGS[(at + 1) % RANKINGS.length];
   const res = splitResult(r.current);
   const result = !!r.current;
-  const focus = hasFocus(r) ? FOCUS_TITLE[r.slug] : undefined;
+  const focus = (await hasFocus(r)) ? FOCUS_TITLE[r.slug] : undefined;
   const highlights = r.strengths.length > 0;
 
   const tabs = [
@@ -176,7 +169,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
             </Link>
           </>
         }
-        photo={result ? undefined : RANKING_PHOTO[r.slug]}
+        photo={result ? undefined : rankingPhoto[r.slug]}
         figure={
           result
             ? {
@@ -184,7 +177,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
                 value: res.value,
                 note: (
                   <>
-                    {LATEST_EDITION} edition
+                    {latestEdition} edition
                     <br />
                     {movement(r)}
                   </>
@@ -255,7 +248,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
         </div>
       </section>
 
-      <PhotoBand photo={RANKING_PHOTO[r.slug]} caption={RANKING_PHOTO[r.slug].alt + "."} />
+      <PhotoBand photo={rankingPhoto[r.slug]} caption={rankingPhoto[r.slug].alt + "."} />
 
       {focus && (
         <section id="focus" className="w-band w-band--ink w-on-dark w-focus" aria-labelledby="focus-title">
@@ -286,11 +279,11 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
           </p>
           <div className="w-hl__disc" data-reveal="disc">
             <Image
-              src={PHOTOS.field.src}
-              alt={PHOTOS.field.alt}
+              src={photos.field.src}
+              alt={photos.field.alt}
               fill
               sizes="(max-width: 900px) 60vw, 24vw"
-              style={{ objectPosition: PHOTOS.field.pos }}
+              style={{ objectPosition: photos.field.pos }}
             />
           </div>
         </div>
@@ -368,11 +361,11 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
                 <Link href={`/rankings/${x.slug}`} className="w-related__item">
                   <span className="w-related__pic">
                     <Image
-                      src={RANKING_PHOTO[x.slug].src}
+                      src={rankingPhoto[x.slug].src}
                       alt=""
                       fill
                       sizes="(max-width: 900px) 100vw, 40vw"
-                      style={{ objectPosition: RANKING_PHOTO[x.slug].pos }}
+                      style={{ objectPosition: rankingPhoto[x.slug].pos }}
                     />
                   </span>
                   <span className="w-related__name">{x.name}</span>

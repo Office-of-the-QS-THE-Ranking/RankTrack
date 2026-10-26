@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { Select } from "@/components/ui/pickers";
+import { useReference } from "@/components/reference/ReferenceProvider";
 
-const OFFICE = "rankings.office@ust.edu.ph";
 
 /**
  * Clip-out coupon: the request to adapt a Thomasian practice. There is no form backend, so sending
@@ -19,6 +19,7 @@ export function AdaptCoupon({
   /** Published practices, from the governance layer. */
   stories: { slug: string; title: string; unit: string }[];
 }) {
+  const OFFICE = useReference().office.email;
   const [chosen, setChosen] = useState(practice ?? PUBLISHED_STORIES[0]?.slug ?? "");
   const H = headingLevel === 2 ? "h2" : "h3";
 

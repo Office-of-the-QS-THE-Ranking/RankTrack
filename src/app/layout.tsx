@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Newsreader } from "next/font/google";
+import { connection } from "next/server";
 import { DevAccess } from "@/components/dev/DevAccess";
+import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
 import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
 import { FieldErrors } from "@/components/ui/validation";
+import { reference } from "@/lib/governance/server/reference";
 import "@/styles/tokens.css";
 import "@/styles/cursors.css";
 import "@/styles/cursor-frames.css";
@@ -66,16 +69,21 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Every page renders per request: the Content Security Policy's nonce (src/proxy.ts) is new each time, and
+  // Next.js can only stamp it on its scripts while rendering. The data underneath is held in memory (store,
+  // reference data), so this costs a render, not a database round trip.
+  await connection();
+  const ref = await reference();
   return (
     // The public site marks <html> with "js" before hydration (SiteFrame), so its class may differ.
     <html lang="en" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
       <body>
-        {children}
+        <ReferenceProvider value={ref}>{children}</ReferenceProvider>
         <Toaster />
         <FieldErrors />
         <CursorFx />
-        {process.env.NODE_ENV === "development" && <DevAccess />}
+        {process.env.NODE_ENV === "development" && process.env.HUB_DEV_ACCESS === "on" && <DevAccess />}
       </body>
     </html>
   );

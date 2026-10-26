@@ -1,20 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import {
-  ACTIONS,
-  EVIDENCE,
-  FAMILY,
-  LATEST_EDITION,
-  daysUntil,
-  formatAsOf,
-  formatDate,
-  groupOf,
-  readinessLevel,
-  type Indicator,
-  type Ranking,
-} from "@/lib/data";
+import { ACTIONS, EVIDENCE, daysUntil, formatAsOf, formatDate, readinessLevel, type Indicator, type Ranking } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Crumbs, Direction, Meter, Pattern, Trend } from "@/components/ui/primitives";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const weightOf = (i: Indicator) => {
   const n = parseFloat(i.weight);
@@ -35,7 +26,8 @@ export function nextAction(r: Ranking) {
 }
 
 export function RankingHeader({ ranking: r, actions, asOf }: { ranking: Ranking; actions?: ReactNode; asOf?: string }) {
-  const fam = FAMILY[r.family];
+  const { families } = useViews();
+  const fam = families[r.family];
   const days = daysUntil(r.deadline);
   const lvl = readinessLevel(r.readiness);
   return (
@@ -91,6 +83,7 @@ export function RankingHeader({ ranking: r, actions, asOf }: { ranking: Ranking;
 
 /** Every ranking page answers five questions immediately (proposal, "Design of each ranking dashboard"). */
 export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { ranking: Ranking; onTab?: (tab: string) => void; reviewing?: number }) {
+  const { latestEdition } = useViews();
   const top = drivers(r);
   const act = nextAction(r);
   const revisions = r.indicators.filter((i) => i.status === "Needs revision").length;
@@ -108,7 +101,7 @@ export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { rank
       <div className="fq__cell">
         <p className="fq__q">Where is UST now?</p>
         <p className="fq__big">{r.current || "—"}</p>
-        <p className="fq__note">{r.current ? `${r.short}, ${LATEST_EDITION} edition` : "No result recorded yet"}</p>
+        <p className="fq__note">{r.current ? `${r.short}, ${latestEdition} edition` : "No result recorded yet"}</p>
       </div>
       <div className="fq__cell">
         <p className="fq__q">What changed?</p>
@@ -176,7 +169,8 @@ export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { rank
 }
 
 export function PublicRankingHeader({ ranking: r }: { ranking: Ranking }) {
-  const fam = FAMILY[r.family];
+  const { families, groupOf, latestEdition } = useViews();
+  const fam = families[r.family];
   return (
     <header className="card rhead" style={{ ["--band" as string]: fam.band } as CSSProperties}>
       <span className="rhead__band" aria-hidden="true" />
@@ -203,7 +197,7 @@ export function PublicRankingHeader({ ranking: r }: { ranking: Ranking }) {
         <div className="fq__cell">
           <p className="fq__q">Where is UST now?</p>
           <p className="fq__big">{r.current || "—"}</p>
-          <p className="fq__note">{r.current ? `${LATEST_EDITION} edition` : "Not yet published"}</p>
+          <p className="fq__note">{r.current ? `${latestEdition} edition` : "Not yet published"}</p>
         </div>
         <div className="fq__cell">
           <p className="fq__q">What changed?</p>

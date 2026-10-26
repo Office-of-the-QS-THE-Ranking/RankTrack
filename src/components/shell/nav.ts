@@ -1,4 +1,4 @@
-import { RANKING_GROUPS, RANKINGS } from "@/lib/data";
+import type { Reference } from "@/lib/reference";
 import type { IconName } from "@/components/ui/Icon";
 import type { Action, ModuleKey } from "@/lib/governance/types";
 
@@ -86,14 +86,14 @@ export const NAV: Record<Variant, NavGroup[]> = {
 
 /* The ranking pages, by group, limited to the rankings System Configuration tracks. The overview is a
    view of the dashboard, so it has no entry here. */
-export const rankingSubnav = (base: string, active?: string[]) =>
-  RANKING_GROUPS.map((g) => ({
+export const rankingSubnav = (ref: Reference, base: string, active?: string[]) =>
+  ref.groups.map((g) => ({
     group: g.label,
     items: g.slugs
       .filter((s) => !active || active.includes(s))
-      .map((s) => {
-        const r = RANKINGS.find((x) => x.slug === s)!;
-        return { href: `${base}/${s}`, label: r.short, family: r.family };
+      .flatMap((s) => {
+        const r = ref.rankings.find((x) => x.slug === s);
+        return r ? [{ href: `${base}/${s}`, label: r.short, family: r.family }] : [];
       }),
   })).filter((g) => g.items.length);
 

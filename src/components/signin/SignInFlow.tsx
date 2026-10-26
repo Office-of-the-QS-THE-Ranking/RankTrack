@@ -9,6 +9,7 @@ import { useEffect, useState, useTransition } from "react";
 import { startGoogleSignIn } from "@/app/actions/session";
 import { Icon } from "@/components/ui/Icon";
 import { toast, type ToastTone } from "@/components/ui/toast";
+import type { RequestUnit } from "@/lib/governance/access-requests";
 import { EMPTY_DRAFT, RequestAccessForm } from "./RequestAccessForm";
 import { SubmissionTracker } from "./SubmissionTracker";
 
@@ -24,7 +25,8 @@ const ENDED: Record<string, [string, ToastTone]> = {
 
 /** Why sign-in was turned away (?error=…, from /auth/callback), told once as a toast. */
 const REFUSED: Record<string, [string, ToastTone]> = {
-  "not-registered": ["That Google account has no Hub account. Request access below.", "error"],
+  "not-registered": ["That account doesn’t have access to the Hub yet. Request access below.", "error"],
+  pending: ["Your access request is still being reviewed. Track it below.", "info"],
   suspended: ["This account is suspended. Ask the Office to review it.", "error"],
   deactivated: ["This account is deactivated.", "error"],
   domain: ["Sign in with your UST Google account.", "error"],
@@ -75,12 +77,18 @@ export function SignInFlow({
   ended,
   error,
   track,
+  domains,
+  units,
 }: {
   next?: string;
   ended?: string;
   error?: string;
   /** A reference code from a receipt's tracker link (?track=…): the page opens on the tracker. */
   track?: string;
+  /** The University's sign-in domains: a Thomasian's email must be on one. */
+  domains: string[];
+  /** The colleges, faculties and offices a Thomasian can name, by Directory heading. */
+  units: { label: string; units: RequestUnit[] }[];
 }) {
   const [step, setStep] = useState<Step>(track ? "track" : "start");
   // once the viewer has moved between steps, each new step enters at once rather than after the page's entrance
@@ -172,6 +180,8 @@ export function SignInFlow({
         <RequestAccessForm
           draft={draft}
           onDraft={setDraft}
+          domains={domains}
+          units={units}
           onTrack={(reference, email) => {
             setTracking({ reference, email });
             go("track");

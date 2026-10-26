@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { RANKINGS } from "@/lib/data";
+import { reference } from "@/lib/governance/server/reference";
 import { siteData } from "@/lib/governance/server/site";
 import { RankingDetail } from "@/components/site/rankings/RankingDetail";
 
-export function generateStaticParams() {
-  return RANKINGS.map((r) => ({ slug: r.slug }));
+export async function generateStaticParams() {
+  return (await reference()).rankings.map((r) => ({ slug: r.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {

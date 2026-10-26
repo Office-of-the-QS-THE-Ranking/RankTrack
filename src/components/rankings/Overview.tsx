@@ -1,10 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { CALENDAR, DICTIONARY, EVIDENCE as ALL_EVIDENCE, FAMILY, RANKINGS as ALL_RANKINGS, RANKING_GROUPS, type EvidenceItem, type Ranking } from "@/lib/data";
+import { EVIDENCE as ALL_EVIDENCE, type EvidenceItem, type Ranking } from "@/lib/data";
 import { GlowingEffect } from "@/components/ui/GlowingEffect";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Direction, MeterRow, PageHeader, Status, Swatch } from "@/components/ui/primitives";
 import { DimensionMatrix } from "./DimensionMatrix";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 /** Rankings landing page (proposal §3): how the eight rankings relate to UST's institutional goals. */
 /** `embedded` drops the page header when the overview sits inside the executive dashboard. */
@@ -13,7 +16,7 @@ const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eig
 export function RankingsOverview({
   mode,
   embedded,
-  rankings = ALL_RANKINGS,
+  rankings: given,
   evidence = ALL_EVIDENCE,
 }: {
   mode: "internal" | "public";
@@ -22,14 +25,15 @@ export function RankingsOverview({
   rankings?: Ranking[];
   evidence?: EvidenceItem[];
 }) {
+  const { calendar, dictionary, families, groups, rankings } = useViews();
   const internal = mode === "internal";
-  const RANKINGS = rankings;
+  const RANKINGS = given ?? rankings;
   const EVIDENCE = evidence;
-  const rankingsInGroup = (label: string) => (RANKING_GROUPS.find((g) => g.label === label)?.slugs ?? []).flatMap((s) => RANKINGS.filter((r) => r.slug === s));
+  const rankingsInGroup = (label: string) => (groups.find((g) => g.label === label)?.slugs ?? []).flatMap((s) => RANKINGS.filter((r) => r.slug === s));
   const base = internal ? "/admin/rankings" : "/rankings";
   const knowledge = internal ? "/admin/knowledge" : "/knowledge";
   const mapped = EVIDENCE.filter((e) => e.status !== "Not applicable" && e.mappedTo.filter((m) => RANKINGS.some((r) => m.startsWith(r.short + " ·"))).length > 1);
-  const cols = ["THE WUR", "THE Impact", "THE by Subject", "QS WUR", "QS Sustainability", "QS by Subject", "UI GreenMetric", "WURI"].filter((c) => RANKINGS.some((r) => r.short === c));
+  const cols = rankings.filter((r) => RANKINGS.some((x) => x.slug === r.slug)).map((r) => r.short);
 
   return (
     <>
@@ -93,7 +97,7 @@ export function RankingsOverview({
       </Card>
 
       <section aria-label="Rankings portfolio map" className="portfolio">
-        {RANKING_GROUPS.filter((g) => rankingsInGroup(g.label).length).map((g) => (
+        {groups.filter((g) => rankingsInGroup(g.label).length).map((g) => (
           <div key={g.label} className="card portfolio__group">
             {embedded && <GlowingEffect />}
             <h2 className="portfolio__title">
@@ -130,7 +134,7 @@ export function RankingsOverview({
           }
         >
           <ul className="list">
-            {DICTIONARY.slice(0, 6).map((d) => {
+            {dictionary.slice(0, 6).map((d) => {
               const names = [...new Set(d.links.map((l) => l.ranking))];
               return (
                 <li key={d.term}>
@@ -148,7 +152,7 @@ export function RankingsOverview({
         </Card>
         <Card title="Annual submission calendar" sub="When each ranking body collects data" icon="calendar" tone="dark" glow={embedded}>
           <ol className="cal">
-            {CALENDAR.map((c) => (
+            {calendar.map((c) => (
               <li key={c.month}>
                 <b>{c.month}</b>
                 <span>
@@ -204,7 +208,7 @@ export function RankingsOverview({
                       return (
                         <td key={c} className="c">
                           {hit ? (
-                            <span className="evmap__dot" style={{ background: FAMILY[r.family].band }} title={hit}>
+                            <span className="evmap__dot" style={{ background: families[r.family].band }} title={hit}>
                               <span className="sr-only">{hit}</span>
                             </span>
                           ) : (

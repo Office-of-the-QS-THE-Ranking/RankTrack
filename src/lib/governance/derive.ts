@@ -2,9 +2,9 @@
  * Derived facts about the governance state that the server, the console and the workspaces all need.
  * Pure functions: no I/O.
  */
-import { RANKINGS } from "@/lib/data";
+import { bodyOfRanking, type Reference } from "@/lib/reference";
 import { participationKind } from "./directory";
-import { BODY_OF_FAMILY, bodyOfMapping } from "./catalog";
+import { bodyOfMapping } from "./catalog";
 import { ancestors, canWith, descendants, has, type Grant } from "./rbac";
 import type { Account, BodyKey, Dataset, GovernanceState, OrgUnit, SecretKey } from "./types";
 
@@ -85,25 +85,23 @@ export function flagOn(state: GovernanceState, flagId: string, account: Account 
 
 export const featureOn = (state: GovernanceState, id: string) => state.config.features.find((f) => f.id === id)?.enabled ?? true;
 
-export const bodyOfRanking = (slug: string): BodyKey | undefined => {
-  const r = RANKINGS.find((x) => x.slug === slug);
-  return r ? BODY_OF_FAMILY[r.family] : undefined;
-};
-
 export function bodyEnabled(state: GovernanceState, key: string | undefined) {
   return !!key && (state.config.bodies.find((b) => b.key === key)?.enabled ?? false);
 }
 
-/** Tracked in the workspaces: the ranking and its body are both switched on. */
-export function rankingActive(state: GovernanceState, slug: string) {
+/**
+ * Tracked in the workspaces: the ranking and its body are both switched on. A framework added in Supabase
+ * (ranking_frameworks) is tracked until System Configuration says otherwise.
+ */
+export function rankingActive(state: GovernanceState, ref: Reference, slug: string) {
   const c = state.config.rankings.find((r) => r.slug === slug);
-  return !!c?.enabled && bodyEnabled(state, bodyOfRanking(slug));
+  return (c ? c.enabled : !!ref.rankings.some((r) => r.slug === slug)) && bodyEnabled(state, bodyOfRanking(ref, slug));
 }
 
-/** Shown on the public website: active, marked public, and results are a Public dataset. */
-export function rankingPublic(state: GovernanceState, slug: string) {
+/** Shown on the public website: active, marked public, and results are a Public dataset. A new framework waits for its switch. */
+export function rankingPublic(state: GovernanceState, ref: Reference, slug: string) {
   const c = state.config.rankings.find((r) => r.slug === slug);
-  return rankingActive(state, slug) && !!c?.public && datasetPublic(state, "DS-RESULTS");
+  return rankingActive(state, ref, slug) && !!c?.public && datasetPublic(state, "DS-RESULTS");
 }
 
 export const datasetOf = (state: GovernanceState, id: string): Dataset | undefined => state.datasets.find((d) => d.id === id);

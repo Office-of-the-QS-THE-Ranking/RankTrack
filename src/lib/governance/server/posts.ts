@@ -14,7 +14,9 @@ import type { Viewer } from "../viewer";
 import { viewerCan } from "../viewer";
 import { adminShortcut } from "./dev-access";
 import { readState } from "./store";
+import { reference } from "./reference";
 import { postAnalytics } from "../post-analytics";
+import { countedViews } from "./post-views";
 
 const own = (src: string): PostMedia => ({ src, width: 0, height: 0, alt: "" });
 
@@ -100,9 +102,11 @@ function rows(state: GovernanceState): PostRow[] {
 export async function postDesk(viewer: Viewer): Promise<PostDesk> {
   const state = await readState();
   const account = state.accounts.find((a) => a.id === viewer.id);
-  const ctx = account ? makeCtx(state, actorFor(state, account), new Date(), await adminShortcut()) : null;
+  const ctx = account ? makeCtx(state, actorFor(state, account), await reference(), new Date(), await adminShortcut()) : null;
+  const list = rows(state);
+  const counted = await countedViews(list.map((row) => row.slug));
   return {
-    rows: rows(state).map((row) => ({ ...row, analytics: postAnalytics(state, row.slug) })),
+    rows: list.map((row) => ({ ...row, analytics: postAnalytics(state, row.slug, counted.get(row.slug)) })),
     can: {
       create: viewerCan(viewer, "posts", "create"),
       edit: viewerCan(viewer, "posts", "edit"),

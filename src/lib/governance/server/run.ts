@@ -6,19 +6,25 @@ import "server-only";
  * refusal, which stays in the audit trail.
  */
 import type { Command, CommandResult } from "../commands";
+import type { Reference } from "@/lib/reference";
 import { actorFor, execute, GUEST, housekeeping, makeCtx, SYSTEM, type Actor, type Ctx } from "../engine";
 import { log, nextId } from "../engine/core";
 import { addDays } from "../derive";
+import { evidencePath } from "../evidence-files";
 import { mediaPath } from "../posts";
+import { canWith } from "../rbac";
 import { emblemPath } from "../unit-emblems";
 import type { GovernanceState } from "../types";
+import { anchorAudit } from "./db/audit";
 import { adminShortcut } from "./dev-access";
 import { mediaInUse } from "./media";
-import { deleteMediaLater, deletePoint, restoreInto, seal, transact, verifyChain, verifyPoint, writePoint } from "./store";
+import { reference } from "./reference";
+import { deletePoint, dropPendingAfter, pendingMark, readState, releaseMediaLater, restoreInto, seal, transact, verifyChain, verifyPoint, writePoint } from "./store";
 
 type Body = (ctx: Ctx) => CommandResult;
+type Verified = Awaited<ReturnType<typeof verifyChain>>;
 
-async function effects(ctx: Ctx, result: CommandResult): Promise<CommandResult> {
+async function effects(ctx: Ctx, result: CommandResult, verified?: Verified): Promise<CommandResult> {
   let out = result;
   for (const fx of ctx.effects) {
     const s = ctx.state;
@@ -60,14 +66,16 @@ async function effects(ctx: Ctx, result: CommandResult): Promise<CommandResult> 
         break;
       }
       case "delete-media": {
-        // Only uploads, and only those no post or unit still shows.
+        // Only uploads, and only those no post, unit or evidence item still shows.
         const used = mediaInUse(s);
-        const paths = fx.srcs.filter((src) => !used.has(src)).flatMap((src) => mediaPath(src) ?? emblemPath(src) ?? []);
-        if (paths.length) deleteMediaLater(paths);
+        const paths = fx.srcs.filter((src) => !used.has(src)).flatMap((src) => mediaPath(src) ?? emblemPath(src) ?? evidencePath(src) ?? []);
+        if (paths.length) releaseMediaLater(paths);
         break;
       }
       case "verify-audit": {
-        const v = verifyChain(s);
+        // Walked before the transaction (see run): a long walk must not hold up, or be retried by, other changes.
+        const v = verified;
+        if (!v) return { ok: false, message: "The audit log could not be checked. Try again." };
         out = {
           ok: true,
           message: v.ok ? `Audit log intact: ${v.entries.toLocaleString("en-PH")} entries verified.` : `Audit log altered at entry ${v.brokenAt}: ${v.reason}`,
@@ -85,13 +93,13 @@ async function effects(ctx: Ctx, result: CommandResult): Promise<CommandResult> 
  * after the last recovery point triggers one, so at most that much work can ever be lost; a full
  * backup is taken when the last one is a day old.
  */
-function scheduledBackup(state: GovernanceState, now: Date) {
+function scheduledBackup(state: GovernanceState, ref: Reference, now: Date) {
   const done = state.backup.points.filter((p) => p.status === "Completed").sort((a, b) => b.at.localeCompare(a.at));
   const last = done[0];
   if (last && now.getTime() - Date.parse(last.at) < state.backup.objectives.rpoMinutes * 60_000) return;
   const lastFull = done.find((p) => p.kind === "Full");
   const kind = !lastFull || now.getTime() - Date.parse(lastFull.at) > 24 * 3_600_000 ? "Full" : "Incremental";
-  const ctx = makeCtx(state, SYSTEM, now);
+  const ctx = makeCtx(state, SYSTEM, ref, now);
   const id = nextId(ctx, "point", "RP-", 4);
   state.backup.points.unshift({
     id,
@@ -101,7 +109,7 @@ function scheduledBackup(state: GovernanceState, now: Date) {
     location: kind === "Full" && state.backup.schedule.offsite ? "Off-site copy" : "Primary region",
     status: "Completed",
     checksum: "pending",
-    file: `${id}.json`,
+    file: `backups/${id}.json.gz`,
     expiresAt: addDays(ctx.day, state.backup.schedule.retentionDays),
   });
   const { checksum, sizeMB } = writePoint(state, id);
@@ -122,30 +130,60 @@ function expirePoints(ctx: Ctx) {
   s.backup.points = s.backup.points.filter((x) => x.expiresAt >= ctx.day);
 }
 
-async function commitWith(draft: GovernanceState, current: GovernanceState, actorOf: (s: GovernanceState) => Actor, body: Body) {
-  const now = new Date();
-  const hk = makeCtx(draft, SYSTEM, now);
+/** Expire what policy says has expired, as the system, on `state`. Running it twice queues each file removal once (applyPending). */
+function upkeep(state: GovernanceState, ref: Reference, now: Date) {
+  const hk = makeCtx(state, SYSTEM, ref, now);
   housekeeping(hk);
   expirePoints(hk);
-  seal(draft, hk.drafts);
-  const checkpoint = structuredClone(draft);
-  const ctx = makeCtx(draft, actorOf(draft), now, await adminShortcut());
-  let result = body(ctx);
-  if (result.ok) result = await effects(ctx, result);
+  seal(state, hk.drafts);
+}
+
+/** A command that throws (malformed input, most often) is refused like any other, not a server error. */
+function safely(body: Body, ctx: Ctx): CommandResult {
+  try {
+    const r = body(ctx);
+    return r && typeof r.ok === "boolean" ? r : { ok: false, message: "That request isn't one the Hub recognises." };
+  } catch (e) {
+    console.error(e);
+    return { ok: false, message: "That request was incomplete or malformed. Reload the page and try again." };
+  }
+}
+
+async function commitWith(draft: GovernanceState, current: GovernanceState, actorOf: (s: GovernanceState) => Actor, body: Body, verified?: Verified) {
+  const now = new Date();
+  const ref = await reference();
+  upkeep(draft, ref, now);
+  const mark = pendingMark();
+  const ctx = makeCtx(draft, actorOf(draft), ref, now, await adminShortcut());
+  let result = safely(body, ctx);
+  if (result.ok) result = await effects(ctx, result, verified);
   if (result.ok) {
     seal(draft, ctx.drafts);
-    if (ctx.drafts.some((d) => d.category !== "Session" && d.category !== "Backup")) scheduledBackup(draft, now);
+    if (ctx.drafts.some((d) => d.category !== "Session" && d.category !== "Backup")) scheduledBackup(draft, ref, now);
     return { commit: draft, result };
   }
-  // Keep the refusal on record; drop everything else the command touched.
+  // Keep the refusal on record; drop everything else the command touched, including its queued side effects.
+  // The untouched state is copied only now, since most commands succeed.
+  dropPendingAfter(mark);
+  const checkpoint = structuredClone(current);
+  upkeep(checkpoint, ref, now);
   seal(checkpoint, ctx.drafts.filter((d) => d.outcome !== "Success"));
-  void current;
   return { commit: checkpoint, result };
 }
 
+/** Walk the audit chain for audit.verify, but only for someone allowed to: the walk reads the whole trail. */
+async function verifyFor(accountId: string | null, cmd: Command | Body): Promise<Verified | undefined> {
+  if (typeof cmd === "function" || cmd.type !== "audit.verify" || !accountId) return undefined;
+  const state = await readState();
+  const account = state.accounts.find((a) => a.id === accountId);
+  if (!account || !canWith(actorFor(state, account).grants, "audit", "view")) return undefined;
+  return verifyChain();
+}
+
 /** Run a command as an account (or as a guest for access requests). */
-export function run(accountId: string | null, cmd: Command | Body): Promise<CommandResult> {
-  return transact((draft, current) =>
+export async function run(accountId: string | null, cmd: Command | Body): Promise<CommandResult> {
+  const verified = await verifyFor(accountId, cmd);
+  const result = await transact((draft, current) =>
     commitWith(
       draft,
       current,
@@ -154,11 +192,16 @@ export function run(accountId: string | null, cmd: Command | Body): Promise<Comm
         return acc ? actorFor(s, acc) : GUEST;
       },
       typeof cmd === "function" ? cmd : (ctx) => execute(ctx, cmd),
+      verified,
     ),
   );
+  void anchorAudit();
+  return result;
 }
 
 /** Run a body as the system itself (sign-in bookkeeping, automatic suspensions). */
-export function runSystem(body: Body): Promise<CommandResult> {
-  return transact((draft, current) => commitWith(draft, current, () => SYSTEM, body));
+export async function runSystem(body: Body): Promise<CommandResult> {
+  const result = await transact((draft, current) => commitWith(draft, current, () => SYSTEM, body));
+  void anchorAudit();
+  return result;
 }

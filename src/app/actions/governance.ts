@@ -5,24 +5,65 @@
  * applied, audited, and then every page that depends on governance is re-rendered.
  */
 import { revalidatePath } from "next/cache";
+import { checkCommand } from "@/lib/governance/command-guard";
 import type { Command, CommandResult } from "@/lib/governance/commands";
 import type { ConsoleData } from "@/lib/governance/console-types";
 import { log } from "@/lib/governance/engine/core";
+import { evidencePath } from "@/lib/governance/evidence-files";
 import { canWith } from "@/lib/governance/rbac";
 import { consoleData } from "@/lib/governance/server/console";
+import { auditBySeq } from "@/lib/governance/server/db/audit";
+import { allowAccount } from "@/lib/governance/server/limits";
 import { run } from "@/lib/governance/server/run";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
+import { statObject } from "@/lib/r2";
 
 const ENDED: CommandResult = { ok: false, message: "Your session has ended. Sign in again to continue." };
+const BUSY: CommandResult = { ok: false, message: "Too many changes in a short time. Wait a minute and try again." };
+
+/** Most rows an audit export holds; narrow the filters for more. */
+const EXPORT_MAX = 10_000;
+
+/**
+ * Files named by evidence.submit and evidence.respond must be uploads that exist, within the upload limit; their
+ * sizes come from storage, not from what the browser said.
+ */
+async function checkAttachments(cmd: Command): Promise<string | null> {
+  const files =
+    cmd.type === "evidence.submit" ? cmd.input?.files : cmd.type === "evidence.respond" && cmd.file && typeof cmd.file === "object" ? [cmd.file] : null;
+  if (!files) return null;
+  if (!Array.isArray(files)) return "Attach the files again.";
+  const { maxFileMB } = (await readState()).config.uploads;
+  for (const f of files) {
+    const path = f && typeof f.src === "string" ? evidencePath(f.src) : null;
+    if (!path) return "A file didn’t finish uploading. Remove it and attach it again.";
+    const stat = await statObject("private", path).catch(() => null);
+    if (!stat) return `${f.name} didn’t finish uploading. Remove it and attach it again.`;
+    if (stat.size > maxFileMB * 1_048_576) return `${f.name} is larger than ${maxFileMB} MB.`;
+    f.sizeMB = Math.round((stat.size / 1_048_576) * 10) / 10;
+  }
+  return null;
+}
+
+/** Check, authorize and run one command as the signed-in account. */
+async function execute(raw: unknown): Promise<{ viewerId: string | null; result: CommandResult }> {
+  const viewer = await getViewer();
+  if (!viewer) return { viewerId: null, result: ENDED };
+  const checked = checkCommand(raw);
+  if (!checked.ok) return { viewerId: viewer.id, result: { ok: false, message: checked.message } };
+  if (!(await allowAccount(viewer.id, "command"))) return { viewerId: viewer.id, result: BUSY };
+  const problem = await checkAttachments(checked.cmd);
+  if (problem) return { viewerId: viewer.id, result: { ok: false, message: problem } };
+  const result = await run(viewer.id, checked.cmd);
+  // Governance shapes the workspaces and the public website, so every page re-renders from the new state. A
+  // refused command changed nothing anyone sees.
+  if (result.ok) revalidatePath("/", "layout");
+  return { viewerId: viewer.id, result };
+}
 
 export async function govern(cmd: Command): Promise<CommandResult> {
-  const viewer = await getViewer();
-  if (!viewer) return ENDED;
-  const result = await run(viewer.id, cmd);
-  // Governance shapes the workspaces and the public website, so every page re-renders from the new state.
-  revalidatePath("/", "layout");
-  return result;
+  return (await execute(cmd)).result;
 }
 
 /** The Administration console's data, filtered to what the viewer may see. */
@@ -34,10 +75,8 @@ export async function loadConsole(): Promise<ConsoleData | null> {
 
 /** Run a console command and return the refreshed console in the same round trip. */
 export async function governConsole(cmd: Command): Promise<{ result: CommandResult; data: ConsoleData | null }> {
-  const viewer = await getViewer();
-  if (!viewer) return { result: ENDED, data: null };
-  const result = await run(viewer.id, cmd);
-  revalidatePath("/", "layout");
+  const { viewerId, result } = await execute(cmd);
+  if (!viewerId) return { result, data: null };
   const after = await getViewer();
   return { result, data: after && after.admin.length ? await consoleData(after) : null };
 }
@@ -47,8 +86,11 @@ export async function exportAudit(seqs: number[], filters: string): Promise<Comm
   const viewer = await getViewer();
   if (!viewer) return ENDED;
   const allowed = canWith(viewer.grants, "audit", "export");
-  const wanted = new Set(seqs);
-  const rows = (await readState()).audit.filter((e) => wanted.has(e.seq));
+  if (allowed && !(await allowAccount(viewer.id, "export"))) return BUSY;
+  // Only whole numbers, each once: they name rows of the audit trail.
+  const wanted = [...new Set((Array.isArray(seqs) ? seqs : []).filter((n) => Number.isSafeInteger(n) && n > 0))];
+  if (wanted.length > EXPORT_MAX) return { ok: false, message: `Export at most ${EXPORT_MAX.toLocaleString("en-PH")} entries at a time. Narrow the filters.` };
+  const rows = allowed ? await auditBySeq(wanted) : [];
   const result = await run(viewer.id, (ctx) => {
     const target = { type: "Audit log", id: "audit", label: `Audit log export, ${rows.length} entries` };
     if (!allowed) {
@@ -59,11 +101,14 @@ export async function exportAudit(seqs: number[], filters: string): Promise<Comm
     return { ok: true, message: `${rows.length} entries exported. The export itself is now in the log.` };
   });
   if (!result.ok) return result;
-  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  // A cell a spreadsheet would read as a formula (= + - @, or a leading tab or return) is prefixed with ' so it stays text.
+  const esc = (v: string | number) => {
+    const text = typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? `'${v}` : String(v);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
   const head = ["Seq", "Time (UTC)", "Actor", "Role", "Action", "Category", "Resource type", "Resource", "Outcome", "Detail", "Previous hash", "Hash"];
   const csv = [head, ...rows.map((e) => [e.seq, e.at, e.actorName, e.actorRole, e.action, e.category, e.resource.type, `${e.resource.label} (${e.resource.id})`, e.outcome, e.detail ?? "", e.prev, e.hash])]
     .map((r) => r.map(esc).join(","))
     .join("\n");
-  revalidatePath("/", "layout");
   return { ...result, csv };
 }

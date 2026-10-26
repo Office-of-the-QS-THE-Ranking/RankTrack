@@ -1,20 +1,15 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import {
-  FAMILY,
-  RANKINGS,
-  SDG_COLORS,
-  SDG_NAMES,
   daysUntil,
   formatDate,
-  inkOn,
   readinessLevel,
   type Direction as Dir,
   type EvidenceStatus,
-  type FamilyKey,
   type Indicator,
 } from "@/lib/data";
 import { GlowingEffect } from "./GlowingEffect";
+import { RankingChip, RankingName, Sdg, Swatch } from "./identity";
 import { Icon, type IconName } from "./Icon";
 
 export type AnyStatus = EvidenceStatus | "Not started";
@@ -352,57 +347,7 @@ export function Trend({ trend }: { trend: Indicator["trend"] }) {
 
 /* ---------- Identity ---------- */
 
-export function Swatch({ family, bar, title }: { family: FamilyKey; bar?: boolean; title?: string }) {
-  return (
-    <i
-      className={cx("sw", bar && "sw--bar")}
-      style={{ ["--c" as string]: FAMILY[family].band, background: FAMILY[family].band } as CSSProperties}
-      aria-hidden={title ? undefined : true}
-      title={title}
-    />
-  );
-}
-
-export function RankingChip({ slug, href }: { slug: string; href?: string | false }) {
-  const r = RANKINGS.find((x) => x.slug === slug);
-  if (!r) return null;
-  const inner = (
-    <>
-      <Swatch family={r.family} />
-      {r.short}
-    </>
-  );
-  return href === false ? (
-    <span className="chip chip--outline">{inner}</span>
-  ) : (
-    <Link href={href ?? `/admin/rankings/${r.slug}`} className="chip chip--outline">
-      {inner}
-    </Link>
-  );
-}
-
-export function RankingName({ slug }: { slug: string }) {
-  const r = RANKINGS.find((x) => x.slug === slug);
-  if (!r) return null;
-  return (
-    <span className="row nowrap" style={{ gap: 8 }}>
-      <Swatch family={r.family} />
-      {r.short}
-    </span>
-  );
-}
-
-export function Sdg({ n, withName }: { n: number; withName?: boolean }) {
-  return (
-    <span className="row" style={{ gap: 8 }}>
-      <span className="sdg" style={{ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]) }} title={`SDG ${n}: ${SDG_NAMES[n]}`}>
-        {n}
-        {!withName && <span className="sr-only">{`: ${SDG_NAMES[n]}`}</span>}
-      </span>
-      {withName && <span className="small">{SDG_NAMES[n]}</span>}
-    </span>
-  );
-}
+export { RankingChip, RankingName, Sdg, Swatch };
 
 export function SdgList({ sdgs }: { sdgs: number[] }) {
   return (

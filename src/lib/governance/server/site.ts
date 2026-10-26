@@ -7,26 +7,27 @@ import "server-only";
  * System Configuration has switched on.
  */
 import { cache } from "react";
-import { BODIES, COUNTS, MOVERS, PHOTOS } from "@/lib/site";
+import { bodies, counts, movers } from "@/lib/reference";
 import type { HubData } from "../hub-types";
 import { hub } from "./hub";
 
 export const siteData = cache(async () => {
   const h = await hub();
+  const ref = h.ref;
   const rankings = h.publicRankings;
   // Stories published through the workflow may arrive without photographs: they borrow the campus courtyard.
   // A post has no outcome figure; its subtitle stands where the figure's label would.
   const stories = h.publishedStories.map((s) =>
-    s.images.length ? s : { ...s, images: [PHOTOS.courtyard.src], ...(s.post ? {} : { outcomeFigure: s.outcomeFigure || "—", outcomeLabel: s.outcomeLabel || s.outcome }) },
+    s.images.length ? s : { ...s, images: ref.photos.courtyard ? [ref.photos.courtyard.src] : [], ...(s.post ? {} : { outcomeFigure: s.outcomeFigure || "—", outcomeLabel: s.outcomeLabel || s.outcome }) },
   );
   const pub = (slug: string) => rankings.find((r) => r.slug === slug);
   return {
     rankings,
     isPublic: (slug: string) => !!pub(slug),
     ranking: pub,
-    bodies: BODIES.map((b) => ({ ...b, rankings: b.rankings.flatMap((r) => (pub(r.slug) ? [pub(r.slug)!] : [])) })).filter((b) => b.rankings.length),
-    movers: MOVERS.flatMap((r) => (pub(r.slug) ? [pub(r.slug)!] : [])),
-    counts: COUNTS.map((c) => ({ ...c, rankings: c.rankings.filter((r) => !!pub(r.slug)) })),
+    bodies: bodies(ref).map((b) => ({ ...b, rankings: b.rankings.flatMap((r) => (pub(r.slug) ? [pub(r.slug)!] : [])) })).filter((b) => b.rankings.length),
+    movers: movers(ref).flatMap((r) => (pub(r.slug) ? [pub(r.slug)!] : [])),
+    counts: counts(ref).map((c) => ({ ...c, rankings: c.rankings.filter((r) => !!pub(r.slug)) })),
     boardUnits: h.activeUnits.filter((u) => u.rankingsServed > 0).sort((a, b) => b.rankingsServed - a.rankingsServed || b.validated - a.validated).slice(0, 10),
     unitsEngaged: h.activeUnits.filter((u) => u.completed > 0).length,
     units: h.activeUnits,
@@ -37,6 +38,8 @@ export const siteData = cache(async () => {
     privacy: h.privacy,
     notice: h.site.noticeOn ? h.site.notice : "",
     asOf: h.site.asOf,
+    currentCycle: h.currentCycle,
+    ref,
   };
 });
 

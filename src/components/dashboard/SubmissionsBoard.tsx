@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ACTIONS, DIMENSION_SCORES, FAMILY, daysUntil, formatDate, type EvidenceStatus, type Ranking } from "@/lib/data";
+import { ACTIONS, DIMENSION_SCORES, daysUntil, formatDate, type EvidenceStatus, type Ranking } from "@/lib/data";
 import type { Hub } from "@/lib/governance/server/hub";
 import { viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { Due, Empty, RankingName, Status, cx } from "@/components/ui/primitives";
 import { ReadinessChart } from "./ReadinessChart";
 import { Tile } from "./Tile";
+import { serverViews } from "@/lib/governance/server/views";
 
 /** The readiness each ranking works toward before its deadline. */
 const GOAL = 80;
@@ -43,7 +44,8 @@ function monthAxis(horizon: number) {
 }
 
 /** The Submissions view of the executive dashboard: one bento of readiness, deadlines, units, dimensions, rankings and actions. */
-export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null }) {
+export async function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null }) {
+  const { families } = await serverViews();
   const evidence = h.evidence.filter((e) => viewerCan(viewer, "evidence", "view", { unitId: e.unitSlug }));
   const readiness = mean(h.rankings.map((r) => r.readiness));
   const lit = Math.round((readiness / 100) * TICKS);
@@ -168,7 +170,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
                       key={r.slug}
                       href={`/admin/rankings/${r.slug}`}
                       className={cx("ov-run__dot", r === next && "is-next")}
-                      style={{ "--c": FAMILY[r.family].color } as CSSProperties}
+                      style={{ "--c": families[r.family].color } as CSSProperties}
                       data-tip={`${r.short}, ${formatDate(r.deadline)}`}
                       aria-label={`${r.short}, due ${formatDate(r.deadline)}`}
                     />

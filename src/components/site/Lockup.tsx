@@ -1,8 +1,6 @@
 import Image from "next/image";
-import { OFFICE } from "@/lib/office";
 
 export const UNIVERSITY = "University of Santo Tomas";
-export const UNIT = OFFICE.name;
 
 /**
  * Unit mark from the Visual Identity Manual ("Unit Marks and Name Hierarchy"): the registered seal on
@@ -12,11 +10,14 @@ export const UNIT = OFFICE.name;
  * seal (white ring text) is required.
  */
 export function Lockup({
+  unit,
   reverse,
   className,
   sizes = "(max-width: 700px) 48px, 60px",
   preload,
 }: {
+  /** The Office's name (reference data: office_profile). */
+  unit: string;
   reverse?: boolean;
   className?: string;
   sizes?: string;
@@ -35,7 +36,7 @@ export function Lockup({
       />
       <span className="w-lockup__words">
         <span className="w-lockup__name">{UNIVERSITY}</span>
-        <span className="w-lockup__unit">{UNIT}</span>
+        <span className="w-lockup__unit">{unit}</span>
       </span>
     </span>
   );

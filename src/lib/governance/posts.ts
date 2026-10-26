@@ -40,9 +40,9 @@ export const MEDIA_MAX_MB = 10;
 /** What a post's pictures may be when picked: JPG or PNG up to 2 MB. The browser then compresses each before upload. */
 export const POST_PICK = { types: { "image/jpeg": "JPG", "image/png": "PNG" } as Record<string, string>, maxMb: 2 } as const;
 
-/** Uploads are served from /media/posts/<uuid>.<ext>; the Hub's own photographs from /images/. */
+/** Uploads are served from /media/posts/<uuid>.<ext>; the Hub's own photographs (media_assets) from /media/site/photos/. */
 const UPLOADED = /^\/media\/(posts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp|gif|avif))$/;
-const OWN = /^\/images\/[A-Za-z0-9._-]+\.(?:jpe?g|png|webp)$/;
+const OWN = /^\/media\/site\/photos\/[a-z0-9][a-z0-9._-]*\.(?:jpe?g|png|webp)$/;
 
 /** The bucket path of an uploaded picture, or null for anything that isn't one. */
 export const mediaPath = (src: string) => UPLOADED.exec(src)?.[1] ?? null;

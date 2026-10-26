@@ -1,16 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { SDG_COLORS, SDG_NAMES, inkOn, type Story } from "@/lib/data";
+import { inkOn, type Story } from "@/lib/data";
 import { siteData } from "@/lib/governance/server/site";
-import { PHOTOS, type Photo } from "@/lib/site";
+import { type Photo } from "@/lib/site";
 import { PageHero } from "../PageHero";
 import { AdaptCoupon } from "../home/AdaptCoupon";
+import { serverViews } from "@/lib/governance/server/views";
 
-const photoFor = (src: string): Photo => Object.values(PHOTOS).find((p) => p.src === src) ?? { src, alt: "" };
+const photoFor = (photos: Record<string, Photo>, src: string): Photo => Object.values(photos).find((p) => p.src === src) ?? { src, alt: "" };
 
 /** One practice, in the order the proposal sets: challenge, response, implementation, outcome, beneficiaries, alignment, replication. */
 export async function StoryDetail({ story: s }: { story: Story }) {
+  const { photos, sdgColors, sdgNames } = await serverViews();
   const { stories: PUBLISHED_STORIES, rankings: RANKINGS } = await siteData();
   const related = PUBLISHED_STORIES.filter((o) => o.slug !== s.slug && o.themes.some((t) => s.themes.includes(t))).slice(0, 3);
   const counts = s.rankings.map((short) => RANKINGS.find((r) => r.short === short)).filter((r): r is (typeof RANKINGS)[number] => !!r);
@@ -45,7 +47,7 @@ export async function StoryDetail({ story: s }: { story: Story }) {
             </Link>
           </>
         }
-        photo={photoFor(s.images[0])}
+        photo={photoFor(photos, s.images[0])}
       />
 
       <section className="w-band w-band--gold w-outcome" aria-labelledby="outcome-title">
@@ -92,7 +94,7 @@ export async function StoryDetail({ story: s }: { story: Story }) {
           </div>
           {second && (
             <div className="w-lesson__disc" data-reveal="disc">
-              <Image src={second} alt={photoFor(second).alt} fill sizes="(max-width: 900px) 80vw, 30vw" />
+              <Image src={second} alt={photoFor(photos, second).alt} fill sizes="(max-width: 900px) 80vw, 30vw" />
             </div>
           )}
         </div>
@@ -116,11 +118,11 @@ export async function StoryDetail({ story: s }: { story: Story }) {
               <li
                 key={n}
                 className="w-sdg"
-                style={{ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]), ["--d" as string]: `${i * 80}ms` } as CSSProperties}
+                style={{ background: sdgColors[n], color: inkOn(sdgColors[n]), ["--d" as string]: `${i * 80}ms` } as CSSProperties}
                 data-reveal
               >
                 <span className="w-sdg__n w-figure">{n}</span>
-                <span className="w-sdg__name">{SDG_NAMES[n]}</span>
+                <span className="w-sdg__name">{sdgNames[n]}</span>
               </li>
             ))}
           </ul>
@@ -137,7 +139,7 @@ export async function StoryDetail({ story: s }: { story: Story }) {
         </div>
         {third && (
           <div className="w-align__pic" data-reveal="shutter">
-            <Image src={third} alt={photoFor(third).alt} fill sizes="(max-width: 900px) 100vw, 60vw" />
+            <Image src={third} alt={photoFor(photos, third).alt} fill sizes="(max-width: 900px) 100vw, 60vw" />
           </div>
         )}
       </section>

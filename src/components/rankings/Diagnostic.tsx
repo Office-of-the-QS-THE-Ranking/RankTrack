@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ACTION_PLAN, FAMILY, RESEARCH_FUNNEL, unitByName, type Indicator, type Ranking } from "@/lib/data";
+import { ACTION_PLAN, type Indicator, type Ranking } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, Kpi, MeterRow, Notice, PageHeader, PlanStatus, Status, Trend } from "@/components/ui/primitives";
 import { BarList, ChartFrame, LineWithTarget } from "@/components/charts/charts";
 import { linkedEvidence } from "./IndicatorDrawer";
 import { criticalIndicator } from "./focus";
 import { useHub } from "@/components/hub/HubProvider";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 /** Dedicated diagnostic for a ranking's principal structural challenge (QS: Citations per Faculty). */
 export function Diagnostic({ ranking }: { ranking: Ranking }) {
@@ -34,10 +35,11 @@ export function Diagnostic({ ranking }: { ranking: Ranking }) {
 }
 
 function IndicatorDiagnostic({ ranking, ind }: { ranking: Ranking; ind: Indicator }) {
+  const { families, researchFunnel } = useViews();
   const years = [2023, 2024, 2025, 2026];
   const share = ind.current !== null && ind.target ? Math.round((ind.current / ind.target) * 100) : null;
   const hub = useHub();
-  const owner = hub?.units.find((u) => u.name === ind.owner) ?? unitByName(ind.owner);
+  const owner = hub?.units.find((u) => u.name === ind.owner);
   const evidence = linkedEvidence(ranking, ind, hub?.evidence);
   const isQs = ranking.slug === "qs-wur";
   const decimals = [ind.current ?? 0, ind.target ?? 0, ...ind.history].some((v) => v % 1 !== 0) ? 1 : 0;
@@ -94,7 +96,7 @@ function IndicatorDiagnostic({ ranking, ind }: { ranking: Ranking; ind: Indicato
             </table>
           }
         >
-          <LineWithTarget values={ind.history} years={years} target={ind.target} label={`${ind.name} by year`} color={FAMILY[ranking.family].color} />
+          <LineWithTarget values={ind.history} years={years} target={ind.target} label={`${ind.name} by year`} color={families[ranking.family].color} />
         </ChartFrame>
         <Card title="Definition and formula" icon="knowledge">
           <dl className="kv kv--stack">
@@ -120,7 +122,7 @@ function IndicatorDiagnostic({ ranking, ind }: { ranking: Ranking; ind: Indicato
         <div className="grid cols-2">
           <Card title="Where the score comes from" sub="Research influence funnel, 2025" icon="research">
             <ol className="flow flow--stack">
-              {RESEARCH_FUNNEL.map((s, i) => (
+              {researchFunnel.map((s, i) => (
                 <li key={s.step} className={`flow__step${i === 4 ? " flow__step--warn" : ""}`}>
                   <span className="flow__value">{s.value}</span>
                   <span className="flow__name">{s.step}</span>

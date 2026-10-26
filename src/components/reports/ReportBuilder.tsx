@@ -1,17 +1,13 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import {
-  ACTION_PLAN,
-  EVIDENCE_LEVELS,
-  SDG_NAMES,
-  type EvidenceStatus,
-} from "@/lib/data";
+import { ACTION_PLAN, type EvidenceStatus } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Direction, Empty, MeterRow, Notice, PlanStatus, Status, Swatch } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useCan, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { DateField, Select } from "@/components/ui/pickers";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 /* Each report draws on governed datasets; their classification decides whether it can be exported. */
 const REPORTS: { name: string; icon: IconName; note: string; datasets: string[] }[] = [
@@ -39,6 +35,7 @@ function toCsv(name: string, head: string[], rows: Row[], watermark?: string | n
 }
 
 export function ReportBuilder() {
+  const { evidenceLevels, sdgNames } = useViews();
   const hub = useHub();
   const viewer = useViewer();
   const can = useCan();
@@ -72,7 +69,7 @@ export function ReportBuilder() {
       (indicator === "Any indicator" || e.mappedTo.some((m) => m.toLowerCase().includes(indicator.split(":")[0].toLowerCase()))) &&
       (status === "Any status" || e.status === (status as EvidenceStatus)) &&
       (sdg === "Any SDG" || e.sdgs.includes(Number(sdg.split(" ")[1]))) &&
-      (quality === "Any quality" || EVIDENCE_LEVELS[e.level - 1] === quality),
+      (quality === "Any quality" || evidenceLevels[e.level - 1] === quality),
   );
   const rankings = RANKINGS.filter((r) => ranking === "All rankings" || r.short === ranking);
   const units = UNITS.filter((u) => unit === "All units" || u.name === unit);
@@ -252,7 +249,7 @@ export function ReportBuilder() {
       break;
     default:
       head = ["Evidence", "ID", "Unit", "Period", "Quality", "Rankings", "Status"];
-      rows = evidence.map((e) => [e.title, e.id, e.unit, e.period, EVIDENCE_LEVELS[e.level - 1], e.mappedTo.length, e.status]);
+      rows = evidence.map((e) => [e.title, e.id, e.unit, e.period, evidenceLevels[e.level - 1], e.mappedTo.length, e.status]);
       body = (
         <table className="table table--stack">
           <thead>
@@ -277,7 +274,7 @@ export function ReportBuilder() {
                   {e.unit}
                 </td>
                 <td data-label="Quality" className="small">
-                  {EVIDENCE_LEVELS[e.level - 1]}
+                  {evidenceLevels[e.level - 1]}
                 </td>
                 <td data-label="Used in" className="r num">
                   {e.mappedTo.length}
@@ -326,9 +323,9 @@ export function ReportBuilder() {
             {filter("Academic year", cycle, setCycle, CYCLES)}
             {filter("Unit", unit, setUnit, ["All units", ...UNITS.map((u) => u.name)])}
             {filter("Indicator", indicator, setIndicator, indicators)}
-            {filter("SDG", sdg, setSdg, ["Any SDG", ...Object.keys(SDG_NAMES).map((n) => `SDG ${n}`)])}
+            {filter("SDG", sdg, setSdg, ["Any SDG", ...Object.keys(sdgNames).map((n) => `SDG ${n}`)])}
             {filter("Submission status", status, setStatus, ["Any status", "Validated", "For review", "Needs revision", "Not yet submitted"])}
-            {filter("Evidence quality", quality, setQuality, ["Any quality", ...EVIDENCE_LEVELS])}
+            {filter("Evidence quality", quality, setQuality, ["Any quality", ...evidenceLevels])}
             {filter("Action-plan status", plan, setPlan, ["Any plan status", "On track", "At risk", "Not started", "Complete"])}
           </div>
         </Card>

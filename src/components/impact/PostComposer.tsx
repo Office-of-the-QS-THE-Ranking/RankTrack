@@ -10,7 +10,6 @@
  */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { discardUploads, startUploads } from "@/app/actions/posts";
-import { SDG_NAMES } from "@/lib/data";
 import type { PostInput } from "@/lib/governance/commands";
 import type { PostRow } from "@/lib/governance/hub-types";
 import { POST_LIMITS, type PostLayout } from "@/lib/governance/posts";
@@ -27,6 +26,7 @@ import { Dropzone, HashtagList, LayoutPicker, Panel, SdgPicker, UploadRow, sizeO
 import { DocEditor } from "./DocEditor";
 import { postPickProblem, preparePostPicture, upload, type Prepared } from "./media";
 import { PostAnalytics } from "./PostAnalytics";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 type Pic = {
   key: string;
@@ -107,6 +107,7 @@ export function PostComposer({
   canPublish: boolean;
   onClose: () => void;
 }) {
+  const { sdgNames } = useViews();
   const ids = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -617,7 +618,7 @@ export function PostComposer({
         foot={
           sdgs.length > 0 && (
             <>
-              <span className="pc-panel__picked">{sdgs.map((n) => `SDG ${n} ${SDG_NAMES[n]}`).join(" · ")}</span>
+              <span className="pc-panel__picked">{sdgs.map((n) => `SDG ${n} ${sdgNames[n]}`).join(" · ")}</span>
               <button
                 type="button"
                 className="pc-panel__clear"

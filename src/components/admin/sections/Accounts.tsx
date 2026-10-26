@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ROLE } from "@/lib/governance/catalog";
 import { invitationUnitMatchesRole } from "@/lib/governance/invitation";
 import { accountFilterOptions, matchesAccountFilter, matchesAccessRequestFilter } from "@/lib/governance/account-filters";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import type { AccountRow, RequestRow } from "@/lib/governance/console-types";
 import { trackStatus } from "@/lib/governance/request-tracker";
 import { UNIVERSITY, has, rolePermissions, union, unitScope } from "@/lib/governance/rbac";
@@ -90,13 +91,14 @@ export function Accounts() {
     return () => window.clearInterval(id);
   }, [filter, reload]);
 
+  const { directory } = useReference();
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase();
     return accounts
       .filter((a) => !t || a.name.toLowerCase().includes(t) || a.email.includes(t) || a.title.toLowerCase().includes(t))
-      .filter((a) => matchesAccountFilter(a, role, unit, data.units, requests, data.day))
+      .filter((a) => matchesAccountFilter(a, role, unit, data.units, requests, data.day, directory))
       .sort((a, b) => Number(b.inactive) - Number(a.inactive) || a.name.replace(/^\S+\.\s/, "").localeCompare(b.name.replace(/^\S+\.\s/, "")));
-  }, [accounts, q, unit, role, data.units, requests, data.day]);
+  }, [accounts, q, unit, role, data.units, requests, data.day, directory]);
 
   const unitName = (id: string) => data.units.find((u) => u.id === id)?.name ?? id;
   const current = accounts.find((a) => a.id === open) ?? null;
@@ -200,7 +202,8 @@ export function Accounts() {
 
 function AccountFilters({ unit, role, onUnit, onRole }: { unit: string; role: string; onUnit: (value: string) => void; onRole: (value: string) => void }) {
   const { data } = useConsole();
-  const options = accountFilterOptions(role, data.units, data.accounts ?? [], data.requests);
+  const { directory } = useReference();
+  const options = accountFilterOptions(role, data.units, data.accounts ?? [], data.requests, directory);
   const unitLabel = role === ROLE.admin ? "UST Office" : role === ROLE.coordinator ? "College/Faculty" : role === ROLE.external ? "Affiliation" : "Unit";
   const allUnits = role === ROLE.admin ? "All UST offices" : role === ROLE.coordinator ? "All colleges/faculties" : "All affiliations";
   const [open, setOpen] = useState(false);
@@ -261,6 +264,7 @@ function AccountFilters({ unit, role, onUnit, onRole }: { unit: string; role: st
  */
 function AccessRequests({ requests, q, unit, role, onOpen }: { requests: RequestRow[]; q: string; unit: string; role: string; onOpen: (id: string) => void }) {
   const { data } = useConsole();
+  const { directory } = useReference();
   const signedIn = (email: string) => {
     const a = data.accounts?.find((x) => x.email.toLowerCase() === email.toLowerCase());
     return !!(a && (a.firstLogin ?? a.lastLogin));
@@ -268,7 +272,7 @@ function AccessRequests({ requests, q, unit, role, onOpen }: { requests: Request
   const t = q.trim().toLowerCase();
   const rows = requests
     .flatMap((r) => (r.payload.kind === "account-access" ? [{ r, p: r.payload }] : []))
-    .filter(({ p }) => matchesAccessRequestFilter(p, role, unit, data.units))
+    .filter(({ p }) => matchesAccessRequestFilter(p, role, unit, data.units, directory))
     .filter(({ r, p }) => !t || p.name.toLowerCase().includes(t) || p.email.includes(t) || r.id.toLowerCase().includes(t) || p.title.toLowerCase().includes(t))
     .sort((a, b) =>
       a.r.status === "Pending" && b.r.status === "Pending"

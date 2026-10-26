@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { STORY_TAB } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 
 /**
@@ -38,7 +37,7 @@ export async function StoryFolders() {
             aria-labelledby={`folder-${s.slug}`}
           >
             <div className="w-folder__strip w-wrap">
-              <span className="w-folder__tab">{STORY_TAB[s.slug] ?? s.kind}</span>
+              <span className="w-folder__tab">{s.kind}</span>
               <span className="w-folder__kind">
                 {s.kind}, {s.year}
               </span>

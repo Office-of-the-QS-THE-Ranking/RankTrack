@@ -1,7 +1,10 @@
 "use client";
 
 /*
- * Request access, from the sign-in page: three steps (Profile, Affiliation, Declarations) and a receipt. Each
+ * Request access, from the sign-in page: three steps (Profile, Affiliation, Declarations) and a receipt. A UST
+ * email alone doesn't let anyone in, so Thomasians ask here too: Affiliation opens on Thomasian or External
+ * partner. A Thomasian gives a UST email, their college, faculty or office, and position; an external partner
+ * their affiliation and institution email. Each
  * step is a form of its own, so the browser's constraint checks, and the Hub's field messages, cover only the
  * fields in view, and Continue moves on once they pass. SignInFlow keeps the answers, so leaving for sign in and
  * coming back loses nothing; a sent request clears them.
@@ -19,6 +22,10 @@ import {
   SALUTATIONS,
   SPECIFY,
   asksWebsite,
+  positionText,
+  universityEmail,
+  type RequesterKind,
+  type RequestUnit,
   displayRequestBirthday,
   formatRequestBirthday,
   listedAffiliation,
@@ -29,6 +36,8 @@ import {
 import { AffiliationField } from "./AffiliationField";
 
 export type AccessDraft = {
+  /** Thomasian or External partner; nothing until chosen. */
+  kind: RequesterKind | "";
   lastName: string;
   firstName: string;
   middleName: string;
@@ -39,11 +48,15 @@ export type AccessDraft = {
   organization: string;
   website: string;
   email: string;
+  /** A Thomasian's college, faculty or office, and position. */
+  unitId: string;
+  position: string;
   /** One tick per declaration, in DECLARATIONS order. */
   agreed: boolean[];
 };
 
 export const EMPTY_DRAFT: AccessDraft = {
+  kind: "",
   lastName: "",
   firstName: "",
   middleName: "",
@@ -54,6 +67,8 @@ export const EMPTY_DRAFT: AccessDraft = {
   organization: "",
   website: "",
   email: "",
+  unitId: "",
+  position: "",
   agreed: [false, false, false],
 };
 
@@ -113,9 +128,13 @@ export function RequestAccessForm({
   onDraft,
   onTrack,
   onSignIn,
+  domains,
+  units,
 }: {
   draft: AccessDraft;
   onDraft: (d: AccessDraft) => void;
+  domains: string[];
+  units: { label: string; units: RequestUnit[] }[];
   onTrack: (reference: string, email: string) => void;
   onSignIn: () => void;
 }) {
@@ -128,7 +147,16 @@ export function RequestAccessForm({
   const done = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
   const set = (patch: Partial<AccessDraft>) => onDraft({ ...d, ...patch });
-  const website = asksWebsite(d.affiliation) && !listedAffiliation(d.affiliation);
+  const thomasian = d.kind === "thomasian";
+  const website = d.kind === "external" && asksWebsite(d.affiliation) && !listedAffiliation(d.affiliation);
+  const ustDomains = domains.map((x) => `@${x}`).join(" or ");
+  // the email must match the choice: a UST address for a Thomasian, any other for an external partner
+  const emailProblem = (email: string) =>
+    !email.trim() || !d.kind
+      ? ""
+      : thomasian
+        ? universityEmail(email, domains) ? "" : `Enter your UST email, ending in ${ustDomains}.`
+        : universityEmail(email, domains) ? "That is a UST email. Choose Thomasian above." : "";
   const showWebsite = !affiliationFocused && website;
   const resumeBirthdayEdit = (input: HTMLInputElement) => {
     if (editingBirthday || !requestBirthday(d.birthday)) return;
@@ -153,8 +181,14 @@ export function RequestAccessForm({
 
   const send = () =>
     start(async () => {
+      if (!d.kind) return;
       const r = await requestAccess({
         ...d,
+        kind: d.kind,
+        affiliation: thomasian ? "" : d.affiliation,
+        organization: thomasian ? "" : d.organization,
+        unitId: thomasian ? d.unitId : "",
+        position: thomasian ? d.position : "",
         birthday: requestBirthday(d.birthday),
         website: website ? d.website : "",
         agreed: d.agreed.every(Boolean),
@@ -368,50 +402,125 @@ export function RequestAccessForm({
 
         {part === 1 && (
           <>
-            <AffiliationField value={d.affiliation} onChange={(affiliation) => set({ affiliation })} onFocusChange={setAffiliationFocused} required />
-            {listedAffiliation(d.affiliation) === SPECIFY && (
+            <fieldset className="si__kind">
+              <legend className="field__label">I am</legend>
+              {(
+                [
+                  ["thomasian", "Thomasian", "UST faculty, staff or office"],
+                  ["external", "External partner", "Ranking body, accreditor or reviewer"],
+                ] as const
+              ).map(([kind, name, note]) => (
+                <label key={kind} className="si__check si__kind-option">
+                  <input type="radio" name="kind" title="" value={kind} checked={d.kind === kind} onChange={() => set({ kind })} data-missing="Choose Thomasian or External partner." required />
+                  <span>
+                    <b>{name}</b>
+                    <small>{note}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
+            {thomasian && (
+              <>
+                <label className="field">
+                  <span className="field__label">College, Faculty or Office</span>
+                  <Select className="select" name="unitId" value={d.unitId} onChange={(unitId) => set({ unitId })} placeholder="Choose" aria-label="College, Faculty or Office" required>
+                    {units.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.units.map((u) => (
+                          <option key={u.id} value={u.id} data-depth={u.depth}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </Select>
+                </label>
+                <label className="field">
+                  <span className="field__label">Position or Designation</span>
+                  <input
+                    className="input"
+                    name="position"
+                    title=""
+                    value={d.position}
+                    onChange={(e) => set({ position: positionText(e.target.value) })}
+                    placeholder="e.g. Associate Professor, Rankings Focal Person"
+                    autoComplete="organization-title"
+                    maxLength={120}
+                    required
+                  />
+                </label>
+              </>
+            )}
+
+            {d.kind === "external" && (
+              <>
+                <AffiliationField value={d.affiliation} onChange={(affiliation) => set({ affiliation })} onFocusChange={setAffiliationFocused} required />
+                {listedAffiliation(d.affiliation) === SPECIFY && (
+                  <label className="field">
+                    <span className="field__label">Accreditation Organization</span>
+                    <input
+                      className="input"
+                      name="organization"
+                      title=""
+                      value={d.organization}
+                      onChange={(e) => set({ organization: requestText(e.target.value) })}
+                      placeholder="E.G. ABET OR AACSB"
+                      autoComplete="organization"
+                      required
+                    />
+                  </label>
+                )}
+                <div className="si__verification" data-visible={showWebsite} inert={!showWebsite} aria-hidden={!showWebsite}>
+                  <div className="si__verification-clip">
+                    <label className="field">
+                      <span className="field__label">
+                        Organization Website <em>Optional, helps us verify</em>
+                      </span>
+                      <input
+                        className="input"
+                        type="url"
+                        disabled={!showWebsite}
+                        inputMode="url"
+                        name="website"
+                        title=""
+                        value={d.website}
+                        onChange={(e) => set({ website: e.target.value.trim() })}
+                        placeholder="https://"
+                        pattern="https://.+"
+                        autoComplete="url"
+                        spellCheck={false}
+                        maxLength={200}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {d.kind && (
               <label className="field">
-                <span className="field__label">Accreditation Organization</span>
+                <span className="field__label">{thomasian ? "UST Email" : "Institution Email"}</span>
                 <input
                   className="input"
-                  name="organization"
+                  type="email"
+                  name="email"
                   title=""
-                  value={d.organization}
-                  onChange={(e) => set({ organization: requestText(e.target.value) })}
-                  placeholder="E.G. ABET OR AACSB"
-                  autoComplete="organization"
+                  value={d.email}
+                  onChange={(e) => {
+                    e.target.setCustomValidity(emailProblem(e.target.value));
+                    set({ email: e.target.value });
+                  }}
+                  ref={(input) => {
+                    // switching between Thomasian and External partner rechecks the address already typed
+                    input?.setCustomValidity(emailProblem(input.value));
+                  }}
+                  placeholder={thomasian ? `name@${domains[0] ?? "ust.edu.ph"}` : "name@institution.org"}
+                  autoComplete="email"
                   required
                 />
               </label>
             )}
-            <div className="si__verification" data-visible={showWebsite} inert={!showWebsite} aria-hidden={!showWebsite}>
-              <div className="si__verification-clip">
-                <label className="field">
-                  <span className="field__label">
-                    Organization Website <em>Optional, helps us verify</em>
-                  </span>
-                  <input
-                    className="input"
-                    type="url"
-                    disabled={!showWebsite}
-                    inputMode="url"
-                    name="website"
-                    title=""
-                    value={d.website}
-                    onChange={(e) => set({ website: e.target.value.trim() })}
-                    placeholder="https://"
-                    pattern="https://.+"
-                    autoComplete="url"
-                    spellCheck={false}
-                    maxLength={200}
-                  />
-                </label>
-              </div>
-            </div>
-            <label className="field">
-              <span className="field__label">Institution Email</span>
-              <input className="input" type="email" name="email" title="" value={d.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@institution.org" autoComplete="email" required />
-            </label>
           </>
         )}
 

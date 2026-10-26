@@ -1,23 +1,62 @@
 import type { NextRequest } from "next/server";
+import { evidencePath } from "@/lib/governance/evidence-files";
 import { mediaPath } from "@/lib/governance/posts";
+import { evidenceList } from "@/lib/governance/records";
 import { emblemPath } from "@/lib/governance/unit-emblems";
-import { ensurePublished, publicEmblems, publicMedia, readMedia } from "@/lib/governance/server/media";
-import { publicUrl } from "@/lib/r2";
+import { ensurePublished, publicEmblems, publicMedia } from "@/lib/governance/server/media";
+import { publicUrl, streamObject, type Bucket } from "@/lib/r2";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
 import { viewerCan } from "@/lib/governance/viewer";
 
+/** The website's own pictures and the units' official arms (reference data, lib/governance/server/reference.ts). */
+const REFERENCE = /^\/media\/((?:site\/(?:photos|sdg)|units)\/[a-z0-9][a-z0-9._-]*\.(?:jpg|webp|png))$/;
+
 const missing = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
 
+/** A file from a bucket, streamed through without being held in memory. Only pictures are served inline. */
+async function serve(bucket: Bucket, path: string, cache: string, download?: string) {
+  const file = await streamObject(bucket, path).catch((e: unknown) => (console.error(e), null));
+  if (!file || (!download && !file.type.startsWith("image/"))) return missing();
+  const headers: Record<string, string> = { "Content-Type": file.type, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" };
+  if (file.size) headers["Content-Length"] = String(file.size);
+  if (download) {
+    // An uploaded document is always a download, in a sandbox: it can never run as a page of the Hub.
+    headers["Content-Disposition"] = `attachment; filename*=UTF-8''${encodeURIComponent(download)}`;
+    headers["Content-Security-Policy"] = "sandbox; default-src 'none'";
+  }
+  return new Response(file.body, { headers });
+}
+
 /**
- * A picture from the media buckets. A post's picture is open to anyone while a published post shows
- * it; until then (drafts, posts in review, unpublished ones, uploads not yet saved) only people who manage
- * posts can see it. A unit's logo is open to anyone once a unit carries it; before that, only to people who
- * edit the Directory. Public pictures come from the public bucket: a redirect to its address when R2_PUBLIC_URL
- * is set, otherwise streamed from it; the rest are streamed from the private bucket.
+ * A file from the media buckets. A post's picture is open to anyone while a published post shows it; until then
+ * (drafts, posts in review, unpublished ones, uploads not yet saved) only people who manage posts can see it. A
+ * unit's logo is open to anyone once a unit carries it; before that, only to people who edit the Directory. A
+ * file attached to evidence goes only to people who may see that record, as a download. Public pictures come
+ * from the public bucket: a redirect to its address when R2_PUBLIC_URL is set, otherwise streamed from it; the
+ * rest are streamed from the private bucket. The website's photographs, SDG icons and the units' official arms
+ * are open to anyone.
  */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const src = `/media/${(await ctx.params).path.join("/")}`;
+  const ref = REFERENCE.exec(src)?.[1];
+  if (ref) {
+    const url = publicUrl(ref);
+    if (url) return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "public, max-age=86400" } });
+    return serve("public", ref, "public, max-age=86400, stale-while-revalidate=604800");
+  }
+
+  const evidence = evidencePath(src);
+  if (evidence) {
+    const state = await readState();
+    const viewer = await getViewer();
+    for (const e of evidenceList(state)) {
+      const file = e.attachments?.find((f) => f.src === src);
+      if (file && viewerCan(viewer, "evidence", "view", { unitId: e.programId ?? e.unitSlug })) return serve("private", evidence, "private, no-store", file.name);
+    }
+    return missing();
+  }
+
   const post = mediaPath(src);
   const logo = post ? null : emblemPath(src);
   const path = post ?? logo;
@@ -28,19 +67,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
     const viewer = await getViewer();
     const allowed = post ? viewerCan(viewer, "posts", "view") : viewerCan(viewer, "directory", "edit") || viewerCan(viewer, "directory", "create");
     if (!allowed) return missing();
+    return serve("private", path, "private, no-store");
   }
-  if (open) {
-    if (!(await ensurePublished(path).catch((e: unknown) => (console.error(e), false)))) return missing();
-    const url = publicUrl(path);
-    if (url) return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "public, max-age=300" } });
-  }
-  const file = await readMedia(path, open ? "public" : "private");
-  if (!file || !file.type.startsWith("image/")) return missing();
-  return new Response(file, {
-    headers: {
-      "Content-Type": file.type,
-      "Cache-Control": open ? "public, max-age=3600, stale-while-revalidate=86400" : "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  if (!(await ensurePublished(path).catch((e: unknown) => (console.error(e), false)))) return missing();
+  const url = publicUrl(path);
+  if (url) return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "public, max-age=300" } });
+  return serve("public", path, "public, max-age=3600, stale-while-revalidate=86400");
 }

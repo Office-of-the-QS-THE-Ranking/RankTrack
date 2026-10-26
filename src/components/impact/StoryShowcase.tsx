@@ -1,7 +1,10 @@
+"use client";
+
 import Image from "next/image";
 import type { CSSProperties } from "react";
-import { SDG_COLORS, SDG_NAMES, inkOn, type Story } from "@/lib/data";
+import { inkOn, type Story } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const STEPS: { key: keyof Story; label: string; icon: IconName }[] = [
   { key: "challenge", label: "Challenge", icon: "alert" },
@@ -13,6 +16,7 @@ const STEPS: { key: keyof Story; label: string; icon: IconName }[] = [
 
 /** The proposal's showcase format, in order, ending with replication guidance. */
 export function StoryShowcase({ story: s, compact }: { story: Story; compact?: boolean }) {
+  const { sdgColors, sdgNames } = useViews();
   return (
     <div className="showcase">
       {!compact && (
@@ -50,9 +54,9 @@ export function StoryShowcase({ story: s, compact }: { story: Story; compact?: b
             <div className="align">
               <ul className="align__sdgs">
                 {s.sdgs.map((n) => (
-                  <li key={n} style={{ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]) } as CSSProperties}>
+                  <li key={n} style={{ background: sdgColors[n], color: inkOn(sdgColors[n]) } as CSSProperties}>
                     <b>{n}</b>
-                    <span>{SDG_NAMES[n]}</span>
+                    <span>{sdgNames[n]}</span>
                   </li>
                 ))}
               </ul>

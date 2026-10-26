@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { DICTIONARY as STATIC_DICTIONARY, EVIDENCE as STATIC_EVIDENCE, FAMILY, STORIES as STATIC_STORIES, UNITS as STATIC_UNITS, type Ranking } from "@/lib/data";
+import { EVIDENCE as STATIC_EVIDENCE, STORIES as STATIC_STORIES, type Ranking } from "@/lib/data";
 import type { HubData } from "@/lib/governance/hub-types";
 import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Stars } from "@/components/site/Stars";
 import { NAV, type Variant } from "./nav";
+import { useViews } from "@/components/reference/ReferenceProvider";
+import type { Views } from "@/lib/reference";
 
 interface Entry {
   group: string;
@@ -37,12 +39,12 @@ const knowledgeHref = (variant: Variant) => (variant === "office" ? "/admin/know
 /* The index follows governance: pages the viewer's role opens, rankings that are tracked, and only the
    evidence, units and stories the viewer can reach. Dictionary terms only when the Knowledge Center is
    one of those pages. */
-function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], viewer: Viewer | null): Entry[] {
-  const DICTIONARY = hub?.dictionary ?? STATIC_DICTIONARY;
+function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], viewer: Viewer | null, { dictionary, families }: Pick<Views, "dictionary" | "families">): Entry[] {
+  const DICTIONARY = hub?.dictionary ?? dictionary;
   const EVIDENCE = hub?.evidence ?? STATIC_EVIDENCE;
   const STORIES = hub?.stories ?? STATIC_STORIES;
   const PUBLISHED_STORIES = STORIES.filter((s) => s.state === "Published");
-  const UNITS = hub ? hub.units.filter((u) => u.status === "Active") : STATIC_UNITS;
+  const UNITS = hub?.units.filter((u) => u.status === "Active") ?? [];
   const target = variant === "unit" && viewer ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
   const pages: Entry[] = NAV[variant].flatMap((g) =>
     g.items
@@ -56,7 +58,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
     sub: r.current ? `${r.short} · ${r.current}` : r.short,
     href: `${rankingBase}/${r.slug}`,
     icon: "rankings",
-    color: FAMILY[r.family].color,
+    color: families[r.family].color,
   }));
   const indicators: Entry[] = RANKINGS.flatMap((r) =>
     r.indicators.map((i) => ({
@@ -65,7 +67,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
       sub: `${r.short} · weight ${i.weight}`,
       href: `${rankingBase}/${r.slug}${variant === "office" ? "#indicators" : "#measures"}`,
       icon: "target" as IconName,
-      color: FAMILY[r.family].color,
+      color: families[r.family].color,
     })),
   );
   const knowledge = knowledgeHref(variant);
@@ -166,6 +168,7 @@ const EMPTY_HINT: Record<Variant, string> = {
 };
 
 export function SearchPalette({ variant, open, onClose }: { variant: Variant; open: boolean; onClose: () => void }) {
+  const views = useViews();
   const ref = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const glideRef = useRef<HTMLSpanElement>(null);
@@ -179,7 +182,7 @@ export function SearchPalette({ variant, open, onClose }: { variant: Variant; op
   const hub = useHub();
   const viewer = useViewer();
   const rankings = useRankings();
-  const index = useMemo(() => buildIndex(variant, hub, rankings, viewer), [variant, hub, rankings, viewer]);
+  const index = useMemo(() => buildIndex(variant, hub, rankings, viewer, views), [variant, hub, rankings, viewer, views]);
   const knowledge = knowledgeHref(variant);
   const canBrowse = index.some((e) => e.group === "Pages" && e.href === knowledge);
   const phrase = fold(q.trim()).replace(/\s+/g, " ");

@@ -1,19 +1,21 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { PUBLISHED_STORIES, QSS_PILLARS, RANKINGS, type Ranking } from "@/lib/data";
+import { PUBLISHED_STORIES, type Ranking } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Direction, Swatch, Trend } from "@/components/ui/primitives";
 import { ChartFrame, RankTrajectory, Sparkline, TrajectoryTable } from "@/components/charts/charts";
 import { StoryCard } from "@/components/impact/StoryCard";
 import { PublicRankingHeader } from "./RankingHeader";
 import { AreaLegend, Quadrant, SdgBoard, WuriCategories } from "./SpecialDashboard";
+import { serverViews } from "@/lib/governance/server/views";
 
 const GM_ICONS: IconName[] = ["tree", "energy", "waste", "water", "transport", "education"];
 
 /** Public page for one ranking: published results and plain-language methodology, no internal evidence data. */
-export function PublicRankingView({ ranking: r }: { ranking: Ranking }) {
+export async function PublicRankingView({ ranking: r }: { ranking: Ranking }) {
+  const { qssPillars, rankings } = await serverViews();
   const stories = PUBLISHED_STORIES.filter((s) => s.rankings.includes(r.short));
-  const family = RANKINGS.filter((x) => x.family === r.family && x.slug !== r.slug);
+  const family = rankings.filter((x) => x.family === r.family && x.slug !== r.slug);
 
   return (
     <>
@@ -67,7 +69,7 @@ export function PublicRankingView({ ranking: r }: { ranking: Ranking }) {
       )}
       {r.slug === "qs-sustainability" && (
         <div className="grid cols-3">
-          {QSS_PILLARS.map((p) => (
+          {qssPillars.map((p) => (
             <Card key={p.name} title={p.name} sub={`${p.weight} of the score`} icon={p.name === "Governance" ? "governance" : p.name === "Social Impact" ? "collaboration" : "sustainability"}>
               <ul className="bullets bullets--ink">
                 {p.lenses.map((l) => (

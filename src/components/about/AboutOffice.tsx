@@ -1,11 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { TEAM } from "@/lib/data";
-import { OFFICE, OFFICE_OBJECTIVES, OFFICE_WORKPLAN, OFFICE_PORTFOLIO, OFFICE_DELIVERABLES } from "@/lib/office";
 import { Icon } from "@/components/ui/Icon";
 import { Card, PageHeader, Pattern } from "@/components/ui/primitives";
 import { hub } from "@/lib/governance/server/hub";
+import { reference } from "@/lib/governance/server/reference";
 
 const GOVERNANCE = [
   ["University leadership", "Approves priorities, targets and public disclosures"],
@@ -23,25 +22,25 @@ const PHASES = [
 ] as const;
 
 export async function AboutOffice({ mode }: { mode: "internal" | "public" }) {
-  const privacy = (await hub()).privacy;
+  const [privacy, { office, photos }] = await Promise.all([hub().then((h) => h.privacy), reference()]);
   const internal = mode === "internal";
   return (
     <>
       <PageHeader
         title="About the Office of QS/THE Rankings"
-        lede={OFFICE.summary}
+        lede={office.summary}
       />
 
       <section className="card office" id="profile" aria-label="Office profile">
         <div className="office__photo">
-          <Image src="/images/carillon.jpg" alt="The UST Carillon beside the Main Building, España, Manila" fill sizes="(max-width: 900px) 100vw, 40vw" />
+          {photos.carillon && <Image src={photos.carillon.src} alt={photos.carillon.alt} fill sizes="(max-width: 900px) 100vw, 40vw" />}
         </div>
         <div className="office__text">
           <Pattern fade="left" />
           <p className="eyebrow">Office profile</p>
           <h2 className="office__title">UST’s global ranking strategy</h2>
           <p className="text-2">
-            {OFFICE.summary}
+            {office.summary}
           </p>
           <dl className="office__facts">
             <div>
@@ -50,11 +49,11 @@ export async function AboutOffice({ mode }: { mode: "internal" | "public" }) {
             </div>
             <div>
               <dt>Ranking and assessment frameworks</dt>
-              <dd>{OFFICE_PORTFOLIO.length}</dd>
+              <dd>{office.portfolio.length}</dd>
             </div>
             <div>
               <dt>Reports to</dt>
-              <dd>{OFFICE.reportsTo}</dd>
+              <dd>{office.reportsTo}</dd>
             </div>
           </dl>
         </div>
@@ -62,15 +61,15 @@ export async function AboutOffice({ mode }: { mode: "internal" | "public" }) {
 
       <div className="grid cols-2" id="mission">
         <Card title="Mission and objectives" icon="target" tone="dark">
-          <p>{OFFICE.mission}</p>
+          <p>{office.mission}</p>
           <ul className="bullets">
-            {OFFICE_OBJECTIVES.map((item) => <li key={item.title}><b>{item.title}:</b> {item.text}</li>)}
+            {office.objectives.map((item) => <li key={item.title}><b>{item.title}:</b> {item.text}</li>)}
           </ul>
-          <p><b>Vision for 2030:</b> {OFFICE.vision}</p>
+          <p><b>Vision for 2030:</b> {office.vision}</p>
         </Card>
         <Card title="Ranking portfolio" icon="rankings" id="portfolio">
           <ul className="list">
-            {OFFICE_PORTFOLIO.map((ranking) => (
+            {office.portfolio.map((ranking) => (
               <li key={ranking.name}><Link href={internal && ranking.href.startsWith("/rankings/") ? `/admin${ranking.href}` : ranking.href}>{ranking.name}</Link></li>
             ))}
           </ul>
@@ -79,19 +78,19 @@ export async function AboutOffice({ mode }: { mode: "internal" | "public" }) {
 
       <Card title="Roles and responsibilities" sub="As described in the September 2026 office profile" icon="layers" id="process">
         <ul className="list">
-          {OFFICE_WORKPLAN.map((task) => <li key={task.title}><span className="list__main">{task.title}</span><span className="list__sub">{task.owners} {task.timing}</span></li>)}
+          {office.workplan.map((task) => <li key={task.title}><span className="list__main">{task.title}</span><span className="list__sub">{task.owners} {task.timing}</span></li>)}
         </ul>
       </Card>
 
       <div className="grid cols-2">
         <Card title="Office deliverables" icon="globe" id="international">
           <ul className="list">
-            {OFFICE_DELIVERABLES.map((item) => <li key={item.title}><span className="list__main">{item.title}</span><span className="list__sub">{item.text}</span></li>)}
+            {office.deliverables.map((item) => <li key={item.title}><span className="list__main">{item.title}</span><span className="list__sub">{item.text}</span></li>)}
           </ul>
         </Card>
         <Card title="Leadership and team" icon="collaboration" id="team">
           <ul className="team">
-            {TEAM.map((t) => (
+            {office.team.map((t) => (
               <li key={t.role}>
                 <span className="avatar avatar--sm avatar--gold" aria-hidden="true">
                   {t.role
@@ -179,13 +178,13 @@ export async function AboutOffice({ mode }: { mode: "internal" | "public" }) {
           </p>
         </div>
         <div className="contact__lines">
-          <a className="btn btn--primary btn--lg" href="mailto:rankings.office@ust.edu.ph">
-            <Icon name="mail" size={18} /> rankings.office@ust.edu.ph
+          <a className="btn btn--primary btn--lg" href={`mailto:${office.email}`}>
+            <Icon name="mail" size={18} /> {office.email}
           </a>
           <p className="small text-2 row" style={{ ["--gap" as string]: "8px" } as CSSProperties}>
-            <Icon name="pin" size={16} /> {OFFICE.location}, {OFFICE.landmark}
+            <Icon name="pin" size={16} /> {office.location}, {office.landmark}
           </p>
-          <p className="small text-2">{OFFICE.phone}</p>
+          <p className="small text-2">{office.phone}</p>
         </div>
       </section>
     </>

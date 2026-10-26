@@ -2,11 +2,11 @@ import type { EvidenceItem } from "@/lib/data";
 import { participationKind } from "./directory";
 import { recordReach } from "./derive";
 import type { HubUnit } from "./hub-types";
-import { emblemOf, type UnitEmblem } from "./unit-emblems";
+import { emblemOf, type EmblemCatalogue } from "./unit-emblems";
 import type { GovernanceState } from "./types";
 
 /** Every reporting unit comes from the live directory, regardless of how or when it was added. */
-export function buildUnits(state: GovernanceState, evidence: EvidenceItem[], emblems?: Record<string, UnitEmblem>): HubUnit[] {
+export function buildUnits(state: GovernanceState, evidence: EvidenceItem[], catalogue: EmblemCatalogue): HubUnit[] {
   return state.units.flatMap((unit) => {
     const kind = participationKind(unit);
     if (!kind) return [];
@@ -25,7 +25,7 @@ export function buildUnits(state: GovernanceState, evidence: EvidenceItem[], emb
       coordinatorId: coordinators[0]?.id,
       emails: unit.emails ?? [],
       code: unit.code,
-      emblem: emblemOf(unit, emblems),
+      emblem: emblemOf(unit, catalogue),
       status: unit.status,
       archivedReason: unit.archivedReason,
       mergedInto: unit.mergedInto,

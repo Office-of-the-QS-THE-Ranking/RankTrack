@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { IMPACT_THEMES, SDG_COLORS, SDG_NAMES, STORIES, inkOn, type ImpactTheme, type Story } from "@/lib/data";
+import { STORIES, inkOn, type ImpactTheme, type Story } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Empty, SdgList } from "@/components/ui/primitives";
 import { Drawer, Segmented } from "@/components/ui/interactive";
@@ -11,10 +11,12 @@ import { toast } from "@/components/ui/toast";
 import { useCan, useGovern, useHub, useRankings } from "@/components/hub/HubProvider";
 import { StoryCard } from "./StoryCard";
 import { StoryShowcase } from "./StoryShowcase";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 type Theme = "Impact Overview" | ImpactTheme;
 
 export function ImpactLibrary({ mode }: { mode: "internal" | "public" }) {
+  const { impactThemes, sdgColors, sdgNames } = useViews();
   const internal = mode === "internal";
   // Stories carry their publication state from the governance store; proposals from units are included.
   const hub = useHub();
@@ -42,9 +44,9 @@ export function ImpactLibrary({ mode }: { mode: "internal" | "public" }) {
   const options = useMemo(
     () => [
       { value: "Impact Overview" as Theme, label: "Impact overview", count: stories.length },
-      ...IMPACT_THEMES.map((t) => ({ value: t as Theme, label: t, count: stories.filter((s) => s.themes.includes(t)).length })),
+      ...impactThemes.map((t) => ({ value: t as Theme, label: t, count: stories.filter((s) => s.themes.includes(t)).length })),
     ],
-    [stories],
+    [stories, impactThemes],
   );
   const shown = theme === "Impact Overview" ? stories : stories.filter((s) => s.themes.includes(theme));
   const sdgs = new Set(stories.flatMap((s) => s.sdgs));
@@ -90,9 +92,9 @@ export function ImpactLibrary({ mode }: { mode: "internal" | "public" }) {
               {Array.from({ length: 17 }, (_, i) => i + 1).map((n) => (
                 <li
                   key={n}
-                  title={`SDG ${n}: ${SDG_NAMES[n]}${sdgs.has(n) ? "" : " (no story yet)"}`}
+                  title={`SDG ${n}: ${sdgNames[n]}${sdgs.has(n) ? "" : " (no story yet)"}`}
                   className={sdgs.has(n) ? "is-on" : undefined}
-                  style={sdgs.has(n) ? ({ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]) } as CSSProperties) : undefined}
+                  style={sdgs.has(n) ? ({ background: sdgColors[n], color: inkOn(sdgColors[n]) } as CSSProperties) : undefined}
                 >
                   {n}
                 </li>

@@ -4,7 +4,8 @@
  * reporting cycle is a season with its own honour; achievements, once earned, are kept. A unit is only
  * ever measured against its own record, never ranked against other units.
  */
-import { RANKINGS, type EvidenceItem, type FamilyKey } from "@/lib/data";
+import type { EvidenceItem } from "@/lib/data";
+import { bodyOfMapping } from "@/lib/governance/catalog";
 import type { IconName } from "@/components/ui/Icon";
 
 /** What a validated submission earns, and what adds to it. */
@@ -115,11 +116,6 @@ export function seasonsOf(cycles: string[], evidence: EvidenceItem[]): Season[] 
 
 /* ---------- Achievements ---------- */
 
-const BODY: Record<FamilyKey, string> = { THE: "THE", QS: "QS", QSS: "QS", UI: "UI GreenMetric", WURI: "WURI" };
-const bodyOf = (short: string) => {
-  const r = RANKINGS.find((x) => x.short === short);
-  return r ? BODY[r.family] : undefined;
-};
 
 export interface Achievement {
   id: string;
@@ -157,7 +153,7 @@ export const ACHIEVEMENTS: (Achievement & { count: Count })[] = [
     how: "Ranking bodies reached: THE, QS, UI GreenMetric, WURI",
     icon: "globe",
     goals: [2, 3, 4],
-    count: (s) => new Set(all(s).flatMap((e) => rankingsOf(e).flatMap((r) => bodyOf(r) ?? []))).size,
+    count: (s) => new Set(all(s).flatMap((e) => rankingsOf(e).flatMap((r) => bodyOfMapping(r) ?? []))).size,
   },
   { id: "sdgs", name: "Global Goals", how: "Sustainable Development Goals supported", icon: "sustainability", goals: [3, 6, 10], count: (s) => new Set(all(s).flatMap((e) => e.sdgs)).size },
   { id: "impact", name: "Proof of Impact", how: "Evidence of verified change for beneficiaries", icon: "ladder", goals: [1, 3, 6], count: (s) => all(s).filter((e) => e.level >= 4).length },

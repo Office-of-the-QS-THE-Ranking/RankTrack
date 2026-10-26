@@ -140,14 +140,15 @@ export type Command =
         beneficiaries: string;
         level: 1 | 2 | 3 | 4 | 5;
         sdgs: number[];
-        files: { name: string; sizeMB: number }[];
+        /** Uploaded through startEvidenceUploads; sizes are re-read from storage on the server. */
+        files: { name: string; sizeMB: number; src: string }[];
         url: string;
         mappedTo: string[];
       };
     }
   | { type: "evidence.review"; id: string; decision: "accept" | "revise"; note: string }
   | { type: "evidence.map"; id: string; add?: string; remove?: string }
-  | { type: "evidence.respond"; id: string; text: string; file?: string }
+  | { type: "evidence.respond"; id: string; text: string; file?: { name: string; sizeMB: number; src: string } }
   | { type: "data.submit"; unitSlug: string; values: { id: string; label: string; value: string; source: string }[] }
   | {
       type: "story.propose";

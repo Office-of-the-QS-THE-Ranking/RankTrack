@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
-import { FAMILY, LATEST_EDITION, WURI_CATEGORIES, type Ranking } from "@/lib/data";
+import { type Ranking } from "@/lib/data";
 import { siteData } from "@/lib/governance/server/site";
 import { Stars } from "../Stars";
 import { AscentChart, type ChartSeries } from "./AscentChart";
 import { AscentMotion } from "./AscentMotion";
+import { serverViews } from "@/lib/governance/server/views";
 
 const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 const word = (n: number) => WORDS[n] ?? String(n);
@@ -41,19 +42,21 @@ function Wheels({ text, from = "", start = 0 }: { text: string; from?: string; s
   );
 }
 
-/** THE Impact: unaltered goal icons from the United Nations SDG website. */
-const SDGS = [
-  { n: 3, name: "Good health and well-being", color: "#4C9F38" },
-  { n: 17, name: "Partnerships for the goals", color: "#19486A" },
-];
+/** THE Impact: the goals the home page features, with their unaltered United Nations icons (sdg_goals). */
+const FEATURED_SDGS = [3, 17];
 
-function SdgProof() {
+/** "Good Health and Well-being" → "Good health and well-being", the site's sentence case. */
+const sentence = (name: string) => name.charAt(0) + name.slice(1).toLowerCase();
+
+async function SdgProof() {
+  const { sdgNames, sdgColors, sdgIcons } = await serverViews();
+  const goals = FEATURED_SDGS.map((n) => ({ n, name: sentence(sdgNames[n] ?? ""), color: sdgColors[n], icon: sdgIcons[n] }));
   return (
     <ul className="w-asc__sdgs">
-      {SDGS.map((g, k) => (
+      {goals.map((g, k) => (
         <li key={g.n} style={{ "--sdg": g.color, "--k": k } as CSSProperties}>
           <span className="w-asc__sdg" aria-hidden="true">
-            <Image src={`/images/sdg/goal-${String(g.n).padStart(2, "0")}.jpg`} alt="" width={80} height={80} sizes="80px" />
+            {g.icon && <Image src={g.icon} alt="" width={80} height={80} sizes="80px" />}
           </span>
           <span className="w-asc__sdg-name">
             SDG {g.n}
@@ -131,12 +134,12 @@ function ClimbProof({ places, bandTop }: { places: number; bandTop: number }) {
 
 type Story = { proof: ReactNode };
 
-function storyOf(r: Ranking): Story {
+function storyOf(r: Ranking, wuriCategories: string[]): Story {
   switch (r.slug) {
     case "the-impact":
       return { proof: <SdgProof /> };
     case "wuri":
-      return { proof: <PlacementsProof count={WURI_CATEGORIES.length} /> };
+      return { proof: <PlacementsProof count={wuriCategories.length} /> };
     case "qs-wur": {
       const prev = before(r);
       const now = r.history[r.history.length - 1];
@@ -153,15 +156,16 @@ function storyOf(r: Ranking): Story {
   }
 }
 
-function Block({ r, i }: { r: Ranking; i: number }) {
-  const story = storyOf(r);
+async function Block({ r, i }: { r: Ranking; i: number }) {
+  const { families, latestEdition, wuriCategories } = await serverViews();
+  const story = storyOf(r, wuriCategories);
   const series: ChartSeries[] = [{ slug: r.slug, short: r.short, figure: shown(r), history: r.history }];
   return (
     <article className={`w-asc__block${i === 0 ? " is-active" : ""}`} data-i={i} aria-labelledby={`asc-${r.slug}`}>
       <div className="w-asc__who" style={{ "--s": 0 } as CSSProperties}>
-        <span className="w-asc__dot" style={{ "--fam": FAMILY[r.family].color } as CSSProperties} aria-hidden="true" />
+        <span className="w-asc__dot" style={{ "--fam": families[r.family].color } as CSSProperties} aria-hidden="true" />
         <h3 id={`asc-${r.slug}`}>
-          {r.name} <span className="w-asc__ed">{LATEST_EDITION}</span>
+          {r.name} <span className="w-asc__ed">{latestEdition}</span>
         </h3>
       </div>
       <p className="w-asc__fig" style={{ "--s": 1, "--len": r.current.length + (exact(r) ? 1 : 0) } as CSSProperties}>
@@ -196,7 +200,8 @@ function Block({ r, i }: { r: Ranking; i: number }) {
  * The section before any public result has risen: the same night and claim line, a note in place of the
  * stage, and the public results as unlit arches. No figure is shown that the ranking bodies have not published.
  */
-function MoversPending({ rankings }: { rankings: Ranking[] }) {
+async function MoversPending({ rankings }: { rankings: Ranking[] }) {
+  const { latestEdition } = await serverViews();
   return (
     <section className="w-asc w-on-dark" id="ascent" aria-labelledby="movers-title">
       <div className="w-asc__intro w-wrap">
@@ -211,7 +216,7 @@ function MoversPending({ rankings }: { rankings: Ranking[] }) {
         </h2>
         <div className="w-asc__aside">
           <p className="w-asc__lead">
-            Once the {LATEST_EDITION} editions are published and recorded by the Office, the results that rose climb here,
+            Once the {latestEdition} editions are published and recorded by the Office, the results that rose climb here,
             each figure as the ranking body published it.
           </p>
           {rankings.length > 0 && (
@@ -249,6 +254,7 @@ function MoversPending({ rankings }: { rankings: Ranking[] }) {
  * blocks, each with its own small chart drawn to the same scale. Every figure is the published one.
  */
 export async function Movers() {
+  const { families, latestEdition } = await serverViews();
   // Only results shown on the public website take part; until one of them has risen, the night holds a placeholder.
   const { rankings: RANKINGS, movers: MOVERS } = await siteData();
   if (!MOVERS.length) return <MoversPending rankings={RANKINGS} />;
@@ -272,7 +278,7 @@ export async function Movers() {
         <div className="w-asc__aside">
           <p className="w-asc__lead">
             {word(MOVERS.length)[0].toUpperCase() + word(MOVERS.length).slice(1)} of the {word(RANKINGS.length)} results the
-            Office follows rose in the {LATEST_EDITION} editions. Every figure is the rank or band the ranking body published.
+            Office follows rose in the {latestEdition} editions. Every figure is the rank or band the ranking body published.
           </p>
           <div className="w-asc__tally">
             <ul className="w-asc__arches">
@@ -291,7 +297,7 @@ export async function Movers() {
               })}
             </ul>
             <p className="w-asc__key" aria-hidden="true">
-              <span className="is-rose">Rose in {LATEST_EDITION}</span>
+              <span className="is-rose">Rose in {latestEdition}</span>
               <span>The other {word(others.length)}</span>
             </p>
           </div>
@@ -319,7 +325,7 @@ export async function Movers() {
             {MOVERS.map((r, i) => (
               <button key={r.slug} type="button" className={`w-asc__stop${i === 0 ? " is-current" : ""}`} data-i={i}>
                 <span className="w-asc__fill" aria-hidden="true" />
-                <span className="w-asc__dot" style={{ "--fam": FAMILY[r.family].color } as CSSProperties} aria-hidden="true" />
+                <span className="w-asc__dot" style={{ "--fam": families[r.family].color } as CSSProperties} aria-hidden="true" />
                 <span className="w-asc__stop-name">{r.short}</span>
                 <span className="w-asc__stop-fig">{shown(r)}</span>
               </button>

@@ -2,26 +2,11 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import {
-  COMPARISON,
-  GREENMETRIC_PANELS,
-  IMPACT_LADDER,
-  QSS_PILLARS,
-  QUADRANT_NOTES,
-  RESEARCH_FUNNEL,
-  SDG_COLORS,
-  SDG_NAMES,
-  SDG_TILES,
-  SUBJECT_AREAS,
-  SUBJECT_PORTFOLIO,
-  WURI_PLACEMENTS,
-  WURI_PIPELINE,
-  inkOn,
-  type Ranking,
-} from "@/lib/data";
+import { COMPARISON, WURI_PLACEMENTS, inkOn, type Ranking } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Empty, Meter, MeterRow, Notice, Status, Trend } from "@/components/ui/primitives";
 import { Funnel, Sparkline } from "@/components/charts/charts";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 /* ---------- Shared pieces ---------- */
 
@@ -40,18 +25,19 @@ function Flow({ steps, warnAt }: { steps: { step: string; value: string; note: s
 }
 
 export function Quadrant({ id }: { id?: string }) {
+  const { quadrantNotes, subjectAreas, subjectPortfolio } = useViews();
   return (
     <div className="quad" id={id}>
-      {SUBJECT_PORTFOLIO.map((q) => (
+      {subjectPortfolio.map((q) => (
         <section key={q.quadrant} className={`quad__cell quad__cell--${q.quadrant.split(" ")[0].toLowerCase()}`} aria-label={q.quadrant}>
           <h3>{q.quadrant}</h3>
-          <p className="quad__note">{QUADRANT_NOTES[q.quadrant]}</p>
+          <p className="quad__note">{quadrantNotes[q.quadrant]}</p>
           {q.subjects.length ? (
             <ul>
               {q.subjects.map((s) => (
                 <li key={s.name}>
                   <span className="row" style={{ ["--gap" as string]: "8px" } as CSSProperties}>
-                    <i className="sw" style={{ background: SUBJECT_AREAS[s.area] }} title={s.area} aria-hidden="true" />
+                    <i className="sw" style={{ background: subjectAreas[s.area] }} title={s.area} aria-hidden="true" />
                     {s.name}
                   </span>
                   <span className="quad__val">{s.note}</span>
@@ -68,9 +54,10 @@ export function Quadrant({ id }: { id?: string }) {
 }
 
 export function AreaLegend() {
+  const { subjectAreas } = useViews();
   return (
     <div className="legend">
-      {Object.entries(SUBJECT_AREAS).map(([area, c]) => (
+      {Object.entries(subjectAreas).map(([area, c]) => (
         <span key={area} className="legend__item">
           <i className="legend__rect" style={{ ["--k" as string]: c } as CSSProperties} />
           {area}
@@ -82,8 +69,9 @@ export function AreaLegend() {
 
 /* ---------- THE Impact: 17 SDG tiles + evidence ladder ---------- */
 export function SdgBoard({ publicMode }: { publicMode?: boolean }) {
+  const { impactLadder, sdgColors, sdgNames, sdgTiles } = useViews();
   const [sel, setSel] = useState(3);
-  const t = SDG_TILES[sel - 1];
+  const t = sdgTiles[sel - 1];
   const publicEvidence = Math.min(100, Math.round(t.readiness * 0.92));
   return (
     <div className="grid cols-2-1" id="sdg-board">
@@ -93,17 +81,17 @@ export function SdgBoard({ publicMode }: { publicMode?: boolean }) {
         icon="globe"
       >
         <div className="sdgs" role="group" aria-label="Sustainable Development Goals">
-          {SDG_TILES.map((s) => (
+          {sdgTiles.map((s) => (
             <button
               key={s.sdg}
               type="button"
               className="sdgt"
               aria-pressed={sel === s.sdg}
               onClick={() => setSel(s.sdg)}
-              style={{ background: SDG_COLORS[s.sdg], color: inkOn(SDG_COLORS[s.sdg]) } as CSSProperties}
+              style={{ background: sdgColors[s.sdg], color: inkOn(sdgColors[s.sdg]) } as CSSProperties}
             >
               <span className="sdgt__n">{s.sdg}</span>
-              <span className="sdgt__name">{SDG_NAMES[s.sdg]}</span>
+              <span className="sdgt__name">{sdgNames[s.sdg]}</span>
               {!publicMode && <span className="sdgt__pct">{s.readiness}% ready</span>}
               {s.submittedForRating && <span className="sdgt__flag">Rated</span>}
             </button>
@@ -111,7 +99,7 @@ export function SdgBoard({ publicMode }: { publicMode?: boolean }) {
         </div>
       </Card>
       <div className="grid">
-        <Card title={`SDG ${t.sdg}: ${SDG_NAMES[t.sdg]}`} sub={t.submittedForRating ? "Submitted for rating this year" : "Not submitted for rating this year"}>
+        <Card title={`SDG ${t.sdg}: ${sdgNames[t.sdg]}`} sub={t.submittedForRating ? "Submitted for rating this year" : "Not submitted for rating this year"}>
           {!publicMode && (
             <div className="stack" style={{ ["--gap" as string]: "6px", marginBottom: 16 } as CSSProperties}>
               <span className="small text-2">
@@ -149,7 +137,7 @@ export function SdgBoard({ publicMode }: { publicMode?: boolean }) {
         </Card>
         <Card title="Impact evidence ladder" sub="Moving evidence from activity reports to verified change" icon="ladder" id="impact-ladder">
           <ol className="ladder">
-            {IMPACT_LADDER.map((l, i) => (
+            {impactLadder.map((l, i) => (
               <li key={l.step} style={{ ["--w" as string]: `${100 - i * 11}%` } as CSSProperties}>
                 <span className="ladder__n">{i + 1}</span>
                 <span className="ladder__step">{l.step}</span>
@@ -204,6 +192,7 @@ const WURI_INITIATIVES: { name: string; category: string; outcome: string; novel
 
 /* ---------- Ranking-specific dashboards ---------- */
 export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; onIndicator?: (name: string) => void }) {
+  const { greenmetricPanels, qssPillars, researchFunnel, wuriPipeline } = useViews();
   switch (ranking.slug) {
     case "qs-wur": {
       const trendRows = ranking.indicators.filter((i) => /Reputation|International/.test(i.name));
@@ -211,7 +200,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
         <>
           <div className="grid cols-2-1">
             <Card title="Research influence funnel" sub="From research capacity to QS impact" icon="research" id="research-funnel">
-              <Flow steps={RESEARCH_FUNNEL} warnAt={4} />
+              <Flow steps={researchFunnel} warnAt={4} />
               <div className="mt-4">
                 <Notice tone="warn" icon="alert">
                   <b>Citations per Faculty is an institutional process issue,</b> not only a rankings-office concern. It carries 20% of the
@@ -365,7 +354,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
       return (
         <>
           <div className="grid cols-3">
-            {QSS_PILLARS.map((p) => (
+            {qssPillars.map((p) => (
               <Card key={p.name} title={p.name} sub={`${p.weight} of the overall score`} icon={icons[p.name]} actions={<Status status={p.status} />}>
                 <details className="expand" open={p.name !== "Governance"}>
                   <summary>Lenses and responsible offices</summary>
@@ -406,7 +395,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                   </tr>
                 </thead>
                 <tbody>
-                  {QSS_PILLARS.map((p) => (
+                  {qssPillars.map((p) => (
                     <tr key={p.name}>
                       <td className="table__primary">{p.name}</td>
                       {cols.map((c) => (
@@ -484,7 +473,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
       return (
         <>
           <div className="grid cols-3">
-            {GREENMETRIC_PANELS.map((p, k) => {
+            {greenmetricPanels.map((p, k) => {
               const ind = ranking.indicators.find((i) => i.name === p.name);
               return (
                 <Card
@@ -557,7 +546,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
         <>
           <div className="grid cols-2">
             <Card title="Innovation pipeline" sub="Ideas identified to replicated, this cycle" icon="innovation" id="wuri-pipeline">
-              <Funnel steps={WURI_PIPELINE} color="var(--wuri)" label="WURI innovation pipeline" />
+              <Funnel steps={wuriPipeline} color="var(--wuri)" label="WURI innovation pipeline" />
             </Card>
             <WuriCategories />
           </div>

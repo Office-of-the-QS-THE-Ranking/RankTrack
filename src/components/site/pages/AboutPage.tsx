@@ -1,11 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { OFFICE, OFFICE_FUNCTIONS, OFFICE_OBJECTIVES, OFFICE_DELIVERABLES, OFFICE_WORKPLAN, OFFICE_TEAM, OFFICE_PORTFOLIO } from "@/lib/office";
-import { PHOTOS } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
+import { serverViews } from "@/lib/governance/server/views";
 
 const TABS = [
   { id: "mission", label: "Purpose" },
@@ -30,6 +29,7 @@ const GOVERNANCE = [
 
 /** About the Office of the QS/THE Rankings. */
 export async function AboutPage() {
+  const { office, photos } = await serverViews();
   const { privacy } = await siteData();
   return (
     <>
@@ -42,7 +42,7 @@ export async function AboutPage() {
         }
         lead={
           <p>
-            {OFFICE.summary}
+            {office.summary}
           </p>
         }
         actions={
@@ -55,11 +55,11 @@ export async function AboutPage() {
             </a>
           </>
         }
-        photo={PHOTOS.day}
+        photo={photos.day}
       />
       <PageTabs items={TABS} label="On this page" />
 
-      <p className="w-office-source w-wrap">Office profile as of {OFFICE.profileDate}.</p>
+      <p className="w-office-source w-wrap">Office profile as of {office.profileDate}.</p>
 
       <section id="mission" className="w-section w-wrap" aria-labelledby="mission-title">
         <div className="w-grid w-mission">
@@ -72,7 +72,7 @@ export async function AboutPage() {
             </p>
           </div>
           <ul className="w-mission__list">
-            {OFFICE_FUNCTIONS.map((o, i) => (
+            {office.functions.map((o, i) => (
               <li key={o} data-reveal style={{ ["--d" as string]: `${i * 60}ms` }}>
                 <i className="w-dot" aria-hidden="true" />
                 {o}
@@ -86,9 +86,9 @@ export async function AboutPage() {
         <div className="w-wrap">
           <h2 id="vision-title" className="w-head w-rows__title" data-reveal>Vision and mission</h2>
           <dl className="w-rows">
-            <div data-reveal><dt>Vision for 2030</dt><dd>{OFFICE.vision}</dd></div>
-            <div data-reveal><dt>Mission</dt><dd>{OFFICE.mission}</dd></div>
-            {OFFICE_OBJECTIVES.map((objective) => (
+            <div data-reveal><dt>Vision for 2030</dt><dd>{office.vision}</dd></div>
+            <div data-reveal><dt>Mission</dt><dd>{office.mission}</dd></div>
+            {office.objectives.map((objective) => (
               <div key={objective.title} data-reveal><dt>{objective.title}</dt><dd>{objective.text}</dd></div>
             ))}
           </dl>
@@ -103,7 +103,7 @@ export async function AboutPage() {
           </div>
         </div>
         <ul className="w-office-portfolio">
-          {OFFICE_PORTFOLIO.map((ranking) => (
+          {office.portfolio.map((ranking) => (
             <li key={ranking.name} data-reveal><Link href={ranking.href} className="w-link">{ranking.name}</Link></li>
           ))}
         </ul>
@@ -113,7 +113,7 @@ export async function AboutPage() {
         <div className="w-wrap">
           <h2 id="deliverables-title" className="w-head w-rows__title" data-reveal>What we deliver</h2>
           <dl className="w-rows">
-            {OFFICE_DELIVERABLES.map((item) => (
+            {office.deliverables.map((item) => (
               <div key={item.title} data-reveal><dt>{item.title}</dt><dd>{item.text}</dd></div>
             ))}
           </dl>
@@ -123,7 +123,7 @@ export async function AboutPage() {
       <section id="since-1611" className="w-band w-band--ink w-on-dark w-heritage" aria-labelledby="heritage-title">
         <div className="w-wrap w-grid">
           <div className="w-heritage__map" data-reveal="shutter">
-            <Image src={PHOTOS.map.src} alt={PHOTOS.map.alt} fill sizes="(max-width: 900px) 100vw, 58vw" />
+            <Image src={photos.map.src} alt={photos.map.alt} fill sizes="(max-width: 900px) 100vw, 58vw" />
           </div>
           <div className="w-heritage__text">
             <h2 id="heritage-title" className="w-head" data-reveal>
@@ -144,7 +144,7 @@ export async function AboutPage() {
       <section id="process" className="w-section w-wrap" aria-labelledby="process2-title">
         <h2 id="process2-title" className="w-head w-rows__title" data-reveal>How the work is shared</h2>
         <dl className="w-rows">
-          {OFFICE_WORKPLAN.map((task) => (
+          {office.workplan.map((task) => (
             <div key={task.title} data-reveal>
               <dt>{task.title}</dt>
               <dd><p>{task.owners}</p><p className="w-office-timing">{task.timing}</p></dd>
@@ -154,7 +154,7 @@ export async function AboutPage() {
         <p className="w-office-note" data-reveal>Data collection and submission review follow the Calendar of Activities. <Link href="/knowledge#calendar" className="w-link">View the calendar</Link>.</p>
       </section>
 
-      <PhotoBand photo={PHOTOS.night} caption="Lamps on a rain-wet walk behind the Main Building at night." />
+      <PhotoBand photo={photos.night} caption="Lamps on a rain-wet walk behind the Main Building at night." />
 
       <section id="team" className="w-section w-wrap" aria-labelledby="team-title">
         <div className="w-intro w-grid">
@@ -166,7 +166,7 @@ export async function AboutPage() {
           </div>
         </div>
         <ul className="w-team">
-          {OFFICE_TEAM.map((t, i) => (
+          {office.team.map((t, i) => (
             <li key={t.role} className="w-team__role" data-reveal style={{ ["--d" as string]: `${(i % 3) * 70}ms` }}>
               <span className="w-team__name">{t.role}</span>
               {t.who && <span className="w-team__who">{t.who}</span>}
@@ -233,8 +233,8 @@ export async function AboutPage() {
               Contact the Office for questions about ranking submissions, data requirements, performance analysis and coordination with University units.
             </p>
             <div className="w-actions" data-reveal style={{ ["--d" as string]: "160ms" }}>
-              <a href="mailto:rankings.office@ust.edu.ph" className="w-btn">
-                rankings.office@ust.edu.ph
+              <a href={`mailto:${office.email}`} className="w-btn">
+                {office.email}
               </a>
               <Link href="/impact#adapt" className="w-link">
                 Adapt a practice
@@ -243,27 +243,27 @@ export async function AboutPage() {
           </div>
           <div className="w-contact__disc" data-reveal="disc">
             <Image
-              src={PHOTOS.arch.src}
-              alt={PHOTOS.arch.alt}
+              src={photos.arch.src}
+              alt={photos.arch.alt}
               fill
               sizes="(max-width: 900px) 70vw, 26vw"
-              style={{ objectPosition: PHOTOS.arch.pos }}
+              style={{ objectPosition: photos.arch.pos }}
             />
           </div>
           <address className="w-contact__address" data-reveal style={{ ["--d" as string]: "200ms" }}>
-            {OFFICE.name}
+            {office.name}
             <br />
-            {OFFICE.location}
+            {office.location}
             <br />
-            {OFFICE.landmark}
+            {office.landmark}
             <br />
-            {OFFICE.phone}
+            {office.phone}
             <br />
             University of Santo Tomas
             <br />
-            España Boulevard, Sampaloc
+            {office.street}
             <br />
-            Manila 1008, Philippines
+            {office.city}
           </address>
         </div>
       </section>

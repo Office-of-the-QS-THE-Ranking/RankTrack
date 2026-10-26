@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { CYCLE, RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
+import { RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
 import { hub } from "@/lib/governance/server/hub";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Empty, PageHeader, Pattern, SectionHead } from "@/components/ui/primitives";
@@ -85,7 +85,7 @@ export async function RecognitionWall({ mode }: { mode: "internal" | "public" })
       </section>
 
       <section id="units" className="stack" style={{ ["--gap" as string]: "14px" } as CSSProperties}>
-        <SectionHead title={`${CYCLE} cycle awards`} sub="Awarded for quality: earliest complete submission, best outcome evidence, collaboration, reuse, improvement, impact stories and innovation" />
+        <SectionHead title={`${h.currentCycle} cycle awards`} sub="Awarded for quality: earliest complete submission, best outcome evidence, collaboration, reuse, improvement, impact stories and innovation" />
         {RECOGNITION.length ? (
           <div className="awards">
             {RECOGNITION.map((r) => {

@@ -2,7 +2,6 @@
  * Data governance: ownership and stewardship, classification, retention, versions, quality rules,
  * duplicates and the University-wide data dictionary.
  */
-import { DICTIONARY } from "@/lib/data";
 import type { CommandResult } from "../commands";
 import { daysSince } from "../derive";
 import { findDuplicates, runRules } from "../quality";
@@ -129,7 +128,7 @@ export function resolveDuplicate(ctx: Ctx, key: string, decision: "Merged" | "Di
 
 export function updateTerm(ctx: Ctx, input: { term: string; definition?: string; unitOfMeasure?: string; stewardId?: string; datasetId?: string }): CommandResult {
   const meta = ctx.state.terms.find((t) => t.term === input.term);
-  const base = DICTIONARY.find((d) => d.term === input.term);
+  const base = ctx.ref.dictionary.find((d) => d.term === input.term);
   if (!meta || !base) return invalid("That term is not in the dictionary.");
   const target = { type: "Dictionary term", id: meta.term, label: meta.term };
   if (!can(ctx, "governance", "edit", { datasetId: meta.datasetId }) && !can(ctx, "knowledge", "edit")) return deny(ctx, "term.update", "Data", target, "Your role cannot edit the data dictionary.");

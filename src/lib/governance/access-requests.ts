@@ -3,6 +3,25 @@
  * an answer is matched to them, and how long a guest's access lasts once approved.
  */
 
+/**
+ * Who is asking. A Thomasian (UST faculty or staff) asks with a University email for a coordinator account in
+ * their college or office; an external partner (ranking body, accreditor, reviewer) for a 90-day guest account.
+ * Neither gets in on the email alone: both wait for a University Administrator's approval.
+ */
+export type RequesterKind = "thomasian" | "external";
+
+/** How a Thomasian's affiliation is recorded. */
+export const THOMASIAN_AFFILIATION = "UNIVERSITY OF SANTO TOMAS";
+
+/** A position as typed: letters, digits, spaces and . , ' / ( ) & -, up to 120 characters. */
+export const positionText = (value: string) => value.normalize("NFC").replace(/[^\p{L}\p{N} .,'/()&\-]/gu, "").replace(/\s+/g, " ").slice(0, 120);
+
+/** Whether an email is on one of the University's sign-in domains. */
+export const universityEmail = (email: string, domains: string[]) => domains.map((d) => d.toLowerCase()).includes(email.trim().toLowerCase().split("@")[1] ?? "");
+
+/** A unit a Thomasian can name, indented under its parent. */
+export type RequestUnit = { id: string; name: string; depth: number };
+
 /** Insert date separators as each pair is completed; let deletion remove a trailing separator. */
 export function formatRequestBirthday(value: string, deleting = false): string {
   const digits = value.replace(/\D/g, "").slice(0, 8);

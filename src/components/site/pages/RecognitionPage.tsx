@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { CYCLE, LATEST_EDITION, RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
-import { PHOTOS } from "@/lib/site";
+import { RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
 import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
+import { serverViews } from "@/lib/governance/server/views";
 
 const TABS = [
   { id: "achievements", label: "Achievements" },
@@ -25,8 +25,9 @@ const SUSTAINABILITY = ["UI GreenMetric", "QS Sustainability", "THE Impact"];
 
 /** Recognition follows verified evidence quality, measurable outcomes and collaboration (proposal §8). */
 export async function RecognitionPage() {
+  const { latestEdition, photos } = await serverViews();
   // Active units from the directory, published stories and the movers shown publicly.
-  const { units: UNITS, stories: PUBLISHED_STORIES, movers: MOVERS } = await siteData();
+  const { units: UNITS, stories: PUBLISHED_STORIES, movers: MOVERS, currentCycle } = await siteData();
   const topUnits = UNITS.filter((u) => u.validated > 0).sort((a, b) => b.validated - a.validated || b.rankingsServed - a.rankingsServed).slice(0, 6);
   const champions = UNITS.filter((u) => u.coordinatorId && u.rankingsServed > 0).sort((a, b) => b.rankingsServed - a.rankingsServed).slice(0, 4);
   const innovation = PUBLISHED_STORIES.filter((s) => s.themes.includes("Thomasian Innovations"));
@@ -64,7 +65,7 @@ export async function RecognitionPage() {
             </Link>
           </>
         }
-        photo={PHOTOS.field}
+        photo={photos.field}
       />
       {tabs.length > 1 && <PageTabs items={tabs} label="On this page" />}
 
@@ -72,7 +73,7 @@ export async function RecognitionPage() {
         <section className="w-section w-wrap" aria-labelledby="none-title">
           <div className="w-intro w-grid">
             <h2 id="none-title" className="w-head" data-reveal>
-              The {CYCLE} cycle
+              The {currentCycle} cycle
             </h2>
             <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
               <p className="w-lead">Awards, leading units and evidence champions appear here once the Office has reviewed this cycle&rsquo;s evidence.</p>
@@ -85,7 +86,7 @@ export async function RecognitionPage() {
       <section id="achievements" className="w-section w-wrap" aria-labelledby="ach-title">
         <div className="w-intro w-grid">
           <h2 id="ach-title" className="w-head" data-reveal>
-            What moved in {LATEST_EDITION}
+            What moved in {latestEdition}
           </h2>
           <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
             <p className="w-lead">These results rose in the latest editions. Each counted evidence from several units at once.</p>
@@ -110,7 +111,7 @@ export async function RecognitionPage() {
         <div className="w-wrap">
           <div className="w-intro w-grid">
             <h2 id="awards-title" className="w-head" data-reveal>
-              The {LATEST_EDITION} cycle awards
+              The {latestEdition} cycle awards
             </h2>
             <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
               <p className="w-lead">
@@ -131,7 +132,7 @@ export async function RecognitionPage() {
       </section>
       )}
 
-      <PhotoBand photo={PHOTOS.festive} caption="The Main Building and its plaza lit in December." />
+      <PhotoBand photo={photos.festive} caption="The Main Building and its plaza lit in December." />
 
       {shown.units && (
       <section id="units" className="w-section w-wrap" aria-labelledby="units2-title">
@@ -178,7 +179,7 @@ export async function RecognitionPage() {
             ))}
           </ul>
           <div className="w-champs__disc" data-reveal="disc">
-            <Image src={PHOTOS.courtyard.src} alt={PHOTOS.courtyard.alt} fill sizes="(max-width: 900px) 70vw, 28vw" />
+            <Image src={photos.courtyard.src} alt={photos.courtyard.alt} fill sizes="(max-width: 900px) 70vw, 28vw" />
           </div>
         </div>
       </section>

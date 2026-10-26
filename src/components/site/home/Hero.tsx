@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Fragment, type CSSProperties } from "react";
-import { LATEST_EDITION } from "@/lib/data";
-import { PHOTOS, movement, splitResult } from "@/lib/site";
+import { movement, splitResult } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 import { ArchDrawing } from "./ArchDrawing";
 import { ArchMotion } from "./ArchMotion";
+import { serverViews } from "@/lib/governance/server/views";
 
 /** The ticker's order: what rose first, then what held, then the first entry. Only rankings shown publicly run;
  * one without a result yet runs by name alone. */
@@ -79,6 +79,7 @@ async function TickerItems({ hidden }: { hidden?: boolean }) {
  * reduced motion the hero is a still composition.
  */
 export async function HomeHero() {
+  const { latestEdition, photos } = await serverViews();
   const results = (await siteData()).rankings.some((r) => r.current);
   return (
     <section className="w-arch" id="hero" aria-labelledby="hero-title">
@@ -105,7 +106,7 @@ export async function HomeHero() {
         </div>
         <div className="w-arch__actions">
           <Link href="/rankings" className="w-btn w-btn--light w-arch__cta">
-            {results ? `See the ${LATEST_EDITION} results` : "See the eight rankings"}
+            {results ? `See the ${latestEdition} results` : "See the eight rankings"}
           </Link>
           <Link href="/impact" className="w-link">
             Read the impact stories
@@ -117,7 +118,7 @@ export async function HomeHero() {
             <span className="w-arch__pan">
               {/* covers the stage with a little bleed and grows as the visitor walks in; on a tall screen the
                   height decides, so the picture is wider than the screen */}
-              <Image src={PHOTOS.hero.src} alt={PHOTOS.hero.alt} fill preload sizes="(max-aspect-ratio: 3/2) 165vh, 118vw" />
+              <Image src={photos.hero.src} alt={photos.hero.alt} fill preload sizes="(max-aspect-ratio: 3/2) 165vh, 118vw" />
             </span>
           </div>
           <div className="w-arch__monument">
@@ -126,7 +127,7 @@ export async function HomeHero() {
         </div>
         {/* the light of the room: the opening's glow, the lantern and the gold dust (ArchDust) */}
         <canvas className="w-arch__dust" aria-hidden="true" />
-        <nav className="w-arch__ticker" aria-label={`Where UST stands in the ${LATEST_EDITION} editions`}>
+        <nav className="w-arch__ticker" aria-label={`Where UST stands in the ${latestEdition} editions`}>
           <div className="w-arch__ticker-track">
             <ul className="w-arch__ticker-list">
               <TickerItems />

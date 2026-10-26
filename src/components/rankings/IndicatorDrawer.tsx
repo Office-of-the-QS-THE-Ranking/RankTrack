@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { EVIDENCE, unitByName, type EvidenceItem, type Indicator, type Ranking } from "@/lib/data";
+import { EVIDENCE, type EvidenceItem, type Indicator, type Ranking } from "@/lib/data";
 import { useHub } from "@/components/hub/HubProvider";
 import { Drawer } from "@/components/ui/interactive";
 import { Icon } from "@/components/ui/Icon";
@@ -25,7 +25,7 @@ export function linkedEvidence(ranking: Ranking, ind: Indicator, pool: EvidenceI
 export function IndicatorDrawer({ ranking, indicator, onClose }: { ranking: Ranking; indicator: Indicator | null; onClose: () => void }) {
   const ind = indicator;
   const hub = useHub();
-  const owner = ind ? hub?.units.find((u) => u.name === ind.owner) ?? unitByName(ind.owner) : undefined;
+  const owner = ind ? hub?.units.find((u) => u.name === ind.owner) : undefined;
   const evidence = ind ? linkedEvidence(ranking, ind, hub?.evidence) : [];
   const share = ind && ind.current !== null && ind.target ? Math.round((ind.current / ind.target) * 100) : null;
   const hist = ind ? ind.history.filter((h) => h > 0) : [];

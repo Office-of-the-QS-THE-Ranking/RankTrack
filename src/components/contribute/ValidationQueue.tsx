@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState, type CSSProperties } from "react";
-import { EVIDENCE_LEVELS, formatDate, type EvidenceStatus } from "@/lib/data";
+import { formatDate, type EvidenceStatus } from "@/lib/data";
 import { bodyOfMapping } from "@/lib/governance/catalog";
 import type { BodyKey } from "@/lib/governance/types";
 import { useCan, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
@@ -12,6 +12,7 @@ import { Card, Empty, Notice, SdgList, Status } from "@/components/ui/primitives
 import { Segmented } from "@/components/ui/interactive";
 import { toast } from "@/components/ui/toast";
 import { StageTrack } from "./StageTrack";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 type Filter = "All" | EvidenceStatus;
 const FILTERS: Filter[] = ["For review", "Needs revision", "Validated", "All"];
@@ -37,6 +38,7 @@ const bodiesOf = (mapped: string[]) => [...new Set(mapped.map(bodyOfMapping).fil
  * ranking-body scope, refuses self-review, notifies the unit and writes the decision to the audit log.
  */
 export function ValidationQueue() {
+  const { evidenceLevels } = useViews();
   const params = useSearchParams();
   const hub = useHub();
   const viewer = useViewer();
@@ -64,7 +66,7 @@ export function ValidationQueue() {
   const sel = shown.find((i) => i.id === selId) ?? shown[0];
   const target = sel ? { unitId: (sel as typeof sel & { programId?: string }).programId ?? sel.unitSlug, bodies: bodiesOf(sel.mappedTo) } : {};
   const mayReview = !!sel && can("evidence", "approve", target);
-  const own = !!sel && !!viewer && sel.submittedBy === viewer.name;
+  const own = !!sel && !!viewer && (sel.submittedById ? sel.submittedById === viewer.id : sel.submittedBy === viewer.name);
   const scopeBodies = viewer?.grants.filter((g) => g.perms.evidence?.includes("approve")).flatMap((g) => (g.bodies === "all" ? [] : g.bodies));
   const suggestions = useMemo(() => {
     if (!sel) return [];
@@ -165,10 +167,10 @@ export function ValidationQueue() {
             <dt>Evidence quality</dt>
             <dd>
               <span className="level">
-                {EVIDENCE_LEVELS.map((l, k) => (
+                {evidenceLevels.map((l, k) => (
                   <i key={l} className={k < sel.level ? "is-on" : undefined} title={l} />
                 ))}
-                <span className="small">{EVIDENCE_LEVELS[sel.level - 1]}</span>
+                <span className="small">{evidenceLevels[sel.level - 1]}</span>
               </span>
             </dd>
             <dt>SDGs</dt>
@@ -177,11 +179,18 @@ export function ValidationQueue() {
             </dd>
             <dt>Files</dt>
             <dd className="chips">
-              {sel.files.map((f) => (
-                <span key={f} className="chip chip--outline">
-                  <Icon name="paperclip" size={13} /> {f}
-                </span>
-              ))}
+              {sel.files.map((f, i) => {
+                const file = sel.attachments?.find((a) => a.name === f && !sel.files.slice(0, i).includes(f));
+                return file ? (
+                  <a key={file.src} className="chip chip--outline" href={file.src} download={file.name}>
+                    <Icon name="paperclip" size={13} /> {f}
+                  </a>
+                ) : (
+                  <span key={`${f}-${i}`} className="chip chip--outline">
+                    <Icon name="paperclip" size={13} /> {f}
+                  </span>
+                );
+              })}
             </dd>
           </dl>
 

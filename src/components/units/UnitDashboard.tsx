@@ -13,6 +13,7 @@ import type { HubUnit } from "@/lib/governance/hub-types";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Due, Empty, Kpi, Meter, Notice, PageHeader, Pattern, RankingName, Ring, SdgList, Status } from "@/components/ui/primitives";
 import { StageTrack } from "@/components/contribute/StageTrack";
+import { serverViews } from "@/lib/governance/server/views";
 
 const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 const asWord = (n: number) => WORDS[n] ?? String(n);
@@ -21,7 +22,7 @@ const asWord = (n: number) => WORDS[n] ?? String(n);
  * A unit's own page (proposal §12): assigned requirements, completion, accepted evidence, items needing
  * revision, deadlines, contributions used in several rankings, outcomes supported and recognition.
  */
-export function UnitDashboard({
+export async function UnitDashboard({
   unit,
   mode,
   evidence,
@@ -44,6 +45,7 @@ export function UnitDashboard({
   insights?: boolean;
   scopeNote?: string;
 }) {
+  const { office } = await serverViews();
   const portal = mode === "portal";
   const RANKINGS = rankings;
   const tracked = new Set(rankings.map((r) => r.short));
@@ -77,7 +79,7 @@ export function UnitDashboard({
         }
         actions={
           <>
-            <Link href={portal ? "/portal/assistance" : `mailto:rankings.office@ust.edu.ph?subject=${encodeURIComponent(unit.name)}`} className="btn">
+            <Link href={portal ? "/portal/assistance" : `mailto:${office.email}?subject=${encodeURIComponent(unit.name)}`} className="btn">
               <Icon name="help" size={18} /> {portal ? "Request assistance" : "Contact coordinator"}
             </Link>
             {portal && canSubmit && unit.status === "Active" && (

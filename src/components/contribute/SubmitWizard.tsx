@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { EVIDENCE_LEVELS, SDG_COLORS, SDG_NAMES, inkOn } from "@/lib/data";
+import { inkOn } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Notice } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useFlag, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { StageTrack } from "./StageTrack";
+import { uploadEvidence } from "./evidence-upload";
 import { skipChecks } from "@/lib/dev-checks";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const TYPES = [
   ["Operational data", "Energy, water, waste, transport or campus figures"],
@@ -50,7 +52,7 @@ interface Match {
   why: string;
 }
 
-function recommend(type: DataType | null, sdgs: number[]): Match[] {
+function recommend(type: DataType | null, sdgs: number[], sdgNames: Record<number, string>): Match[] {
   const out: Match[] = [];
   const add = (ranking: string, indicator: string, why: string) => {
     const key = `${ranking} · ${indicator}`;
@@ -87,11 +89,12 @@ function recommend(type: DataType | null, sdgs: number[]): Match[] {
       add("THE WUR", "Industry", "Patents citing UST research");
       break;
   }
-  sdgs.forEach((s) => add("THE Impact", `SDG ${s}`, SDG_NAMES[s]));
+  sdgs.forEach((s) => add("THE Impact", `SDG ${s}`, sdgNames[s]));
   return out;
 }
 
 export function SubmitWizard() {
+  const { evidenceLevels, sdgColors, sdgNames } = useViews();
   const hub = useHub();
   const viewer = useViewer();
   const rankings = useRankings();
@@ -114,7 +117,8 @@ export function SubmitWizard() {
   const [count, setCount] = useState("");
   const [verified, setVerified] = useState("");
   const [sdgs, setSdgs] = useState<number[]>([]);
-  const [files, setFiles] = useState<{ name: string; sizeMB: number }[]>([]);
+  const [files, setFiles] = useState<{ name: string; sizeMB: number; file: File }[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [fileError, setFileError] = useState("");
   const [ref, setRef] = useState("");
   const [url, setUrl] = useState("");
@@ -125,7 +129,7 @@ export function SubmitWizard() {
   const [sent, setSent] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const addFiles = (list: File[]) => {
-    const next = [...files, ...list.map((f) => ({ name: f.name, sizeMB: Math.round((f.size / 1_048_576) * 10) / 10 }))];
+    const next = [...files, ...list.map((f) => ({ name: f.name, sizeMB: Math.round((f.size / 1_048_576) * 10) / 10, file: f }))];
     const ext = (n: string) => n.split(".").pop()?.toUpperCase() ?? "";
     const wrong = next.find((f) => !uploads.types.includes(ext(f.name)));
     const big = next.find((f) => f.sizeMB > uploads.maxFileMB);
@@ -142,7 +146,7 @@ export function SubmitWizard() {
   };
 
   // Only rankings System Configuration tracks can receive evidence.
-  const matches = useMemo(() => recommend(type, sdgs).filter((m) => tracked.has(m.ranking)), [type, sdgs, tracked]);
+  const matches = useMemo(() => recommend(type, sdgs, sdgNames).filter((m) => tracked.has(m.ranking)), [type, sdgs, sdgNames, tracked]);
   const chosen = auto ? matches.map((m) => m.key) : picked.filter((p) => matches.some((m) => m.key === p));
   const rankingsCount = new Set(matches.filter((m) => chosen.includes(m.key)).map((m) => m.ranking)).size;
   const urlOk = !url.trim() || /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url.trim());
@@ -339,7 +343,7 @@ export function SubmitWizard() {
                 <fieldset className="field">
                   <legend className="field__label">What does this evidence show?</legend>
                   <div className="ladder-pick">
-                    {EVIDENCE_LEVELS.map((l, i) => (
+                    {evidenceLevels.map((l, i) => (
                       <label key={l} className="choice">
                         <input type="radio" name="level" checked={level === i + 1} onChange={() => setLevel(i + 1)} />
                         <span className="choice__text">
@@ -379,7 +383,7 @@ export function SubmitWizard() {
               <fieldset className="field">
                 <legend className="sr-only">Relevant SDGs</legend>
                 <div className="sdgpick">
-                  {Object.keys(SDG_NAMES).map((k) => {
+                  {Object.keys(sdgNames).map((k) => {
                     const n = Number(k);
                     const on = sdgs.includes(n);
                     return (
@@ -388,10 +392,10 @@ export function SubmitWizard() {
                         type="button"
                         aria-pressed={on}
                         onClick={() => setSdgs((v) => (on ? v.filter((x) => x !== n) : [...v, n].sort((a, b) => a - b)))}
-                        style={on ? ({ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]), borderColor: SDG_COLORS[n] } as CSSProperties) : undefined}
+                        style={on ? ({ background: sdgColors[n], color: inkOn(sdgColors[n]), borderColor: sdgColors[n] } as CSSProperties) : undefined}
                       >
                         <b>{n}</b>
-                        <span>{SDG_NAMES[n]}</span>
+                        <span>{sdgNames[n]}</span>
                         {on && <Icon name="check" size={14} strokeWidth={2.6} className="sdgpick__check" />}
                       </button>
                     );
@@ -550,10 +554,19 @@ export function SubmitWizard() {
                 <button
                   type="button"
                   className="btn btn--primary"
-                  disabled={pending}
+                  disabled={pending || uploading}
                   onClick={async () => {
                     if (errors.some(Boolean) && !skipChecks()) {
                       setTried(STEPS.map(() => true));
+                      return;
+                    }
+                    setUploading(true);
+                    const sent = await uploadEvidence(
+                      files.map((f) => f.file),
+                      { unitSlug: viewer?.portal.unitId ?? "" },
+                    ).finally(() => setUploading(false));
+                    if (!sent.ok) {
+                      toast(sent.message, "error");
                       return;
                     }
                     const r = await run({
@@ -568,7 +581,7 @@ export function SubmitWizard() {
                         beneficiaries: `${who}${count ? `, ${count}` : ""}${verified ? `. Verified by ${verified}` : ""}`,
                         level: level as 1 | 2 | 3 | 4 | 5,
                         sdgs,
-                        files,
+                        files: sent.files,
                         url,
                         mappedTo: matches.filter((m) => chosen.includes(m.key)).map((m) => m.key),
                       },
@@ -581,7 +594,7 @@ export function SubmitWizard() {
                     setSent(true);
                   }}
                 >
-                  <Icon name="send" size={18} /> Submit for validation
+                  <Icon name="send" size={18} /> {uploading ? "Uploading files…" : "Submit for validation"}
                 </button>
               )}
             </span>

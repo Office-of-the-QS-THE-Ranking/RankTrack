@@ -1,6 +1,8 @@
 import type { UnitKind } from "@/lib/data";
 import type { OrgKind, OrgUnit } from "./types";
-import { UST_DIRECTORY, matchDirectoryEntry, type DirectoryEntry } from "./ust-directory";
+import type { RequestUnit } from "./access-requests";
+import { UNIT_CATEGORY_LABELS } from "@/lib/unit-categories";
+import { matchDirectoryEntry, type DirectoryEntry } from "./ust-directory";
 
 export type DirectorySection = "academic" | "offices" | "research";
 export type UnitCreationKind = "College" | "Office" | "Research Centre";
@@ -38,17 +40,21 @@ function orgKind(entry: DirectoryEntry): OrgKind {
   if (entry.category === "Administrative Office") return "Office";
   if (entry.category === "Basic Education") return "School";
   if (entry.category === "Student Government") return "Student Government";
+  if (entry.category === "Research Center") return "Research Centre";
   if (entry.category === "Program/Department") return entry.name.startsWith("BS ") ? "Program" : "Department";
   if (entry.name.startsWith("Faculty")) return "Faculty";
   return entry.name.includes("College") ? "College" : "Institute";
 }
 
-/** Add missing directory entries while preserving IDs, edits, archived units, coordinators and records. */
-export function importUstDirectory(existing: OrgUnit[], at: string): OrgUnit[] {
+/**
+ * Add missing directory entries (unit_directory, through the reference data) while preserving IDs, edits,
+ * archived units, coordinators and records.
+ */
+export function importUstDirectory(existing: OrgUnit[], directory: DirectoryEntry[], at: string): OrgUnit[] {
   const units = structuredClone(existing);
   const ids = new Map<string, string>();
   for (const unit of units) {
-    const entry = matchDirectoryEntry(unit);
+    const entry = matchDirectoryEntry(unit, directory);
     if (entry && !ids.has(entry.key)) {
       ids.set(entry.key, unit.id);
       unit.directoryKey = entry.key;
@@ -56,7 +62,7 @@ export function importUstDirectory(existing: OrgUnit[], at: string): OrgUnit[] {
       if (!unit.emails?.length) unit.emails = [...entry.emails];
     }
   }
-  for (const entry of UST_DIRECTORY) {
+  for (const entry of directory) {
     if (ids.has(entry.key)) continue;
     let id = entry.key.toLowerCase();
     while (units.some((unit) => unit.id === id)) id = `ust-${id}`;
@@ -64,15 +70,34 @@ export function importUstDirectory(existing: OrgUnit[], at: string): OrgUnit[] {
     units.push({
       id, directoryKey: entry.key, code: entry.key, name: entry.name, kind: orgKind(entry),
       parentId: null, status: "Active", adminIds: [], emails: [...entry.emails],
-      history: [{ at, by: "system", change: "Imported from ust_directory.csv" }],
+      history: [{ at, by: "system", change: "Imported from the University directory" }],
     });
   }
   const root = units.find((unit) => unit.kind === "University")?.id ?? "ust";
   // Resolve parent keys after every entry has an ID, including pre-existing parent units.
   for (const unit of units) {
     if (existing.some((old) => old.id === unit.id)) continue;
-    const entry = UST_DIRECTORY.find((item) => item.key === unit.directoryKey)!;
+    const entry = directory.find((item) => item.key === unit.directoryKey)!;
     unit.parentId = entry.parentKey ? ids.get(entry.parentKey) ?? root : root;
   }
   return units;
+}
+
+/**
+ * The colleges, faculties, offices and centres a Thomasian can name, grouped under the Directory's three
+ * headings (Faculty/Colleges, University Offices, Research Centers), each as a tree in name order.
+ */
+export function requestUnits(units: Pick<OrgUnit, "id" | "name" | "kind" | "parentId" | "status">[]): { label: string; units: RequestUnit[] }[] {
+  const active = units.filter((u) => u.status === "Active" && u.kind !== "University") as OrgUnit[];
+  const ids = new Set(active.map((u) => u.id));
+  const children = (parent: string | null) => active.filter((u) => (u.parentId && ids.has(u.parentId) ? u.parentId : null) === parent).sort((a, b) => a.name.localeCompare(b.name));
+  return (Object.keys(UNIT_CATEGORY_LABELS) as (keyof typeof UNIT_CATEGORY_LABELS)[]).map((section) => {
+    const out: RequestUnit[] = [];
+    const walk = (u: OrgUnit, depth: number) => {
+      out.push({ id: u.id, name: u.name, depth });
+      for (const c of children(u.id)) walk(c, depth + 1);
+    };
+    for (const root of children(null)) if (directorySection(active, root) === section) walk(root, 0);
+    return { label: UNIT_CATEGORY_LABELS[section], units: out };
+  }).filter((g) => g.units.length);
 }

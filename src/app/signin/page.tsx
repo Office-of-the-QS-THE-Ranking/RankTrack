@@ -8,9 +8,11 @@ import { GlassLens } from "@/components/signin/GlassLens";
 import { SignInFlow } from "@/components/signin/SignInFlow";
 import { SignInScene } from "@/components/signin/SignInScene";
 import { logoFace } from "@/components/site/fonts";
+import { requestUnits } from "@/lib/governance/directory";
 import { normalizeReference } from "@/lib/governance/request-tracker";
 import { getViewer } from "@/lib/governance/server/session";
 import { safeNext } from "@/lib/governance/server/signin";
+import { readState } from "@/lib/governance/server/store";
 import pkg from "../../../package.json";
 
 /** The release stage shown after the version (package.json) in the sidebar's foot. */
@@ -38,6 +40,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     if (viewer.workspaces.includes("office")) redirect("/admin");
     if (viewer.workspaces.includes("portal")) redirect("/portal");
   }
+  // Thomasians name their college or office when they request access, on a University email.
+  const state = await readState();
   return (
     <main className={`signin ${logoFace.variable}`}>
       <SignInScene />
@@ -60,6 +64,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
             ended={ended}
             error={error}
             track={normalizeReference(track ?? "") || undefined}
+            domains={state.security.sso.domains}
+            units={requestUnits(state.units)}
           />
         </div>
         <footer className="signin__foot">

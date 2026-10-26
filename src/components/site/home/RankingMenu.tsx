@@ -1,14 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { RANKING_PHOTO, movement } from "@/lib/site";
+import { movement } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
+import { serverViews } from "@/lib/governance/server/views";
 
 /**
  * Two-column menu with photo bullets: the eight rankings filed under their four ranking bodies, each
  * with the result where a menu would put the price. Bullets are round photographs of the University.
  */
 export async function RankingMenu({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
+  const { rankingPhoto } = await serverViews();
   const H = headingLevel === 2 ? "h3" : "h4";
   // Ranking bodies and rankings as System Configuration shows them publicly.
   const BODIES = (await siteData()).bodies;
@@ -34,7 +36,7 @@ export async function RankingMenu({ headingLevel = 2 }: { headingLevel?: 2 | 3 }
           </div>
           <ul className="w-rkmenu__items">
             {b.rankings.map((r, i) => {
-              const photo = RANKING_PHOTO[r.slug];
+              const photo = rankingPhoto[r.slug];
               return (
                 <li key={r.slug} data-reveal style={{ ["--d" as string]: `${i * 80}ms` }}>
                   <Link href={`/rankings/${r.slug}`} className="w-rkitem">

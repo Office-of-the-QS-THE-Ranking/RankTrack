@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { PageHero } from "@/components/site/PageHero";
+import { useOptionalReference } from "@/components/reference/ReferenceProvider";
 
-export default function PublicError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function PublicError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  const email = useOptionalReference()?.office.email;
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -22,13 +24,13 @@ export default function PublicError({ error, reset }: { error: Error & { digest?
       }
       actions={
         <>
-          <button type="button" className="w-btn" onClick={reset}>
+          <button type="button" className="w-btn" onClick={retry}>
             Try again
           </button>
           <Link href="/" className="w-link">
             Home page
           </Link>
-          <a href="mailto:rankings.office@ust.edu.ph?subject=Website%20error" className="w-link">
+          <a href={email ? `mailto:${email}?subject=Website%20error` : "/about#contact"} className="w-link">
             Write to the Office
           </a>
         </>

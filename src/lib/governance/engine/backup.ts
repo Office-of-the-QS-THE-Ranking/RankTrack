@@ -26,7 +26,7 @@ export function runBackup(ctx: Ctx): CommandResult {
     location: "Primary region",
     status: "Completed",
     checksum: "pending",
-    file: `${id}.json`,
+    file: `backups/${id}.json.gz`,
     expiresAt: addDays(ctx.day, ctx.state.backup.schedule.retentionDays),
   });
   ctx.effects.push({ kind: "snapshot", pointId: id });

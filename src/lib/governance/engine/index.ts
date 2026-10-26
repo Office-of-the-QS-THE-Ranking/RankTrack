@@ -8,7 +8,7 @@ import * as accounts from "./accounts";
 import * as backup from "./backup";
 import { configure } from "./config";
 import { roleOf } from "../catalog";
-import { log, ok, SYSTEM, type Ctx } from "./core";
+import { can, deny, log, ok, SYSTEM, type Ctx } from "./core";
 import * as data from "./data";
 import * as directory from "./directory";
 import * as posts from "./posts";
@@ -30,6 +30,9 @@ export function noticeVisible(to: string, accountId: string, grants: Grant[]) {
   }
   return false;
 }
+
+/** Days after an access request closes that its applicant's birthday and website are kept. */
+const REQUEST_PII_DAYS = 30;
 
 /** Expire what policy says has expired. Runs before every change, as the system. */
 export function housekeeping(ctx: Ctx) {
@@ -55,6 +58,16 @@ export function housekeeping(ctx: Ctx) {
     log(ctx, "session.timeout", "Session", { type: "Account", id: x.accountId, label: a?.name ?? x.accountId }, "Success", "Signed out automatically by the session policy", SYSTEM);
   }
   s.sessions = live;
+  // Access requests carry personal data the Office needs only while deciding: a month after one closes, the
+  // birthday and any website are removed. Name, email and affiliation stay as the record of who was given access.
+  const cutoff = now - REQUEST_PII_DAYS * 86_400_000;
+  const closed = s.requests.filter((r) => r.status !== "Pending" && r.completedAt && Date.parse(r.completedAt) < cutoff && r.payload.kind === "account-access" && (r.payload.applicant?.birthday || r.payload.applicant?.website));
+  for (const r of closed) {
+    if (r.payload.kind !== "account-access" || !r.payload.applicant) continue;
+    r.payload.applicant.birthday = "";
+    delete r.payload.applicant.website;
+  }
+  if (closed.length) log(ctx, "retention.redact", "Data", { type: "Access requests", id: "account-access", label: "Access requests" }, "Success", `Birthday and website removed from ${closed.length} closed ${closed.length === 1 ? "request" : "requests"} (${closed.map((r) => r.id).join(", ")})`.slice(0, 300), SYSTEM);
   s.challenges = s.challenges.filter((c) => now - Date.parse(c.createdAt) < 10 * 60_000);
   s.failures = s.failures.filter((f) => now - Date.parse(f.at) < s.security.lockout.windowMinutes * 60_000);
 }
@@ -136,6 +149,7 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return security.updateIncident(ctx, cmd.id, cmd.status, cmd.note, cmd.escalatedTo);
 
     case "audit.verify":
+      if (!can(ctx, "audit", "view")) return deny(ctx, "audit.verify", "Security", { type: "Audit log", id: "audit", label: "Audit log integrity" }, "Your role cannot check the audit log.");
       ctx.effects.push({ kind: "verify-audit" });
       log(ctx, "audit.verify", "Security", { type: "Audit log", id: "audit", label: "Audit log integrity" });
       return ok("Checking the chain…");

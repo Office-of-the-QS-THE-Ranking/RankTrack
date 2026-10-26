@@ -1,9 +1,9 @@
 import Image from "next/image";
-import { CALENDAR } from "@/lib/data";
-import { PHOTOS } from "@/lib/site";
+import { serverViews } from "@/lib/governance/server/views";
 
 /** The submission year, October to March: one gold disc per month with what closes in it, beside the Carillon. */
-export function Calendar({ id = "calendar", title = "When each ranking collects data" }: { id?: string; title?: string }) {
+export async function Calendar({ id = "calendar", title = "When each ranking collects data" }: { id?: string; title?: string }) {
+  const { calendar, photos } = await serverViews();
   return (
     <section id={id} className="w-cal w-section" aria-labelledby={`${id}-title`}>
       <div className="w-wrap">
@@ -19,7 +19,7 @@ export function Calendar({ id = "calendar", title = "When each ranking collects 
         </div>
         <div className="w-cal__body">
           <ol className="w-cal__months">
-            {CALENDAR.map((c, i) => (
+            {calendar.map((c, i) => (
               <li key={c.month} className="w-cal__month" data-reveal style={{ ["--d" as string]: `${i * 70}ms` }}>
                 <span className="w-cal__name w-figure">{c.month}</span>
                 <ul>
@@ -32,11 +32,11 @@ export function Calendar({ id = "calendar", title = "When each ranking collects 
           </ol>
           <div className="w-cal__disc" data-reveal="disc">
             <Image
-              src={PHOTOS.carillon.src}
-              alt={PHOTOS.carillon.alt}
+              src={photos.carillon.src}
+              alt={photos.carillon.alt}
               fill
               sizes="(max-width: 900px) 70vw, 30vw"
-              style={{ objectPosition: PHOTOS.carillon.pos }}
+              style={{ objectPosition: photos.carillon.pos }}
             />
           </div>
         </div>

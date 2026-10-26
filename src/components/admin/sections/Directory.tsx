@@ -7,6 +7,7 @@ import { directorySection, matchesUnitParent, participationKind, type DirectoryS
 import { descendants } from "@/lib/governance/rbac";
 import type { OrgKind } from "@/lib/governance/types";
 import { EMBLEM_MAX_MB, EMBLEM_MAX_SIDE, EMBLEM_PICK_TYPES, EMBLEM_TYPES, emblemOf, officialEmblem } from "@/lib/governance/unit-emblems";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import { viewerCan } from "@/lib/governance/viewer";
 import { prepare, upload } from "@/components/impact/media";
 import { Icon } from "@/components/ui/Icon";
@@ -45,6 +46,7 @@ const byStatusThenName = (a: UnitRow, b: UnitRow) => Number(a.status === "Archiv
 
 export function Directory() {
   const { data } = useConsole();
+  const catalogue = useReference();
   const [q, setQ] = useState("");
   const [archived, setArchived] = useState(false);
   const [section, setSection] = useState<DirectorySection>("academic");
@@ -96,7 +98,7 @@ export function Directory() {
       <li key={u.id} className={`adm-dir__item${expanded && kids.length ? " is-open" : ""}`}>
         <div className={`adm-dir__row${u.status === "Archived" ? " is-archived" : ""}`} style={{ ["--depth" as string]: depth }}>
           <button type="button" className="adm-dir__open" aria-haspopup="dialog" onClick={() => setViewing(u.id)}>
-            <UnitMark emblem={emblemOf(u)} code={u.code} className="adm-dir__mark" />
+            <UnitMark emblem={emblemOf(u, catalogue)} code={u.code} className="adm-dir__mark" />
             <span className="adm-dir__text">
               <span className="adm-dir__name">{u.name}</span>
               <span className="adm-dir__meta">
@@ -204,6 +206,7 @@ function UnitModal({ id, onClose, onSelect, onAdd }: { id: string | null; onClos
 
 function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id: string) => void; onAdd: () => void }) {
   const { data, confirm } = useConsole();
+  const catalogue = useReference();
   const act = useAct();
   const [mode, setMode] = useState<"view" | "edit" | "move" | "merge">("view");
   const parent = data.units.find((x) => x.id === u.parentId);
@@ -304,7 +307,7 @@ function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id
             <Disclosure title="Units beneath" meta={visibleChildren.length}>
               <ul className="adm-dir__sublist">
                 {visibleChildren.map((c) => {
-                  const mark = emblemOf(c);
+                  const mark = emblemOf(c, catalogue);
                   return (
                   <li key={c.id}>
                     <button type="button" className={c.status === "Archived" ? "is-archived" : undefined} onClick={() => onSelect(c.id)}>
@@ -408,6 +411,7 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
 
 /** The unit's logo: upload one to show in place of the University's arms, or go back to the arms. Saved with the form. */
 function LogoField({ u, parentId, code, value, onChange, onBusyChange }: { u?: UnitRow; parentId?: string; code: string; value: UnitRow["emblem"]; onChange: (v: UnitRow["emblem"] | null) => void; onBusyChange?: (busy: boolean) => void }) {
+  const catalogue = useReference();
   const uploading = useRef(false);
   const [progress, setProgress] = useState(0);
   const [pendingFile, setPendingFile] = useState<{ name: string; size: number }>();
@@ -420,8 +424,8 @@ function LogoField({ u, parentId, code, value, onChange, onBusyChange }: { u?: U
     mounted.current = true;
     return () => { mounted.current = false; onBusyChange?.(false); };
   }, [onBusyChange]);
-  const official = u ? officialEmblem(u) : null;
-  const shown = value ? { key: u?.id ?? "new-unit", form: "logo" as const, ...value } : u ? emblemOf({ ...u, emblem: value }) : null;
+  const official = u ? officialEmblem(u, catalogue) : null;
+  const shown = value ? { key: u?.id ?? "new-unit", form: "logo" as const, ...value } : u ? emblemOf({ ...u, emblem: value }, catalogue) : null;
   const pick = async (file: File) => {
     if (uploading.current || (!u && !parentId)) return;
     if (!EMBLEM_PICK_TYPES[file.type]) return toast("Use a PNG or JPG logo.", "error");

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
-import { CALENDAR, DICTIONARY as STATIC_DICTIONARY, PUBLISHED_STORIES as STATIC_STORIES } from "@/lib/data";
+import { PUBLISHED_STORIES as STATIC_STORIES } from "@/lib/data";
 import { useHub, useRankings } from "@/components/hub/HubProvider";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, Swatch } from "@/components/ui/primitives";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const FAQ = [
   ["Can one document count for several rankings?", "Yes. Submit it once; the Office maps it to every indicator it supports and credits your unit each time."],
@@ -73,10 +74,11 @@ const SECTIONS = [
 ] as const;
 
 export function Knowledge({ mode }: { mode: "internal" | "public" }) {
+  const { calendar, dictionary, office } = useViews();
   const internal = mode === "internal";
   // Definitions come from the governed data dictionary; rankings and stories from configuration and publication.
   const hub = useHub();
-  const DICTIONARY = hub?.dictionary ?? STATIC_DICTIONARY;
+  const DICTIONARY = hub?.dictionary ?? dictionary;
   const RANKINGS = useRankings();
   const PUBLISHED_STORIES = hub ? hub.stories.filter((s) => s.state === "Published") : STATIC_STORIES;
   const params = useSearchParams();
@@ -215,7 +217,7 @@ export function Knowledge({ mode }: { mode: "internal" | "public" }) {
 
       <Card title="Submission calendar" sub="When each ranking body collects data this cycle" icon="calendar" id="calendar">
         <ol className="calrow">
-          {CALENDAR.map((c) => (
+          {calendar.map((c) => (
             <li key={c.month}>
               <b>{c.month}</b>
               {c.items.map((i) => (
@@ -254,7 +256,7 @@ export function Knowledge({ mode }: { mode: "internal" | "public" }) {
               <li key={n}>
                 <span className="list__main">{n}</span>
                 <span className="list__aside">
-                  <a className="btn btn--sm" href={`mailto:rankings.office@ust.edu.ph?subject=${encodeURIComponent(`Access: ${n}`)}`}>
+                  <a className="btn btn--sm" href={`mailto:${office.email}?subject=${encodeURIComponent(`Access: ${n}`)}`}>
                     Request access
                   </a>
                 </span>
@@ -304,7 +306,7 @@ export function Knowledge({ mode }: { mode: "internal" | "public" }) {
                 <b>{n}</b>
                 <span>{d}</span>
               </span>
-              <a className="btn btn--sm" href={`mailto:rankings.office@ust.edu.ph?subject=${encodeURIComponent(`Copy requested: ${n}`)}`}>
+              <a className="btn btn--sm" href={`mailto:${office.email}?subject=${encodeURIComponent(`Copy requested: ${n}`)}`}>
                 Request a copy
               </a>
             </li>

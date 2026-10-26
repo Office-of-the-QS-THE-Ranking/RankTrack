@@ -9,7 +9,7 @@ import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
 import { canWith, grantCheck, grantsFor, has } from "../rbac";
 import type { ApprovalRequest, RequestPayload, WorkflowKey } from "../types";
-import { accountById, can, cleanText, deny, invalid, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
+import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
 import { addAssignment, addDataGrant, createAccount, createUnit, publishStory } from "./mutations";
 import { validUnitEmblem } from "../unit-emblems";
 
@@ -243,8 +243,17 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       break;
     }
     case "account-access": {
-      if (ctx.state.accounts.some((a) => a.email.toLowerCase() === payload.email.toLowerCase())) return invalid(`${payload.email} already has an account.`);
+      if (typeof payload.email !== "string" || !isEmail(payload.email.trim().toLowerCase())) return invalid("Enter the person's email address.");
+      if (typeof payload.name !== "string" || clean(payload.name).length < 2) return invalid("Enter the person's name.");
+      if (ctx.state.accounts.some((a) => a.email.toLowerCase() === payload.email.trim().toLowerCase())) return invalid(`${payload.email} already has an account.`);
       if (payload.roleId !== (payload.external ? ROLE.external : ROLE.coordinator)) return invalid("Request a University Administrator role as “A role for someone”.");
+      // The unit, if one is named, must be one the requester could add accounts to.
+      if (payload.unitId && !can(ctx, "accounts", "create", { unitId: payload.unitId }))
+        return deny(ctx, "request.create", "Approval", { type: "Unit", id: payload.unitId, label: payload.name }, "You can only request accounts in units you administer.");
+      payload.email = payload.email.trim().toLowerCase();
+      payload.name = clean(payload.name);
+      payload.title = clean(typeof payload.title === "string" ? payload.title : "", 160);
+      payload.external = payload.external === true ? true : undefined;
       label = title ?? `Account for ${payload.name}`;
       break;
     }
@@ -287,8 +296,8 @@ export function updateWorkflow(
     changes.push(patch.enabled ? "switched on" : "switched off");
   }
   if (patch.slaDays !== undefined) {
-    const n = Math.round(patch.slaDays);
-    if (n < 1 || n > 30) return invalid("Response time must be between 1 and 30 days.");
+    const n = Math.round(Number(patch.slaDays));
+    if (!(n >= 1 && n <= 30)) return invalid("Response time must be between 1 and 30 days.");
     if (n !== wf.slaDays) changes.push(`response time ${wf.slaDays} → ${n} days`);
     wf.slaDays = n;
   }
@@ -298,8 +307,9 @@ export function updateWorkflow(
   }
   if (patch.steps) {
     if (!patch.steps.length) return invalid("A workflow needs at least one approval step.");
-    if (patch.steps.some((s) => !s.name.trim())) return invalid("Name every step.");
-    wf.steps = patch.steps.map((s) => ({ name: s.name.trim() }));
+    if (!Array.isArray(patch.steps) || patch.steps.length > 5) return invalid("A workflow has at most five approval steps.");
+    if (patch.steps.some((s) => typeof s?.name !== "string" || !s.name.trim())) return invalid("Name every step.");
+    wf.steps = patch.steps.map((s) => ({ name: clean(s.name, 80) }));
     changes.push(`${wf.steps.length} approval ${wf.steps.length === 1 ? "step" : "steps"}`);
   }
   if (!changes.length) return ok("No changes.");

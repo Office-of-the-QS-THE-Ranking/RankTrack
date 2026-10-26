@@ -4,7 +4,8 @@
  * second pair of eyes, and how the platform is configured and recovered.
  *
  * A role decides what a user can do; the organizational scope on each role assignment decides which
- * records they can reach. Everything below is plain JSON so the store can persist it as one document.
+ * records they can reach. The store keeps each entity in its own Supabase table (server/db/rows.ts maps
+ * this model to them); the domain engine works on this model in memory, one transaction at a time.
  */
 
 export type ISODate = string; // 2026-10-21
@@ -371,7 +372,14 @@ export interface Applicant {
   middleName?: string;
   /** The preferred salutation (Dr., Prof., …); left out when the requester prefers not to specify. */
   salutation?: string;
-  birthday: ISODate;
+  /** Empty once removed, a month after the request closed (housekeeping). */
+  birthday: ISODate | "";
+  /** A Thomasian: UST faculty or staff, on a University email, asking for a coordinator account. */
+  thomasian?: boolean;
+  /** A Thomasian's college, faculty or office as they gave it; the approver confirms or changes it. */
+  unitId?: string;
+  /** A Thomasian's position or designation, as typed. */
+  position?: string;
   /** A listed affiliation, or the requester's own words when none matched (listed: false, shown as Others). */
   affiliation: string;
   listed: boolean;
@@ -537,6 +545,8 @@ export interface EvidenceRecord {
   period: string;
   submitted: ISODate;
   submittedBy: string;
+  /** The submitting account; separation of duties compares this, not the name. Absent on older records. */
+  submittedById?: string;
   status: "Validated" | "For review" | "Needs revision" | "Not yet submitted" | "Not applicable";
   stage: number;
   level: 1 | 2 | 3 | 4 | 5;
@@ -546,7 +556,15 @@ export interface EvidenceRecord {
   result: string;
   beneficiaries: string;
   files: string[];
+  /** Files uploaded to the private media bucket, served from /media/evidence/… to people who may see the record. */
+  attachments?: EvidenceFile[];
   comments: { by: string; role: string; date: ISODate; text: string }[];
+}
+
+export interface EvidenceFile {
+  name: string;
+  src: string;
+  bytes: number;
 }
 
 export interface Notice {
@@ -560,7 +578,7 @@ export interface Notice {
   readBy: string[];
 }
 
-/** A picture in a post. Uploads live in the private media bucket and are served from /media/…; the Hub's own photographs from /images/…. */
+/** A picture in a post. Uploads live in the private media bucket and are served from /media/…; the Hub's own photographs from /media/site/photos/…. */
 export interface PostMedia {
   src: string;
   /** Pixel size, or 0 when unknown (the Hub's own photographs). */
@@ -606,8 +624,7 @@ export interface Records {
   evidence: Record<string, EvidenceRecord>;
   /** Impact and Innovation posts, newest first. */
   posts: PostRecord[];
-  /** Anonymous public post views, grouped by Manila calendar day. No reader identities are stored. */
-  postViews: Record<string, { total: number; daily: Record<string, number>; lastViewedAt?: ISOTime }>;
+  /** When anonymous post view counting began (the counts are in hub_post_views). */
   postViewsStartedAt: ISOTime;
   /** Publication state of impact stories, by slug. "Deleted": one of the Hub's own stories that became a post. */
   stories: Record<string, "Published" | "In review" | "Draft" | "Withdrawn" | "Deleted">;
@@ -623,7 +640,13 @@ export interface Records {
   counters: Record<string, number>;
 }
 
-/* ---------- The whole document ---------- */
+/* ---------- The whole model ---------- */
+
+/** The last sealed audit entry: where the next one continues the chain. */
+export interface AuditHead {
+  seq: number;
+  hash: string;
+}
 
 export interface GovernanceState {
   schema: number;
@@ -637,7 +660,10 @@ export interface GovernanceState {
   duplicates: DuplicateDecision[];
   terms: TermMeta[];
   security: SecurityPolicy;
-  audit: AuditEvent[];
+  /** The end of the audit trail (audit_events). New entries are sealed onto it as a transaction commits. */
+  auditHead: AuditHead;
+  /** The last day of the audit trail, plus entries sealed in this transaction. The full trail is queried from audit_events. */
+  recentAudit: AuditEvent[];
   workflows: Workflow[];
   requests: ApprovalRequest[];
   config: SystemConfig;

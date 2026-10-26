@@ -1,12 +1,13 @@
 import Image from "next/image";
-import { STAGES } from "@/lib/site";
+import { serverViews } from "@/lib/governance/server/views";
 
 /**
  * Accordion of tinted panels: the six stages of a contribution, dark to light in one hue of UST Gold.
  * Each stage is a radio button, so the row works without JavaScript; all six texts stay readable to
  * screen readers whichever is open.
  */
-export function Process() {
+export async function Process() {
+  const { processStages } = await serverViews();
   return (
     <section className="w-process w-section" aria-labelledby="process-title">
       <div className="w-process__intro w-wrap w-grid">
@@ -20,7 +21,7 @@ export function Process() {
       </div>
       <div className="w-wrap">
         <ol className="w-stages" aria-label="How a contribution becomes part of a result" data-reveal style={{ ["--d" as string]: "160ms" }}>
-          {STAGES.map((s, i) => (
+          {processStages.map((s, i) => (
             <li key={s.name} className={`w-stage w-stage--${i + 1}`}>
               <input type="radio" name="stage" id={`stage-${i}`} className="w-stage__input" defaultChecked={i === 0} />
               <label htmlFor={`stage-${i}`} className="w-stage__tab">

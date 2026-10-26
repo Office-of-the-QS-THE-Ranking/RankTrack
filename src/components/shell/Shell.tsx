@@ -1,13 +1,15 @@
 "use client";
 
+import { THEME_BOOT, THEME_KEY } from "@/lib/boot-scripts";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import credits from "@/lib/credits.json";
-import { FAMILY, formatAsOf } from "@/lib/data";
+import { formatAsOf } from "@/lib/data";
+import { familyOf } from "@/lib/reference";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import type { HubData } from "@/lib/governance/hub-types";
 import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { signOut } from "@/app/actions/session";
@@ -24,9 +26,7 @@ import { SECTIONS as ADMIN_SECTIONS, sectionHref } from "@/components/admin/sect
 import { Select } from "@/components/ui/pickers";
 
 type Theme = "light" | "dark";
-const THEME_KEY = "hub-theme";
 // Applies the saved (or system) appearance before the first paint, so dark mode never flashes light.
-const THEME_BOOT = `try{var t=localStorage.getItem("${THEME_KEY}");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}`;
 const WIPE_MS = 620;
 const FADE_MS = 500;
 
@@ -308,8 +308,9 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
     [hub],
   );
 
+  const ref = useReference();
   const rankingsItem = nav.flatMap((g) => g.items).find((i) => i.rankingsBase);
-  const subnav = useMemo(() => (rankingsItem?.rankingsBase ? rankingSubnav(rankingsItem.rankingsBase, hub?.activeSlugs) : []), [rankingsItem?.rankingsBase, hub?.activeSlugs]);
+  const subnav = useMemo(() => (rankingsItem?.rankingsBase ? rankingSubnav(ref, rankingsItem.rankingsBase, hub?.activeSlugs) : []), [ref, rankingsItem?.rankingsBase, hub?.activeSlugs]);
   const onRankings = !!rankingsItem?.rankingsBase && pathname.startsWith(rankingsItem.rankingsBase);
   // Administration is a tab for anyone who administers something; its sections replace the main tabs.
   const adminItem = nav.flatMap((g) => g.items).find((i) => i.admin);
@@ -538,7 +539,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                               onNavigate={goTo(c.href)}
                             >
                               <span className="side__dot" aria-hidden="true">
-                                <i style={{ background: FAMILY[c.family].band } as CSSProperties} />
+                                <i style={{ background: familyOf(ref, c.family).band } as CSSProperties} />
                               </span>
                               <span className="truncate side__text">{c.label}</span>
                             </Link>
@@ -827,9 +828,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   );
 }
 
-type Credit = { title: string; creator: string; license: string; page: string };
-
 function Footer({ variant, asOf }: { variant: Variant; asOf?: string }) {
+  const { office, credits } = useReference();
   const about = variant === "office" ? "/admin/about" : "/about";
   return (
     <footer className="foot">
@@ -838,10 +838,10 @@ function Footer({ variant, asOf }: { variant: Variant; asOf?: string }) {
           <Image className="seal seal--light" src="/brand/ust-seal.png" alt="" width={48} height={48} />
           <Image className="seal seal--dark" src="/brand/ust-seal-reverse.png" alt="" width={48} height={48} />
           <div>
-            <b>Office of QS/THE Rankings</b>
-            <p>University of Santo Tomas, España Boulevard, Sampaloc, Manila 1008</p>
+            <b>{office.name}</b>
+            <p>University of Santo Tomas, {office.street}, {office.city}</p>
             <p>
-              <a href="mailto:rankings.office@ust.edu.ph">rankings.office@ust.edu.ph</a>
+              <a href={`mailto:${office.email}`}>{office.email}</a>
             </p>
           </div>
         </div>
@@ -865,9 +865,9 @@ function Footer({ variant, asOf }: { variant: Variant; asOf?: string }) {
             <details className="foot__credits" style={{ flexBasis: "100%" }}>
               <summary>Photo credits</summary>
               <ul>
-                {(credits as Credit[]).map((c) => (
-                  <li key={c.page}>
-                    <a href={c.page}>{c.title}</a>, {c.creator}, {c.license}, via Wikimedia Commons
+                {credits.map((c) => (
+                  <li key={c.key}>
+                    <a href={c.page}>{c.title}</a>, {c.creator}, {c.license}, via {c.via}
                   </li>
                 ))}
               </ul>

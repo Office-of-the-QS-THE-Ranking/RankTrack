@@ -6,11 +6,17 @@
 import { ROLE, roleOf } from "../catalog";
 import type { Command, CommandResult } from "../commands";
 import { addDays } from "../derive";
-import type { SecurityAlert } from "../types";
+import type { SecurityAlert, SubjectRequest } from "../types";
 import { accountById, actorFor, can, clean, cleanText, deny, invalid, isDay, isEmail, log, nextId, ok, type Ctx } from "./core";
 import { revokeSessions } from "./mutations";
 
 const POLICY = { type: "Policy", id: "security", label: "Privacy and security policy" };
+
+const DSR_TYPES: SubjectRequest["type"][] = ["Access", "Correction", "Erasure or blocking", "Objection", "Portability"];
+const DSR_STATUSES: SubjectRequest["status"][] = ["Open", "In progress", "Fulfilled", "Declined"];
+const ALERT_STATUSES: SecurityAlert["status"][] = ["Open", "Acknowledged", "Resolved"];
+const SEVERITIES = ["Low", "Medium", "High", "Critical"] as const;
+const INCIDENT_STATUSES = ["Reported", "Investigating", "Escalated", "Contained", "Closed"] as const;
 
 export function raiseAlert(ctx: Ctx, kind: SecurityAlert["kind"], severity: SecurityAlert["severity"], detail: string, accountId?: string) {
   const alert: SecurityAlert = { id: nextId(ctx, "alert", "AL-"), at: ctx.iso, severity, kind, accountId, detail, status: "Open" };
@@ -160,6 +166,7 @@ export function savePia(ctx: Ctx, pia: Extract<Command, { type: "pia.save" }>["p
 
 export function createDsr(ctx: Ctx, input: { type: string; subject: string; received: string }): CommandResult {
   if (!can(ctx, "security", "edit")) return deny(ctx, "dsr.create", "Security", { type: "Data subject request", id: "new", label: input.type }, "Your role cannot log data subject requests.");
+  if (!DSR_TYPES.includes(input.type as never)) return invalid("Choose the kind of request.");
   if (clean(input.subject).length < 4) return invalid("Describe who it is, without naming them.");
   if (!isDay(input.received) || input.received > ctx.day) return invalid("Enter the date the request was received.");
   const id = `DSR-${nextId(ctx, "dsr", "", 3)}`;
@@ -172,6 +179,7 @@ export function updateDsr(ctx: Ctx, id: string, status: string, text?: string): 
   const r = ctx.state.security.subjectRequests.find((x) => x.id === id);
   if (!r) return invalid("That request no longer exists.");
   if (!can(ctx, "security", "edit")) return deny(ctx, "dsr.update", "Security", { type: "Data subject request", id, label: r.type }, "Your role cannot update data subject requests.");
+  if (!DSR_STATUSES.includes(status as never)) return invalid("Choose the request's status.");
   r.status = status as never;
   if (text) r.note = cleanText(text, 400);
   log(ctx, "dsr.update", "Security", { type: "Data subject request", id, label: r.type }, "Success", `${status}${text ? ` · ${cleanText(text, 120)}` : ""}`);
@@ -182,6 +190,7 @@ export function updateAlert(ctx: Ctx, id: string, status: SecurityAlert["status"
   const a = ctx.state.security.alerts.find((x) => x.id === id);
   if (!a) return invalid("That alert no longer exists.");
   if (!can(ctx, "security", "edit")) return deny(ctx, "alert.update", "Security", { type: "Alert", id, label: a.kind }, "Your role cannot handle security alerts.");
+  if (!ALERT_STATUSES.includes(status)) return invalid("Choose the alert's status.");
   a.status = status;
   log(ctx, `alert.${status === "Resolved" ? "resolve" : "acknowledge"}`, "Security", { type: "Alert", id, label: a.kind }, "Success", status);
   return ok(`${id} ${status.toLowerCase()}.`);
@@ -200,6 +209,7 @@ export function rotateKey(ctx: Ctx, id: string): CommandResult {
 export function reportIncident(ctx: Ctx, title: string, severity: "Low" | "Medium" | "High" | "Critical", personalData: boolean, text: string): CommandResult {
   if (!can(ctx, "security", "view")) return deny(ctx, "incident.report", "Security", { type: "Incident", id: "new", label: title }, "Your role cannot report incidents here; contact the Office.");
   if (clean(title).length < 6) return invalid("Describe the incident in a short title.");
+  if (!SEVERITIES.includes(severity)) return invalid("Choose the incident's severity.");
   const id = `INC-${nextId(ctx, "incident", "", 3)}`;
   ctx.state.security.incidents.unshift({
     id,
@@ -220,6 +230,7 @@ export function updateIncident(ctx: Ctx, id: string, status: "Reported" | "Inves
   const inc = ctx.state.security.incidents.find((x) => x.id === id);
   if (!inc) return invalid("That incident no longer exists.");
   if (!can(ctx, "security", "edit")) return deny(ctx, "incident.update", "Security", { type: "Incident", id, label: inc.title }, "Your role cannot update incidents.");
+  if (!INCIDENT_STATUSES.includes(status)) return invalid("Choose the incident's status.");
   if (cleanText(text).length < 3) return invalid("Add a note for the timeline.");
   inc.status = status;
   if (escalatedTo) inc.escalatedTo = clean(escalatedTo);

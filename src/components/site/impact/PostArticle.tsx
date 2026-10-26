@@ -1,13 +1,15 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Fragment, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
-import { SDG_COLORS, SDG_NAMES, inkOn, type Story, type StoryPicture, type StoryPost } from "@/lib/data";
+import { inkOn, type Story, type StoryPicture, type StoryPost } from "@/lib/data";
 import { paragraphs } from "@/lib/governance/posts";
 import { isRich, parseRich, plainText, serializeRich } from "@/lib/rich-text";
 import { RichText } from "@/components/ui/RichText";
-import { PHOTOS } from "@/lib/site";
 import { PageHero } from "../PageHero";
 import { PostGallery } from "./PostGallery";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const POSTED = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Manila" });
 
@@ -68,6 +70,7 @@ function Alternating({ body, rich, text, photos }: { body: string; rich: boolean
  * serves. No server code, so the composer's preview tab draws the same page from a draft.
  */
 export function PostArticle({ story: s, post: p, related }: { story: Pick<Story, "slug" | "title" | "unit" | "postedAt" | "sdgs">; post: StoryPost; related: Story[] }) {
+  const { photos, sdgColors, sdgNames } = useViews();
   const cover = p.thumbnail ?? p.photos[0] ?? null;
   // The layout chosen in the composer: where the cover sits and how the gallery meets the story.
   const layout = p.layout ?? "cover";
@@ -124,7 +127,7 @@ export function PostArticle({ story: s, post: p, related }: { story: Pick<Story,
             </>
           }
           actions={back}
-          photo={heroPhoto ? (cover ? { src: cover.src, alt: cover.alt } : PHOTOS.courtyard) : undefined}
+          photo={heroPhoto ? (cover ? { src: cover.src, alt: cover.alt } : photos.courtyard) : undefined}
         />
       )}
 
@@ -179,9 +182,9 @@ export function PostArticle({ story: s, post: p, related }: { story: Pick<Story,
             </div>
             <ul className="w-sdgs w-sdgs--sm">
               {s.sdgs.map((n, i) => (
-                <li key={n} className="w-sdg" style={{ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]), ["--d" as string]: `${i * 80}ms` } as CSSProperties} data-reveal>
+                <li key={n} className="w-sdg" style={{ background: sdgColors[n], color: inkOn(sdgColors[n]), ["--d" as string]: `${i * 80}ms` } as CSSProperties} data-reveal>
                   <span className="w-sdg__n w-figure">{n}</span>
-                  <span className="w-sdg__name">{SDG_NAMES[n]}</span>
+                  <span className="w-sdg__name">{sdgNames[n]}</span>
                 </li>
               ))}
             </ul>
@@ -215,7 +218,3 @@ export function PostArticle({ story: s, post: p, related }: { story: Pick<Story,
     </>
   );
 }
-
-/** Up to three other stories that share a goal or a theme. */
-export const relatedStories = (stories: Story[], s: { slug: string; sdgs: number[]; themes: readonly string[] }) =>
-  stories.filter((o) => o.slug !== s.slug && (o.sdgs.some((n) => s.sdgs.includes(n)) || o.themes.some((t) => s.themes.includes(t)))).slice(0, 3);

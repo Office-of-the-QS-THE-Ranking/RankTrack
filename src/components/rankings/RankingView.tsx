@@ -2,18 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import {
-  ACTION_PLAN,
-  COMPARISON,
-  CYCLE,
-  EVIDENCE as STATIC_EVIDENCE,
-  REPORT_TYPES,
-  STAGES,
-  UNITS as STATIC_UNITS,
-  formatDate,
-  type Indicator,
-  type Ranking,
-} from "@/lib/data";
+import { ACTION_PLAN, COMPARISON, EVIDENCE as STATIC_EVIDENCE, STAGES, formatDate, type Indicator, type Ranking } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, MeterRow, Notice, PlanStatus, Status, Trend } from "@/components/ui/primitives";
 import { Segmented, TabPanel, Tabs } from "@/components/ui/interactive";
@@ -25,6 +14,7 @@ import { SpecialDashboard } from "./SpecialDashboard";
 import { actionIcon, resolveFocus } from "./focus";
 import { useHub } from "@/components/hub/HubProvider";
 import { Select } from "@/components/ui/pickers";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const TABS = ["Overview", "Performance", "Indicators", "Evidence", "Contributors", "Action Plan", "Methodology", "Reports"] as const;
 type Tab = (typeof TABS)[number];
@@ -41,10 +31,11 @@ function downloadCsv(name: string, rows: (string | number | null)[][]) {
 }
 
 export function RankingView({ ranking }: { ranking: Ranking }) {
+  const { reportTypes } = useViews();
   // Evidence and units come from the governance store: review states, directory names and archives.
   const hub = useHub();
   const EVIDENCE = hub?.evidence ?? STATIC_EVIDENCE;
-  const UNITS = hub ? hub.units.filter((u) => u.status === "Active") : STATIC_UNITS;
+  const UNITS = hub?.units.filter((u) => u.status === "Active") ?? [];
   const [tab, setTabState] = useState<Tab>("Overview");
   const [ind, setInd] = useState<Indicator | null>(null);
   const [made, setMade] = useState<string[]>([]);
@@ -576,9 +567,9 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
           )}
 
           {tab === "Reports" && (
-            <Card title="Generate a report" sub={`${ranking.short}, cycle ${CYCLE}. Available to authorised users.`} icon="reports">
+            <Card title="Generate a report" sub={`${ranking.short}, cycle ${hub?.currentCycle ?? ""}. Available to authorised users.`} icon="reports">
               <ul className="list">
-                {REPORT_TYPES.map((r) => (
+                {reportTypes.map((r) => (
                   <li key={r.name}>
                     <span className="list__main">{r.name}</span>
                     <span className="list__aside">

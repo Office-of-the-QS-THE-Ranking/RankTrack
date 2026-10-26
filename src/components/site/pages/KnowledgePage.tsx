@@ -2,13 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { siteData } from "@/lib/governance/server/site";
-import { PHOTOS } from "@/lib/site";
 import { Calendar } from "../Calendar";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
 import { Dictionary } from "./Dictionary";
 import { Templates } from "./Templates";
+import { serverViews } from "@/lib/governance/server/views";
 
 const TABS = [
   { id: "dictionary", label: "Dictionary" },
@@ -68,6 +68,7 @@ const POLICIES = [
 
 /** Knowledge and methodology center: how each ranking works, in plain language. */
 export async function KnowledgePage() {
+  const { photos } = await serverViews();
   const { rankings: RANKINGS, dictionary } = await siteData();
   return (
     <>
@@ -94,7 +95,7 @@ export async function KnowledgePage() {
             </a>
           </>
         }
-        photo={PHOTOS.library}
+        photo={photos.library}
       />
       <PageTabs items={TABS} label="On this page" />
 
@@ -150,7 +151,7 @@ export async function KnowledgePage() {
         </div>
       </section>
 
-      <PhotoBand photo={PHOTOS.courtyard} caption="The main courtyard of the University in the nineteenth century." />
+      <PhotoBand photo={photos.courtyard} caption="The main courtyard of the University in the nineteenth century." />
 
       <section id="standards" className="w-section w-wrap" aria-labelledby="std-title">
         <div className="w-grid w-std">
@@ -164,11 +165,11 @@ export async function KnowledgePage() {
           </div>
           <div className="w-std__pic" data-reveal="shutter">
             <Image
-              src={PHOTOS.cabinet.src}
-              alt={PHOTOS.cabinet.alt}
+              src={photos.cabinet.src}
+              alt={photos.cabinet.alt}
               fill
               sizes="(max-width: 900px) 100vw, 36vw"
-              style={{ objectPosition: PHOTOS.cabinet.pos }}
+              style={{ objectPosition: photos.cabinet.pos }}
             />
           </div>
           <ul className="w-std__list">

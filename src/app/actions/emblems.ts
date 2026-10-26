@@ -6,6 +6,7 @@
  */
 import { after } from "next/server";
 import { EMBLEM_MAX_MB, EMBLEM_TYPES } from "@/lib/governance/unit-emblems";
+import { allowAccount } from "@/lib/governance/server/limits";
 import { sweepMedia, uploadTickets } from "@/lib/governance/server/media";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
@@ -17,7 +18,7 @@ export async function startEmblemUpload(unitId: string, file: { type: string; si
   const viewer = await getViewer();
   if (!viewer) return { ok: false, message: "Your session has ended. Sign in again to continue." };
   if (typeof unitId !== "string" || !viewerCan(viewer, "directory", "edit", { unitId })) return { ok: false, message: "That unit is outside the units you administer." };
-  return issueLogoUpload(file);
+  return issueLogoUpload(file, viewer.id);
 }
 
 /** A new unit has no ID yet: authorize the upload against its chosen parent. */
@@ -27,14 +28,15 @@ export async function startUnitLogoUpload(parentId: string, file: { type: string
   const state = await readState();
   const parent = state.units.find((unit) => unit.id === parentId && unit.status === "Active");
   if (!parent || !viewerCan(viewer, "directory", "create", { unitId: parent.id })) return { ok: false, message: "Choose a parent unit you can add units under." };
-  return issueLogoUpload(file);
+  return issueLogoUpload(file, viewer.id);
 }
 
-async function issueLogoUpload(file: { type: string; size: number }): Promise<Started> {
+async function issueLogoUpload(file: { type: string; size: number }, uploadedBy: string): Promise<Started> {
+  if (!(await allowAccount(uploadedBy, "upload"))) return { ok: false, message: "Too many uploads at once. Wait a minute and try again." };
   if (!EMBLEM_TYPES[file?.type]) return { ok: false, message: "Use a PNG or JPG logo." };
-  if (!(file.size > 0) || file.size > EMBLEM_MAX_MB * 1_048_576) return { ok: false, message: `The logo must be under ${EMBLEM_MAX_MB} MB.` };
+  if (!Number.isSafeInteger(file.size) || file.size <= 0 || file.size > EMBLEM_MAX_MB * 1_048_576) return { ok: false, message: `The logo must be under ${EMBLEM_MAX_MB} MB.` };
   try {
-    const [ticket] = await uploadTickets([file.type], "emblems");
+    const [ticket] = await uploadTickets([{ type: file.type, size: file.size }], "emblems", uploadedBy);
     const state = await readState();
     after(() => sweepMedia(state));
     return { ok: true, ...ticket };

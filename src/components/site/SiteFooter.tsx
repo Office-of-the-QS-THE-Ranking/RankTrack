@@ -2,14 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Icon } from "@/components/ui/Icon";
-import credits from "@/lib/credits.json";
 import { formatAsOf } from "@/lib/data";
 import { siteData, type SiteData } from "@/lib/governance/server/site";
-import { UNIT, UNIVERSITY } from "./Lockup";
+import { UNIVERSITY } from "./Lockup";
 import { Stars } from "./Stars";
-import { OFFICE } from "@/lib/office";
+import { serverViews } from "@/lib/governance/server/views";
 
-type Credit = { file: string; title: string; creator: string; license: string; page: string };
 
 /* The footer lists only what the public website currently shows (System Configuration). */
 const columns = (site: SiteData) => [
@@ -44,6 +42,7 @@ const columns = (site: SiteData) => [
  * reverse seal the manual requires on a dark ground.
  */
 export async function SiteFooter() {
+  const { office, credits } = await serverViews();
   const site = await siteData();
   const year = site.asOf.slice(0, 4);
   const COLUMNS = columns(site).filter((c) => c.links.length);
@@ -58,23 +57,23 @@ export async function SiteFooter() {
                 Write to the Office
               </h2>
               <address className="w-footer__contact">
-                <a href="mailto:rankings.office@ust.edu.ph" className="w-footer__email" data-reveal style={{ "--d": "70ms" } as CSSProperties}>
-                  rankings.office@ust.edu.ph
+                <a href={`mailto:${office.email}`} className="w-footer__email" data-reveal style={{ "--d": "70ms" } as CSSProperties}>
+                  {office.email}
                 </a>
                 <span className="w-footer__address" data-reveal style={{ "--d": "140ms" } as CSSProperties}>
-                  {OFFICE.name}
+                  {office.name}
                   <br />
-                  {OFFICE.location}
+                  {office.location}
                   <br />
-                  {OFFICE.landmark}
+                  {office.landmark}
                   <br />
-                  {OFFICE.phone}
+                  {office.phone}
                   <br />
                   {UNIVERSITY}
                   <br />
-                  España Boulevard, Sampaloc
+                  {office.street}
                   <br />
-                  Manila 1008, Philippines
+                  {office.city}
                 </span>
               </address>
             </div>
@@ -102,11 +101,11 @@ export async function SiteFooter() {
             </div>
           </div>
 
-          <Link href="/" className="w-footer__mark" aria-label={`${UNIT}, ${UNIVERSITY}: home`} data-reveal>
+          <Link href="/" className="w-footer__mark" aria-label={`${office.name}, ${UNIVERSITY}: home`} data-reveal>
             <Image className="w-footer__seal" src="/brand/ust-seal-reverse.png" alt="" width={640} height={634} sizes="(max-width: 700px) 72px, 152px" />
             <span className="w-footer__words">
               <span className="w-footer__name">{UNIVERSITY}</span>
-              <span className="w-footer__unit">{UNIT}</span>
+              <span className="w-footer__unit">{office.name}</span>
             </span>
           </Link>
         </div>
@@ -125,9 +124,9 @@ export async function SiteFooter() {
             <details className="w-footer__credits">
               <summary>Photograph credits</summary>
               <ul>
-                {(credits as Credit[]).map((c) => (
-                  <li key={c.file}>
-                    <a href={c.page}>{c.title}</a>, {c.creator}, {c.license}, via Wikimedia Commons
+                {credits.map((c) => (
+                  <li key={c.key}>
+                    <a href={c.page}>{c.title}</a>, {c.creator}, {c.license}, via {c.via}
                   </li>
                 ))}
                 <li>The registered seal of the University of Santo Tomas is used from the official file at ust.edu.ph, unaltered.</li>

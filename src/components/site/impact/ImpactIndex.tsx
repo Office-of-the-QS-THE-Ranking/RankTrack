@@ -1,14 +1,15 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { SDG_COLORS, SDG_NAMES, inkOn } from "@/lib/data";
+import { inkOn } from "@/lib/data";
 import { siteData } from "@/lib/governance/server/site";
-import { PHOTOS } from "@/lib/site";
 import { PageHero } from "../PageHero";
 import { AdaptCoupon } from "../home/AdaptCoupon";
 import { StoryIndex } from "./StoryIndex";
+import { serverViews } from "@/lib/governance/server/views";
 
 /** Impact and innovation: the published Thomasian practices, filtered by theme. */
 export async function ImpactIndex() {
+  const { photos, sdgColors, sdgNames } = await serverViews();
   // Published stories only: the publication workflow, the stories dataset's classification and the library switch decide.
   const { stories: PUBLISHED_STORIES, rankings: RANKINGS } = await siteData();
   const sdgs = new Set(PUBLISHED_STORIES.flatMap((s) => s.sdgs));
@@ -35,7 +36,7 @@ export async function ImpactIndex() {
             </a>
           </>
         }
-        photo={PHOTOS.archAerial}
+        photo={photos["arch-aerial"]}
       />
 
       <section className="w-band w-band--ink w-on-dark w-tally" aria-labelledby="tally-title">
@@ -66,9 +67,9 @@ export async function ImpactIndex() {
               {Array.from({ length: 17 }, (_, i) => i + 1).map((n) => (
                 <li
                   key={n}
-                  title={`SDG ${n}: ${SDG_NAMES[n]}${sdgs.has(n) ? "" : " (no story yet)"}`}
+                  title={`SDG ${n}: ${sdgNames[n]}${sdgs.has(n) ? "" : " (no story yet)"}`}
                   className={sdgs.has(n) ? "is-on" : undefined}
-                  style={sdgs.has(n) ? ({ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]) } as CSSProperties) : undefined}
+                  style={sdgs.has(n) ? ({ background: sdgColors[n], color: inkOn(sdgColors[n]) } as CSSProperties) : undefined}
                 >
                   {n}
                 </li>

@@ -1,14 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { DIMENSIONS, LATEST_EDITION, MATRIX } from "@/lib/data";
-import { PHOTOS, RANKING_PHOTO, movement, splitResult } from "@/lib/site";
+import { movement, splitResult } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { CountsWhere } from "../home/CountsWhere";
 import { Calendar } from "../Calendar";
 import { PhotoBand } from "../PhotoBand";
+import { serverViews } from "@/lib/governance/server/views";
 
 const TABS = [
   { id: "results", label: "Results" },
@@ -22,6 +22,7 @@ const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eig
 
 /** Rankings overview: how the rankings shown publicly relate to UST, the results as published, and when each collects data. */
 export async function RankingsIndex() {
+  const { dimensions, latestEdition, matrix, photos, rankingPhoto } = await serverViews();
   const { rankings: RANKINGS, bodies: BODIES, dictionary: DICTIONARY } = await siteData();
   const bodyOf = (slug: string) => BODIES.find((b) => b.rankings.some((r) => r.slug === slug))!;
   const n = RANKINGS.length;
@@ -34,7 +35,7 @@ export async function RankingsIndex() {
             one university
           </>
         }
-        lead={<p>What each ranking measures, where UST stands in the {LATEST_EDITION} editions, and which evidence counts in several at once.</p>}
+        lead={<p>What each ranking measures, where UST stands in the {latestEdition} editions, and which evidence counts in several at once.</p>}
         actions={
           <>
             <a href="#results" className="w-btn">
@@ -45,7 +46,7 @@ export async function RankingsIndex() {
             </Link>
           </>
         }
-        photo={PHOTOS.aerial}
+        photo={photos.aerial}
       />
       <PageTabs items={TABS} label="On this page" />
 
@@ -56,17 +57,17 @@ export async function RankingsIndex() {
           </h2>
           <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
             <p className="w-lead">
-              The {LATEST_EDITION} edition of each ranking beside the one before it. Open a ranking for what it measures and the stories behind it.
+              The {latestEdition} edition of each ranking beside the one before it. Open a ranking for what it measures and the stories behind it.
             </p>
           </div>
         </div>
         <div className="w-tablewrap" data-reveal>
           <table className="w-results">
-            <caption className="sr-only">UST in eight global rankings, {LATEST_EDITION} editions</caption>
+            <caption className="sr-only">UST in eight global rankings, {latestEdition} editions</caption>
             <thead>
               <tr>
                 <th scope="col">Ranking</th>
-                <th scope="col">{LATEST_EDITION}</th>
+                <th scope="col">{latestEdition}</th>
                 <th scope="col">Movement</th>
                 <th scope="col">What it measures</th>
               </tr>
@@ -80,7 +81,7 @@ export async function RankingsIndex() {
                     <th scope="row">
                       <span className="w-results__cell">
                         <span className="w-results__pic">
-                          <Image src={RANKING_PHOTO[r.slug].src} alt="" fill sizes="56px" style={{ objectPosition: RANKING_PHOTO[r.slug].pos }} />
+                          <Image src={rankingPhoto[r.slug].src} alt="" fill sizes="56px" style={{ objectPosition: rankingPhoto[r.slug].pos }} />
                         </span>
                         <Link href={`/rankings/${r.slug}`} className="w-results__name">
                           {r.name}
@@ -105,7 +106,7 @@ export async function RankingsIndex() {
         </div>
       </section>
 
-      <PhotoBand photo={PHOTOS.field} caption="Students cross the open field in front of the Main Building, España." />
+      <PhotoBand photo={photos.field} caption="Students cross the open field in front of the Main Building, España." />
 
       <div id="counts">
         <CountsWhere />
@@ -134,11 +135,11 @@ export async function RankingsIndex() {
               </tr>
             </thead>
             <tbody>
-              {DIMENSIONS.map((d) => (
+              {dimensions.map((d) => (
                 <tr key={d}>
                   <th scope="row">{d}</th>
                   {RANKINGS.map((r) => {
-                    const on = MATRIX[r.slug]?.includes(d);
+                    const on = matrix[r.slug]?.includes(d);
                     return (
                       <td key={r.slug}>
                         {on ? (
@@ -158,8 +159,8 @@ export async function RankingsIndex() {
         </div>
         {/* phones: the same matrix read as a list, one kind of work at a time */}
         <ul className="w-matrix-list">
-          {DIMENSIONS.map((d) => {
-            const rks = RANKINGS.filter((r) => MATRIX[r.slug]?.includes(d));
+          {dimensions.map((d) => {
+            const rks = RANKINGS.filter((r) => matrix[r.slug]?.includes(d));
             return (
               <li key={d}>
                 <b>{d}</b>
@@ -206,11 +207,11 @@ export async function RankingsIndex() {
           </ul>
           <div className="w-terms__pic" data-reveal="shutter">
             <Image
-              src={PHOTOS.library.src}
-              alt={PHOTOS.library.alt}
+              src={photos.library.src}
+              alt={photos.library.alt}
               fill
               sizes="(max-width: 900px) 100vw, 30vw"
-              style={{ objectPosition: PHOTOS.library.pos }}
+              style={{ objectPosition: photos.library.pos }}
             />
           </div>
         </div>

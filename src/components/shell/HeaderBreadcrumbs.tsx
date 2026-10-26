@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { RANKINGS } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { NAV, type Variant } from "./nav";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 export function HeaderBreadcrumbs({ variant }: { variant: Variant }) {
+  const { rankings } = useViews();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const navItems = NAV[variant].flatMap((group) => group.items);
@@ -14,7 +15,7 @@ export function HeaderBreadcrumbs({ variant }: { variant: Variant }) {
   const breadcrumbs = segments.map((segment, index) => {
     const href = "/" + segments.slice(0, index + 1).join("/");
     const item = navItems.find((entry) => entry.href === href);
-    const ranking = index > 1 && segments[1] === "rankings" ? RANKINGS.find((entry) => entry.slug === segment) : undefined;
+    const ranking = index > 1 && segments[1] === "rankings" ? rankings.find((entry) => entry.slug === segment) : undefined;
     return {
       href,
       label: item?.label ?? ranking?.short ?? segment.replace(/-/g, " ").replace(/^./, (letter) => letter.toUpperCase()),

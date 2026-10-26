@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import { WURI_CATEGORIES } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Notice } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useViewer } from "@/components/hub/HubProvider";
 import { Select } from "@/components/ui/pickers";
 import { skipChecks } from "@/lib/dev-checks";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 const STAGES = ["Discover", "Screen", "Develop", "Document", "Submit", "Recognize and scale"];
 const READINESS = ["Idea only", "Pilot running", "Results measured", "Results verified", "Replicated elsewhere"];
 
 /** Propose an innovation for the WURI pipeline: Discover → Screen → Develop → Document → Submit → Recognize and scale. */
 export function ProposeInnovation() {
+  const { wuriCategories } = useViews();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [stage, setStage] = useState(1);
@@ -100,7 +101,7 @@ export function ProposeInnovation() {
               <span className="field__label">WURI category</span>
               <Select className="select" value={category} aria-invalid={bad(category) || undefined} onChange={setCategory}>
                 <option value="">Choose a category</option>
-                {WURI_CATEGORIES.map((c) => (
+                {wuriCategories.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </Select>

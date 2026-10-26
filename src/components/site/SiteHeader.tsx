@@ -15,8 +15,9 @@ import {
 } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { SearchPalette } from "@/components/shell/SearchPalette";
-import { Lockup, UNIT, UNIVERSITY } from "./Lockup";
-import { MENUS as ALL_MENUS, isExternal, type Menu, type MenuLink } from "./menu";
+import { Lockup, UNIVERSITY } from "./Lockup";
+import { allMenus, isExternal, type Menu, type MenuLink } from "./menu";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import { HubProvider } from "@/components/hub/HubProvider";
 import type { HubData } from "@/lib/governance/hub-types";
 import { Stars } from "./Stars";
@@ -222,7 +223,8 @@ function TabHighlight({ panel, pathname }: { panel: string | null; pathname: str
 
 export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubData | null }) {
   // The panels and search follow governance: the server passes the menus and index the public may see.
-  const MENUS = menus ?? ALL_MENUS;
+  const ref = useReference();
+  const MENUS = menus ?? allMenus(ref);
   const pathname = usePathname() ?? "/";
   const [panel, setPanel] = useState<string | null>(null);
   const [closing, setClosing] = useState<string | null>(null);
@@ -417,8 +419,8 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
         <Stars />
         <ScrollProgress />
         <div className="w-header__bar w-wrap w-on-dark">
-          <Link href="/" className="w-brand" aria-label={`${UNIT}, ${UNIVERSITY}: home`}>
-            <Lockup reverse preload sizes="48px" />
+          <Link href="/" className="w-brand" aria-label={`${ref.office.name}, ${UNIVERSITY}: home`}>
+            <Lockup unit={ref.office.name} reverse preload sizes="48px" />
           </Link>
 
           <nav className="w-nav" aria-label="Main">
@@ -511,8 +513,8 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
         >
           <Stars sky="field" />
           <div className="w-sheet__top">
-            <Link href="/" className="w-sheet__brand" aria-label={`${UNIT}, ${UNIVERSITY}: home`} onClick={closeSheet}>
-              <Lockup reverse sizes="48px" />
+            <Link href="/" className="w-sheet__brand" aria-label={`${ref.office.name}, ${UNIVERSITY}: home`} onClick={closeSheet}>
+              <Lockup unit={ref.office.name} reverse sizes="48px" />
             </Link>
             <button type="button" className="w-sheet__close" aria-label="Close the menu" onClick={closeSheet}>
               <Icon name="close" size={20} />
@@ -592,7 +594,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
             </Link>
           </div>
           <p className="w-sheet__contact" style={{ "--i": MENUS.length + 2 } as CSSProperties}>
-            Questions go to <a href="mailto:rankings.office@ust.edu.ph">rankings.office@ust.edu.ph</a>
+            Questions go to <a href={`mailto:${ref.office.email}`}>{ref.office.email}</a>
           </p>
         </dialog>
 

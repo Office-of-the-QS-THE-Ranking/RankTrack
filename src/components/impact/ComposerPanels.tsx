@@ -5,10 +5,10 @@
  * upload rows for images and the thumbnail, the SDG picker with the official goal icons, and the hashtag list.
  */
 import { useEffect, useId, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
-import { SDG_NAMES } from "@/lib/data";
 import { POST_LAYOUTS, POST_LIMITS, POST_PICK, hashtag, type PostLayout } from "@/lib/governance/posts";
 import { Icon } from "@/components/ui/Icon";
 import { POST_ACCEPT } from "./media";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 /* ---------- Shell ---------- */
 
@@ -212,18 +212,18 @@ export function UploadRow({
 
 /* ---------- SDGs ---------- */
 
-const GOALS = Array.from({ length: 17 }, (_, i) => i + 1);
 
-/** The official UN icon for a goal (public/images/sdg/README.md). */
-export const sdgIcon = (n: number) => `/images/sdg/goal-${String(n).padStart(2, "0")}.jpg`;
 
 export function SdgPicker({ value, onToggle }: { value: number[]; onToggle: (n: number) => void }) {
+  // The official UN icon for each goal (sdg_goals, in the R2 public bucket).
+  const { sdgNames, sdgIcons } = useViews();
+  const goals = Object.keys(sdgNames).map(Number).sort((a, b) => a - b);
   return (
       <ul className="pc-sdgs">
-        {GOALS.map((n) => (
+        {goals.map((n) => (
           <li key={n}>
-            <button type="button" className="pc-sdg" aria-pressed={value.includes(n)} aria-label={`SDG ${n}: ${SDG_NAMES[n]}`} onClick={() => onToggle(n)}>
-              <img src={sdgIcon(n)} alt="" width={466} height={466} loading="lazy" draggable={false} />
+            <button type="button" className="pc-sdg" aria-pressed={value.includes(n)} aria-label={`SDG ${n}: ${sdgNames[n]}`} onClick={() => onToggle(n)}>
+              <img src={sdgIcons[n]} alt="" width={466} height={466} loading="lazy" draggable={false} />
               <span className="pc-sdg__check" aria-hidden="true">
                 <Icon name="check" size={13} strokeWidth={2.8} />
               </span>

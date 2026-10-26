@@ -5,6 +5,7 @@ import "server-only";
  * suspending an account, revoking its sessions, requiring re-authentication or changing the timeout
  * policy takes effect on the person's very next request.
  */
+import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { cache } from "react";
@@ -15,7 +16,32 @@ import type { Account, GovernanceState, Session } from "../types";
 import type { Viewer } from "../viewer";
 import { readState, touch } from "./store";
 
-export const SESSION_COOKIE = "hub_session";
+const SECURE = process.env.NODE_ENV === "production";
+
+/**
+ * The cookie holding the session token. In production it is a __Host- cookie: sent only over HTTPS, only to
+ * this exact host, for the whole site, so no subdomain can set or read it. The plain name is still read so
+ * sign-ins from before the change carry on.
+ */
+export const SESSION_COOKIE = SECURE ? "__Host-hub_session" : "hub_session";
+const LEGACY_COOKIE = "hub_session";
+export const SESSION_COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax", path: "/", secure: SECURE } as const;
+
+/** The store keeps only the SHA-256 of a session token: reading the database or the console yields no working session. */
+export const sessionKey = (token: string) => createHash("sha256").update(token).digest("hex");
+
+type Jar = Awaited<ReturnType<typeof cookies>>;
+
+/** The store's id for the session this request's cookie carries, or null. */
+export function sessionIdOf(jar: Jar): string | null {
+  const token = jar.get(SESSION_COOKIE)?.value ?? jar.get(LEGACY_COOKIE)?.value;
+  return token ? sessionKey(token) : null;
+}
+
+export function clearSessionCookie(jar: Jar) {
+  jar.delete(SESSION_COOKIE);
+  if (LEGACY_COOKIE !== SESSION_COOKIE) jar.delete(LEGACY_COOKIE);
+}
 
 export type SessionProblem = "ended" | "expired" | "suspended" | "reauth";
 
@@ -78,8 +104,7 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
 
 /** The signed-in viewer for this request, or null. Cached per request. */
 export const getViewer = cache(async (): Promise<Viewer | null> => {
-  const jar = await cookies();
-  const id = jar.get(SESSION_COOKIE)?.value;
+  const id = sessionIdOf(await cookies());
   if (!id) return null;
   const now = new Date();
   const state = await readState();
@@ -91,7 +116,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 
 /** Why the current cookie no longer works, for the sign-in page. */
 export const getSessionProblem = cache(async (): Promise<SessionProblem | null> => {
-  const id = (await cookies()).get(SESSION_COOKIE)?.value;
+  const id = sessionIdOf(await cookies());
   if (!id) return null;
   const check = checkSession(await readState(), id);
   return "problem" in check ? check.problem : null;

@@ -3,7 +3,7 @@
  * overlaid with every change and new submission recorded through the Hub, and the posts written in the
  * Office's composer.
  */
-import { EVIDENCE, STORIES, type ImpactTheme, type Story } from "@/lib/data";
+import { ENGINEERING_REQUIREMENTS, EVIDENCE, STORIES, type ImpactTheme, type Story } from "@/lib/data";
 import { excerpt, postPictures } from "./posts";
 import type { EvidenceRecord, GovernanceState, PostRecord } from "./types";
 
@@ -15,6 +15,11 @@ export function evidenceList(state: GovernanceState): EvidenceRecord[] {
 }
 
 export const evidenceById = (state: GovernanceState, id: string) => evidenceList(state).find((e) => e.id === id);
+
+/** The unit a reporting-period requirement belongs to: values are entered, and seen, only for that unit. */
+export function requirementUnit(id: string): string | undefined {
+  return ENGINEERING_REQUIREMENTS.some((r) => r.id === id) ? "engineering" : undefined;
+}
 
 /** A proposal from the contributor workspace, shaped like a story so the libraries can list it. */
 function proposalStory(p: GovernanceState["records"]["proposals"][number], state: GovernanceState): Story {

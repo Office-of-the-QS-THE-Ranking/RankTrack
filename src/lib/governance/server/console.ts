@@ -4,9 +4,8 @@ import "server-only";
  * Shapes the governance store for the Administration console, section by section, according to what
  * the viewer may see.
  */
-import { DICTIONARY, RANKINGS } from "@/lib/data";
 import { participationKind } from "../directory";
-import { BODY_OF_FAMILY, ROLES } from "../catalog";
+import { ROLES } from "../catalog";
 import type { AccountRow, Attention, ConsoleData, DatasetRow, DuplicateRow, Health, RequestRow, RoleRow, TermRow, UnitRow } from "../console-types";
 import { actorFor, decisionBlock, makeCtx, needsApproval } from "../engine";
 import { daysSince, isInactive, keyOverdue, lastActivity, mfaRequired, rankingActive, rankingPublic, recordReach, workspacesOf } from "../derive";
@@ -17,9 +16,12 @@ import type { Classification, GovernanceState } from "../types";
 import { viewerCan as can, type Viewer } from "../viewer";
 import { adminShortcut } from "./dev-access";
 import { readState } from "./store";
+import { auditActivity, latestAudit, oldestUnbacked } from "./db/audit";
+import { reference } from "./reference";
 
 export async function consoleData(viewer: Viewer, given?: GovernanceState): Promise<ConsoleData> {
   const state = given ?? (await readState());
+  const ref = await reference();
   const now = new Date();
   const day = today(now);
   const nameOf = (id: string) => (id === "system" ? "Hub automation" : id === "guest" ? "Access request form" : state.accounts.find((a) => a.id === id)?.name ?? id);
@@ -79,7 +81,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
   const datasets: DatasetRow[] | undefined = governance
     ? state.datasets.map((d) => ({
         ...d,
-        records: d.id === "DS-EVIDENCE" ? evidence.length : d.id === "DS-STORIES" ? stories.length : d.id === "DS-ACCESS" ? state.accounts.length + state.audit.length : d.records,
+        records: d.id === "DS-EVIDENCE" ? evidence.length : d.id === "DS-STORIES" ? stories.length : d.id === "DS-ACCESS" ? state.accounts.length + state.auditHead.seq : d.records,
         stewardName: nameOf(d.stewardId),
         ownerName: unitName(d.ownerUnitId),
         quality: qualityScore(results.filter((r) => r.rule.datasetId === d.id)),
@@ -95,13 +97,13 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     : undefined;
   const terms: TermRow[] | undefined = governance
     ? state.terms.map((t) => {
-        const base = DICTIONARY.find((d) => d.term === t.term);
+        const base = ref.dictionary.find((d) => d.term === t.term);
         return { ...t, definition: t.definition ?? base?.definition ?? "", stewardName: nameOf(t.stewardId), rankings: [...new Set(base?.links.map((l) => l.ranking) ?? [])] };
       })
     : undefined;
 
   /* Workflows */
-  const ctx = makeCtx(state, actor, now, await adminShortcut());
+  const ctx = makeCtx(state, actor, ref, now, await adminShortcut());
   const requests: RequestRow[] = state.requests
     .filter((r) => can(viewer, "workflows", "view") || r.requesterId === viewer.id)
     .map((r) => {
@@ -123,7 +125,8 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     });
 
   /* Audit */
-  const audit = viewer.admin.includes("audit") ? { events: state.audit.slice(-800).reverse(), total: state.audit.length } : undefined;
+  // The trail is read from audit_events: the newest 800 entries for the log, its length from the chain's head.
+  const audit = viewer.admin.includes("audit") ? { events: await latestAudit(800), total: state.auditHead.seq } : undefined;
 
   /* Health */
   const live = state.accounts.filter((a) => a.status !== "Deactivated");
@@ -131,17 +134,15 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
   const lastPoint = state.backup.points.filter((p) => p.status === "Completed").sort((a, b) => b.at.localeCompare(a.at))[0];
   const age = lastPoint ? Math.round((now.getTime() - Date.parse(lastPoint.at)) / 60_000) : undefined;
   // Data at risk: changes made since the last recovery point (sign-ins and backups themselves are not data).
-  const unbacked = state.audit.filter((e) => e.category !== "Session" && e.category !== "Backup" && (!lastPoint || e.at > lastPoint.at));
-  const atRiskMinutes = unbacked.length ? Math.round((now.getTime() - Date.parse(unbacked[0].at)) / 60_000) : 0;
+  const unbackedSince = await oldestUnbacked(lastPoint?.at);
+  const atRiskMinutes = unbackedSince ? Math.round((now.getTime() - Date.parse(unbackedSince)) / 60_000) : 0;
   const withinRpo = atRiskMinutes <= state.backup.objectives.rpoMinutes;
   const lastTest = [...state.backup.tests].sort((a, b) => b.at.localeCompare(a.at))[0];
   const dayKey = (iso: string) => new Date(Date.parse(iso) + 8 * 3_600_000).toISOString().slice(0, 10);
   const days = Array.from({ length: 14 }, (_, i) => dayKey(new Date(now.getTime() - (13 - i) * 86_400_000).toISOString()));
-  const activity = days.map((d) => {
-    const hits = state.audit.filter((e) => dayKey(e.at) === d);
-    return { day: d, total: hits.length, denied: hits.filter((e) => e.outcome !== "Success").length };
-  });
-  const recent = state.audit.filter((e) => now.getTime() - Date.parse(e.at) < 86_400_000);
+  const activity = await auditActivity(days, dayKey, new Date(`${days[0]}T00:00:00+08:00`).toISOString());
+  const recent = state.recentAudit.filter((e) => now.getTime() - Date.parse(e.at) < 86_400_000);
+  const lastEvent = audit?.events[0] ?? (await latestAudit(1))[0];
   const pending = state.requests.filter((r) => r.status === "Pending");
   const inactive = live.filter((a) => isInactive(a, state.security.inactivityDays, now));
   const keysOverdue = state.security.keys.filter((k) => keyOverdue(k, day)).length;
@@ -181,14 +182,14 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     datasets: classes,
     alertsOpen,
     requests: { pending: pending.length, overdue: pending.filter((r) => r.due < day).length, mine: myDecisions },
-    audit: { entries: state.audit.length, last24h: recent.length, denied24h: recent.filter((e) => e.outcome !== "Success").length, lastAt: state.audit.at(-1)?.at ?? "" },
+    audit: { entries: state.auditHead.seq, last24h: recent.length, denied24h: recent.filter((e) => e.outcome !== "Success").length, lastAt: lastEvent?.at ?? "" },
     backup: { lastAt: lastPoint?.at, lastId: lastPoint?.id, ageMinutes: age, rpoMinutes: state.backup.objectives.rpoMinutes, withinRpo, atRiskMinutes, lastTest: lastTest ? { at: lastTest.at, result: lastTest.result } : undefined },
     keysOverdue,
     quality: qualityScore(results),
     flagsOn: state.config.flags.filter((f) => f.mode !== "Off").length,
     bodiesOn: state.config.bodies.filter((b) => b.enabled).length,
-    rankingsTracked: RANKINGS.filter((r) => rankingActive(state, r.slug)).length,
-    rankingsPublic: RANKINGS.filter((r) => rankingPublic(state, r.slug)).length,
+    rankingsTracked: ref.rankings.filter((r) => rankingActive(state, ref, r.slug)).length,
+    rankingsPublic: ref.rankings.filter((r) => rankingPublic(state, ref, r.slug)).length,
     evidence: {
       total: evidence.length,
       review: evidence.filter((e) => e.status === "For review").length,
@@ -219,7 +220,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     config: viewer.admin.includes("config")
       ? {
           ...state.config,
-          rankingMeta: RANKINGS.map((r) => ({ slug: r.slug, name: r.name, short: r.short, family: r.family, body: BODY_OF_FAMILY[r.family] })),
+          rankingMeta: ref.rankings.map((r) => ({ slug: r.slug, name: r.name, short: r.short, family: r.family, body: ref.families[r.family]?.body ?? r.family })),
         }
       : undefined,
     backup: viewer.admin.includes("backup") ? state.backup : undefined,

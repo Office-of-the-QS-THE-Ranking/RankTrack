@@ -3,6 +3,7 @@
  * actor; they authorize, change the draft, and record audit entries. The store commits the draft and
  * seals the audit entries into the hash chain.
  */
+import type { Reference } from "@/lib/reference";
 import { SYSTEM_ACTOR } from "../seed";
 import { UNIT_EMAILS } from "../catalog";
 import { canWith, grantsFor, today, topGrant, type Grant, type Target } from "../rbac";
@@ -40,6 +41,8 @@ export interface Ctx {
   effects: Effect[];
   /** A lone administrator's changes apply without approval (see needsApproval). Developer settings can turn it off. */
   shortcut: boolean;
+  /** The reference data (ranking frameworks, dictionary, lists) the rules check against. */
+  ref: Reference;
 }
 
 export function actorFor(state: GovernanceState, account: Account, now = new Date()): Actor {
@@ -51,8 +54,8 @@ export const SYSTEM: Actor = { id: SYSTEM_ACTOR.id, name: SYSTEM_ACTOR.name, rol
 
 export const GUEST: Actor = { id: "guest", name: "Access request form", role: "Not signed in", grants: [] };
 
-export function makeCtx(state: GovernanceState, actor: Actor, now = new Date(), shortcut = true): Ctx {
-  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], shortcut };
+export function makeCtx(state: GovernanceState, actor: Actor, ref: Reference, now = new Date(), shortcut = true): Ctx {
+  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], shortcut, ref };
 }
 
 export function log(

@@ -2,9 +2,8 @@
  * System configuration: ranking bodies, reporting periods and academic years, uploads, notification
  * templates, dashboard defaults, feature availability and feature flags.
  */
-import { RANKINGS } from "@/lib/data";
 import type { Command, CommandResult } from "../commands";
-import { bodyOfRanking } from "../derive";
+import { bodyOfRanking } from "@/lib/reference";
 import { accountById, can, clean, cleanText, deny, invalid, isDay, log, ok, unitById, type Ctx } from "./core";
 
 const SETTING = (id: string, label: string) => ({ type: "Setting", id, label });
@@ -26,7 +25,7 @@ export function configure(ctx: Ctx, cmd: Extract<Command, { type: `config.${stri
       if (g) return g;
       if (b.enabled === cmd.enabled) return ok("No changes.");
       b.enabled = cmd.enabled;
-      const n = RANKINGS.filter((r) => bodyOfRanking(r.slug) === b.key).length;
+      const n = ctx.ref.rankings.filter((r) => bodyOfRanking(ctx.ref, r.slug) === b.key).length;
       log(ctx, "config.body", "Configuration", SETTING(b.key, b.name), "Success", `${cmd.enabled ? "Supported" : "Not supported"} · ${n} rankings`);
       return ok(
         cmd.enabled
@@ -48,9 +47,11 @@ export function configure(ctx: Ctx, cmd: Extract<Command, { type: `config.${stri
       return ok(`${name} added.`);
     }
     case "config.ranking": {
-      const r = c.rankings.find((x) => x.slug === cmd.slug);
-      const meta = RANKINGS.find((x) => x.slug === cmd.slug);
-      if (!r || !meta) return invalid("Unknown ranking.");
+      const meta = ctx.ref.rankings.find((x) => x.slug === cmd.slug);
+      if (!meta) return invalid("Unknown ranking.");
+      // A framework added in Supabase gets its configuration the first time someone changes it.
+      let r = c.rankings.find((x) => x.slug === cmd.slug);
+      if (!r) c.rankings.push((r = { slug: meta.slug, enabled: true, public: false, deadline: meta.deadline }));
       const g = guard(ctx, "config.ranking", r.slug, meta.name);
       if (g) return g;
       const changes: string[] = [];

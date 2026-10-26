@@ -5,9 +5,8 @@
  * Each link shows its icon in the panel; a link without one shows its preview's photograph instead.
  */
 import type { IconName } from "@/components/ui/Icon";
-import { CALENDAR, FAMILY, LATEST_EDITION, PUBLISHED_STORIES, RECOGNITION } from "@/lib/data";
-import { PHOTOS, type Photo } from "@/lib/site";
-import { OFFICE } from "@/lib/office";
+import { RECOGNITION } from "@/lib/data";
+import { familyOf, type Photo, type Reference } from "@/lib/reference";
 
 export type MenuPreview = { title: string; text: string; photo: Photo };
 
@@ -36,7 +35,7 @@ export type Menu = {
 
 export const isExternal = (href: string) => !href.startsWith("/");
 
-const storyPhoto = (src: string): Photo => Object.values(PHOTOS).find((p) => p.src === src) ?? { src, alt: "" };
+const storyPhoto = (ref: Reference, src: string): Photo => Object.values(ref.photos).find((p) => p.src === src) ?? { src, alt: "" };
 
 const ranking = (icon: IconName, label: string, href: string, text: string, photo: Photo, name = label): MenuLink => ({
   label,
@@ -46,7 +45,10 @@ const ranking = (icon: IconName, label: string, href: string, text: string, phot
   preview: { title: name, text, photo },
 });
 
-export const MENUS: Menu[] = [
+/** The header's menus. Pictures, colours and facts are reference data; the wording is the site's own. */
+export const allMenus = (ref: Reference): Menu[] => {
+  const PHOTOS = ref.photos;
+  return [
   {
     href: "/rankings",
     label: "Rankings",
@@ -57,7 +59,7 @@ export const MENUS: Menu[] = [
     groups: [
       {
         label: "Times Higher Education",
-        color: FAMILY.THE.color,
+        color: familyOf(ref, "THE").color,
         links: [
           ranking("rankings", "World University Rankings", "/rankings/the-wur",
             "Evaluates research-intensive universities across teaching, research, industry engagement and international outlook.",
@@ -77,14 +79,14 @@ export const MENUS: Menu[] = [
       },
       {
         label: "QS Quacquarelli Symonds",
-        color: FAMILY.QS.color,
+        color: familyOf(ref, "QS").color,
         links: [
           ranking("globe", "World University Rankings", "/rankings/qs-wur",
             "A global comparison of universities across research, reputation, employability and international engagement.",
             PHOTOS.day, "QS World University Rankings"),
           ranking("pin", "Asia University Rankings", "https://www.topuniversities.com/asia-university-rankings",
             "A regional comparison of Asian universities, with indicators tailored to the region’s academic landscape.",
-            PHOTOS.archAerial, "QS Asia University Rankings"),
+            PHOTOS["arch-aerial"], "QS Asia University Rankings"),
           ranking("recognition", "Stars Rating", "https://www.topuniversities.com/qs-stars",
             "A star-based assessment of university strengths, including teaching, employability, facilities and internationalisation.",
             PHOTOS.festive, "QS Stars Rating"),
@@ -117,17 +119,8 @@ export const MENUS: Menu[] = [
     title: "Impact",
     description: "Explore the stories and evidence behind UST’s impact.",
     cta: "Explore impact",
-    photo: PHOTOS.archAerial,
+    photo: PHOTOS["arch-aerial"],
     groups: [
-      {
-        label: "Latest stories",
-        links: PUBLISHED_STORIES.slice(0, 6).map((s) => ({
-          label: s.title,
-          href: `/impact/${s.slug}`,
-          note: s.unit,
-          preview: { title: s.title, text: s.outcome, photo: storyPhoto(s.images[0]) },
-        })),
-      },
     ],
     strip: {
       text: "Every story names the units behind it and the rankings its evidence counts in.",
@@ -145,7 +138,7 @@ export const MENUS: Menu[] = [
       {
         links: [
           { label: "Achievements", href: "/recognition#achievements", icon: "trend-up", note: "The results that rose in the latest editions" },
-          { label: "Cycle awards", href: "/recognition#awards", icon: "recognition", note: `The ${LATEST_EDITION} awards and the units that won them` },
+          { label: "Cycle awards", href: "/recognition#awards", icon: "recognition", note: `The ${ref.latestEdition} awards and the units that won them` },
           { label: "Contributing units", href: "/recognition#units", icon: "units", note: "Units ordered by the evidence reviewers accepted" },
           { label: "Evidence champions", href: "/recognition#champions", icon: "evidence", note: "Coordinators whose evidence is reused most widely" },
           { label: "Innovation", href: "/recognition#innovation", icon: "innovation", note: "Programmes documented for WURI and the showcase" },
@@ -182,7 +175,7 @@ export const MENUS: Menu[] = [
       },
     ],
     strip: {
-      text: `Next deadline: ${CALENDAR[0].items[0]}.`,
+      text: ref.calendar[0] ? `Next deadline: ${ref.calendar[0].items[0]}.` : "When each ranking collects data.",
       link: { label: "Open the calendar", href: "/knowledge#calendar" },
     },
   },
@@ -190,7 +183,7 @@ export const MENUS: Menu[] = [
     href: "/about",
     label: "About",
     title: "About the Office",
-    description: OFFICE.summary,
+    description: ref.office.summary,
     cta: "Explore the Office",
     photo: PHOTOS.day,
     groups: [
@@ -205,30 +198,30 @@ export const MENUS: Menu[] = [
           { label: "Team", href: "/about#team", icon: "users", note: "The people and reporting structure of the Office" },
           { label: "Data governance", href: "/about#governance", icon: "governance", note: "Reporting lines and stakeholder coordination" },
           { label: "Policies", href: "/about#privacy", icon: "shield", note: "Privacy, accessibility and method" },
-          { label: "Contact", href: "/about#contact", icon: "mail", note: "Main Building, Ground Floor, Room 110" },
+          { label: "Contact", href: "/about#contact", icon: "mail", note: ref.office.location },
         ],
       },
     ],
     strip: {
-      text: "Questions about a result or a submission go to rankings.office@ust.edu.ph.",
+      text: `Questions about a result or a submission go to ${ref.office.email}.`,
       link: { label: "Contact the Office", href: "/about#contact" },
     },
   },
-];
-
+  ];
+};
 
 /**
  * The menus as governance allows them: links to rankings the public website does not show are dropped,
  * the impact panel lists only published stories, and sections switched off in System Configuration leave
  * the header.
  */
-export function governedMenus(opts: {
+export function governedMenus(ref: Reference, opts: {
   publicSlugs: string[];
   stories: { slug: string; title: string; unit: string; outcome: string; images: string[] }[];
   features: { impact: boolean; recognition: boolean; knowledge: boolean };
 }): Menu[] {
   const off = new Set([!opts.features.impact && "/impact", !opts.features.recognition && "/recognition", !opts.features.knowledge && "/knowledge"].filter(Boolean));
-  return MENUS.filter((m) => !off.has(m.href)).map((m) => {
+  return allMenus(ref).filter((m) => !off.has(m.href)).map((m) => {
     if (m.href === "/rankings")
       return {
         ...m,
@@ -246,7 +239,7 @@ export function governedMenus(opts: {
               label: s.title,
               href: `/impact/${s.slug}`,
               note: s.unit,
-              preview: { title: s.title, text: s.outcome, photo: storyPhoto(s.images[0]) },
+              preview: { title: s.title, text: s.outcome, photo: storyPhoto(ref, s.images[0]) },
             })),
           },
         ].filter((g) => g.links.length),

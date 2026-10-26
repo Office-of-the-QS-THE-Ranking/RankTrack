@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { IMPACT_THEMES, SDG_COLORS, SDG_NAMES, inkOn, type ImpactTheme } from "@/lib/data";
+import { inkOn, type ImpactTheme } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Notice, Pattern, SdgList } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { skipChecks } from "@/lib/dev-checks";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 type Fields = {
   title: string;
@@ -33,6 +34,7 @@ const LABELS: Partial<Record<keyof Fields, string>> = {
 
 /** Propose an impact story in the showcase format, with a live preview of the public card. */
 export function ProposeStory() {
+  const { impactThemes, sdgColors, sdgNames } = useViews();
   const [f, setF] = useState<Fields>({
     title: "",
     challenge: "",
@@ -162,7 +164,7 @@ export function ProposeStory() {
             <fieldset className="field">
               <legend className="field__label">Impact and Innovation category</legend>
               <div className="pills">
-                {IMPACT_THEMES.map((t) => (
+                {impactThemes.map((t) => (
                   <button key={t} type="button" className="pill" aria-pressed={themes.includes(t)} onClick={() => setThemes((v) => (v.includes(t) ? v.filter((x) => x !== t) : [...v, t]))}>
                     {t}
                   </button>
@@ -172,7 +174,7 @@ export function ProposeStory() {
             <fieldset className="field">
               <legend className="field__label">SDGs</legend>
               <div className="sdgpick sdgpick--compact">
-                {Object.keys(SDG_NAMES).map((k) => {
+                {Object.keys(sdgNames).map((k) => {
                   const n = Number(k);
                   const on = sdgs.includes(n);
                   return (
@@ -180,12 +182,12 @@ export function ProposeStory() {
                       key={n}
                       type="button"
                       aria-pressed={on}
-                      title={SDG_NAMES[n]}
+                      title={sdgNames[n]}
                       onClick={() => setSdgs((v) => (on ? v.filter((x) => x !== n) : [...v, n].sort((a, b) => a - b)))}
-                      style={on ? ({ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]), borderColor: SDG_COLORS[n] } as CSSProperties) : undefined}
+                      style={on ? ({ background: sdgColors[n], color: inkOn(sdgColors[n]), borderColor: sdgColors[n] } as CSSProperties) : undefined}
                     >
                       <b>{n}</b>
-                      <span className="sr-only">{SDG_NAMES[n]}</span>
+                      <span className="sr-only">{sdgNames[n]}</span>
                     </button>
                   );
                 })}

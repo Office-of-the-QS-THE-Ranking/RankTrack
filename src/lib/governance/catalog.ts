@@ -47,16 +47,6 @@ export const moduleInfo = (key: ModuleKey) => MODULES.find((m) => m.key === key)
 
 export const ADMIN_MODULES: ModuleKey[] = ["accounts", "roles", "directory", "governance", "security", "audit", "workflows", "config", "backup"];
 
-export const BODY_NAMES: Record<BodyKey, string> = {
-  THE: "Times Higher Education",
-  QS: "QS Quacquarelli Symonds",
-  UI: "UI GreenMetric",
-  WURI: "WURI",
-};
-
-/** The ranking family each ranking page belongs to, by body. */
-export const BODY_OF_FAMILY: Record<string, BodyKey> = { THE: "THE", QS: "QS", QSS: "QS", UI: "UI", WURI: "WURI" };
-
 /** "THE Impact · SDG 3" → THE, from the short names used in evidence mappings. */
 export function bodyOfMapping(mapping: string): BodyKey | null {
   const head = mapping.split(" · ")[0];

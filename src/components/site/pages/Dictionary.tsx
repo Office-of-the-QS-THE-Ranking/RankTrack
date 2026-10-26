@@ -2,11 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
-import { FAMILY, type DictionaryEntry, type FamilyKey } from "@/lib/data";
+import { type DictionaryEntry, type FamilyKey } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 /** Search one term and see every ranking it touches. Opens on ?q= from links elsewhere on the site. */
 export function Dictionary({ entries: DICTIONARY, rankings: RANKINGS }: { entries: DictionaryEntry[]; rankings: { short: string; family: FamilyKey }[] }) {
+  const { families } = useViews();
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
   useEffect(() => {
@@ -50,7 +52,7 @@ export function Dictionary({ entries: DICTIONARY, rankings: RANKINGS }: { entrie
                   const r = RANKINGS.find((x) => x.short === l.ranking);
                   return (
                     <li key={l.ranking + l.indicator}>
-                      <i className="w-dot" style={{ background: r ? FAMILY[r.family].color : "var(--gold)" } as CSSProperties} aria-hidden="true" />
+                      <i className="w-dot" style={{ background: r ? families[r.family].color : "var(--gold)" } as CSSProperties} aria-hidden="true" />
                       <b>{l.ranking}</b> {l.indicator}
                     </li>
                   );

@@ -8,7 +8,8 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useState, useTransition, type ReactNode } from "react";
 import { govern } from "@/app/actions/governance";
-import { RANKINGS, type Ranking } from "@/lib/data";
+import type { Ranking } from "@/lib/data";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import type { Command, CommandResult } from "@/lib/governance/commands";
 import type { HubData } from "@/lib/governance/hub-types";
 import type { Target } from "@/lib/governance/rbac";
@@ -48,10 +49,11 @@ export function useFeature(id: string) {
 /** Rankings tracked in the workspaces, with configured deadlines. Outside a workspace: all of them. */
 export function useRankings(): Ranking[] {
   const hub = useHub();
+  const { rankings } = useReference();
   return useMemo(() => {
-    if (!hub) return RANKINGS;
-    return RANKINGS.filter((r) => hub.activeSlugs.includes(r.slug)).map((r) => (hub.deadlines[r.slug] && hub.deadlines[r.slug] !== r.deadline ? { ...r, deadline: hub.deadlines[r.slug] } : r));
-  }, [hub]);
+    if (!hub) return rankings;
+    return rankings.filter((r) => hub.activeSlugs.includes(r.slug)).map((r) => (hub.deadlines[r.slug] && hub.deadlines[r.slug] !== r.deadline ? { ...r, deadline: hub.deadlines[r.slug] } : r));
+  }, [hub, rankings]);
 }
 
 /** Send a command to the server. The page re-renders with the new state when it returns. */

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
-import { FAMILY, inkOn, type RankPoint, type Ranking } from "@/lib/data";
+import { inkOn, type RankPoint, type Ranking } from "@/lib/data";
+import { familyOf } from "@/lib/reference";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import { Card, Swatch } from "@/components/ui/primitives";
 import { Segmented } from "@/components/ui/interactive";
 
@@ -77,7 +79,7 @@ export function RankTrajectory(props: { ranking: Ranking; height?: number; compa
 
 function RankTrajectoryPlot({ ranking, height = 150, compact }: { ranking: Ranking; height?: number; compact?: boolean }) {
   const pts = ranking.history;
-  const color = FAMILY[ranking.family].color;
+  const color = familyOf(useReference(), ranking.family).color;
   const W = 280;
   const H = height;
   const padX = 8;

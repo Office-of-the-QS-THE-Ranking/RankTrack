@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
-import { EVIDENCE_LEVELS, formatDate } from "@/lib/data";
+import { formatDate } from "@/lib/data";
+import { evidenceLevels } from "@/lib/reference";
+import { reference } from "@/lib/governance/server/reference";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, PageHeader, SdgList, Status } from "@/components/ui/primitives";
 import { StageTrack } from "@/components/contribute/StageTrack";
@@ -9,6 +11,7 @@ import { portalContext } from "@/lib/governance/server/portal";
 export const metadata = { title: "Submission history" };
 
 export default async function History() {
+  const levels = evidenceLevels(await reference());
   const ctx = await portalContext();
   const mine = [...ctx.evidence].sort((a, b) => b.submitted.localeCompare(a.submitted));
   return (
@@ -46,7 +49,7 @@ export default async function History() {
                 <dt>Beneficiaries</dt>
                 <dd>{e.beneficiaries}</dd>
                 <dt>Evidence quality</dt>
-                <dd>{EVIDENCE_LEVELS[e.level - 1]}</dd>
+                <dd>{levels[e.level - 1]}</dd>
                 <dt>SDGs</dt>
                 <dd>
                   <SdgList sdgs={e.sdgs} />

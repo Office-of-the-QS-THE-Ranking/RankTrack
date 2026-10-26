@@ -1266,6 +1266,41 @@ body:has(> .signin) {
   cursor: var(--cursor-default);
 }
 
+/* who is asking (RequestAccessForm): Thomasian or External partner, as two cards with a gold native radio */
+.si__kind {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.si__kind legend {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+  padding: 0;
+}
+.si__kind-option > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.si__kind-option b {
+  font-weight: 600;
+  color: rgb(var(--label) / 0.95);
+}
+.si__kind-option small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(var(--label) / 0.6);
+}
+@media (max-width: 420px) {
+  .si__kind {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* the declarations: a native checkbox in gold beside each statement */
 .si__declare {
   display: grid;

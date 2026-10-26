@@ -3,7 +3,7 @@
  * Hub's own stories, becomes a post the first time the Office edits it. Posting goes through the publication
  * workflow whenever enough other administrators can decide it. Every change is authorized and audited.
  */
-import { IMPACT_THEMES, STORIES } from "@/lib/data";
+import { STORIES } from "@/lib/data";
 import type { Command, CommandResult, PostInput } from "../commands";
 import { cleanRich, isRich, plainText } from "@/lib/rich-text";
 import { hashtag, isPostLayout, isPostMediaSrc, POST_LIMITS, postPictures, slugify } from "../posts";
@@ -43,14 +43,14 @@ function picture(m: unknown): PostMedia | null {
 }
 
 /** The composer's fields, checked. Posting asks for more than saving a draft. */
-function read(input: PostInput | undefined, publish: boolean): { fields: Fields } | { problem: string } {
+function read(input: PostInput | undefined, publish: boolean, themesAllowed: string[]): { fields: Fields } | { problem: string } {
   const i: Partial<PostInput> = input ?? {};
   const title = clean(i.title, POST_LIMITS.title);
   if (title.length < 4) return { problem: "Give the post a title of at least four characters." };
   const sdgs = [...new Set(list(i.sdgs))];
   if (sdgs.some((n) => typeof n !== "number" || !Number.isInteger(n) || n < 1 || n > 17)) return { problem: "Choose SDGs between 1 and 17." };
   const themes = [...new Set(list(i.themes))];
-  if (themes.some((t) => typeof t !== "string" || !(IMPACT_THEMES as readonly string[]).includes(t))) return { problem: "Choose themes from the list." };
+  if (themes.some((t) => typeof t !== "string" || !themesAllowed.includes(t))) return { problem: "Choose themes from the list." };
   if (themes.length > POST_LIMITS.themes) return { problem: `Choose up to ${POST_LIMITS.themes} themes.` };
   const tags = list(i.hashtags).map((t) => (typeof t === "string" ? hashtag(t) : ""));
   if (tags.some((t) => !t)) return { problem: "Use letters, numbers or underscores in hashtags." };
@@ -146,7 +146,7 @@ export function savePost(ctx: Ctx, cmd: Extract<Command, { type: "post.save" }>)
   const target = existing ? res(existing) : { type: "Post", id: "new", label: clean(cmd.input?.title) || "Untitled post" };
   if (!can(ctx, "posts", existing ? "edit" : "create")) return deny(ctx, existing ? "post.update" : "post.create", "Data", target, "Your role cannot write Impact and Innovation posts.");
   if (cmd.publish && !can(ctx, "posts", "approve")) return deny(ctx, "post.publish", "Approval", target, "Your role cannot publish posts.");
-  const checked = read(cmd.input, cmd.publish);
+  const checked = read(cmd.input, cmd.publish, ctx.ref.impactThemes);
   if ("problem" in checked) return invalid(checked.problem);
   const f = checked.fields;
 

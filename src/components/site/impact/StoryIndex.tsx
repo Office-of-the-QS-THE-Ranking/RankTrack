@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
-import { IMPACT_THEMES, SDG_COLORS, SDG_NAMES, inkOn, type ImpactTheme, type Story } from "@/lib/data";
+import { inkOn, type ImpactTheme, type Story } from "@/lib/data";
 
 import { Tabs, TabPanel } from "@/components/ui/interactive";
+import { useViews } from "@/components/reference/ReferenceProvider";
 
 type Theme = "All" | ImpactTheme;
 
@@ -14,13 +15,14 @@ type Theme = "All" | ImpactTheme;
  * the row under the pointer shows its picture in the gold-ringed circle beside the list.
  */
 export function StoryIndex({ stories: PUBLISHED_STORIES }: { stories: Story[] }) {
+  const { impactThemes, sdgColors, sdgNames } = useViews();
   const [theme, setTheme] = useState<Theme>("All");
   const [shownSlug, setShownSlug] = useState<string | null>(null);
 
   const options = useMemo(
     () =>
       [{ value: "All" as Theme, label: "All stories", count: PUBLISHED_STORIES.length }].concat(
-        IMPACT_THEMES.map((t) => ({ value: t as Theme, label: t, count: PUBLISHED_STORIES.filter((s) => s.themes.includes(t)).length })).filter(
+        impactThemes.map((t) => ({ value: t as Theme, label: t, count: PUBLISHED_STORIES.filter((s) => s.themes.includes(t)).length })).filter(
           (o) => o.count > 0,
         ),
       ),
@@ -72,8 +74,8 @@ export function StoryIndex({ stories: PUBLISHED_STORIES }: { stories: Story[] })
                   {s.sdgs.map((n) => (
                     <i
                       key={n}
-                      title={`SDG ${n}: ${SDG_NAMES[n]}`}
-                      style={{ background: SDG_COLORS[n], color: inkOn(SDG_COLORS[n]) } as CSSProperties}
+                      title={`SDG ${n}: ${sdgNames[n]}`}
+                      style={{ background: sdgColors[n], color: inkOn(sdgColors[n]) } as CSSProperties}
                     >
                       {n}
                     </i>

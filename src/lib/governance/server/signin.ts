@@ -2,8 +2,8 @@ import "server-only";
 
 /*
  * The second half of sign-in, after Google (through Supabase Auth) has said who someone is: the Hub decides
- * whether that person may come in, under the same checks as every request (account status, allowed domains,
- * active roles), opens a Hub session and audits the attempt either way. Only the OAuth callback calls it;
+ * whether that person may come in, under the same checks as every request (an account from an approved access
+ * request or the Administration console, account status, allowed domains, active roles), opens a Hub session and audits the attempt either way. Only the OAuth callback calls it;
  * it is deliberately not a Server Function, which a browser could call with any address.
  */
 import { randomBytes } from "node:crypto";
@@ -17,9 +17,11 @@ import type { Account, GovernanceState } from "../types";
 import { applyProfile, readProfile } from "./dev-access";
 import { runSystem } from "./run";
 import { readState } from "./store";
+import { knownDevice } from "./db/audit";
+import { sessionKey } from "./session";
 
 /** Why sign-in was refused; /signin words each one (SignInFlow). */
-export type Refusal = "not-registered" | "suspended" | "deactivated" | "domain" | "guests" | "no-role";
+export type Refusal = "not-registered" | "pending" | "suspended" | "deactivated" | "domain" | "guests" | "no-role";
 
 const res = (a: Account) => ({ type: "Account", id: a.id, label: a.name });
 
@@ -45,12 +47,22 @@ export function landing(state: GovernanceState, a: Account, next?: string) {
  * The first University Administrator (HUB_BOOTSTRAP_ADMIN) is created, or restored, at their Google sign-in
  * while the Hub has no active University Administrator: on a new Hub, and as the way back in if every one is lost.
  */
+let bootstrapWarned = false;
+
 function bootstrapAdmin(ctx: Ctx, email: string, name: string) {
   const owner = process.env.HUB_BOOTSTRAP_ADMIN?.trim().toLowerCase();
   if (!owner || email !== owner) return;
   const s = ctx.state;
   const active = s.accounts.some((a) => a.status === "Active" && activeAssignments(a, ctx.day).some((x) => x.roleId === ROLE.admin));
-  if (active) return;
+  if (active) {
+    // Whoever controls that mailbox can take the Hub back whenever no administrator is left; once real ones exist,
+    // the variable should go.
+    if (!bootstrapWarned && process.env.NODE_ENV === "production") {
+      bootstrapWarned = true;
+      console.warn("HUB_BOOTSTRAP_ADMIN is still set though the Hub has an active University Administrator. Remove it from the production environment.");
+    }
+    return;
+  }
   const existing = s.accounts.find((a) => a.email.toLowerCase() === email);
   if (existing) {
     existing.status = "Active";
@@ -76,26 +88,49 @@ function googlePhoto(url: string | undefined) {
 }
 
 /** Open a Hub session for someone Google has identified, or say why not. */
-export async function completeSignIn(input: { email: string; name?: string; avatar?: string; device: string; next?: string }): Promise<{ ok: true; sessionId: string; dest: string } | { ok: false; why: Refusal }> {
+export async function completeSignIn(input: {
+  email: string;
+  name?: string;
+  avatar?: string;
+  device: string;
+  next?: string;
+  /** Google's hosted-domain claim: the Google Workspace the account belongs to, absent for personal Google accounts. */
+  hd?: string;
+}): Promise<{ ok: true; token: string; dest: string } | { ok: false; why: Refusal }> {
   const email = input.email.trim().toLowerCase();
+  let token = "";
   const name = (input.name ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   const avatar = googlePhoto(input.avatar);
   let sessionId = "";
   let accountId = "";
   let refusal = null as Refusal | null;
   const dev = await readProfile();
+  // Whether this device signed in to the account before: the whole audit trail, not only the day the model holds.
+  const existing = (await readState()).accounts.find((x) => x.email.toLowerCase() === email);
+  const seenDevice = existing ? await knownDevice(existing.id, input.device) : false;
   await runSystem((ctx) => {
     // A transaction may run again on newer state; only its last run's outcome counts.
-    sessionId = accountId = "";
+    sessionId = accountId = token = "";
     refusal = null;
     const s = ctx.state;
+    // An address on a University domain counts only from the University's Google Workspace, not from a personal
+    // Google account someone registered with that address.
+    const domains = s.security.sso.domains.map((d) => d.toLowerCase());
+    const hd = input.hd?.toLowerCase();
+    if (domains.includes(email.split("@")[1] ?? "") && !(hd && domains.includes(hd))) {
+      refusal = "domain";
+      log(ctx, "session.signin", "Session", { type: "Account", id: email, label: name || email }, "Failed", `Not a ${domains.join(", ")} Google Workspace account · ${input.device}`);
+      return { ok: true, message: "Refused" };
+    }
     bootstrapAdmin(ctx, email, name);
     applyProfile(ctx, dev, email, name);
     const a = s.accounts.find((x) => x.email.toLowerCase() === email);
     const signingIn = (who: Account) => ({ ...ctx.actor, id: who.id, name: who.name, role: "Signing in" });
     if (!a) {
-      refusal = "not-registered";
-      log(ctx, "session.signin", "Session", { type: "Account", id: email, label: name || email }, "Failed", `No account for ${email} · ${input.device}`);
+      // A UST address alone is no way in: everyone needs an approved access request (or an account the Office created).
+      const waiting = s.requests.find((r) => r.status === "Pending" && r.payload.kind === "account-access" && r.payload.email.toLowerCase() === email);
+      refusal = waiting ? "pending" : "not-registered";
+      log(ctx, "session.signin", "Session", { type: "Account", id: email, label: name || email }, "Failed", `${waiting ? `Access request ${waiting.id} not yet approved` : `No account for ${email}`} · ${input.device}`);
       return { ok: true, message: "Refused" };
     }
     const fail = (why: Refusal, detail: string) => {
@@ -110,8 +145,9 @@ export async function completeSignIn(input: { email: string; name?: string; avat
     const grants = grantsFor(a, s.units, ctx.day);
     if (!activeAssignments(a, ctx.day).length || !workspacesOf(grants).length) return fail("no-role", "No active role");
 
-    const known = s.audit.some((e) => e.actorId === a.id && e.action === "session.signin" && e.outcome === "Success" && (e.detail ?? "").includes(input.device));
-    sessionId = randomBytes(24).toString("base64url");
+    const known = a.id === existing?.id && seenDevice;
+    token = randomBytes(32).toString("base64url");
+    sessionId = sessionKey(token);
     accountId = a.id;
     s.sessions.push({ id: sessionId, accountId: a.id, createdAt: ctx.iso, lastSeen: ctx.iso, mfa: false, device: input.device });
     a.lastLogin = ctx.iso;
@@ -130,5 +166,5 @@ export async function completeSignIn(input: { email: string; name?: string; avat
   const state = await readState();
   const account = state.accounts.find((a) => a.id === accountId);
   if (!sessionId || !account) return { ok: false, why: "not-registered" };
-  return { ok: true, sessionId, dest: landing(state, account, input.next) };
+  return { ok: true, token, dest: landing(state, account, input.next) };
 }

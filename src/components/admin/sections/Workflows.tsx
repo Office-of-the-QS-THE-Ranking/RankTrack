@@ -169,7 +169,16 @@ function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]
         ...(a
           ? ([
               ["Birthday", fmtDate(a.birthday)],
-              ["Affiliation", `${a.affiliation}${a.organization ? ` · ${a.organization}` : ""}${a.listed ? "" : " (Others)"}`],
+              ...(a.thomasian
+                ? [
+                    ["Requester", "Thomasian"],
+                    ["College, faculty or office", a.unitId ? unit(a.unitId) : "Not given"],
+                    ["Position", a.position ?? p.title],
+                  ]
+                : [
+                    ["Requester", "External partner"],
+                    ["Affiliation", `${a.affiliation}${a.organization ? ` · ${a.organization}` : ""}${a.listed ? "" : " (Others)"}`],
+                  ]),
               ...(a.agreedAt ? [["Declarations", `Accepted ${fmtDate(a.agreedAt)}`]] : []),
             ] as [string, string][])
           : ([["Position", p.title]] as [string, string][])),
@@ -253,11 +262,13 @@ export function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: ()
   const [note, setNote] = useState("");
   const [unitId, setUnitId] = useState("");
   const [tab, setTab] = useState<"Profile" | "Status">("Profile");
+  // a Thomasian named their college or office; the approver starts from it
+  const requestedUnit = r?.payload.kind === "account-access" ? (r.payload.applicant?.unitId ?? "") : "";
   useEffect(() => {
     setNote("");
-    setUnitId("");
+    setUnitId(requestedUnit);
     setTab("Profile");
-  }, [r?.id]);
+  }, [r?.id, requestedUnit]);
   if (!r) return null;
   const account = r.payload.kind === "account-access" ? r.payload : null;
   const applicant = account?.applicant;
@@ -370,7 +381,7 @@ export function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: ()
       {!account && r.status === "Pending" && !r.canDecide && r.blocked && <p className="adm-note">{r.blocked}</p>}
       </>}
       {(!account || tab === "Profile") && r.canDecide && needsUnit && (
-        <Field label="Unit" hint="Where the account belongs. The request didn't name one.">
+        <Field label="Unit" hint={requestedUnit ? "Where the account belongs. The requester named this one; change it if it's wrong." : "Where the account belongs. The request didn't name one."}>
           <UnitSelect label="Unit" value={unitId} onChange={setUnitId} filter={(u) => u.status === "Active"} />
         </Field>
       )}

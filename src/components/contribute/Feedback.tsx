@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, Status } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { StageTrack } from "./StageTrack";
+import { uploadEvidence } from "./evidence-upload";
 
 /** Respond to validation comments; a reply with a corrected file sends the item straight back to review. */
 export function Feedback() {
@@ -16,7 +17,8 @@ export function Feedback() {
   const unitName = viewer?.portal.unitName ?? "";
   const mine = (hub?.evidence ?? []).filter((e) => e.comments.length > 0);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [file, setFile] = useState<Record<string, string>>({});
+  const [file, setFile] = useState<Record<string, File | undefined>>({});
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<Record<string, string>>({});
   const types = hub?.uploads.types ?? [];
 
@@ -26,14 +28,21 @@ export function Feedback() {
       setErr((x) => ({ ...x, [id]: "Write a reply so the reviewer knows what changed." }));
       return;
     }
-    const r = await run({ type: "evidence.respond", id, text, file: file[id] || undefined });
+    const picked = file[id];
+    setUploading(true);
+    const sent = await uploadEvidence(picked ? [picked] : [], { unitSlug: "", evidenceId: id }).finally(() => setUploading(false));
+    if (!sent.ok) {
+      toast(sent.message, "error");
+      return;
+    }
+    const r = await run({ type: "evidence.respond", id, text, file: sent.files[0] });
     if (!r.ok) {
       toast(r.message, "error");
       return;
     }
     toast("Resubmitted. The reviewer has been notified and the item is back in the queue.");
     setDraft((d) => ({ ...d, [id]: "" }));
-    setFile((f) => ({ ...f, [id]: "" }));
+    setFile((f) => ({ ...f, [id]: undefined }));
     setErr((x) => ({ ...x, [id]: "" }));
   };
 
@@ -112,15 +121,15 @@ export function Feedback() {
                 <div className="btns-row">
                   <label className="btn">
                     <Icon name="paperclip" size={18} />
-                    {file[e.id] || "Attach corrected file"}
+                    {file[e.id]?.name || "Attach corrected file"}
                     <input
                       type="file"
                       className="sr-only"
                       accept={types.map((t) => `.${t.toLowerCase()}`).join(",")}
-                      onChange={(ev) => setFile((f) => ({ ...f, [e.id]: ev.target.files?.[0]?.name ?? "" }))}
+                      onChange={(ev) => setFile((f) => ({ ...f, [e.id]: ev.target.files?.[0] }))}
                     />
                   </label>
-                  <button type="button" className="btn btn--dark" disabled={pending} onClick={() => void send(e.id)}>
+                  <button type="button" className="btn btn--dark" disabled={pending || uploading} onClick={() => void send(e.id)}>
                     <Icon name="send" size={18} /> Send and resubmit
                   </button>
                 </div>

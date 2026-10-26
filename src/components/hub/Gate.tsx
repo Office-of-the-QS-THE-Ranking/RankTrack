@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { NAV } from "@/components/shell/nav";
 import { Card, Empty, PageHeader } from "@/components/ui/primitives";
@@ -16,7 +17,10 @@ export async function Gate({ path, title, children }: { path: string; title: str
   const viewer = await getViewer();
   const variant = path.startsWith("/portal") ? "unit" : "office";
   const item = NAV[variant].flatMap((g) => g.items).find((i) => i.href === path);
-  if (!viewer || !item) return children;
+  // Fail closed: no session goes to sign-in (a layout isn't re-rendered on client navigation, so it can't be the
+  // only check), and a path missing from the navigation is never shown by default.
+  if (!viewer) redirect(`/signin?next=${encodeURIComponent(path)}`);
+  if (!item) throw new Error(`Gate: ${path} is not in the ${variant} navigation, so no permission guards it.`);
   const target = variant === "unit" ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
   const featureName = item.feature ? (await readState()).config.features.find((f) => f.id === item.feature)?.name : undefined;
   const switchedOff = item.feature && !featureOn((await readState()), item.feature);

@@ -1,9 +1,11 @@
 /*
- * Upgrades a stored governance document to the current schema. Pure: the store calls it on the live row
- * and on recovery points taken by an older build, so neither is ever re-seeded over real records.
+ * Upgrades a stored governance model to the current schema. Pure: the store calls it on its tables' contents
+ * when an older build wrote them, and on recovery points taken by an older build, so neither is ever re-seeded
+ * over real records. Up to schema 8 the store was one JSON document (hub_state); schema 9 is the relational store.
  */
 import { ROLE } from "./catalog";
 import { importUstDirectory } from "./directory";
+import type { DirectoryEntry } from "./ust-directory";
 import { SCHEMA, WORKFLOWS } from "./seed";
 import type { Assignment, GovernanceState, RoleId } from "./types";
 
@@ -34,7 +36,10 @@ function dedupe(list: Assignment[]): Assignment[] {
   return [...out.values()];
 }
 
-type Stored = Omit<GovernanceState, "schema"> & { schema: number; roles?: unknown; templates?: unknown };
+/** Older documents carried fields the relational store drops (the audit trail moved to its own table at 9). */
+type Legacy = { roles?: unknown; templates?: unknown; audit?: unknown };
+type LegacyRecords = { postViews?: unknown };
+type Stored = Omit<GovernanceState, "schema" | "records"> & { schema: number; records: GovernanceState["records"] & LegacyRecords } & Legacy;
 
 function from4(s: Stored): Stored {
   for (const a of s.accounts) a.assignments = dedupe(a.assignments.map((x) => ({ ...x, roleId: legacyRole(x.roleId, !!a.external) })));
@@ -63,24 +68,37 @@ function from5(s: Stored): Stored {
 }
 
 /** Schema 7 imports the full UST directory without replacing existing units or their history. */
-function from6(s: Stored): Stored {
-  s.units = importUstDirectory(s.units, new Date().toISOString());
+function from6(s: Stored, directory: DirectoryEntry[]): Stored {
+  s.units = importUstDirectory(s.units, directory, new Date().toISOString());
   return { ...s, schema: 7 };
 }
 
 /** Schema 8 starts anonymous view counts; past audience activity is not reconstructed. */
 function from7(s: Stored): Stored {
-  s.records.postViews ??= {};
   s.records.postViewsStartedAt ??= new Date().toISOString();
   return { ...s, schema: 8 };
 }
 
-/** The document at the current schema, or null when it comes from a schema this build can't upgrade. */
-export function migrate<T extends { schema: number }>(doc: T): T | null {
+/**
+ * Schema 9 is the relational store: the audit trail lives in audit_events, outside the model, and post views
+ * only in hub_post_views (the document's own counts were never used: it held none when they moved).
+ */
+function from8(s: Stored): Stored {
+  delete s.audit;
+  delete s.records.postViews;
+  return { ...s, schema: 9 };
+}
+
+/**
+ * The model at the current schema, or null when it comes from a schema this build can't upgrade.
+ * `directory`: the University directory (unit_directory), which schema 7 imports.
+ */
+export function migrate<T extends { schema: number }>(doc: T, directory: DirectoryEntry[]): T | null {
   let s = structuredClone(doc) as unknown as Stored;
   if (s.schema === 4) s = from4(s);
   if (s.schema === 5) s = from5(s);
-  if (s.schema === 6) s = from6(s);
+  if (s.schema === 6) s = from6(s, directory);
   if (s.schema === 7) s = from7(s);
+  if (s.schema === 8) s = from8(s);
   return s.schema === SCHEMA ? (s as unknown as T) : null;
 }

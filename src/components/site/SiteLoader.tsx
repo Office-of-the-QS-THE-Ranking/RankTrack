@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { UNIT, UNIVERSITY } from "./Lockup";
+import { serverViews } from "@/lib/governance/server/views";
+import { UNIVERSITY } from "./Lockup";
 
 /**
  * Opening screen after sei.dost.gov.ph: the reverse seal and the unit mark on black, lit by a sweep of
@@ -7,7 +8,8 @@ import { UNIT, UNIVERSITY } from "./Lockup";
  * so it clears itself without JavaScript; SiteMotion removes it once its fade has run. Shown on full
  * page loads with the same four-second sweep on every visit, and skipped under reduced motion.
  */
-export function SiteLoader() {
+export async function SiteLoader() {
+  const { office } = await serverViews();
   return (
     <div className="w-loader" aria-hidden="true">
       <div className="w-loader__mark">
@@ -15,7 +17,7 @@ export function SiteLoader() {
           <Image src="/brand/ust-seal-reverse.png" alt="" width={640} height={634} sizes="(max-width: 700px) 120px, 156px" preload />
         </span>
         <span className="w-loader__name">{UNIVERSITY}</span>
-        <span className="w-loader__unit">{UNIT}</span>
+        <span className="w-loader__unit">{office.name}</span>
       </div>
     </div>
   );

@@ -5,7 +5,8 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Story } from "@/lib/data";
 import { readPreview, watchPreview, type PostPreviewDraft } from "@/lib/post-preview";
 import { PageHero } from "../PageHero";
-import { PostArticle, relatedStories } from "./PostArticle";
+import { PostArticle } from "./PostArticle";
+import { relatedStories } from "./related";
 
 /** The composer's draft drawn as the public post page, redrawn as the composer changes it. */
 export function PostPreviewView({ stories }: { stories: Story[] }) {

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { FAMILY, LATEST_EDITION, daysUntil, formatDate, groupOf, readinessLevel, type Ranking } from "@/lib/data";
+import { daysUntil, formatDate, readinessLevel, type Ranking } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
 import { Direction, Meter } from "@/components/ui/primitives";
+import { serverViews } from "@/lib/governance/server/views";
 
 /** "Education 501–600" → subject + band; "834" → world rank; "Baseline" → status. Keeps rows aligned. */
 export function splitResult(current: string) {
@@ -17,8 +18,9 @@ export function splitResult(current: string) {
  * One of the eight ranking cards. Internal: current, previous, direction, readiness, next deadline,
  * pending items (proposal §2C). Public: published results only, no readiness or deadlines.
  */
-export function RankingCard({ ranking: r, mode }: { ranking: Ranking; mode: "internal" | "public" }) {
-  const fam = FAMILY[r.family];
+export async function RankingCard({ ranking: r, mode }: { ranking: Ranking; mode: "internal" | "public" }) {
+  const { families, groupOf, latestEdition } = await serverViews();
+  const fam = families[r.family];
   const href = mode === "internal" ? `/admin/rankings/${r.slug}` : `/rankings/${r.slug}`;
   const days = daysUntil(r.deadline);
   const lvl = readinessLevel(r.readiness);
@@ -73,7 +75,7 @@ export function RankingCard({ ranking: r, mode }: { ranking: Ranking; mode: "int
         <>
           <span className="rcard__msg">{r.message}</span>
           <span className="rcard__go">
-            <span className="muted small">{LATEST_EDITION} edition</span>
+            <span className="muted small">{latestEdition} edition</span>
             <span className="row" style={{ ["--gap" as string]: "6px" } as CSSProperties}>
               Explore <Icon name="arrow" size={16} />
             </span>
