@@ -32,10 +32,10 @@ async function serve(bucket: Bucket, path: string, cache: string, download?: str
  * A file from the media buckets. A post's picture is open to anyone while a published post shows it; until then
  * (drafts, posts in review, unpublished ones, uploads not yet saved) only people who manage posts can see it. A
  * unit's logo is open to anyone once a unit carries it; before that, only to people who edit the Directory. A
- * file attached to evidence goes only to people who may see that record, as a download. Public pictures come
- * from the public bucket: a redirect to its address when R2_PUBLIC_URL is set, otherwise streamed from it; the
- * rest are streamed from the private bucket. The website's photographs, SDG icons and the units' official arms
- * are open to anyone.
+ * file attached to evidence goes only to people who may see that record, as a download. The website's
+ * photographs, SDG icons and the units' official arms are open to anyone. Public pictures come from the public
+ * bucket: a redirect when it has a custom domain (publicUrl), otherwise streamed from here with headers that let
+ * Vercel's CDN cache them; the rest are streamed from the private bucket.
  */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const src = `/media/${(await ctx.params).path.join("/")}`;
@@ -43,7 +43,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
   if (ref) {
     const url = publicUrl(ref);
     if (url) return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "public, max-age=86400" } });
-    return serve("public", ref, "public, max-age=86400, stale-while-revalidate=604800");
+    // The CDN keeps reference pictures for a month; browsers for a day.
+    return serve("public", ref, "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=604800");
   }
 
   const evidence = evidencePath(src);
@@ -72,5 +73,6 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
   if (!(await ensurePublished(path).catch((e: unknown) => (console.error(e), false)))) return missing();
   const url = publicUrl(path);
   if (url) return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "public, max-age=300" } });
-  return serve("public", path, "public, max-age=3600, stale-while-revalidate=86400");
+  // An hour, so a picture taken off the website stops being served soon after.
+  return serve("public", path, "public, max-age=3600, s-maxage=3600, stale-while-revalidate=600");
 }

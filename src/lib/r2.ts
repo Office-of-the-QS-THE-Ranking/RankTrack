@@ -28,10 +28,16 @@ function r2(): R2 {
 const encodeKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");
 const objectUrl = (bucket: Bucket, key: string) => `${r2().endpoint}/${r2().buckets[bucket]}/${encodeKey(key)}`;
 
-/** Where the public bucket is served (its r2.dev address or custom domain), or null when none is set. */
+/**
+ * Where browsers may be sent for a public file: the public bucket's custom domain, or null. Never its r2.dev
+ * address: Cloudflare rate-limits r2.dev and means it for development only, and some networks block it outright
+ * (pictures then fail to load). Without a custom domain the Hub streams public files itself and Vercel's CDN
+ * caches them.
+ */
 export function publicUrl(key: string) {
   const base = process.env.R2_PUBLIC_URL?.replace(/\/+$/, "");
-  return base ? `${base}/${encodeKey(key)}` : null;
+  if (!base || /\.r2\.dev$/i.test(new URL(base).hostname)) return null;
+  return `${base}/${encodeKey(key)}`;
 }
 
 /**
