@@ -48,7 +48,8 @@ const subscribe = (l: () => void) => {
 const snapshot = () => items;
 const none: Item[] = [];
 
-const ICON = { ok: "check-circle", error: "alert", info: "info" } as const;
+const ICON = { ok: "check-circle", error: "x-circle", info: "info" } as const;
+const TITLE = { ok: "All set", error: "Something went wrong", info: "Just so you know" } as const;
 
 export function Toaster() {
   const list = useSyncExternalStore(subscribe, snapshot, () => none);
@@ -132,10 +133,15 @@ function ToastItem({ item }: { item: Item }) {
       onFocus={() => setHeld(true)}
       onBlur={() => setHeld(false)}
     >
-      <Icon name={ICON[item.tone]} size={17} />
-      <p className="toast__text">{item.message}</p>
+      <span className="toast__icon" aria-hidden="true">
+        <Icon name={ICON[item.tone]} size={30} strokeWidth={1.8} />
+      </span>
+      <div className="toast__body">
+        <p className="toast__title">{TITLE[item.tone]}</p>
+        <p className="toast__text">{item.message}</p>
+      </div>
       <button type="button" className="toast__close" onClick={close} aria-label="Dismiss">
-        <Icon name="close" size={14} />
+        <Icon name="close" size={16} />
       </button>
       <span className="toast__timer" aria-hidden="true" />
     </li>

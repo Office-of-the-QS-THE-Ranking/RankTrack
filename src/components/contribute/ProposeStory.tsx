@@ -7,7 +7,6 @@ import { Icon } from "@/components/ui/Icon";
 import { Card, Notice, Pattern, SdgList } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
-import { skipChecks } from "@/lib/dev-checks";
 import { useViews } from "@/components/reference/ReferenceProvider";
 
 type Fields = {
@@ -93,7 +92,7 @@ export function ProposeStory() {
         <h2 className="sent__title">Proposal received</h2>
         <p className="lead-text">
           &ldquo;{f.title}&rdquo; now goes through the publication workflow: an evidence reviewer checks it against the evidence you linked, then a
-          University Administrator approves it for the public Impact and Innovation page. You will be notified at each decision.
+          University-wide Administrator approves it for the public Impact and Innovation page. You will be notified at each decision.
         </p>
         <div className="btns-row">
           <Link href="/portal" className="btn btn--dark">
@@ -116,7 +115,7 @@ export function ProposeStory() {
         onSubmit={async (e) => {
           e.preventDefault();
           setTried(true);
-          if ((missing.length || !consent) && !skipChecks()) return;
+          if ((missing.length || !consent)) return;
           const r = await run({
             type: "story.propose",
             unitSlug: viewer?.portal.unitId ?? "",

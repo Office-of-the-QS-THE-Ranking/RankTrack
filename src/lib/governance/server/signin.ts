@@ -7,14 +7,13 @@ import "server-only";
  * it is deliberately not a Server Function, which a browser could call with any address.
  */
 import { randomBytes } from "node:crypto";
-import { ROLE } from "../catalog";
+import { HUB_OFFICE, ROLE } from "../catalog";
 import { domainAllowed, workspacesOf } from "../derive";
 import { raiseAlert } from "../engine";
 import { log, type Ctx } from "../engine/core";
 import { addAssignment, createAccount } from "../engine/mutations";
-import { activeAssignments, grantsFor, today, topGrant, UNIVERSITY } from "../rbac";
+import { activeAssignments, grantsFor, runsHub, today, topGrant, UNIVERSITY } from "../rbac";
 import type { Account, GovernanceState } from "../types";
-import { applyProfile, readProfile } from "./dev-access";
 import { runSystem } from "./run";
 import { readState } from "./store";
 import { knownDevice } from "./db/audit";
@@ -44,8 +43,9 @@ export function landing(state: GovernanceState, a: Account, next?: string) {
 }
 
 /**
- * The first University Administrator (HUB_BOOTSTRAP_ADMIN) is created, or restored, at their Google sign-in
- * while the Hub has no active University Administrator: on a new Hub, and as the way back in if every one is lost.
+ * The first Administrator of the Rankings Office (HUB_BOOTSTRAP_ADMIN) is created, or restored, at their Google
+ * sign-in while no active Administrator runs the Hub University-wide: on a new Hub, and as the way back in if
+ * every one is lost.
  */
 let bootstrapWarned = false;
 
@@ -53,13 +53,13 @@ function bootstrapAdmin(ctx: Ctx, email: string, name: string) {
   const owner = process.env.HUB_BOOTSTRAP_ADMIN?.trim().toLowerCase();
   if (!owner || email !== owner) return;
   const s = ctx.state;
-  const active = s.accounts.some((a) => a.status === "Active" && activeAssignments(a, ctx.day).some((x) => x.roleId === ROLE.admin));
+  const active = s.accounts.some((a) => a.status === "Active" && activeAssignments(a, ctx.day).some(runsHub));
   if (active) {
     // Whoever controls that mailbox can take the Hub back whenever no administrator is left; once real ones exist,
     // the variable should go.
     if (!bootstrapWarned && process.env.NODE_ENV === "production") {
       bootstrapWarned = true;
-      console.warn("HUB_BOOTSTRAP_ADMIN is still set though the Hub has an active University Administrator. Remove it from the production environment.");
+      console.warn("HUB_BOOTSTRAP_ADMIN is still set though an active Administrator runs the Hub. Remove it from the production environment.");
     }
     return;
   }
@@ -68,12 +68,12 @@ function bootstrapAdmin(ctx: Ctx, email: string, name: string) {
     existing.status = "Active";
     existing.statusReason = undefined;
     existing.statusChangedAt = ctx.iso;
-    if (!activeAssignments(existing, ctx.day).some((x) => x.roleId === ROLE.admin)) addAssignment(ctx, existing, ROLE.admin, UNIVERSITY);
-    log(ctx, "account.bootstrap", "Account", res(existing), "Success", "University Administrator restored: the Hub had none active");
+    if (!activeAssignments(existing, ctx.day).some(runsHub)) addAssignment(ctx, existing, ROLE.admin, UNIVERSITY);
+    log(ctx, "account.bootstrap", "Account", res(existing), "Success", "Administrator restored: no one ran the Hub");
     return;
   }
-  const a = createAccount(ctx, { name: name || email, email, title: "University Administrator", unitId: "rankings-office", roleId: ROLE.admin, scope: UNIVERSITY });
-  log(ctx, "account.bootstrap", "Account", res(a), "Success", "First University Administrator, created at first sign-in");
+  const a = createAccount(ctx, { name: name || email, email, title: "Administrator", unitId: HUB_OFFICE, roleId: ROLE.admin, scope: UNIVERSITY });
+  log(ctx, "account.bootstrap", "Account", res(a), "Success", "First Administrator, created at first sign-in");
 }
 
 /** Only Google's own photo host, over HTTPS, at a size that stays sharp on high-density screens. */
@@ -96,7 +96,9 @@ export async function completeSignIn(input: {
   next?: string;
   /** Google's hosted-domain claim: the Google Workspace the account belongs to, absent for personal Google accounts. */
   hd?: string;
-}): Promise<{ ok: true; token: string; dest: string } | { ok: false; why: Refusal }> {
+  /** "Keep me signed in" as ticked on the sign-in screen; it becomes the account's choice. Absent: unchanged. */
+  stay?: boolean;
+}): Promise<{ ok: true; token: string; dest: string; staySeconds?: number } | { ok: false; why: Refusal }> {
   const email = input.email.trim().toLowerCase();
   let token = "";
   const name = (input.name ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
@@ -104,7 +106,6 @@ export async function completeSignIn(input: {
   let sessionId = "";
   let accountId = "";
   let refusal = null as Refusal | null;
-  const dev = await readProfile();
   // Whether this device signed in to the account before: the whole audit trail, not only the day the model holds.
   const existing = (await readState()).accounts.find((x) => x.email.toLowerCase() === email);
   const seenDevice = existing ? await knownDevice(existing.id, input.device) : false;
@@ -123,7 +124,6 @@ export async function completeSignIn(input: {
       return { ok: true, message: "Refused" };
     }
     bootstrapAdmin(ctx, email, name);
-    applyProfile(ctx, dev, email, name);
     const a = s.accounts.find((x) => x.email.toLowerCase() === email);
     const signingIn = (who: Account) => ({ ...ctx.actor, id: who.id, name: who.name, role: "Signing in" });
     if (!a) {
@@ -153,18 +153,24 @@ export async function completeSignIn(input: {
     a.lastLogin = ctx.iso;
     a.firstLogin ??= ctx.iso;
     a.avatar = avatar;
+    if (input.stay !== undefined && !!a.sessionPrefs?.stay !== input.stay) {
+      const { idleMinutes } = a.sessionPrefs ?? {};
+      a.sessionPrefs = input.stay || idleMinutes ? { ...(idleMinutes ? { idleMinutes } : {}), ...(input.stay ? { stay: true } : {}) } : undefined;
+    }
     if (a.status === "Pending Invitation") {
       a.status = "Active";
       a.statusChangedAt = ctx.iso;
       log(ctx, "account.activate", "Account", res(a), "Success", "Invitation accepted at first sign-in");
     }
-    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${input.device}`, { ...signingIn(a), role: topGrant(grants)?.roleName ?? "No role" });
-    if (!known && a.external) raiseAlert(ctx, "Suspicious sign-in", "Medium", `External collaborator ${a.name} signed in from a new device (${input.device}).`, a.id);
+    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${input.device}${a.sessionPrefs?.stay ? " · stays signed in" : ""}`, { ...signingIn(a), role: topGrant(grants)?.roleName ?? "No role" });
+    if (!known && a.external) raiseAlert(ctx, "Suspicious sign-in", "Medium", `External partner ${a.name} signed in from a new device (${input.device}).`, a.id);
     return { ok: true, message: "Signed in" };
   });
   if (refusal) return { ok: false, why: refusal };
   const state = await readState();
   const account = state.accounts.find((a) => a.id === accountId);
   if (!sessionId || !account) return { ok: false, why: "not-registered" };
-  return { ok: true, token, dest: landing(state, account, input.next) };
+  // someone who chose to stay signed in keeps the cookie past closing the browser, until the longest session ends
+  const stay = account.sessionPrefs?.stay;
+  return { ok: true, token, dest: landing(state, account, input.next), ...(stay ? { staySeconds: state.security.session.absoluteHours * 3600 } : {}) };
 }

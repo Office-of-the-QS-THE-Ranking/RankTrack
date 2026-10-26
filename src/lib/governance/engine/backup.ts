@@ -1,6 +1,6 @@
 /*
- * Backup and disaster recovery. Anyone with view rights sees status; only University Administrators run
- * backups and tests, and restoring or deleting a recovery point needs a second University Administrator.
+ * Backup and disaster recovery. Anyone with view rights sees status; only University-wide Administrators run
+ * backups and tests, and restoring or deleting a recovery point needs a second University-wide Administrator.
  */
 import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
@@ -10,7 +10,7 @@ import { openRequest } from "./requests";
 const TARGET = (id: string, label: string) => ({ type: "Recovery point", id, label });
 
 function manager(ctx: Ctx, action: string, id: string, label: string): CommandResult | null {
-  if (!can(ctx, "backup", "manage")) return deny(ctx, action, "Backup", TARGET(id, label), "Only University Administrators can run backup operations.");
+  if (!can(ctx, "backup", "manage")) return deny(ctx, action, "Backup", TARGET(id, label), "Only University-wide Administrators can run backup operations.");
   return null;
 }
 
@@ -76,7 +76,7 @@ export function schedule(ctx: Ctx, patch: { retentionDays?: number; monthlyMonth
   return ok(`Saved: ${changes.join("; ")}.`);
 }
 
-/** Restoring or deleting never happens directly: it opens a request for a second University Administrator. */
+/** Restoring or deleting never happens directly: it opens a request for a second University-wide Administrator. */
 export function requestDestructive(ctx: Ctx, operation: "restore" | "delete", pointId: string, justification: string): CommandResult {
   const p = ctx.state.backup.points.find((x) => x.id === pointId);
   if (!p) return invalid("That recovery point no longer exists.");
@@ -88,5 +88,5 @@ export function requestDestructive(ctx: Ctx, operation: "restore" | "delete", po
   if (ctx.state.requests.some((r) => r.status === "Pending" && r.payload.kind === "destructive" && r.payload.snapshotId === p.id))
     return invalid(`A request for ${p.id} is already waiting for approval.`);
   const req = openRequest(ctx, "destructive", { kind: "destructive", operation, snapshotId: p.id }, `${operation === "restore" ? "Restore the Hub from" : "Delete"} recovery point ${p.id}`, justification);
-  return ok("Sent for approval. A second University Administrator must approve.", { requestId: req.id });
+  return ok("Sent for approval. A second University-wide Administrator must approve.", { requestId: req.id });
 }

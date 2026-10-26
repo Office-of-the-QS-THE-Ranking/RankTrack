@@ -40,8 +40,8 @@ export function Backup() {
       title: operation === "restore" ? `Restore from ${p.id}?` : `Delete ${p.id}?`,
       body:
         operation === "restore"
-          ? `Changes since ${fmtDate(p.at, true)} are rolled back. The audit log and sign-ins are kept. A second University Administrator must approve first.`
-          : "It's removed once a second University Administrator approves.",
+          ? `Changes since ${fmtDate(p.at, true)} are rolled back. The audit log and sign-ins are kept. A second University-wide Administrator must approve first.`
+          : "It's removed once a second University-wide Administrator approves.",
       confirm: "Request approval",
       tone: "danger",
       input: { label: "Reason", required: true, multiline: true, placeholder: "What this recovers from" },
@@ -57,7 +57,7 @@ export function Backup() {
         <Stat label="Last restore test" icon="refresh" value={lastTest ? lastTest.result : "None"} sub={lastTest ? fmtDate(lastTest.at) : "Run one monthly"} tone={lastTest?.result === "Passed" ? "ok" : "danger"} />
       </div>
 
-      {!canRun && <ReadOnly>View only. University Administrators run backups and restores.</ReadOnly>}
+      {!canRun && <ReadOnly>View only. University-wide Administrators run backups and restores.</ReadOnly>}
 
       {pending.length > 0 && (
         <p className="adm-note">
@@ -71,7 +71,7 @@ export function Backup() {
       <Block
         title={
           <>
-            Recovery points <Hint text="Restoring or deleting a point always needs a second University Administrator's approval." />
+            Recovery points <Hint text="Restoring or deleting a point always needs a second University-wide Administrator's approval." />
           </>
         }
         actions={

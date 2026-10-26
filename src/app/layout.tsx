@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Newsreader } from "next/font/google";
 import { connection } from "next/server";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { DevAccess } from "@/components/dev/DevAccess";
 import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
 import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
@@ -28,8 +27,8 @@ import "@/styles/site-ascent.css";
 import "@/styles/site-pages.css";
 import "@/styles/site-post.css";
 import "@/styles/portal-typography.css";
-import "@/styles/dev.css";
 import "@/styles/pickers.css";
+import "@/styles/profile-modal.css";
 import "@/styles/content-tabs.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
@@ -85,7 +84,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <FieldErrors />
         <CursorFx />
         <SpeedInsights />
-        {process.env.NODE_ENV === "development" && process.env.HUB_DEV_ACCESS === "on" && <DevAccess />}
       </body>
     </html>
   );

@@ -2,12 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ROLE } from "@/lib/governance/catalog";
-import { invitationUnitMatchesRole } from "@/lib/governance/invitation";
+import { invitationUnitMatchesRole, unitSection } from "@/lib/governance/invitation";
 import { accountFilterOptions, matchesAccountFilter, matchesAccessRequestFilter } from "@/lib/governance/account-filters";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { AccountRow, RequestRow } from "@/lib/governance/console-types";
 import { trackStatus } from "@/lib/governance/request-tracker";
-import { UNIVERSITY, has, rolePermissions, union, unitScope } from "@/lib/governance/rbac";
+import { UNIVERSITY, has, permissionsAt, rolePermissions, roleScope, union, unitScope } from "@/lib/governance/rbac";
 import type { RoleId, Scope } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
@@ -35,7 +35,6 @@ import {
   type ConfirmOptions,
 } from "../ui";
 import { DateField, Select } from "@/components/ui/pickers";
-import { useSkipChecks } from "@/lib/dev-checks";
 
 type Filter = "Accounts" | "Requests";
 const FILTERS: { key: Filter; label: string }[] = [
@@ -204,8 +203,8 @@ function AccountFilters({ unit, role, onUnit, onRole }: { unit: string; role: st
   const { data } = useConsole();
   const { directory } = useReference();
   const options = accountFilterOptions(role, data.units, data.accounts ?? [], data.requests, directory);
-  const unitLabel = role === ROLE.admin ? "UST Office" : role === ROLE.coordinator ? "College/Faculty" : role === ROLE.external ? "Affiliation" : "Unit";
-  const allUnits = role === ROLE.admin ? "All UST offices" : role === ROLE.coordinator ? "All colleges/faculties" : "All affiliations";
+  const unitLabel = role === ROLE.student ? "College/Faculty" : role === ROLE.external ? "Affiliation" : role ? "Office or College/Faculty" : "Unit";
+  const allUnits = role === ROLE.student ? "All colleges/faculties" : role === ROLE.external ? "All affiliations" : "All offices and colleges";
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -508,7 +507,6 @@ function AccountSheet({ account: a, onClose }: { account: AccountRow | null; onC
 }
 
 function EditDetails({ a, onDone }: { a: AccountRow; onDone: () => void }) {
-  const skip = useSkipChecks();
   const act = useAct();
   const [name, setName] = useState(a.name);
   const [title, setTitle] = useState(a.title);
@@ -530,7 +528,7 @@ function EditDetails({ a, onDone }: { a: AccountRow; onDone: () => void }) {
         <button
           type="button"
           className="btn btn--sm btn--dark"
-          disabled={!dirty || (!skip && name.trim().length < 3)}
+          disabled={!dirty || name.trim().length < 3}
           onClick={async () => {
             const r = await act({ type: "account.update", id: a.id, name: name.trim(), title: title.trim() });
             if (r.ok) onDone();
@@ -583,12 +581,11 @@ function Transfer({ a, onDone }: { a: AccountRow; onDone: () => void }) {
 /* ---------- Roles held, and adding one with a preview ---------- */
 
 function RolesTab({ a }: { a: AccountRow }) {
-  const skip = useSkipChecks();
   const { data, confirm } = useConsole();
   const act = useAct();
   const v = data.viewer;
   const roleOf = (id: string) => data.roles.find((r) => r.id === id);
-  const current = union(...a.assignments.filter((x) => !x.expires || x.expires > data.day).map((x) => rolePermissions(x.roleId)));
+  const current = union(...a.assignments.filter((x) => !x.expires || x.expires > data.day).map((x) => rolePermissions(x.roleId, x.scope)));
   const [adding, setAdding] = useState(false);
   const [roleId, setRoleId] = useState("");
   const [scope, setScope] = useState<Scope>(UNIVERSITY);
@@ -598,7 +595,8 @@ function RolesTab({ a }: { a: AccountRow }) {
   const pick = (id: string) => {
     setRoleId(id);
     const r = roleOf(id);
-    setScope(r?.scopeKind === "university" && universityAdmin ? UNIVERSITY : r?.scopeKind === "custom" ? { ...UNIVERSITY, datasets: [] } : unitScope(a.unitId));
+    const start = roleScope(id, a.unitId);
+    setScope(r?.scopeKind === "custom" ? { ...UNIVERSITY, datasets: [] } : start.units === "all" && !universityAdmin ? unitScope(a.unitId) : start);
   };
   const reset = () => {
     setAdding(false);
@@ -606,7 +604,7 @@ function RolesTab({ a }: { a: AccountRow }) {
     setNote("");
     setExpires("");
   };
-  const after = roleId ? union(current, rolePermissions(roleId)) : current;
+  const after = roleId ? union(current, rolePermissions(roleId, scope)) : current;
   const needsEnd = roleId === ROLE.external;
 
   return (
@@ -699,7 +697,7 @@ function RolesTab({ a }: { a: AccountRow }) {
             <button
               type="button"
               className="btn btn--dark btn--sm"
-              disabled={!skip && (!roleId || (needsEnd && !expires))}
+              disabled={!roleId || (needsEnd && !expires)}
               onClick={async () => {
                 const r = await act({ type: "assignment.add", accountId: a.id, roleId: roleId as RoleId, scope, expires: expires || undefined, note });
                 if (r.ok) reset();
@@ -727,27 +725,33 @@ export function scopeText(s: Scope, data: ReturnType<typeof useConsole>["data"])
 
 function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const formId = useId();
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const v = data.viewer;
-  const [f, setF] = useState({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", expires: "", external: false });
+  const [f, setF] = useState({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", section: "", expires: "", external: false });
   const [custom, setCustom] = useState(false);
   const [scope, setScope] = useState<Scope>(UNIVERSITY);
   const universityAdmin = v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "edit"));
   useEffect(() => {
     if (open) {
-      setF({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", expires: "", external: false });
+      setF({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", section: "", expires: "", external: false });
       setCustom(false);
     }
   }, [open]);
   const role = data.roles.find((r) => r.id === f.roleId);
-  const ready = skip || f.lastName.trim() && f.firstName.trim() && /@/.test(f.email) && f.unitId && f.roleId && (!f.external || f.expires);
+  const ready = f.lastName.trim() && f.firstName.trim() && /@/.test(f.email) && f.unitId && f.roleId && (!f.external || f.expires);
   const effectiveRole = f.external ? ROLE.external : f.roleId;
-  const unitOptions = data.units.filter((unit) => unit.status === "Active" && invitationUnitMatchesRole(unit, effectiveRole) && viewerCan(v, "accounts", "create", { unitId: unit.id })).sort((a, b) => a.name.localeCompare(b.name));
+  // Administrators and Coordinators work in a University Office or a College/Faculty; Students only in a College/Faculty; guests under an office
+  const asksSection = effectiveRole === ROLE.admin || effectiveRole === ROLE.coordinator;
+  const section = asksSection ? f.section : effectiveRole === ROLE.student ? "academic" : effectiveRole ? "offices" : "";
+  const unitOptions = data.units
+    .filter((unit) => unit.status === "Active" && unitSection(unit) === section && invitationUnitMatchesRole(unit, effectiveRole) && viewerCan(v, "accounts", "create", { unitId: unit.id }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const defaultScope = role && f.unitId ? roleScope(role.id, f.unitId) : null;
   const changeRole = (roleId: string, external = f.external) => {
     const unit = data.units.find((candidate) => candidate.id === f.unitId);
-    setF({ ...f, roleId, external, unitId: unit && invitationUnitMatchesRole(unit, roleId) ? unit.id : "" });
+    const keep = unit && invitationUnitMatchesRole(unit, roleId) && (roleId === ROLE.admin || roleId === ROLE.coordinator ? true : unitSection(unit) === (roleId === ROLE.student ? "academic" : "offices"));
+    setF({ ...f, roleId, external, section: keep && unit ? (unitSection(unit) ?? "") : "", unitId: keep && unit ? unit.id : "" });
     setCustom(false);
     setScope(UNIVERSITY);
   };
@@ -802,9 +806,18 @@ function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
             ))}
           </Select>
         </Field>
+        {asksSection && (
+          <Field label="Office or College">
+            <Select className="select" value={f.section} onChange={(value) => { setF({ ...f, section: value, unitId: "" }); setCustom(false); }} required aria-label="University Office or College/Faculty">
+              <option value="">Choose</option>
+              <option value="offices">University Office</option>
+              <option value="academic">College/Faculty</option>
+            </Select>
+          </Field>
+        )}
         <Field label="Unit">
-          <Select className="select" value={f.unitId} onChange={(unitId) => { setF({ ...f, unitId }); setCustom(false); }} disabled={!effectiveRole} required aria-label="Unit">
-            <option value="">{!effectiveRole ? "Choose a role first" : effectiveRole === ROLE.coordinator ? "Choose a Faculty/College" : "Choose a University Office"}</option>
+          <Select className="select" value={f.unitId} onChange={(unitId) => { setF({ ...f, unitId }); setCustom(false); }} disabled={!section} required aria-label="Unit">
+            <option value="">{!effectiveRole ? "Choose a role first" : !section ? "Choose an office or college first" : section === "academic" ? "Choose a College/Faculty" : "Choose a University Office"}</option>
             {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
           </Select>
         </Field>
@@ -832,13 +845,13 @@ function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
           </Block>
         ) : (
           <p className="adm-note">
-            Access scope: {role.scopeKind === "university" ? "University-wide" : "their unit"}.{" "}
+            Access scope: {defaultScope?.units === "all" ? "University-wide" : "their unit"}.{" "}
             <button
               type="button"
               className="link"
               onClick={() => {
                 setCustom(true);
-                setScope(role.scopeKind === "university" && universityAdmin ? UNIVERSITY : f.unitId ? unitScope(f.unitId) : UNIVERSITY);
+                setScope(defaultScope?.units === "all" && universityAdmin ? UNIVERSITY : f.unitId ? unitScope(f.unitId) : UNIVERSITY);
               }}
             >
               Change
@@ -847,7 +860,7 @@ function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
         ))}
       {role && (
         <Disclosure title={`What ${role.name} can do`}>
-          <PermissionMatrix caption={`${role.name} permissions`} cell={diffCell({}, role.permissions)} />
+          <PermissionMatrix caption={`${role.name} permissions`} cell={diffCell({}, permissionsAt(role, custom ? scope : (defaultScope ?? { units: [] })))} />
         </Disclosure>
       )}
     </Sheet>

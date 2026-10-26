@@ -66,3 +66,16 @@ describe("proxy", () => {
     expect(proxy(req).headers.get("location")).toBeNull();
   });
 });
+
+describe("store migrations", () => {
+  it("move hub_meta.version when they change store rows, so running servers reload", () => {
+    const dir = path.resolve(__dirname, "../supabase/migrations");
+    // from the first migration that follows the rule; earlier ones are already applied
+    for (const file of readdirSync(dir).filter((f) => f >= "20261027310000")) {
+      const sql = readFileSync(path.join(dir, file), "utf8").replace(/--.*$/gm, "");
+      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits"].includes(t));
+      if (edits.length) expect(sql, file).toMatch(/update\s+public\.hub_meta\s+set\s+version\s*=\s*version\s*\+\s*1/i);
+    }
+  });
+});
+

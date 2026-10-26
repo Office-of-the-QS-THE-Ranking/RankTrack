@@ -13,6 +13,7 @@ import { ADMIN_MODULES, roleOf } from "../catalog";
 import { flagOn, portalScope, workspacesOf } from "../derive";
 import { activeAssignments, canWith, grantsFor, initials, mergedPermissions, scopeLabel, today, topGrant } from "../rbac";
 import type { Account, GovernanceState, Session } from "../types";
+import { idleLimit, sessionExpired } from "../session-limits";
 import type { Viewer } from "../viewer";
 import { readState, touch } from "./store";
 
@@ -27,6 +28,10 @@ export const SESSION_COOKIE = SECURE ? "__Host-hub_session" : "hub_session";
 const LEGACY_COOKIE = "hub_session";
 export const SESSION_COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax", path: "/", secure: SECURE } as const;
 
+/** "Keep me signed in" from the sign-in screen, held through the trip to Google and read once at /auth/callback. */
+export const STAY_COOKIE = SECURE ? "__Host-hub_stay" : "hub_stay";
+export const STAY_COOKIE_OPTIONS = { ...SESSION_COOKIE_OPTIONS, maxAge: 600 } as const;
+
 /** The store keeps only the SHA-256 of a session token: reading the database or the console yields no working session. */
 export const sessionKey = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -38,6 +43,19 @@ export function sessionIdOf(jar: Jar): string | null {
   return token ? sessionKey(token) : null;
 }
 
+/**
+ * Keep the session cookie past closing the browser (until the longest session ends), or make it a browser
+ * session cookie again. The token itself doesn't change.
+ */
+export function persistSessionCookie(jar: Jar, seconds: number | null) {
+  const token = jar.get(SESSION_COOKIE)?.value ?? jar.get(LEGACY_COOKIE)?.value;
+  if (!token) return;
+  jar.set(SESSION_COOKIE, token, seconds && seconds > 0 ? { ...SESSION_COOKIE_OPTIONS, maxAge: Math.floor(seconds) } : SESSION_COOKIE_OPTIONS);
+}
+
+/** How long a staying-signed-in cookie should last for a session started at `createdAt`. */
+export const staySeconds = (absoluteHours: number, createdAt: string, now = Date.now()) => absoluteHours * 3600 - (now - Date.parse(createdAt)) / 1000;
+
 export function clearSessionCookie(jar: Jar) {
   jar.delete(SESSION_COOKIE);
   if (LEGACY_COOKIE !== SESSION_COOKIE) jar.delete(LEGACY_COOKIE);
@@ -48,10 +66,8 @@ export type SessionProblem = "ended" | "expired" | "suspended" | "reauth";
 export function checkSession(state: GovernanceState, id: string, now = new Date()): { session: Session; account: Account } | { problem: SessionProblem } {
   const session = state.sessions.find((s) => s.id === id);
   if (!session) return { problem: "ended" };
-  const { idleMinutes, absoluteHours } = state.security.session;
-  const t = now.getTime();
-  if (t - Date.parse(session.lastSeen) > idleMinutes * 60_000 || t - Date.parse(session.createdAt) > absoluteHours * 3_600_000) return { problem: "expired" };
   const account = state.accounts.find((a) => a.id === session.accountId);
+  if (sessionExpired(state.security.session, account?.sessionPrefs, session, now.getTime())) return { problem: "expired" };
   if (!account || account.status !== "Active") return { problem: "suspended" };
   if (account.reauthAfter && account.reauthAfter > session.createdAt) return { problem: "reauth" };
   if (!activeAssignments(account, today(now)).length) return { problem: "suspended" };
@@ -93,12 +109,23 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
       programId,
       programName: programId ? unitName(programId) : undefined,
     },
-    // The Administration console opens on the sections the viewer may see; only University Administrators have any.
+    // The Administration console opens on the sections the viewer may see; only University-wide Administrators have any.
     admin: ADMIN_MODULES.filter((m) => canWith(grants, m, "view")),
     flags: state.config.flags.filter((f) => flagOn(state, f.id, account)).map((f) => f.id),
     features: Object.fromEntries(state.config.features.map((f) => [f.id, f.enabled])),
     dataGrants: (account.dataGrants ?? []).filter((g) => g.until > day),
-    session: { id: session.id, startedAt: session.createdAt, ...state.security.session, mfa: session.mfa },
+    session: {
+      id: session.id,
+      startedAt: session.createdAt,
+      ...state.security.session,
+      // What applies to this person: 0 when they stay signed in. The policy's own limit stays as policyIdleMinutes.
+      idleMinutes: idleLimit(state.security.session, account.sessionPrefs) ?? 0,
+      policyIdleMinutes: state.security.session.idleMinutes,
+      prefIdleMinutes: account.sessionPrefs?.idleMinutes,
+      stay: !!account.sessionPrefs?.stay,
+      mfa: session.mfa,
+    },
+    notify: { email: !!account.notifyPrefs?.email, off: account.notifyPrefs?.off ?? [] },
   };
 }
 

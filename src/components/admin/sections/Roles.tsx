@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { AccountRow, RoleRow } from "@/lib/governance/console-types";
 import { has } from "@/lib/governance/rbac";
 import type { Assignment, RoleId } from "@/lib/governance/types";
-import { PermissionMatrix } from "../parts";
+import { PermissionMatrix, diffCell } from "../parts";
 import { EmptyNote, Pill, Tabs, fmtDate, plural, useConsole } from "../ui";
 import { scopeText } from "./Accounts";
 
@@ -13,7 +13,7 @@ type Tab = "Roles" | "Temporary access";
 /** Where an assignment of each kind of role normally reaches. */
 const SCOPE: Record<RoleRow["scopeKind"], string> = {
   university: "University-wide",
-  unit: "Their college or faculty",
+  unit: "Their office or college",
   custom: "Chosen for each person, with an end date",
 };
 
@@ -80,7 +80,7 @@ function RoleDetail({ role }: { role: RoleRow }) {
           <h3 className="adm-detail-head__title">{role.name}</h3>
           <p className="adm-muted">{role.description}</p>
           <p className="adm-inline adm-inline--wrap">
-            <Pill tone="neutral">{SCOPE[role.scopeKind]}</Pill>
+            <Pill tone="neutral">{role.universityPermissions ? "Their office or college; University-wide in the Rankings Office" : SCOPE[role.scopeKind]}</Pill>
             <span className="adm-muted small">{plural(role.members, "person", "people")}</span>
           </p>
         </div>
@@ -88,7 +88,13 @@ function RoleDetail({ role }: { role: RoleRow }) {
 
       <Tabs label="Role details" value={tab} onChange={setTab} tabs={["Permissions", "People"] as const} />
 
-      {tab === "Permissions" && <PermissionMatrix caption={`${role.name} permissions`} cell={(m, a) => (has(role.permissions, m, a) ? "granted" : "none")} />}
+      {tab === "Permissions" &&
+        (role.universityPermissions ? (
+          // what an office or college Administrator holds, and what a University-wide one adds
+          <PermissionMatrix caption={`${role.name} permissions; added ones are held only University-wide`} cell={diffCell(role.permissions, role.universityPermissions)} />
+        ) : (
+          <PermissionMatrix caption={`${role.name} permissions`} cell={(m, a) => (has(role.permissions, m, a) ? "granted" : "none")} />
+        ))}
 
       {tab === "People" &&
         (data.accounts ? (

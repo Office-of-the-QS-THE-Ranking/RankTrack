@@ -11,7 +11,7 @@ import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, ok, re
 import { createUnit } from "./mutations";
 import { needsApproval, openRequest } from "./requests";
 
-const KINDS: OrgKind[] = ["Office", "Faculty", "College", "Institute", "School", "Student Government", "Research Centre", "Department", "Program"];
+const KINDS: OrgKind[] = ["Office", "Faculty", "College", "Institute", "School", "Student Government", "Research Centre"];
 
 const res = (u: OrgUnit) => ({ type: "Unit", id: u.id, label: u.name });
 

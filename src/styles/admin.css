@@ -498,7 +498,7 @@
   box-shadow: 0 1px 1px rgb(0 0 0 / 0.05);
 }
 .adm-search:focus-within {
-  box-shadow: 0 0 0 3px rgb(252 191 21 / 0.35);
+  box-shadow: 0 0 0 1px var(--adm-line-2);
 }
 .adm-chips {
   display: flex;
@@ -2623,9 +2623,6 @@
   padding: 10px 12px 14px;
   font-size: 13px;
   color: var(--text-3);
-}
-.side__profile-pop form {
-  margin: 0;
 }
 .sitenotice {
   display: flex;

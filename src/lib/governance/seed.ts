@@ -8,7 +8,7 @@ import type { Reference } from "@/lib/reference";
 import { importUstDirectory } from "./directory";
 import type { AuditEvent, Dataset, GovernanceState, OrgUnit, QualityRule, TermMeta, Workflow } from "./types";
 
-export const SCHEMA = 9;
+export const SCHEMA = 10;
 
 export const SYSTEM_ACTOR = { id: "system", name: "Hub automation", role: "System" };
 
@@ -204,7 +204,7 @@ export const WORKFLOWS: Workflow[] = [
   {
     id: "privilege-escalation",
     name: "Privilege escalation",
-    description: "Giving an active account a role above the one it holds, such as making a coordinator a University Administrator.",
+    description: "Giving an active account a role above the one it holds, such as making a Coordinator an Administrator.",
     enabled: true,
     steps: [{ name: "Second administrator sign-off" }],
     slaDays: 2,
@@ -240,7 +240,7 @@ export const WORKFLOWS: Workflow[] = [
   {
     id: "destructive",
     name: "Destructive backup operations",
-    description: "Restoring the platform from a recovery point, or deleting one. A second University Administrator must agree.",
+    description: "Restoring the platform from a recovery point, or deleting one. A second University-wide Administrator must agree.",
     enabled: true,
     steps: [{ name: "Second administrator sign-off" }],
     slaDays: 1,

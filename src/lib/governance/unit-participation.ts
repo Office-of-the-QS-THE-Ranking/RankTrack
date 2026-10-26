@@ -36,10 +36,6 @@ export function buildUnits(state: GovernanceState, evidence: EvidenceItem[], cat
       revisions: mine.filter((item) => item.status === "Needs revision").length,
       rankingsServed: new Set(validated.flatMap((item) => item.mappedTo.map((mapping) => mapping.split(" · ")[0]))).size,
       assistance: state.records.assistance.some((request) => reach.includes(request.unitSlug)),
-      programs: state.units
-        .filter((child) => child.parentId === unit.id || state.units.find((parent) => parent.id === child.parentId)?.parentId === unit.id)
-        .filter((child) => child.kind === "Department" || child.kind === "Program")
-        .map((child) => ({ id: child.id, name: child.name, status: child.status })),
     }];
   });
 }

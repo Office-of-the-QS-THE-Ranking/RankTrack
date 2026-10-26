@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { Select } from "@/components/ui/pickers";
-import { skipChecks } from "@/lib/dev-checks";
 
 const TOPICS = [
   ["Understanding a requirement", "What a ranking is asking for"],
@@ -66,7 +65,7 @@ export function RequestAssistance() {
         onSubmit={async (e) => {
           e.preventDefault();
           setTried(true);
-          if ((!topic || message.trim().length < 10) && !skipChecks()) return;
+          if ((!topic || message.trim().length < 10)) return;
           const detail = [requirement && `Requirement ${requirement}`, ranking && `Ranking ${ranking}`, `Reply by ${contact.toLowerCase()}`].filter(Boolean).join(" · ");
           const r = await run({ type: "assistance.request", unitSlug: viewer?.portal.unitId ?? "", topic, urgent, message: `${message.trim()}\n\n${detail}` });
           if (!r.ok) toast(r.message, "error");

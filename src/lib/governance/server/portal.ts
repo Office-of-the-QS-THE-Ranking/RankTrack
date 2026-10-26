@@ -32,7 +32,6 @@ export async function portalContext() {
     code: org?.code ?? viewer.portal.unitId.toUpperCase(),
     status: org?.status ?? "Active",
     emails: org?.emails ?? [],
-    programs: [],
   };
   const reach = recordReach(state.units, unit.slug);
   const program = viewer.portal.programId ? descendants(state.units, viewer.portal.programId) : null;

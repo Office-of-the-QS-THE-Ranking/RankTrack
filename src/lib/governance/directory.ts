@@ -14,7 +14,7 @@ export function matchesUnitParent(parent: Pick<OrgUnit, "kind">, kind: UnitCreat
   return parent.kind === kind;
 }
 
-/** Departments follow their academic, office or research parent; the University is shared context only. */
+/** Units follow their academic, office or research parent; the University is shared context only. */
 export function directorySection(units: OrgUnit[], unit: OrgUnit): DirectorySection | undefined {
   if (unit.kind === "University") return undefined;
   const seen = new Set<string>();
@@ -41,7 +41,6 @@ function orgKind(entry: DirectoryEntry): OrgKind {
   if (entry.category === "Basic Education") return "School";
   if (entry.category === "Student Government") return "Student Government";
   if (entry.category === "Research Center") return "Research Centre";
-  if (entry.category === "Program/Department") return entry.name.startsWith("BS ") ? "Program" : "Department";
   if (entry.name.startsWith("Faculty")) return "Faculty";
   return entry.name.includes("College") ? "College" : "Institute";
 }

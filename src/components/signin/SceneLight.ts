@@ -4,7 +4,7 @@ import { skyFacets, SKY_STARS, TOWN_LIGHTS, type Tint } from "./sceneGeometry";
  * The light of the sign-in scene (SceneMotion runs it), on three kinds of canvas:
  *   - the sky, under everything: facets that assemble after the bands land, a slow sheen crossing them,
  *     single facets that glint and the pointer lighting those under it like a lamp. They are dark like cut
- *     onyx, lit faintly by the moon and the campus below, under a few gold stars that twinkle, fewer near
+ *     onyx, lit faintly by the moon and the campus below, under a field of gold stars that twinkle, fewer near
  *     the moon;
  *   - the halftone fields either side of the gold hairline. They sit inside the rotated band group, so their
  *     dots lie along the bands. A slow wave of light runs down them, a few dots flash, and the pointer lights
@@ -304,7 +304,7 @@ type Glint = { pane: Pane; born: number; life: number };
 const SHEEN = { dx: 0.8616, dy: -0.5075 };
 /** When the facets assemble (seconds after the canvases light up) and how long the sheen takes to cross. */
 const ASSEMBLE = 1.5;
-const SHEEN_EVERY = 10.5;
+const SHEEN_EVERY = 20;
 const SHEEN_TAKES = 3.8;
 
 /**
@@ -408,7 +408,7 @@ class SkyLayer {
     for (const s of SKY_STARS) {
       const x = s.x * w;
       const y = s.y * h;
-      const wash = mr ? smooth(mr * 2.4, mr * 9, Math.hypot(x - mx, y - my)) : 1;
+      const wash = mr ? smooth(mr * 1.8, mr * 4.5, Math.hypot(x - mx, y - my)) : 1;
       if (wash < 0.04) continue;
       const size = 1.8 + 5 * s.b;
       const a = (0.18 + 0.72 * Math.sqrt(s.b)) * wash;

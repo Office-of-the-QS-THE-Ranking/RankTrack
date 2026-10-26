@@ -75,23 +75,53 @@ const CONTRIBUTING: Partial<Record<ModuleKey, Action[]>> = {
 const OVERSIGHT = (): PermissionSet =>
   Object.fromEntries(Object.entries(ALL()).map(([k, acts]) => [k, acts.filter((a) => !CONTRIBUTING[k as ModuleKey]?.includes(a))])) as PermissionSet;
 
-export const ROLE = { admin: "university-admin", coordinator: "coordinator", external: "external" } as const satisfies Record<string, RoleId>;
+export const ROLE = { admin: "administrator", coordinator: "coordinator", student: "student", external: "external" } as const satisfies Record<string, RoleId>;
+
+/** The office that runs the Hub: its Administrators hold the role University-wide. */
+export const HUB_OFFICE = "rankings-office";
+
+/**
+ * Where a role may be held, by the Directory section of the person's unit: Administrators and Coordinators in a
+ * University Office or a College/Faculty, Students only in a College/Faculty, External partners only as guests of
+ * the Office (a University Office).
+ */
+export const ROLE_SECTIONS: Record<RoleId, ("academic" | "offices")[]> = {
+  administrator: ["offices", "academic"],
+  coordinator: ["offices", "academic"],
+  student: ["academic"],
+  external: ["offices"],
+};
+
+/**
+ * An Administrator of an office or college: their unit's analytics and data, read-only, in the contributor
+ * workspace (which shows only their unit). The executive dashboard and approvals are University-wide, so they
+ * stay with the Administrators who run the Hub.
+ */
+const UNIT_OVERSIGHT: PermissionSet = {
+  units: ["view", "export"],
+  reports: ["view", "export"],
+  knowledge: ["view"],
+  evidence: ["view", "export"],
+  data: ["view", "export"],
+  stories: ["view", "export"],
+};
 
 /** The Hub's roles. A role decides what; the assignment's scope decides where. */
 export const ROLES: Role[] = [
   {
     id: ROLE.admin,
-    name: "University Administrator",
-    description: "Runs the Hub: accounts, configuration, data oversight and approvals across the University.",
-    tier: 3,
-    permissions: OVERSIGHT(),
-    scopeKind: "university",
+    name: "Administrator",
+    description: "Views the analytics and data of their University Office or College/Faculty. In the Rankings Office, runs the Hub University-wide.",
+    tier: 4,
+    permissions: UNIT_OVERSIGHT,
+    universityPermissions: OVERSIGHT(),
+    scopeKind: "unit",
   },
   {
     id: ROLE.coordinator,
-    name: "College/Faculty Coordinator",
-    description: "Gathers and submits evidence, data and stories for their college or faculty.",
-    tier: 2,
+    name: "Coordinator",
+    description: "Gathers and submits evidence, data and stories for their University Office or College/Faculty.",
+    tier: 3,
     permissions: {
       units: ["view"],
       reports: ["view", "export"],
@@ -103,8 +133,19 @@ export const ROLES: Role[] = [
     scopeKind: "unit",
   },
   {
+    id: ROLE.student,
+    name: "Student",
+    description: "Views the Knowledge Center and their College/Faculty's reports.",
+    tier: 2,
+    permissions: {
+      knowledge: ["view"],
+      reports: ["view"],
+    },
+    scopeKind: "unit",
+  },
+  {
     id: ROLE.external,
-    name: "External Collaborator",
+    name: "External",
     description: "Temporary, read-only access to approved resources.",
     tier: 1,
     permissions: {

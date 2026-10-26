@@ -9,7 +9,6 @@ import { toast } from "@/components/ui/toast";
 import { useFlag, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { StageTrack } from "./StageTrack";
 import { uploadEvidence } from "./evidence-upload";
-import { skipChecks } from "@/lib/dev-checks";
 import { useViews } from "@/components/reference/ReferenceProvider";
 
 const TYPES = [
@@ -170,7 +169,7 @@ export function SubmitWizard() {
     requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>("h2")?.focus());
   };
   const next = () => {
-    if (errors[step] && !skipChecks()) {
+    if (errors[step]) {
       setTried((t) => t.map((v, i) => (i === step ? true : v)));
       return;
     }
@@ -556,7 +555,7 @@ export function SubmitWizard() {
                   className="btn btn--primary"
                   disabled={pending || uploading}
                   onClick={async () => {
-                    if (errors.some(Boolean) && !skipChecks()) {
+                    if (errors.some(Boolean)) {
                       setTried(STEPS.map(() => true));
                       return;
                     }

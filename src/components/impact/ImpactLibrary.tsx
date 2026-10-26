@@ -175,7 +175,7 @@ export function ImpactLibrary({ mode }: { mode: "internal" | "public" }) {
                     <Icon name="eye" size={18} /> View on the public site
                   </Link>
                 ) : (
-                  <span className="small muted">Not public. Publication needs an evidence review and a University Administrator&rsquo;s approval.</span>
+                  <span className="small muted">Not public. Publication needs an evidence review and a University-wide Administrator&rsquo;s approval.</span>
                 )}
                 {can("stories", "approve") &&
                   (open.state === "Published" ? (

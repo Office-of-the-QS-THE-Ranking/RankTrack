@@ -5,13 +5,16 @@
  * /auth/callback, where the Hub applies its own checks (account status, allowed domains, active roles) and
  * sends anyone it turns away back here with the reason.
  */
-import { useEffect, useState, useTransition } from "react";
-import { startGoogleSignIn } from "@/app/actions/session";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { emailVerified, startGoogleSignIn } from "@/app/actions/session";
 import { Icon } from "@/components/ui/Icon";
 import { toast, type ToastTone } from "@/components/ui/toast";
-import type { RequestUnit } from "@/lib/governance/access-requests";
+import { DRAFT_KEY, verifyMessage, type RequestUnit } from "@/lib/governance/access-requests";
 import { EMPTY_DRAFT, RequestAccessForm } from "./RequestAccessForm";
 import { SubmissionTracker } from "./SubmissionTracker";
+
+/** This browser's last "Keep me signed in" choice. */
+const KEEP_KEY = "hub-keep-signed-in";
 
 /** Why the last session ended (?ended=…), told once as a toast. */
 const ENDED: Record<string, [string, ToastTone]> = {
@@ -20,6 +23,7 @@ const ENDED: Record<string, [string, ToastTone]> = {
   suspended: ["This account is no longer active.", "error"],
   reauth: ["Please sign in again.", "info"],
   "signed-out": ["You signed out.", "ok"],
+  cleared: ["Cookies cleared and signed out on this device.", "ok"],
   "no-access": ["No workspace yet. Ask your unit coordinator for a role.", "info"],
 };
 
@@ -77,6 +81,7 @@ export function SignInFlow({
   ended,
   error,
   track,
+  verified,
   domains,
   units,
 }: {
@@ -85,12 +90,14 @@ export function SignInFlow({
   error?: string;
   /** A reference code from a receipt's tracker link (?track=…): the page opens on the tracker. */
   track?: string;
+  /** Back from Google with the request form's email check (?verified=…): the form reopens on Affiliation. */
+  verified?: string;
   /** The University's sign-in domains: a Thomasian's email must be on one. */
   domains: string[];
   /** The colleges, faculties and offices a Thomasian can name, by Directory heading. */
   units: { label: string; units: RequestUnit[] }[];
 }) {
-  const [step, setStep] = useState<Step>(track ? "track" : "start");
+  const [step, setStep] = useState<Step>(verified ? "request" : track ? "track" : "start");
   // once the viewer has moved between steps, each new step enters at once rather than after the page's entrance
   const [moved, setMoved] = useState(false);
   const [pending, start] = useTransition();
@@ -114,9 +121,45 @@ export function SignInFlow({
     history.replaceState(history.state, "", url);
   }, [ended, error]);
 
+  // Back from verifying the email: the answers kept for the trip, the result told once, and the check mark if Google vouched.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!verified || resumed.current) return;
+    resumed.current = true;
+    let saved = EMPTY_DRAFT;
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      sessionStorage.removeItem(DRAFT_KEY);
+      if (raw) saved = { ...EMPTY_DRAFT, ...(JSON.parse(raw) as Partial<typeof EMPTY_DRAFT>) };
+    } catch {
+      // storage blocked: the form starts empty
+    }
+    const email = saved.email.trim().toLowerCase();
+    setDraft(saved);
+    toast(verifyMessage(verified), verified === "ok" ? "ok" : verified === "cancelled" ? "info" : "error");
+    const url = new URL(location.href);
+    url.searchParams.delete("verified");
+    history.replaceState(history.state, "", url);
+    if (verified === "ok" && email) void emailVerified(email).then((yes) => yes && setDraft((d) => ({ ...d, verified: email })));
+  }, [verified]);
+
+  // "Keep me signed in": remembered on this browser so the box comes back as it was left
+  const [keep, setKeep] = useState(false);
+  useEffect(() => {
+    try {
+      setKeep(localStorage.getItem(KEEP_KEY) === "1");
+    } catch {}
+  }, []);
+  const changeKeep = (v: boolean) => {
+    setKeep(v);
+    try {
+      localStorage.setItem(KEEP_KEY, v ? "1" : "0");
+    } catch {}
+  };
+
   const google = () => {
     start(async () => {
-      const r = await startGoogleSignIn(next);
+      const r = await startGoogleSignIn(next, keep);
       if (r && !r.ok) toast(r.message, "info");
     });
   };
@@ -150,13 +193,18 @@ export function SignInFlow({
               Sign in via Institution Account
               {pending && <span className="si__spin" aria-hidden="true" />}
             </button>
+            <label className="si__keep">
+              <input type="checkbox" checked={keep} onChange={(e) => changeKeep(e.currentTarget.checked)} />
+              <span>Keep me signed in</span>
+            </label>
+            <div className="si__divider"><span>or</span></div>
             <button type="button" className="si__alt" onClick={() => go("request")}>
               <span className="si__alt-mark" aria-hidden="true">
-                <Icon name="key" size={17} />
+                <Icon name="user-plus" size={21} strokeWidth={1.6} />
               </span>
               Request access
               <span className="si__alt-go" aria-hidden="true">
-                <Icon name="arrow" size={14} strokeWidth={1.8} />
+                <Icon name="arrow" size={18} strokeWidth={1.6} />
               </span>
             </button>
           </div>
@@ -187,6 +235,7 @@ export function SignInFlow({
             go("track");
           }}
           onSignIn={() => go("start")}
+          startPart={verified ? 1 : 0}
         />
       )}
 

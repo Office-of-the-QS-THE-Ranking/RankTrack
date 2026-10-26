@@ -14,7 +14,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
-import { skipChecks } from "@/lib/dev-checks";
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 type Entry = {
@@ -245,33 +244,13 @@ export function FieldErrors() {
         if (entry.target.contains(target) || label?.contains(entry.target)) unmark(entry.el);
       }
     };
-    // Developer settings' "Skip input checks": turn off a form's native checks just before it submits.
-    const onSubmitting = (e: Event) => {
-      const t = e.target;
-      if (e instanceof KeyboardEvent && e.key !== "Enter") return;
-      const form = t instanceof HTMLButtonElement || t instanceof HTMLInputElement ? t.form : t instanceof Element ? t.closest("form") : null;
-      if (!form) return;
-      if (skipChecks()) {
-        if (!form.noValidate) {
-          form.noValidate = true;
-          form.dataset.skipChecks = "";
-        }
-      } else if (form.dataset.skipChecks !== undefined) {
-        form.noValidate = false;
-        delete form.dataset.skipChecks;
-      }
-    };
     document.addEventListener("invalid", onInvalid, true);
     document.addEventListener("input", onEdit);
     document.addEventListener("change", onEdit);
     document.addEventListener("pointerdown", onInteract, true);
     document.addEventListener("click", onInteract, true);
     document.addEventListener("focusin", onInteract);
-    document.addEventListener("click", onSubmitting, true);
-    document.addEventListener("keydown", onSubmitting, true);
     return () => {
-      document.removeEventListener("click", onSubmitting, true);
-      document.removeEventListener("keydown", onSubmitting, true);
       document.removeEventListener("invalid", onInvalid, true);
       document.removeEventListener("input", onEdit);
       document.removeEventListener("change", onEdit);

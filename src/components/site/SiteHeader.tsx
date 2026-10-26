@@ -475,9 +475,6 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
                 /
               </kbd>
             </button>
-            <Link href="/signin" className="w-signin">
-              Sign in
-            </Link>
             <button type="button" className="w-menubtn" aria-haspopup="dialog" onClick={() => sheetRef.current?.showModal()}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
                 <path d="M4 9h16M4 15h16" />
@@ -589,9 +586,6 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
               <Icon name="search" size={18} />
               Search rankings and stories
             </button>
-            <Link href="/signin" className="w-btn" onClick={closeSheet}>
-              Sign in to contribute
-            </Link>
           </div>
           <p className="w-sheet__contact" style={{ "--i": MENUS.length + 2 } as CSSProperties}>
             Questions go to <a href={`mailto:${ref.office.email}`}>{ref.office.email}</a>

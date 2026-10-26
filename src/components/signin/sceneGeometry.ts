@@ -143,8 +143,8 @@ export interface SkyStar {
 }
 
 /**
- * The stars of the night (SceneLight draws them): few and faint, sparser still under the words on the left
- * and toward the horizon, where the air is thick.
+ * The stars of the night (SceneLight draws them): plenty, most of them faint, sparser behind the University's
+ * name in the top left corner and toward the horizon, where the air is thick.
  */
 function field(seed: number, count: number): SkyStar[] {
   const r = seeded(seed);
@@ -152,10 +152,10 @@ function field(seed: number, count: number): SkyStar[] {
   for (let tries = 0; stars.length < count && tries < count * 40; tries++) {
     const x = r();
     const y = r();
-    const under = 0.18 + 0.82 * smoothstep(0.14, 0.62, x);
+    const under = 1 - 0.8 * (1 - smoothstep(0.1, 0.16, y)) * (1 - smoothstep(0.24, 0.32, x));
     const air = 1 - 0.75 * smoothstep(0.45, 0.95, y);
     if (r() > under * air) continue;
-    const b = r() ** 4.5;
+    const b = r() ** 4;
     const roll = r();
     stars.push({
       x: Math.round(x * 1000) / 1000,
@@ -167,7 +167,7 @@ function field(seed: number, count: number): SkyStar[] {
   return stars;
 }
 
-export const SKY_STARS = field(1611, 150);
+export const SKY_STARS = field(1611, 560);
 
 /**
  * The lights of main-building-3d.webp, as shares of its

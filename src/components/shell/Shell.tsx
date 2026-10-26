@@ -22,6 +22,7 @@ import { NAV, isActive, publicPathFor, rankingSubnav, type NavGroup, type Varian
 import { SearchPalette } from "./SearchPalette";
 import { NavIcon } from "./NavIcon";
 import { HeaderBreadcrumbs } from "./HeaderBreadcrumbs";
+import { ProfileSettings } from "./ProfileSettings";
 import { SECTIONS as ADMIN_SECTIONS, sectionHref } from "@/components/admin/sections";
 import { Select } from "@/components/ui/pickers";
 
@@ -254,7 +255,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const [opened, setOpened] = useState<Exclude<Drill, null>>("rankings");
   const [search, setSearch] = useState(false);
   const [bell, setBell] = useState(false);
-  const [me, setMe] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const closeProfile = useCallback(() => setProfileOpen(false), []);
   const [cycle, setCycle] = useState(hub?.currentCycle ?? "");
   const [theme, toggleTheme] = useTheme();
   const { run } = useGovern();
@@ -276,10 +278,9 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
     });
   const menuBtn = useRef<HTMLButtonElement>(null);
   const closeBell = useCallback(() => setBell(false), []);
-  const closeMe = useCallback(() => setMe(false), []);
   const closeSearch = useCallback(() => setSearch(false), []);
   const bellRef = useClickAway(bell, closeBell);
-  const meRef = useClickAway(me, closeMe);
+
 
   /* What this viewer may see: rows need their permission (within the viewer's unit in the contributor
      workspace) and their feature switched on in System Configuration; Administration needs an
@@ -335,7 +336,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   useEffect(() => {
     setMenu(false);
     setBell(false);
-    setMe(false);
+    setProfileOpen(false);
     setDrill(here);
   }, [pathname, here]);
 
@@ -366,6 +367,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   // Global search shortcuts: ⌘K / Ctrl+K anywhere, "/" outside text fields.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (profileOpen) return;
       const t = e.target as HTMLElement;
       const typing = t.closest("input, textarea, select, [contenteditable=true]");
       if (document.querySelector(".adm-confirm[open]")) return;
@@ -373,11 +375,11 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         e.preventDefault();
         setSearch(true);
       }
-      if (e.key === "Escape" && menu && !me) setMenu(false);
+      if (e.key === "Escape" && menu) setMenu(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menu, me]);
+  }, [menu, profileOpen]);
 
   const notes = hub?.notices ?? [];
   const unread = notes.filter((n) => n.unread).length;
@@ -404,6 +406,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         <button
           type="button"
           className="side__edge"
+         
           aria-hidden="true"
           tabIndex={-1}
           onClick={toggleRail}
@@ -638,8 +641,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
           layout={`${rail}${menu}${nav.length}`}
         />
         {viewer && (
-          <div className="side__profile" role="region" aria-label="Profile" ref={meRef}>
-            <button type="button" className="side__profile-button" data-tip={viewer.name} aria-controls="sidebar-account" aria-expanded={me} aria-haspopup="true" onClick={() => setMe((v) => !v)} aria-label={`Account: ${viewer.name}`}>
+          <div className="side__profile">
+            <button type="button" className="side__profile-button" data-tip={viewer.name} aria-expanded={profileOpen} aria-haspopup="dialog" onClick={() => setProfileOpen(true)} aria-label={`Account: ${viewer.name}`}>
               <span className="avatar" aria-hidden="true">
                 <Face src={viewer.avatar}>{viewer.initials}</Face>
               </span>
@@ -649,60 +652,25 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
               </span>
               <Icon name="chevron-down" size={16} />
             </button>
-            {me && (
-              <div id="sidebar-account" className="pop side__profile-pop" role="region" aria-label="Account">
-                <div className="pop__who">
-                  <span className="avatar" aria-hidden="true">
-                    <Face src={viewer.avatar}>{viewer.initials}</Face>
-                  </span>
-                  <span>
-                    <b>{viewer.name}</b>
-                    <span>
-                      {viewer.title} · {viewer.unitName}
-                    </span>
-                    <span className="pop__mail">{viewer.email}</span>
-                  </span>
-                </div>
-                <ul className="pop__roles" aria-label="Your roles">
-                  {viewer.roles.map((r) => (
-                    <li key={r.id + r.scope}>
-                      <b>{r.name}</b>
-                      <span>
-                        {r.scope}
-                        {r.expires ? ` · until ${new Date(r.expires + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="pop__security">
-                  <Icon name="shield-check" size={14} />
-                  {viewer.external ? "Sponsored guest" : "Google Workspace"}
-                  {viewer.session.mfa ? " · 2-step verified" : ""}
-                </p>
-                <div className="pop__sep" />
-                {canOther && (
-                  <Link href={other === "office" ? "/admin" : "/portal"} className="pop__item">
-                    <Icon name="swap" size={16} /> {other === "office" ? "Open the Office workspace" : "Open the contributor workspace"}
-                  </Link>
-                )}
-                <Link href={publicHref} className="pop__item">
-                  <Icon name="eye" size={16} /> Open the public view
-                </Link>
-                <div className="pop__sep" />
-                <form action={signOut}>
-                  <button type="submit" className="pop__item">
-                    <Icon name="logout" size={16} /> Sign out
-                  </button>
-                </form>
-              </div>
-            )}
+            <ProfileSettings
+              viewer={viewer}
+              open={profileOpen}
+              onClose={closeProfile}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              workspace={variant === "office" ? "office" : "portal"}
+              links={[
+                ...(canOther ? [{ href: other === "office" ? "/admin" : "/portal", label: other === "office" ? "Office workspace" : "Contributor workspace", icon: "swap" as const }] : []),
+                { href: publicHref, label: "Public view", icon: "eye" as const },
+              ]}
+            />
           </div>
         )}
       </aside>
       <button className="side__scrim" aria-hidden="true" tabIndex={-1} onClick={() => setMenu(false)} />
 
       {/* ---------- Main column ---------- */}
-      <div className="main" inert={menu ? true : undefined}>
+      <div className="main" inert={menu || undefined}>
         {hub?.site.noticeOn && hub.site.notice && (
           <div className="sitenotice" role="status">
             <Icon name="info" size={16} />

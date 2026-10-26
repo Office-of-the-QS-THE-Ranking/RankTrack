@@ -12,6 +12,7 @@ import { Children, Fragment, isValidElement, useEffect, useId, useLayoutEffect, 
 import { Icon } from "./Icon";
 import { cx } from "./primitives";
 import { recheckField } from "./validation";
+import { pickerSearchScore } from "@/lib/picker-search";
 
 const GAP = 6;
 const PAD = 8;
@@ -36,8 +37,8 @@ function place(anchor: HTMLElement, pop: HTMLElement, matchWidth: boolean) {
 }
 
 /** A trigger and its manual popover, kept beside it and closed by a press outside. Shared with the post editor's toolbar. */
-export function usePopover(open: boolean, onClose: () => void, matchWidth: boolean) {
-  const anchor = useRef<HTMLButtonElement>(null);
+export function usePopover<T extends HTMLElement = HTMLButtonElement>(open: boolean, onClose: () => void, matchWidth: boolean) {
+  const anchor = useRef<T>(null);
   const pop = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   useEffect(() => {
@@ -140,6 +141,8 @@ function readOptions(children: ReactNode, group?: string, out: Opt[] = []): Opt[
 }
 
 export interface SelectProps {
+  /** Search available choices, including close spelling matches. */
+  searchable?: boolean;
   /** <option> elements, optionally in <optgroup>s. `data-depth` on an option indents it. */
   children: ReactNode;
   value?: string;
@@ -160,19 +163,34 @@ export interface SelectProps {
   "aria-describedby"?: string;
 }
 
-export function Select({ children, value, defaultValue, onChange, className = "select", placeholder, id, name, required, disabled, autoFocus, title, ...aria }: SelectProps) {
-  const opts = readOptions(children);
-  const [own, setOwn] = useState(defaultValue ?? opts[0]?.value ?? "");
+export function Select({ children, value, defaultValue, onChange, className = "select", placeholder, id, name, required, disabled, autoFocus, title, searchable = false, ...aria }: SelectProps) {
+  const allOpts = readOptions(children);
+  const [query, setQuery] = useState<string | null>(null);
+  const opts = searchable && query?.trim()
+    ? allOpts.map((option, order) => ({ option, order, score: pickerSearchScore(option.text, query) }))
+      .filter(({ score }) => Number.isFinite(score)).sort((a, b) => a.score - b.score || a.order - b.order).map(({ option }) => option)
+    : allOpts;
+  const [own, setOwn] = useState(defaultValue ?? allOpts[0]?.value ?? "");
   const current = value ?? own;
   const selected = opts.findIndex((o) => o.value === current);
-  const sel = opts[selected];
+  const sel = allOpts.find((o) => o.value === current);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const typed = useRef({ text: "", at: 0 });
   const base = useId();
   const listId = `${base}-list`;
   const optId = (i: number) => `${base}-o${i}`;
-  const { anchor, pop } = usePopover(open, () => setOpen(false), true);
+  const { anchor, pop } = usePopover<HTMLButtonElement | HTMLInputElement>(open, () => setOpen(false), true);
+
+  useLayoutEffect(() => {
+    if (searchable && anchor.current instanceof HTMLInputElement) {
+      anchor.current.setCustomValidity(query?.trim() && !sel ? "Choose an option from the suggestions." : "");
+    }
+  }, [query, searchable, sel, anchor]);
+
+  useLayoutEffect(() => {
+    if (open && searchable && anchor.current && pop.current) place(anchor.current, pop.current, true);
+  }, [open, searchable, query, anchor, pop]);
 
   useEffect(() => {
     if (open && active >= 0) document.getElementById(optId(active))?.scrollIntoView({ block: "nearest" });
@@ -199,7 +217,9 @@ export function Select({ children, value, defaultValue, onChange, className = "s
   const commit = (i: number) => {
     const o = opts[i];
     if (!o || o.disabled) return;
+    setQuery(null);
     setOpen(false);
+    if (searchable) anchor.current?.focus({ preventScroll: true });
     recheckField(anchor.current);
     if (o.value === current) return;
     if (value === undefined) setOwn(o.value);
@@ -217,7 +237,7 @@ export function Select({ children, value, defaultValue, onChange, className = "s
     return order.find((i) => !opts[i].disabled && opts[i].text.toLowerCase().startsWith(t.text)) ?? -1;
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     const k = e.key;
     const printable = k.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
     if (!open) {
@@ -228,6 +248,12 @@ export function Select({ children, value, defaultValue, onChange, className = "s
         e.preventDefault();
         show(k === "Home" ? first() : last());
       } else if (printable) {
+        if (searchable) {
+          e.preventDefault();
+          show(0);
+          setQuery(k);
+          return;
+        }
         const i = match(k);
         if (i >= 0) show(i);
       }
@@ -283,8 +309,50 @@ export function Select({ children, value, defaultValue, onChange, className = "s
 
   return (
     <>
-      <button
-        ref={anchor}
+      {searchable ? <input
+        ref={(element) => { anchor.current = element; }}
+        type="text"
+        id={id}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open && active >= 0 && active < opts.length ? optId(active) : undefined}
+        aria-label={aria["aria-label"]}
+        aria-invalid={aria["aria-invalid"] || undefined}
+        aria-describedby={aria["aria-describedby"]}
+        className={cx(className, "pick-trigger", "pick-editable")}
+        value={query ?? sel?.text ?? ""}
+        placeholder={typeof placeholder === "string" ? placeholder : "Type to choose…"}
+        autoComplete="off"
+        autoFocus={autoFocus}
+        disabled={disabled}
+        required={required}
+        title={title ?? ""}
+        maxLength={120}
+        onFocus={(event) => { show(selected >= 0 ? selected : first()); event.currentTarget.select(); }}
+        onClick={() => { if (!open) show(selected >= 0 ? selected : first()); }}
+        onChange={(event) => {
+          const text = event.currentTarget.value;
+          setQuery(text);
+          setOpen(true);
+          setActive(-1);
+          const exact = allOpts.find((option) => !option.disabled && option.text.toLowerCase() === text.trim().toLowerCase());
+          const next = exact?.value ?? "";
+          if (value === undefined) setOwn(next);
+          if (next !== current) onChange?.(next);
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === "Escape") { stop(event); setOpen(false); }
+          else if (event.key === "Enter" && open) { event.preventDefault(); commit(active >= 0 ? active : first()); }
+          else if (event.key === "ArrowUp" && open && active < 0) { event.preventDefault(); setActive(last()); }
+          else if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Tab"].includes(event.key)) onKeyDown(event);
+        }}
+        onBlur={(event) => { if (!pop.current?.contains(event.relatedTarget as Node)) setOpen(false); }}
+      /> : <button
+        ref={(element) => { anchor.current = element; }}
         type="button"
         id={id}
         role="combobox"
@@ -307,8 +375,8 @@ export function Select({ children, value, defaultValue, onChange, className = "s
       >
         <span className="pick-trigger__label">{sel ? sel.label : placeholder}</span>
         <Icon name="chevron-down" size={15} className="pick-select__chevron" />
-      </button>
-      <Proxy name={name} value={current} required={required} disabled={disabled} missing="Choose one." />
+      </button>}
+      {searchable ? <input type="hidden" name={name} value={current} disabled={disabled} /> : <Proxy name={name} value={current} required={required} disabled={disabled} missing="Choose one." />}
       {open && (
         <div ref={pop} popover="manual" id={listId} role="listbox" aria-label={aria["aria-label"]} className="pick pick--list" onMouseDown={(e) => e.preventDefault()} onClick={keepLabel}>
           <div className="pick__scroll" role="presentation">
@@ -324,7 +392,7 @@ export function Select({ children, value, defaultValue, onChange, className = "s
                 </div>
               ),
             )}
-            {!opts.length && <div className="pick__empty">Nothing to choose</div>}
+            {!opts.length && <div className="pick__empty">{query ? "No matching options. Try another spelling." : "Nothing to choose"}</div>}
           </div>
         </div>
       )}

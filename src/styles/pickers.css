@@ -83,7 +83,7 @@
 .pick-trigger[aria-expanded="true"] {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--gold-200);
+  box-shadow: 0 0 0 1px var(--ink);
 }
 .pick-date__icon {
   flex: none;
@@ -137,6 +137,13 @@ input.pick-proxy {
   border-radius: max(0px, calc(14px - var(--pick-inset)));
   scrollbar-width: thin;
   scrollbar-color: var(--pick-line, rgb(var(--hair) / 0.18)) transparent;
+}
+.pick-editable {
+  cursor: text;
+  text-overflow: ellipsis;
+}
+.pick-editable::placeholder {
+  color: var(--pick-placeholder, var(--text-3));
 }
 .pick[data-side="top"] {
   animation-name: pick-in-up;
@@ -383,7 +390,7 @@ input.pick-proxy {
 .pick-num:focus-within {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--gold-200);
+  box-shadow: 0 0 0 1px var(--ink);
 }
 .pick-num__field {
   flex: 1;
@@ -482,33 +489,12 @@ input.pick-proxy {
   border-radius: var(--si-r);
 }
 .signin .pick-trigger[aria-expanded="true"] {
-  border-color: rgb(240 200 100 / 0.75);
+  border-color: rgb(var(--veil) / 0.45);
   background-color: rgb(8 7 6 / 0.48);
-  box-shadow: 0 0 0 3px rgb(252 191 21 / 0.12);
+  box-shadow: none;
 }
 .signin .pick-date__icon {
   color: rgb(var(--label) / 0.55);
-}
-
-/* Developer settings panel */
-.dev-access {
-  --pick-bg: #1b1a18;
-  --pick-fg: #f4f1ea;
-  --pick-muted: rgba(244, 241, 234, 0.55);
-  --pick-hover: rgba(255, 255, 255, 0.07);
-  --pick-chosen: rgba(233, 196, 106, 0.12);
-  --pick-line: rgba(255, 255, 255, 0.12);
-  --pick-edge: rgba(255, 255, 255, 0.12);
-  --pick-accent: #e9c46a;
-  --pick-accent-ink: #e9c46a;
-  --pick-on-accent: #1b1a18;
-}
-.dev-access .pick {
-  font-size: 13px;
-}
-.dev-access__field .dev-access__select {
-  padding-right: 28px;
-  background: #121110 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23bdb7ab' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center;
 }
 
 /* ---------- Field validation (components/ui/validation.tsx) ---------- */
@@ -521,6 +507,7 @@ input.pick-proxy {
 }
 .si__combo-box:has(> input[data-invalid]) > :is(.si__combo-clear, .si__combo-tag),
 .si__birthday:has(> input[data-invalid]) > .si__birthday-calendar,
+.si__email:has(> input[data-invalid]) > :is(.si__email-verify, .si__email-mark),
 .pick-num:has([data-invalid]) > .pick-num__step,
 .input-group:has([data-invalid]) > :is(button, svg:last-child) {
   visibility: hidden;

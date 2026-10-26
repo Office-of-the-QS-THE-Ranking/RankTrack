@@ -9,7 +9,6 @@ import { Icon } from "@/components/ui/Icon";
 import { UnitSelect } from "../parts";
 import { Block, Disclosure, EmptyNote, Field, Hint, KV, Pill, ReadOnly, SearchField, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
 import { NumberField, Select } from "@/components/ui/pickers";
-import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Datasets" | "Quality" | "Dictionary";
 
@@ -132,7 +131,6 @@ function Datasets() {
 }
 
 function DatasetSheet({ d, onClose }: { d: DatasetRow | null; onClose: () => void }) {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const [f, setF] = useState({ classification: "Public" as Classification, stewardId: "", ownerUnitId: "", years: 1, then: "Archive" as "Archive" | "Review" | "Dispose", exportPolicy: "Allowed" as ExportPolicy, justification: "" });
@@ -262,7 +260,7 @@ function DatasetSheet({ d, onClose }: { d: DatasetRow | null; onClose: () => voi
             <button
               type="button"
               className="btn btn--sm"
-              disabled={!skip && note.trim().length < 5}
+              disabled={note.trim().length < 5}
               onClick={async () => {
                 const r = await act({ type: "dataset.version", id: d.id, note });
                 if (r.ok) setNote("");

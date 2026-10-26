@@ -6,7 +6,6 @@ import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { Block, EmptyNote, Field, Hint, KV, Pill, ReadOnly, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
 import { DateField, NumberField, Select } from "@/components/ui/pickers";
-import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Sign-in" | "Access reviews" | "Privacy" | "Alerts" | "Protection";
 
@@ -66,7 +65,6 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /* ---------- Sign-in ---------- */
 
 function SignIn({ sec }: { sec: SecurityPolicy }) {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const edit = viewerCan(data.viewer, "security", "edit");
@@ -151,7 +149,7 @@ function SignIn({ sec }: { sec: SecurityPolicy }) {
               <button
                 type="button"
                 className="btn btn--sm"
-                disabled={!skip && !domain.trim()}
+                disabled={!domain.trim()}
                 onClick={() => {
                   setSso({ ...sso, domains: [...sso.domains, domain.trim().toLowerCase()] });
                   setDomain("");
@@ -402,7 +400,6 @@ function ReviewSheet({ review: r, onClose }: { review: AccessReview | null; onCl
 /* ---------- Privacy ---------- */
 
 function Privacy({ sec }: { sec: SecurityPolicy }) {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const edit = viewerCan(data.viewer, "security", "edit");
@@ -554,7 +551,7 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={!skip && dsr.subject.trim().length < 4}
+              disabled={dsr.subject.trim().length < 4}
               onClick={async () => {
                 const r = await act({ type: "dsr.create", request: dsr });
                 if (r.ok) {
@@ -597,7 +594,7 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={!skip && !pia?.name.trim()}
+              disabled={!pia?.name.trim()}
               onClick={async () => {
                 if (!pia) return;
                 const r = await act({ type: "pia.save", pia: { id: pia.id, name: pia.name, datasetId: pia.datasetId!, risk: pia.risk!, status: pia.status!, owner: pia.owner ?? data.viewer.id, measures: pia.measures ?? "" } });
@@ -696,7 +693,6 @@ function Alerts({ sec }: { sec: SecurityPolicy }) {
 const ESCALATE = ["University Data Protection Officer", "National Privacy Commission (through the DPO)", "University IT Services", "Office of the Secretary General"];
 
 function Incidents({ sec }: { sec: SecurityPolicy }) {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const [sel, setSel] = useState<string | null>(null);
@@ -760,7 +756,7 @@ function Incidents({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={!skip && f.title.trim().length < 6}
+              disabled={f.title.trim().length < 6}
               onClick={async () => {
                 const r = await act({ type: "incident.report", ...f });
                 if (r.ok) {
@@ -807,7 +803,7 @@ function Incidents({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={!skip && u.note.trim().length < 3}
+              disabled={u.note.trim().length < 3}
               onClick={async () => {
                 const r = await act({ type: "incident.update", id: inc.id, status: u.status, note: u.note, escalatedTo: u.escalatedTo || undefined });
                 if (r.ok) setU({ ...u, note: "" });
@@ -946,7 +942,7 @@ function Protection({ sec }: { sec: SecurityPolicy }) {
       <Block
         title={
           <>
-            Encryption keys {!rotate && <Hint text="Only University Administrators can rotate keys." />}
+            Encryption keys {!rotate && <Hint text="Only University-wide Administrators can rotate keys." />}
           </>
         }
       >

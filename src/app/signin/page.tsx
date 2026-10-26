@@ -30,8 +30,8 @@ export const viewport: Viewport = { themeColor: "#050505", colorScheme: "dark" }
  * gilt italic, and the form (SignInFlow); and at its foot the offices, the app's version and stage, and a live
  * date and clock. On phones the sidebar is a sheet under the scene.
  */
-export default async function SignIn({ searchParams }: { searchParams: Promise<{ next?: string; ended?: string; error?: string; track?: string }> }) {
-  const { next, ended, error, track } = await searchParams;
+export default async function SignIn({ searchParams }: { searchParams: Promise<{ next?: string; ended?: string; error?: string; track?: string; verified?: string }> }) {
+  const { next, ended, error, track, verified } = await searchParams;
   const viewer = await getViewer();
   if (viewer) {
     const to = safeNext(next);
@@ -58,12 +58,12 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
         <GlassLens />
         <CardBeam />
         <div className="signin__side">
-          <i className="signin__mark" aria-hidden="true" />
           <SignInFlow
             next={next}
             ended={ended}
             error={error}
             track={normalizeReference(track ?? "") || undefined}
+            verified={verified}
             domains={state.security.sso.domains}
             units={requestUnits(state.units)}
           />

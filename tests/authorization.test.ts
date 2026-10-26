@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { execute, housekeeping, makeCtx, SYSTEM } from "@/lib/governance/engine";
+import { UNIVERSITY } from "@/lib/governance/rbac";
 import { ROLE } from "@/lib/governance/catalog";
 import type { EvidenceRecord } from "@/lib/governance/types";
 import { ref, world } from "./helpers";
@@ -60,7 +61,7 @@ describe("evidence review", () => {
 
   it("is refused to the account that submitted it", () => {
     const w = world();
-    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id);
+    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
     w.state.records.evidence["EV-9001"] = record(a, w.eng.id);
     const r = execute(w.ctxFor(a), { type: "evidence.review", id: "EV-9001", decision: "accept", note: "" });
     expect(r.ok).toBe(false);
@@ -69,8 +70,8 @@ describe("evidence review", () => {
 
   it("is not refused to a different account that shares the submitter's name", () => {
     const w = world();
-    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id);
-    const b = w.person("Maria Santos", "b@ust.edu.ph", ROLE.admin, w.university.id);
+    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    const b = w.person("Maria Santos", "b@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
     w.state.records.evidence["EV-9001"] = record(a, w.eng.id);
     const r = execute(w.ctxFor(b), { type: "evidence.review", id: "EV-9001", decision: "accept", note: "" });
     expect(r.message).not.toMatch(/another reviewer/);

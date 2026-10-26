@@ -114,7 +114,7 @@ export function startReview(ctx: Ctx, name: string, population: "privileged" | "
     })
     .map((a) => a.id);
   const id = `AR-${nextId(ctx, "review", "", 3)}`;
-  ctx.state.security.reviews.unshift({ id, name: clean(name), scope: population === "all" ? "All active accounts" : population === "external" ? "External collaborators" : "Privileged, temporary and external accounts", due, status: "In progress", reviewerId: ctx.actor.id, decisions: {}, accountIds });
+  ctx.state.security.reviews.unshift({ id, name: clean(name), scope: population === "all" ? "All active accounts" : population === "external" ? "External partners" : "Privileged, temporary and external accounts", due, status: "In progress", reviewerId: ctx.actor.id, decisions: {}, accountIds });
   log(ctx, "review.start", "Security", { type: "Access review", id, label: clean(name) }, "Success", `${accountIds.length} accounts to recertify by ${due}`);
   return ok(`Review started for ${accountIds.length} ${accountIds.length === 1 ? "person" : "people"}.`);
 }
@@ -200,7 +200,7 @@ export function rotateKey(ctx: Ctx, id: string): CommandResult {
   const k = ctx.state.security.keys.find((x) => x.id === id);
   if (!k) return invalid("That key no longer exists.");
   const target = { type: "Key", id: k.id, label: k.name };
-  if (!can(ctx, "security", "manage")) return deny(ctx, "key.rotate", "Security", target, "Only University Administrators can rotate keys.");
+  if (!can(ctx, "security", "manage")) return deny(ctx, "key.rotate", "Security", target, "Only University-wide Administrators can rotate keys.");
   k.rotated = ctx.day;
   log(ctx, "key.rotate", "Security", target, "Success", `${k.algorithm} · next rotation ${addDays(ctx.day, k.rotationDays)}`);
   return ok(`${k.name} rotated.`);

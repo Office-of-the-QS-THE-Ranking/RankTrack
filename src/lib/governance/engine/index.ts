@@ -4,6 +4,7 @@
 import type { Command, CommandResult } from "../commands";
 import { has, isExpired, type Grant } from "../rbac";
 import { storyList } from "../records";
+import { sessionExpired, usedNote } from "../session-limits";
 import * as accounts from "./accounts";
 import * as backup from "./backup";
 import { configure } from "./config";
@@ -50,12 +51,12 @@ export function housekeeping(ctx: Ctx) {
       for (const g of grants) log(ctx, "access.expire", "Access", { type: "Dataset", id: g.datasetId, label: g.datasetId }, "Success", `${g.access} access for ${a.name} ended on ${g.until}`, SYSTEM);
     }
   }
-  const { idleMinutes, absoluteHours } = s.security.session;
   const now = ctx.now.getTime();
-  const live = s.sessions.filter((x) => now - Date.parse(x.lastSeen) <= idleMinutes * 60_000 && now - Date.parse(x.createdAt) <= absoluteHours * 3_600_000);
+  const prefsOf = (id: string) => s.accounts.find((a) => a.id === id)?.sessionPrefs;
+  const live = s.sessions.filter((x) => !sessionExpired(s.security.session, prefsOf(x.accountId), x, now));
   for (const x of s.sessions.filter((x) => !live.includes(x))) {
     const a = s.accounts.find((y) => y.id === x.accountId);
-    log(ctx, "session.timeout", "Session", { type: "Account", id: x.accountId, label: a?.name ?? x.accountId }, "Success", "Signed out automatically by the session policy", SYSTEM);
+    log(ctx, "session.timeout", "Session", { type: "Account", id: x.accountId, label: a?.name ?? x.accountId }, "Success", `Signed out automatically by the session policy${usedNote(x.createdAt, x.lastSeen)}`, SYSTEM);
   }
   s.sessions = live;
   // Access requests carry personal data the Office needs only while deciding: a month after one closes, the

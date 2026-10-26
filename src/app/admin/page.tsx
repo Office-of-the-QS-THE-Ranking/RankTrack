@@ -5,6 +5,8 @@ import { getViewer } from "@/lib/governance/server/session";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { InfoTooltip } from "@/components/ui/interactive";
+import { DashboardViewSwitch } from "@/components/dashboard/DashboardViewSwitch";
+import { DashboardViewPanel } from "@/components/dashboard/DashboardViewPanel";
 import { SubmissionsBoard } from "@/components/dashboard/SubmissionsBoard";
 import { Welcome } from "@/components/dashboard/Welcome";
 import { RankingsOverview } from "@/components/rankings/Overview";
@@ -14,11 +16,6 @@ export const metadata = {
     absolute: "Executive dashboard · Office workspace · UST Rankings Hub",
   },
 };
-
-const VIEWS = [
-  { key: "submissions", label: "Submissions", href: "/admin" },
-  { key: "rankings", label: "Rankings", href: "/admin?view=rankings" },
-] as const;
 
 export default async function ExecutiveDashboard({
   searchParams,
@@ -38,19 +35,7 @@ export default async function ExecutiveDashboard({
           <h1 className="ov__title">Dashboard</h1>
           <InfoTooltip>As of {formatAsOf(h.site.asOf)}</InfoTooltip>
         </div>
-        <nav className="ov-switch" aria-label="Dashboard view">
-          {VIEWS.map((v) => (
-            <Link
-              key={v.key}
-              href={v.href}
-              className="ov-switch__opt"
-              aria-current={view === v.key ? "page" : undefined}
-              scroll={false}
-            >
-              {v.label}
-            </Link>
-          ))}
-        </nav>
+        <DashboardViewSwitch view={view} />
         <div className="ov__actions">
           <Link href="/admin/reports" className="btn btn--sm">
             <Icon name="download" size={16} /> Report
@@ -60,18 +45,20 @@ export default async function ExecutiveDashboard({
 
       <Welcome h={h} viewer={viewer} />
 
-      {view === "rankings" ? (
-        <div className="ov-rankings">
-          <RankingsOverview
-            mode="internal"
-            embedded
-            rankings={h.rankings}
-            evidence={h.evidence.filter((e) => viewerCan(viewer, "evidence", "view", { unitId: e.unitSlug }))}
-          />
-        </div>
-      ) : (
-        <SubmissionsBoard h={h} viewer={viewer} />
-      )}
+      <DashboardViewPanel view={view}>
+        {view === "rankings" ? (
+          <div className="ov-rankings">
+            <RankingsOverview
+              mode="internal"
+              embedded
+              rankings={h.rankings}
+              evidence={h.evidence.filter((e) => viewerCan(viewer, "evidence", "view", { unitId: e.unitSlug }))}
+            />
+          </div>
+        ) : (
+          <SubmissionsBoard h={h} viewer={viewer} />
+        )}
+      </DashboardViewPanel>
     </div>
   );
 }

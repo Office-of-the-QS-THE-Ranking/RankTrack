@@ -16,7 +16,6 @@ import { canWith } from "../rbac";
 import { emblemPath } from "../unit-emblems";
 import type { GovernanceState } from "../types";
 import { anchorAudit } from "./db/audit";
-import { adminShortcut } from "./dev-access";
 import { mediaInUse } from "./media";
 import { reference } from "./reference";
 import { deletePoint, dropPendingAfter, pendingMark, readState, releaseMediaLater, restoreInto, seal, transact, verifyChain, verifyPoint, writePoint } from "./store";
@@ -154,7 +153,7 @@ async function commitWith(draft: GovernanceState, current: GovernanceState, acto
   const ref = await reference();
   upkeep(draft, ref, now);
   const mark = pendingMark();
-  const ctx = makeCtx(draft, actorOf(draft), ref, now, await adminShortcut());
+  const ctx = makeCtx(draft, actorOf(draft), ref, now);
   let result = safely(body, ctx);
   if (result.ok) result = await effects(ctx, result, verified);
   if (result.ok) {

@@ -3,7 +3,7 @@
  * uses them to decide what to show). A role decides what a user can do; the scope of each assignment
  * decides which records they can reach.
  */
-import { MODULES, roleOf } from "./catalog";
+import { HUB_OFFICE, MODULES, ROLE, roleOf } from "./catalog";
 import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Role, RoleId, Scope } from "./types";
 
 export const today = (now = new Date()) => now.toISOString().slice(0, 10);
@@ -35,7 +35,11 @@ export function normalize(set: PermissionSet): PermissionSet {
   return out;
 }
 
-export const rolePermissions = (roleId: string): PermissionSet => roleOf(roleId)?.permissions ?? {};
+/** A role's permissions; with a scope, what it holds there (a University-wide Administrator holds more). */
+export const rolePermissions = (roleId: string, scope?: Pick<Scope, "units">): PermissionSet => {
+  const role = roleOf(roleId);
+  return role ? (scope ? permissionsAt(role, scope) : role.permissions) : {};
+};
 
 export const has = (set: PermissionSet, m: ModuleKey, a: Action) => (set[m] ?? []).includes(a);
 
@@ -91,6 +95,15 @@ export const UNIVERSITY: Scope = { units: "all", rankingBodies: "all", years: "a
 
 export const unitScope = (unitId: string): Scope => ({ units: [unitId], rankingBodies: "all", years: "all", datasets: "all" });
 
+/** The scope a role starts with in a unit: University-wide for an Administrator of the Rankings Office, else the unit. */
+export const roleScope = (roleId: string, unitId: string): Scope => (roleId === ROLE.admin && unitId === HUB_OFFICE ? UNIVERSITY : unitScope(unitId));
+
+/** Whether an assignment runs the Hub: an Administrator held University-wide. */
+export const runsHub = (a: Pick<Assignment, "roleId" | "scope">) => a.roleId === ROLE.admin && a.scope.units === "all";
+
+/** What a role holds with a given scope: a University-wide assignment may carry more (Role.universityPermissions). */
+export const permissionsAt = (role: Role, scope: Pick<Scope, "units">): PermissionSet => (scope.units === "all" && role.universityPermissions) || role.permissions;
+
 export function scopeLabel(scope: Scope, units: OrgUnit[], datasetNames: Record<string, string> = {}): string {
   const parts: string[] = [];
   parts.push(scope.units === "all" ? "University-wide" : scope.units.map((id) => units.find((u) => u.id === id)?.name ?? id).join(", "));
@@ -133,7 +146,7 @@ export function grantsFor(account: Account, units: OrgUnit[], day: string): Gran
         assignmentId: a.id,
         roleId: role.id,
         roleName: role.name,
-        perms: role.permissions,
+        perms: permissionsAt(role, a.scope),
         units: reach,
         scopeUnits: a.scope.units,
         bodies: a.scope.rankingBodies,
@@ -179,7 +192,7 @@ export const topTier = (grants: Grant[]) => topGrant(grants)?.tier ?? 0;
  * scope must sit inside what the actor administers.
  */
 export function grantCheck(actor: Grant[], role: Role, scope: Scope, units: OrgUnit[]): { ok: true } | { ok: false; reason: string } {
-  const extra = beyond(role.permissions, mergedPermissions(actor));
+  const extra = beyond(permissionsAt(role, scope), mergedPermissions(actor));
   if (extra.length)
     return { ok: false, reason: `You can't assign ${role.name}: it includes permissions you don't hold (${extra.slice(0, 3).map((e) => `${e.module} ${e.action}`).join(", ")}${extra.length > 3 ? "…" : ""}).` };
   const admin = reach(actor, "accounts", "edit");

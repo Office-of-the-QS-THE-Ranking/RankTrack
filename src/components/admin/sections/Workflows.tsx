@@ -5,7 +5,8 @@ import { GUEST_DAYS, checkDomains } from "@/lib/governance/access-requests";
 import { ROLE } from "@/lib/governance/catalog";
 import type { RequestRow } from "@/lib/governance/console-types";
 import { trackRequest, trackStatus } from "@/lib/governance/request-tracker";
-import { UNIVERSITY, unitScope } from "@/lib/governance/rbac";
+import { invitationUnitMatchesRole } from "@/lib/governance/invitation";
+import { UNIVERSITY, roleScope, unitScope } from "@/lib/governance/rbac";
 import type { Applicant, RequestPayload, RoleId, WorkflowKey, WorkflowStep } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
@@ -13,7 +14,6 @@ import { UnitSelect } from "../parts";
 import { Avatar, Block, EmptyNote, Field, Hint, KV, Pill, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
 import { scopeText } from "./Accounts";
 import { DateField, NumberField, Select } from "@/components/ui/pickers";
-import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Inbox" | "All" | "Settings";
 
@@ -172,8 +172,7 @@ function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]
               ...(a.thomasian
                 ? [
                     ["Requester", "Thomasian"],
-                    ["College, faculty or office", a.unitId ? unit(a.unitId) : "Not given"],
-                    ["Position", a.position ?? p.title],
+                    ["Office or College/Faculty", a.unitId ? unit(a.unitId) : "Not given"],
                   ]
                 : [
                     ["Requester", "External partner"],
@@ -382,7 +381,7 @@ export function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: ()
       </>}
       {(!account || tab === "Profile") && r.canDecide && needsUnit && (
         <Field label="Unit" hint={requestedUnit ? "Where the account belongs. The requester named this one; change it if it's wrong." : "Where the account belongs. The request didn't name one."}>
-          <UnitSelect label="Unit" value={unitId} onChange={setUnitId} filter={(u) => u.status === "Active"} />
+          <UnitSelect label="Unit" value={unitId} onChange={setUnitId} filter={(u) => u.status === "Active" && invitationUnitMatchesRole(u, account?.roleId ?? "")} />
         </Field>
       )}
       {!account && r.canDecide && (
@@ -447,7 +446,7 @@ function Definitions() {
         open={!!wf}
         onClose={() => setEdit(null)}
         title={wf?.name ?? ""}
-        sub="Steps run in order, each decided by a different University Administrator."
+        sub="Steps run in order, each decided by a different University-wide Administrator."
         footer={
           <>
             <button type="button" className="btn" onClick={() => setEdit(null)}>
@@ -516,7 +515,6 @@ const KINDS: { key: Kind; label: string }[] = [
 ];
 
 function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const v = data.viewer;
@@ -530,7 +528,6 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
   }, [open]);
   const accounts = useMemo(() => [{ id: v.id, name: `${v.name} (you)` }, ...(data.accounts ?? []).filter((a) => a.id !== v.id && a.canEdit).map((a) => ({ id: a.id, name: a.name }))], [data.accounts, v]);
   const ready =
-    skip ||
     justification.trim().length >= 10 &&
     !(kind === "data-access" && (!da.datasetId || !da.until)) &&
     !(kind === "privilege-escalation" && !pe.roleId) &&
@@ -540,7 +537,7 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
     if (kind === "privilege-escalation") {
       const role = data.roles.find((r) => r.id === pe.roleId);
       const acc = data.people.find((p) => p.id === pe.accountId);
-      payload = { kind, accountId: pe.accountId, roleId: pe.roleId as RoleId, scope: role?.scopeKind === "university" ? UNIVERSITY : unitScope(acc?.unitId ?? v.unitId), expires: pe.expires || undefined };
+      payload = { kind, accountId: pe.accountId, roleId: pe.roleId as RoleId, scope: role ? roleScope(role.id, acc?.unitId ?? v.unitId) : unitScope(acc?.unitId ?? v.unitId), expires: pe.expires || undefined };
     } else if (kind === "data-access") payload = { kind, accountId: v.id, datasetId: da.datasetId, access: da.access, until: da.until };
     else payload = { kind, ...aa, roleId: ROLE.coordinator };
     const r = await act({ type: "request.create", workflowId: kind, payload, justification });

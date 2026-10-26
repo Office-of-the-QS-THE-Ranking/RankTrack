@@ -4,6 +4,7 @@
  * Automatic sign-out under the session policy. While someone works, a heartbeat keeps the server-side
  * session alive; after the idle period a warning appears, and if nobody answers it the session ends.
  * The server enforces the same timeout on every request, and also ends sessions an administrator revokes.
+ * An idleMinutes of 0 (the person chose to stay signed in) only keeps the heartbeat.
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -33,12 +34,12 @@ export function IdleGuard({ idleMinutes, warnMinutes }: { idleMinutes: number; w
       const idle = now - last.current;
       const limit = idleMinutes * 60_000;
       const warnAt = limit - warnMinutes * 60_000;
-      if (idle >= limit) {
+      if (idleMinutes > 0 && idle >= limit) {
         clearInterval(tick);
         end();
         return;
       }
-      setLeft(idle >= warnAt ? Math.ceil((limit - idle) / 1000) : null);
+      setLeft(idleMinutes > 0 && idle >= warnAt ? Math.ceil((limit - idle) / 1000) : null);
       // Tell the server about activity at most once a minute; it also learns of revocations this way.
       if (now - pinged.current > 60_000) {
         pinged.current = now;

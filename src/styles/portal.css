@@ -65,6 +65,7 @@ body:has(> .nf) {
 /* ---------- Sidebar: frosted panel attached to the screen edge ---------- */
 .side {
   top: 0;
+  overflow: visible;
   height: 100dvh;
   margin: 0;
   border: 0;
@@ -279,13 +280,6 @@ body:has(> .nf) {
 }
 .side__profile-button[aria-expanded="true"] > svg {
   transform: none;
-}
-.side__profile .side__profile-pop {
-  inset: auto 0 calc(100% + 8px);
-  width: 100%;
-  max-height: calc(100dvh - 180px);
-  overflow-y: auto;
-  transform-origin: bottom center;
 }
 @media (hover: hover) {
   .side__brand:hover {
@@ -990,7 +984,7 @@ body:has(> .nf) {
 .textarea:focus,
 .input-group:focus-within {
   border-color: var(--n-500);
-  box-shadow: 0 0 0 4px rgb(252 191 21 / 0.3);
+  box-shadow: 0 0 0 1px var(--n-500);
 }
 .choice {
   border-radius: 12px;
@@ -2141,11 +2135,6 @@ body:has(> .nf) {
   }
   .app--rail .side__profile-button[aria-expanded="true"]::after {
     display: none;
-  }
-  .app--rail .side__profile .side__profile-pop {
-    inset: auto auto 0 calc(100% + 14px);
-    width: 280px;
-    transform-origin: bottom left;
   }
 }
 

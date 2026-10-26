@@ -104,7 +104,7 @@ export function PostManager({ desk }: { desk: PostDesk }) {
             <InfoTooltip label="How posts reach the public website">
               <span style={{ display: "block", width: 300, maxWidth: "calc(100vw - 56px)", fontWeight: 400 }}>
                 Published posts appear on the public Impact and Innovation page.
-                {desk.needsApproval ? " Posting needs approval from two other University Administrators." : ""}
+                {desk.needsApproval ? " Posting needs approval from two other University-wide Administrators." : ""}
               </span>
             </InfoTooltip>
           </span>

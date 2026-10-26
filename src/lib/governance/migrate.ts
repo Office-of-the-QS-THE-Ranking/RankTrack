@@ -9,9 +9,8 @@ import type { DirectoryEntry } from "./ust-directory";
 import { SCHEMA, WORKFLOWS } from "./seed";
 import type { Assignment, GovernanceState, RoleId } from "./types";
 
-/** Schema 4 had nine built-in roles and custom ones; schema 5 has three. */
+/** Schema 4 had nine built-in roles and custom ones; schema 5 had three; schema 10 has four. */
 const LEGACY_ROLES: Record<string, RoleId> = {
-  "super-admin": ROLE.admin,
   "system-admin": ROLE.admin,
   "university-admin": ROLE.admin,
   reviewer: ROLE.admin,
@@ -90,6 +89,21 @@ function from8(s: Stored): Stored {
 }
 
 /**
+ * Schema 10 has four roles: University Administrator becomes Administrator (held University-wide, it still runs
+ * the Hub), and Student joins Coordinator and External. Supabase migration 20261027300000 does the same to the tables.
+ */
+function from9(s: Stored): Stored {
+  const id = (r: string) => (r === "university-admin" ? ROLE.admin : (r as RoleId));
+  for (const a of s.accounts) {
+    a.assignments = a.assignments.map((x) => ({ ...x, roleId: id(x.roleId) }));
+    if (a.title === "Super Administrator" || a.title === "University Administrator") a.title = "Administrator";
+  }
+  s.security.mfa.roles = s.security.mfa.roles.map(id);
+  for (const r of s.requests) if (r.payload.kind === "account-access" || r.payload.kind === "privilege-escalation") r.payload.roleId = id(r.payload.roleId);
+  return { ...s, schema: 10 };
+}
+
+/**
  * The model at the current schema, or null when it comes from a schema this build can't upgrade.
  * `directory`: the University directory (unit_directory), which schema 7 imports.
  */
@@ -100,5 +114,6 @@ export function migrate<T extends { schema: number }>(doc: T, directory: Directo
   if (s.schema === 6) s = from6(s, directory);
   if (s.schema === 7) s = from7(s);
   if (s.schema === 8) s = from8(s);
+  if (s.schema === 9) s = from9(s);
   return s.schema === SCHEMA ? (s as unknown as T) : null;
 }

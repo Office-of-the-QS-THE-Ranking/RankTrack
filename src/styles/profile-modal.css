@@ -1,0 +1,1013 @@
+/* ---------- Account window (components/shell/ProfileSettings.tsx) ---------- */
+/* Section list on the left, the chosen section on the right. As tall as the section list whatever the
+   section holds (the right column scrolls), so the card's top and bottom insets match; held to the
+   left edge of the screen. Sized like the rest of the portal:
+   13px text and 36px rows as in the sidebar, 40px fields, the .btn capsules, the drawer's 26px corners. */
+.pfm {
+  --pfm-line: rgb(var(--hair) / 0.08);
+  position: fixed;
+  inset: 0 auto 0 10px;
+  width: min(760px, calc(100vw - 66px));
+  height: fit-content;
+  max-width: none;
+  max-height: none;
+  margin: auto 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  overflow: visible;
+}
+.pfm[open] {
+  animation: pfm-in 340ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.pfm::backdrop {
+  background: rgb(var(--hair) / 0.22);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: pfm-fade 260ms ease both;
+}
+@keyframes pfm-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px) scale(0.98);
+  }
+}
+@keyframes pfm-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.pfm__shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 20px;
+  max-height: calc(100dvh - 20px);
+  padding: 20px;
+  border-radius: 26px;
+  background: var(--surface);
+  box-shadow: var(--sh-lg);
+  overflow: hidden;
+}
+/* Outside the card, at its top right. */
+.pfm__close {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 10px);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--sh-md);
+  color: var(--text-2);
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t) ease, color var(--t) ease;
+}
+.pfm__close:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* Section list: the sidebar's rows */
+.pfm__nav {
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+}
+.pfm__nav ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pfm__nav form {
+  margin: 0;
+}
+.pfm__tab {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t) ease, color var(--t) ease;
+}
+.pfm__tab svg {
+  flex: none;
+  color: var(--n-400, var(--text-3));
+  transition: color var(--t) ease;
+}
+.pfm__tab:hover {
+  color: var(--text);
+  background: rgb(var(--hair) / 0.05);
+}
+/* The chosen section is the jet-black pill of the content tabs (white in dark mode). */
+.pfm__tab[aria-current="page"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.pfm__tab[aria-current="page"] svg {
+  color: var(--gold-400);
+}
+.pfm__tab:focus-visible,
+.pfm__pill:focus-visible,
+.pfm__close:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 2px;
+}
+a.pfm__tab {
+  text-decoration: none;
+}
+a.pfm__tab > span,
+.pfm__tab--switch > span:nth-child(2) {
+  flex: 1;
+}
+a.pfm__tab > svg:last-child {
+  opacity: 0.6;
+}
+.pfm__switch {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--n-200, #d2d2d7);
+  transition: background-color var(--t) ease;
+}
+.pfm__switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pfm__tab--switch[aria-checked="true"] .pfm__switch {
+  background: var(--gold-400);
+}
+.pfm__tab--switch[aria-checked="true"] .pfm__switch::after {
+  transform: translateX(12px);
+}
+.pfm__nav-sep {
+  height: 1px;
+  margin: 6px 6px;
+  background: var(--pfm-line);
+}
+.pfm__tab--out,
+.pfm__tab--out svg {
+  color: var(--danger);
+}
+.pfm__tab--out:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* Right column */
+.pfm__body {
+  min-width: 0;
+  min-height: 0;
+  /* Sized by the row, never by its own content, so the section list sets the card's height. */
+  contain: size;
+  margin: -20px -20px -20px 0;
+  padding: 20px 20px 20px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.pfm__body > * {
+  animation: pfm-swap 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes pfm-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.pfm__hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-top: 84px;
+}
+/* The Hub's night: onyx with warm gold light, and the official seal. */
+.pfm__cover {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 120px;
+  border-radius: 20px;
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, transparent 0 46%, rgb(255 255 255 / 0.035) 46% 62%, transparent 62%),
+    linear-gradient(60deg, transparent 0 30%, rgb(0 0 0 / 0.25) 30% 52%, transparent 52%),
+    linear-gradient(135deg, #0c0b09 0%, #1d1a13 45%, #2a2311 100%);
+  box-shadow: inset 0 0 0 1px rgb(245 194 40 / 0.18);
+}
+.pfm__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(24px);
+  animation: pfm-drift 14s ease-in-out infinite alternate;
+}
+.pfm__blob--a {
+  width: 55%;
+  height: 150%;
+  top: -60%;
+  left: 30%;
+  background: radial-gradient(circle, rgb(245 194 40 / 0.55), transparent 70%);
+}
+.pfm__blob--b {
+  width: 40%;
+  height: 110%;
+  top: -20%;
+  right: -12%;
+  background: radial-gradient(circle, rgb(255 236 180 / 0.35), transparent 65%);
+  animation-duration: 18s;
+}
+.pfm__blob--c {
+  width: 50%;
+  height: 100%;
+  bottom: -55%;
+  left: -10%;
+  background: radial-gradient(circle, rgb(217 159 0 / 0.4), transparent 70%);
+  animation-duration: 11s;
+}
+@keyframes pfm-drift {
+  to {
+    transform: translate(8%, 6%) scale(1.12);
+  }
+}
+.pfm__seal {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  width: 64px;
+  height: auto;
+  translate: 0 -50%;
+  opacity: 0.9;
+  filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.5));
+}
+.pfm__avatar {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-left: 16px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: linear-gradient(160deg, #3a3a3c, #1d1d1f);
+  box-shadow: 0 0 0 1px rgb(245 194 40 / 0.45), 0 8px 20px -8px rgb(0 0 0 / 0.4);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  overflow: hidden;
+}
+.pfm__avatar .face {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pfm__hero-side {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 16px;
+}
+.pfm__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  margin: 4px 0 10px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t) ease;
+}
+.pfm__pill:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+.pfm__pill--static {
+  cursor: var(--cursor-default);
+}
+.pfm__who {
+  margin-top: 40px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.pfm__note {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Fields: the portal's 40px inputs */
+.pfm__form fieldset {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pfm__field {
+  display: grid;
+  gap: 6px;
+}
+.pfm__label {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.pfm__control {
+  position: relative;
+  display: block;
+}
+.pfm__control > svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  translate: 0 -50%;
+  color: var(--text-3);
+  pointer-events: none;
+}
+.pfm .pfm__control .input {
+  padding-left: 38px;
+  font-size: 13px;
+}
+.pfm .pfm__control .input[data-invalid] {
+  padding-right: 38px;
+}
+.pfm__control--read {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 44px 0 38px;
+  border-radius: 12px;
+  background: rgb(var(--hair) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+.pfm__control--read > .info-tooltip {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  translate: 0 -50%;
+}
+.pfm .info-tooltip__content {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 100px));
+  color: var(--text-2);
+  font-weight: 400;
+}
+.pfm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Read-only lists */
+.pfm__rows {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.pfm__rows li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgb(var(--hair) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+}
+.pfm__rows li > svg {
+  flex: none;
+  color: var(--text-3);
+}
+.pfm__rows li > span {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pfm__rows li > .info-tooltip {
+  display: inline-flex;
+  flex: none;
+  margin-left: auto;
+}
+.pfm__rows b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pfm__rows li > span > span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.pfm__rows em {
+  color: var(--gold-ink);
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+/* Phones: the section list becomes a row of chips above the content. */
+@media (max-width: 720px) {
+  /* No room beside the card: the close button sits above it. */
+  .pfm {
+    inset: auto auto 10px 10px;
+    width: calc(100vw - 20px);
+    height: calc(100dvh - 66px);
+    margin: 0;
+  }
+  .pfm__close {
+    top: -46px;
+    left: auto;
+    right: 0;
+  }
+  .pfm__shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 16px;
+    height: 100%;
+    padding: 16px;
+  }
+  .pfm__body {
+    margin: 0 -16px -16px;
+    padding: 0 16px 16px;
+  }
+  .pfm__nav {
+    padding: 6px;
+  }
+  .pfm__nav ul {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .pfm__tab {
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .pfm__nav-sep {
+    margin: 6px 4px;
+  }
+  .pfm__actions .btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pfm[open],
+  .pfm::backdrop,
+  .pfm__body > *,
+  .pfm__blob {
+    animation: none;
+  }
+}
+
+/* ---------- Overview ---------- */
+.pfm__panel > .pfm__label + * {
+  margin-top: 8px;
+}
+.pfm__panel > ul + .pfm__label {
+  margin-top: 18px;
+}
+.pfm__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pfm__stats li {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgb(var(--hair) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+}
+.pfm__stat-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.pfm__stat-head > :last-child {
+  margin-left: auto;
+}
+.pfm__stats b {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.pfm__stat--skeleton {
+  background: linear-gradient(90deg, rgb(var(--hair) / 0.04), rgb(var(--hair) / 0.08), rgb(var(--hair) / 0.04)) 0 0 / 200% 100% !important;
+  animation: pfm-shimmer 1.2s linear infinite;
+}
+@keyframes pfm-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.pfm__badges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.pfm__badge {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 60px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgb(var(--hair) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+}
+/* Steel, gold and onyx, the medal tiers of the unit profile's honours. */
+.pfm__medal {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.06);
+  color: var(--text-3);
+}
+.pfm__badge--steel .pfm__medal {
+  background: linear-gradient(145deg, #f4f5f7, #b9bec6 55%, #8d939c);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 2px 6px rgb(0 0 0 / 0.15);
+  color: #2c2f33;
+}
+.pfm__badge--gold .pfm__medal {
+  background: linear-gradient(145deg, #ffe9a3, var(--gold-400) 55%, #c99400);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 2px 8px rgb(217 159 0 / 0.35);
+  color: #4a3700;
+}
+.pfm__badge--onyx .pfm__medal {
+  background: linear-gradient(145deg, #3a3a3c, #0c0b09);
+  box-shadow: inset 0 0 0 1px rgb(245 194 40 / 0.6), 0 2px 8px rgb(0 0 0 / 0.35);
+  color: var(--gold-400);
+}
+.pfm__badge--locked {
+  opacity: 0.75;
+}
+.pfm__badge-text {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.pfm__badge-text b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pfm__badge-text > span:not(.pfm__bar) {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.pfm__bar {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.08);
+  overflow: hidden;
+}
+.pfm__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold-400);
+}
+
+/* ---------- Settings: grouped lists, one row style and one control size (32px) ---------- */
+.pfm__group + .pfm__group {
+  margin-top: 20px;
+}
+.pfm__group-title {
+  margin: 0 0 8px 2px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pfm__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 14px;
+  background: rgb(var(--hair) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+  overflow: hidden;
+}
+.pfm__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 14px;
+}
+.pfm__item + .pfm__item {
+  box-shadow: inset 0 1px 0 var(--pfm-line);
+}
+.pfm__item-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--sh-xs);
+  color: var(--text-2);
+}
+.pfm__item--danger .pfm__item-icon {
+  color: var(--danger);
+}
+.pfm__item-text {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.pfm__item-text b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pfm__item-text > span {
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.pfm .pfm__item-control {
+  flex: none;
+  height: 32px;
+  min-width: 84px;
+}
+.pfm .select.pfm__item-control {
+  width: 128px;
+  padding: 0 32px 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.pfm__toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 84px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: var(--cursor-pointer);
+}
+.pfm__toggle .pfm__switch {
+  display: block;
+  margin-left: auto;
+}
+.pfm__toggle:disabled {
+  cursor: var(--cursor-not-allowed);
+  opacity: 0.5;
+}
+.pfm__toggle:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+.pfm__toggle[aria-checked="true"] .pfm__switch {
+  background: var(--gold-400);
+}
+.pfm__toggle[aria-checked="true"] .pfm__switch::after {
+  transform: translateX(12px);
+}
+/* Notifications: a Hub and an Email switch per kind, under column labels */
+.pfm__toggles {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+.pfm__toggles .pfm__toggle {
+  min-width: 52px;
+}
+.pfm__toggles .pfm__toggle .pfm__switch {
+  margin: 0 auto;
+}
+.pfm__toggles--head {
+  padding-right: 14px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.pfm__toggles--head > span {
+  width: 52px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .pfm__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pfm__badges {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pfm__item {
+    flex-wrap: wrap;
+  }
+  .pfm__item-text {
+    flex-basis: calc(100% - 42px);
+  }
+  .pfm .pfm__item-control,
+  .pfm__toggle {
+    margin-left: 42px;
+  }
+  .pfm__toggles .pfm__toggle {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pfm__stat--skeleton {
+    animation: none;
+  }
+}
+
+/* ---------- Devices, Logs, Notifications, Support ---------- */
+.pfm__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+}
+.pfm__group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  margin-bottom: 8px;
+}
+.pfm__group-head .pfm__group-title {
+  margin-bottom: 0;
+}
+.pfm__group-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pfm__seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.05);
+}
+.pfm__seg button {
+  height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t) ease, color var(--t) ease;
+}
+.pfm__seg button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.pfm__seg button:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 1px;
+}
+.pfm__tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  margin-left: 8px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--gold-wash-grad);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+.pfm__tag--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+/* A whole row that opens something: the row is the link. */
+.pfm__item:has(> .pfm__item-link) {
+  padding: 0;
+}
+.pfm__item-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--t) ease;
+}
+.pfm__item-link:hover {
+  background: rgb(var(--hair) / 0.035);
+}
+.pfm__item-link:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: -2px;
+}
+.pfm__item-link > svg:last-child {
+  flex: none;
+  color: var(--text-3);
+}
+.pfm__item--unread .pfm__item-icon {
+  background: var(--gold-wash-grad);
+  color: var(--gold-ink);
+}
+.pfm__item--unread .pfm__item-text b {
+  position: relative;
+}
+.pfm__item:not(.pfm__item--unread) .pfm__item-link .pfm__item-text b {
+  font-weight: 500;
+}
+.pfm__item--log {
+  min-height: 52px;
+}
+.pfm__item--log .pfm__item-text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pfm__time {
+  flex: none;
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.pfm__item--compact {
+  min-height: 44px;
+}
+.pfm__kbd {
+  flex: none;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--sh-xs), inset 0 -1px 0 rgb(var(--hair) / 0.08);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  line-height: 22px;
+  text-align: center;
+}
+.pfm__empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 36px 16px;
+  border-radius: 14px;
+  background: rgb(var(--hair) / 0.03);
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+  color: var(--text-3);
+  text-align: center;
+}
+.pfm__empty p {
+  margin: 0;
+  max-width: 300px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.pfm__line {
+  display: block;
+  height: 10px;
+  width: 60%;
+  border-radius: 999px;
+}
+.pfm__line--short {
+  width: 35%;
+}
+a.pfm__item-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* ---------- Data & privacy, Language ---------- */
+.pfm__tag--ok {
+  background: var(--ok-bg);
+  color: var(--ok, #1f7a3a);
+}
+.pfm__value {
+  flex: none;
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A slim scrollbar for the window's scrolling columns: 4px where the browser lets us style it (Chrome,
+   Edge, Safari), the thinnest standard bar elsewhere (Firefox). */
+.pfm__body,
+.pfm__nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--hair) / 0.2) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  .pfm__body,
+  .pfm__nav {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .pfm__body::-webkit-scrollbar,
+  .pfm__nav::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .pfm__body::-webkit-scrollbar-track,
+  .pfm__nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .pfm__body::-webkit-scrollbar-thumb,
+  .pfm__nav::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgb(var(--hair) / 0.2);
+  }
+  .pfm__body::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--hair) / 0.32);
+  }
+}

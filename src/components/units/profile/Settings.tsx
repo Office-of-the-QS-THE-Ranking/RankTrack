@@ -18,7 +18,7 @@ function nameLabel(u: UnitProfileData["unit"]) {
 
 const ACCOUNT_STATUS: Record<string, string> = { "Pending Invitation": "Invited", Suspended: "Suspended", Deactivated: "Deactivated" };
 
-/** The unit's account details and coordinators. University Administrators can change them here. */
+/** The unit's account details and coordinators. University-wide Administrators can change them here. */
 export function Settings({ data }: { data: UnitProfileData }) {
   const id = useId();
   const [editing, setEditing] = useState(false);

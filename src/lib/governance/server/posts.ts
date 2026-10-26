@@ -12,7 +12,6 @@ import type { PostDesk, PostRow } from "../hub-types";
 import type { GovernanceState, PostMedia, PostStatus } from "../types";
 import type { Viewer } from "../viewer";
 import { viewerCan } from "../viewer";
-import { adminShortcut } from "./dev-access";
 import { readState } from "./store";
 import { reference } from "./reference";
 import { postAnalytics } from "../post-analytics";
@@ -102,7 +101,7 @@ function rows(state: GovernanceState): PostRow[] {
 export async function postDesk(viewer: Viewer): Promise<PostDesk> {
   const state = await readState();
   const account = state.accounts.find((a) => a.id === viewer.id);
-  const ctx = account ? makeCtx(state, actorFor(state, account), await reference(), new Date(), await adminShortcut()) : null;
+  const ctx = account ? makeCtx(state, actorFor(state, account), await reference(), new Date()) : null;
   const list = rows(state);
   const counted = await countedViews(list.map((row) => row.slug));
   return {

@@ -888,39 +888,6 @@ export type Database = {
         }
         Relationships: []
       }
-      hub_dev_access: {
-        Row: {
-          email: string
-          enabled: boolean
-          id: number
-          role_ids: string[]
-          scope: string
-          super_admin: boolean
-          unit_id: string
-          updated_at: string
-        }
-        Insert: {
-          email: string
-          enabled: boolean
-          id?: number
-          role_ids?: string[]
-          scope: string
-          super_admin: boolean
-          unit_id: string
-          updated_at?: string
-        }
-        Update: {
-          email?: string
-          enabled?: boolean
-          id?: number
-          role_ids?: string[]
-          scope?: string
-          super_admin?: boolean
-          unit_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       hub_meta: {
         Row: {
           id: number

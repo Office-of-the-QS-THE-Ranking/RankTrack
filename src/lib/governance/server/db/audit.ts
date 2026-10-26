@@ -73,6 +73,30 @@ export async function oldestUnbacked(since: string | undefined): Promise<string 
   return data[0] ? new Date(String(data[0].at)).toISOString() : undefined;
 }
 
+/** One person's successful actions, oldest first, and their sessions the policy ended: what the account window's Overview counts. */
+export async function auditOfActor(accountId: string): Promise<{ at: string; action: string; detail: string | null }[]> {
+  const out: { at: string; action: string; detail: string | null }[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await adminDb()
+      .from("audit_events")
+      .select("at, action, detail")
+      .or(`actor_id.eq."${accountId}",and(action.eq.session.timeout,resource_id.eq."${accountId}")`)
+      .eq("outcome", "Success")
+      .order("seq")
+      .range(from, from + PAGE - 1);
+    if (error) throw failed("reading", error);
+    out.push(...data.map((r) => ({ at: new Date(String(r.at)).toISOString(), action: String(r.action), detail: r.detail === null ? null : String(r.detail) })));
+    if (data.length < PAGE) return out;
+  }
+}
+
+/** One person's latest actions, newest first, whatever the outcome: the account window's Logs. */
+export async function latestOfActor(accountId: string, limit: number): Promise<AuditEvent[]> {
+  const { data, error } = await adminDb().from("audit_events").select("*").eq("actor_id", accountId).order("seq", { ascending: false }).limit(limit);
+  if (error) throw failed("reading", error);
+  return (data as Row[]).map(auditEvent);
+}
+
 /** Whether this account signed in successfully from this device before (a new device raises an alert). */
 export async function knownDevice(accountId: string, device: string): Promise<boolean> {
   const { data, error } = await adminDb()

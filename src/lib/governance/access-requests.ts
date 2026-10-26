@@ -1,20 +1,57 @@
+import { ROLE, ROLE_SECTIONS } from "./catalog";
+import type { RoleId } from "./types";
+import { UNIT_CATEGORY_LABELS } from "@/lib/unit-categories";
+
 /*
  * Access requests from the sign-in page (SignInFlow → requestAccess): the affiliations the form suggests, how
  * an answer is matched to them, and how long a guest's access lasts once approved.
  */
 
 /**
- * Who is asking. A Thomasian (UST faculty or staff) asks with a University email for a coordinator account in
- * their college or office; an external partner (ranking body, accreditor, reviewer) for a 90-day guest account.
- * Neither gets in on the email alone: both wait for a University Administrator's approval.
+ * Who is asking follows from the affiliation. A Thomasian picks University of Santo Tomas, gives a University
+ * email proved by signing in to Google, and asks to be an Administrator, Coordinator or Student of their office
+ * or college; anyone else (ranking body, accreditor, reviewer) asks as External, for a 90-day guest account.
+ * Neither gets in on the email alone: both wait for a University-wide Administrator's approval.
  */
-export type RequesterKind = "thomasian" | "external";
-
-/** How a Thomasian's affiliation is recorded. */
 export const THOMASIAN_AFFILIATION = "UNIVERSITY OF SANTO TOMAS";
 
-/** A position as typed: letters, digits, spaces and . , ' / ( ) & -, up to 120 characters. */
-export const positionText = (value: string) => value.normalize("NFC").replace(/[^\p{L}\p{N} .,'/()&\-]/gu, "").replace(/\s+/g, " ").slice(0, 120);
+/** The roles a Thomasian may ask for (user, 2026-10-27); everyone outside the University asks as External. */
+export const UST_ROLES = [
+  { id: ROLE.admin, name: "Administrator" },
+  { id: ROLE.coordinator, name: "Coordinator" },
+  { id: ROLE.student, name: "Student" },
+] as const;
+
+/** Where a role is held: Administrators and Coordinators choose a University Office or a College/Faculty; Students have only the second. */
+export const SECTIONS = [
+  { key: "offices", label: UNIT_CATEGORY_LABELS.offices, name: "University Office" },
+  { key: "academic", label: UNIT_CATEGORY_LABELS.academic, name: "College/Faculty" },
+] as const;
+export type Section = (typeof SECTIONS)[number]["key"];
+
+/** The sections a role may be held in, as the form offers them. */
+export const sectionsFor = (roleId: string): Section[] => (ROLE_SECTIONS[roleId as RoleId] ?? []).filter((s): s is Section => s === "offices" || s === "academic");
+
+/** Whether an affiliation answer is the University's own. */
+export const isThomasian = (affiliation: string) => listedAffiliation(affiliation) === THOMASIAN_AFFILIATION;
+
+/** Where the request form keeps its answers (this tab only) while the browser is at Google verifying the email. */
+export const DRAFT_KEY = "hub-request-draft";
+
+/** What the sign-in page says for each verification result (?verified=…), as a sentence. */
+export function verifyMessage(result: string) {
+  return (
+    {
+      ok: "Your UST email is verified.",
+      cancelled: "Verification was cancelled.",
+      "not-ust": "That Google account is not a UST email.",
+      "other-account": "You signed in with a different Google account. Choose the email you typed.",
+      expired: "The verification took too long. Try again.",
+      busy: "Too many verifications were started from your network. Try again in an hour.",
+      unavailable: "Google verification is unavailable right now. Try again later.",
+    }[result] ?? "Google couldn’t verify the email. Try again."
+  );
+}
 
 /** Whether an email is on one of the University's sign-in domains. */
 export const universityEmail = (email: string, domains: string[]) => domains.map((d) => d.toLowerCase()).includes(email.trim().toLowerCase().split("@")[1] ?? "");
@@ -72,6 +109,7 @@ export function validRequestText(value: string, affiliation = false): boolean {
  * kept as typed, under Others.
  */
 export const AFFILIATIONS = [
+  "University of Santo Tomas",
   "QS Quacquarelli Symonds (QS)",
   "Times Higher Education (THE)",
   "ShanghaiRanking Consultancy (ARWU)",

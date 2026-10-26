@@ -2,7 +2,7 @@
 import { actorFor, makeCtx, SYSTEM } from "@/lib/governance/engine";
 import { createAccount, createUnit } from "@/lib/governance/engine/mutations";
 import { buildSeed } from "@/lib/governance/seed";
-import type { Account, GovernanceState, RoleId } from "@/lib/governance/types";
+import type { Account, GovernanceState, RoleId, Scope } from "@/lib/governance/types";
 import type { Reference } from "@/lib/reference";
 
 export const ref = { directory: [], rankings: [] } as unknown as Reference;
@@ -15,8 +15,8 @@ export function world() {
   const university = state.units[0];
   const eng = createUnit(sys, { name: "Faculty of Engineering", code: "ENG", kind: "Faculty", parentId: university.id });
   const sci = createUnit(sys, { name: "College of Science", code: "SCI", kind: "Faculty", parentId: university.id });
-  const person = (name: string, email: string, roleId: RoleId, unitId: string, external = false): Account => {
-    const a = createAccount(sys, { name, email, title: "Test", unitId, roleId, external });
+  const person = (name: string, email: string, roleId: RoleId, unitId: string, external = false, scope?: Scope): Account => {
+    const a = createAccount(sys, { name, email, title: "Test", unitId, roleId, external, scope });
     a.status = "Active";
     return a;
   };

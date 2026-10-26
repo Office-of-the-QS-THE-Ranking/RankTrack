@@ -14,7 +14,6 @@ import { grantCheck, grantsFor, today, UNIVERSITY, unitScope, type Grant } from 
 import { evidenceList, storyList } from "../records";
 import type { Classification, GovernanceState } from "../types";
 import { viewerCan as can, type Viewer } from "../viewer";
-import { adminShortcut } from "./dev-access";
 import { readState } from "./store";
 import { auditActivity, latestAudit, oldestUnbacked } from "./db/audit";
 import { reference } from "./reference";
@@ -103,7 +102,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     : undefined;
 
   /* Workflows */
-  const ctx = makeCtx(state, actor, ref, now, await adminShortcut());
+  const ctx = makeCtx(state, actor, ref, now);
   const requests: RequestRow[] = state.requests
     .filter((r) => can(viewer, "workflows", "view") || r.requesterId === viewer.id)
     .map((r) => {

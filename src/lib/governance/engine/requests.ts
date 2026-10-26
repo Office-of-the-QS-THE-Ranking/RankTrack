@@ -7,6 +7,7 @@ import { GUEST_DAYS } from "../access-requests";
 import { ROLE, roleOf } from "../catalog";
 import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
+import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
 import { canWith, grantCheck, grantsFor, has } from "../rbac";
 import type { ApprovalRequest, RequestPayload, WorkflowKey } from "../types";
 import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
@@ -20,12 +21,11 @@ export function workflowOn(ctx: Ctx, id: WorkflowKey) {
 /**
  * Whether a change the actor makes must wait for approval: the workflow is on and enough other people
  * can decide every step. With too few administrators to share the steps, the change applies directly
- * instead of waiting for approvers who don't exist, unless developer settings turned that shortcut off.
+ * instead of waiting for approvers who don't exist.
  */
 export function needsApproval(ctx: Ctx, id: WorkflowKey) {
   const wf = ctx.state.workflows.find((w) => w.id === id);
   if (!wf?.enabled) return false;
-  if (!ctx.shortcut) return true;
   const approvers = ctx.state.accounts.filter(
     (a) => a.status === "Active" && (!wf.separation || a.id !== ctx.actor.id) && canWith(grantsFor(a, ctx.state.units, ctx.day), "workflows", "approve"),
   );
@@ -62,7 +62,7 @@ export function decisionBlock(ctx: Ctx, req: ApprovalRequest, actor: Actor = ctx
   if (!step) return "The request has no open step.";
   if (wf.separation && req.requesterId === actor.id) return "You opened this request, so someone else must decide it.";
   if (req.decisions.some((d) => d.by === actor.id && d.decision === "Approved")) return "You approved an earlier step; another approver must take this one.";
-  if (!actor.grants.some((g) => has(g.perms, "workflows", "approve"))) return "Only University Administrators can approve requests.";
+  if (!actor.grants.some((g) => has(g.perms, "workflows", "approve"))) return "Only University-wide Administrators can approve requests.";
   return null;
 }
 
@@ -78,6 +78,7 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
       const unit = p.unitId || unitId || "";
       if (!unit) return "Choose the unit this account belongs to.";
       if (unitById(ctx, unit)?.status !== "Active") return "The requested unit is no longer active.";
+      if (!invitationUnitMatchesRole(unitById(ctx, unit)!, p.roleId)) return roleUnitHint(p.roleId);
       if (p.external && !ctx.state.security.sso.allowGuests) return "Guest sign-in is switched off in Privacy and Security. Turn it on to approve accounts from outside the University.";
       const expires = p.external ? addDays(ctx.day, GUEST_DAYS) : undefined;
       // the request keeps the unit it was approved for
@@ -91,7 +92,7 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
       const role = roleOf(p.roleId);
       if (!acc || !role) return "The account or role no longer exists.";
       if (acc.status !== "Active" && acc.status !== "Pending Invitation") return `${acc.name} is ${acc.status.toLowerCase()}.`;
-      if (acc.external && role.id !== ROLE.external) return "External collaborators can only hold the External Collaborator role.";
+      if (acc.external && role.id !== ROLE.external) return "External partners can only hold the External role.";
       const check = grantCheck(ctx.actor.grants, role, p.scope, ctx.state.units);
       if (!check.ok) return check.reason;
       const a = addAssignment(ctx, acc, role.id, p.scope, p.expires, `Approved request ${req.id}`);
@@ -225,7 +226,7 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       const acc = accountById(ctx, payload.accountId);
       const role = roleOf(payload.roleId);
       if (!acc || !role) return invalid("Choose an account and a role.");
-      if (acc.external && role.id !== ROLE.external) return invalid("External collaborators can only hold the External Collaborator role.");
+      if (acc.external && role.id !== ROLE.external) return invalid("External partners can only hold the External role.");
       if (acc.id !== ctx.actor.id && !can(ctx, "accounts", "edit", { unitId: acc.unitId }))
         return deny(ctx, "request.create", "Approval", { type: "Account", id: acc.id, label: acc.name }, "You can only request roles for yourself or accounts you administer.");
       label = title ?? `${role.name} for ${acc.name}`;
@@ -246,7 +247,8 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       if (typeof payload.email !== "string" || !isEmail(payload.email.trim().toLowerCase())) return invalid("Enter the person's email address.");
       if (typeof payload.name !== "string" || clean(payload.name).length < 2) return invalid("Enter the person's name.");
       if (ctx.state.accounts.some((a) => a.email.toLowerCase() === payload.email.trim().toLowerCase())) return invalid(`${payload.email} already has an account.`);
-      if (payload.roleId !== (payload.external ? ROLE.external : ROLE.coordinator)) return invalid("Request a University Administrator role as “A role for someone”.");
+      if (payload.external ? payload.roleId !== ROLE.external : payload.roleId !== ROLE.coordinator && payload.roleId !== ROLE.student)
+        return invalid("Request an Administrator role as “A role for someone”.");
       // The unit, if one is named, must be one the requester could add accounts to.
       if (payload.unitId && !can(ctx, "accounts", "create", { unitId: payload.unitId }))
         return deny(ctx, "request.create", "Approval", { type: "Unit", id: payload.unitId, label: payload.name }, "You can only request accounts in units you administer.");
@@ -271,7 +273,7 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       label = title ?? `Publish ${payload.target}: ${payload.title}`;
       break;
     case "destructive":
-      if (!can(ctx, "backup", "manage")) return invalid("Only University Administrators can request destructive backup operations.");
+      if (!can(ctx, "backup", "manage")) return invalid("Only University-wide Administrators can request destructive backup operations.");
       break;
   }
   const normalizedPayload = payload.kind === "org-unit" ? { ...payload, emails: unitEmails } : payload;
@@ -289,7 +291,7 @@ export function updateWorkflow(
   const res = { type: "Workflow", id: wf.id, label: wf.name };
   if (!can(ctx, "workflows", "manage")) return deny(ctx, "workflow.update", "Configuration", res, "Your role cannot change approval workflows.");
   if (id === "destructive" && (patch.enabled === false || patch.separation === false))
-    return invalid("Destructive backup operations always need a second University Administrator.");
+    return invalid("Destructive backup operations always need a second University-wide Administrator.");
   const changes: string[] = [];
   if (patch.enabled !== undefined && patch.enabled !== wf.enabled) {
     wf.enabled = patch.enabled;

@@ -50,8 +50,8 @@ export interface Scope {
   datasets: "all" | string[];
 }
 
-/** The Hub's three roles. They are fixed: what each one may do is set in catalog.ts, not in the store. */
-export type RoleId = "university-admin" | "coordinator" | "external";
+/** The Hub's four roles. They are fixed: what each one may do is set in catalog.ts, not in the store. */
+export type RoleId = "administrator" | "coordinator" | "student" | "external";
 
 export interface Role {
   id: RoleId;
@@ -60,6 +60,8 @@ export interface Role {
   /** Higher ranks hold more. Giving an active account a higher-ranked role than it holds is privilege escalation. */
   tier: number;
   permissions: PermissionSet;
+  /** What the role holds instead when an assignment of it is University-wide (an Administrator of the Rankings Office runs the Hub). */
+  universityPermissions?: PermissionSet;
   /** What scope an assignment of this role normally carries. */
   scopeKind: "university" | "unit" | "custom";
 }
@@ -101,6 +103,13 @@ export interface Account {
   mfa: { enrolled: boolean; method?: "Authenticator app" | "Security key" };
   /** Sessions started before this moment must sign in again. */
   reauthAfter?: ISOTime;
+  /**
+   * The person's own session choices: a shorter idle sign-out than the policy, or staying signed in (no idle
+   * sign-out, and the cookie outlives the browser). The policy's longest session always applies.
+   */
+  sessionPrefs?: { idleMinutes?: number; stay?: boolean };
+  /** The person's own notification choices: email on or off, and the kind:channel pairs switched off. */
+  notifyPrefs?: { email?: boolean; off?: string[] };
   statusReason?: string;
   statusChangedAt?: ISOTime;
   /**
@@ -149,9 +158,7 @@ export type OrgKind =
   | "Institute"
   | "School"
   | "Student Government"
-  | "Research Centre"
-  | "Department"
-  | "Program";
+  | "Research Centre";
 
 export interface OrgUnit {
   id: string;
@@ -349,7 +356,7 @@ export interface AuditEvent {
 
 export type WorkflowKey = "account-access" | "privilege-escalation" | "org-unit" | "data-access" | "publication" | "destructive";
 
-/** Anyone with approve rights on workflows (the University Administrators) may decide a step. */
+/** Anyone with approve rights on workflows (the University-wide Administrators) may decide a step. */
 export interface WorkflowStep {
   name: string;
 }
@@ -374,12 +381,10 @@ export interface Applicant {
   salutation?: string;
   /** Empty once removed, a month after the request closed (housekeeping). */
   birthday: ISODate | "";
-  /** A Thomasian: UST faculty or staff, on a University email, asking for a coordinator account. */
+  /** A Thomasian: on a University email, asking to be an Administrator, Coordinator or Student. */
   thomasian?: boolean;
   /** A Thomasian's college, faculty or office as they gave it; the approver confirms or changes it. */
   unitId?: string;
-  /** A Thomasian's position or designation, as typed. */
-  position?: string;
   /** A listed affiliation, or the requester's own words when none matched (listed: false, shown as Others). */
   affiliation: string;
   listed: boolean;

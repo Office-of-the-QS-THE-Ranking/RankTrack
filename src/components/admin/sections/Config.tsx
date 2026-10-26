@@ -7,7 +7,6 @@ import { Icon } from "@/components/ui/Icon";
 import { UnitSelect } from "../parts";
 import { Block, Field, Hint, Pill, ReadOnly, Sheet, StatusPill, Switch, Tabs, plural, useAct, useConsole } from "../ui";
 import { DateField, NumberField, Select } from "@/components/ui/pickers";
-import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Rankings" | "Calendar" | "Workspace" | "Notifications" | "Features";
 
@@ -64,7 +63,6 @@ function SaveRow({ dirty, onSave, onReset }: { dirty: boolean; onSave: () => voi
 /* ---------- Rankings ---------- */
 
 function Bodies() {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const c = data.config!;
@@ -148,7 +146,7 @@ function Bodies() {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={!skip && (add.name.trim().length < 2 || !add.short.trim())}
+              disabled={add.name.trim().length < 2 || !add.short.trim()}
               onClick={async () => {
                 const r = await act({ type: "config.bodyAdd", ...add });
                 if (r.ok) {
@@ -181,7 +179,6 @@ function Bodies() {
 /* ---------- Calendar ---------- */
 
 function AddRow({ label, placeholder, onAdd }: { label: string; placeholder: string; onAdd: (value: string) => Promise<boolean> }) {
-  const skip = useSkipChecks();
   const [v, setV] = useState("");
   return (
     <span className="adm-inline">
@@ -189,7 +186,7 @@ function AddRow({ label, placeholder, onAdd }: { label: string; placeholder: str
       <button
         type="button"
         className="btn btn--sm"
-        disabled={!skip && !v.trim()}
+        disabled={!v.trim()}
         onClick={async () => {
           if (await onAdd(v.trim())) setV("");
         }}
@@ -201,7 +198,6 @@ function AddRow({ label, placeholder, onAdd }: { label: string; placeholder: str
 }
 
 function Calendar() {
-  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const c = data.config!;
@@ -272,7 +268,7 @@ function Calendar() {
             <button
               type="button"
               className="btn btn--sm"
-              disabled={!skip && !p.label.trim()}
+              disabled={!p.label.trim()}
               onClick={async () => {
                 const r = await act({ type: "config.periodAdd", ...p });
                 if (r.ok) setP({ label: "", note: "" });
@@ -355,7 +351,7 @@ const SAMPLE: Record<string, string> = {
   name: "Dr. J. Santiago",
   inviter: "Engr. Nestor R. Ong",
   unit: "Faculty of Engineering",
-  role: "College/Faculty Coordinator",
+  role: "Coordinator",
   title: "Flood-resilience design studio",
   comment: "Please attach the barangay resolution.",
   count: "3",

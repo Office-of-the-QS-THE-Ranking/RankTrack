@@ -2,10 +2,10 @@
  * Account lifecycle and role assignments. The roles themselves are fixed (catalog.ts).
  */
 import { ROLE, roleOf } from "../catalog";
-import { invitationUnitMatchesRole } from "../invitation";
+import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
 import type { CommandResult, InviteInput } from "../commands";
 import { domainAllowed, domainOf } from "../derive";
-import { descendants, grantCheck, grantsFor, scopeLabel, topTier } from "../rbac";
+import { descendants, grantCheck, grantsFor, runsHub, scopeLabel, topTier } from "../rbac";
 import type { Account, Scope } from "../types";
 import {
   accountById,
@@ -32,7 +32,8 @@ function guard(ctx: Ctx, a: Account, action: "edit" | "delete" | "create", what:
   return null;
 }
 
-const holdsAdmin = (ctx: Ctx, a: Account) => a.assignments.some((x) => x.roleId === ROLE.admin && (!x.expires || x.expires > ctx.day));
+/** Whether the account runs the Hub: an Administrator held University-wide. */
+const holdsAdmin = (ctx: Ctx, a: Account) => a.assignments.some((x) => runsHub(x) && (!x.expires || x.expires > ctx.day));
 
 const activeAdmins = (ctx: Ctx) => ctx.state.accounts.filter((a) => a.status === "Active" && holdsAdmin(ctx, a));
 
@@ -47,11 +48,11 @@ function validateInvite(ctx: Ctx, input: InviteInput): string | null {
   if (unit.status !== "Active") return `${unit.name} is archived; choose an active unit.`;
   const role = roleOf(input.roleId);
   if (!role) return "Choose a role.";
-  if (!invitationUnitMatchesRole(unit, role.id)) return role.id === ROLE.coordinator ? "Choose a Faculty/College for this role." : "Choose a University Office for this role.";
+  if (!invitationUnitMatchesRole(unit, role.id)) return roleUnitHint(role.id);
   const sso = ctx.state.security.sso;
   if (input.external) {
     if (!sso.allowGuests) return "Guest accounts are switched off in Privacy and Security.";
-    if (role.id !== ROLE.external) return "External collaborators can only hold the External Collaborator role.";
+    if (role.id !== ROLE.external) return "External partners can only hold the External role.";
     if (!input.expires) return "External access needs an end date.";
   } else if (!domainAllowed(ctx.state, email)) {
     return `${domainOf(email) || "That domain"} is not an allowed sign-in domain (${sso.domains.join(", ")}). Invite them as an external collaborator instead.`;
@@ -69,7 +70,7 @@ export function invite(ctx: Ctx, input: InviteInput): CommandResult {
   if (!can(ctx, "accounts", "create", { unitId: unit.id })) return deny(ctx, "account.invite", "Account", target, `You cannot add accounts to ${unit.name}.`);
   // Outside collaborators are sponsored by the Office, not by individual units.
   if ((input.external || role.id === ROLE.external) && !can(ctx, "accounts", "manage"))
-    return deny(ctx, "account.invite", "Account", target, "Only University Administrators can invite guests.");
+    return deny(ctx, "account.invite", "Account", target, "Only University-wide Administrators can invite guests.");
   const scope = input.scope ?? defaultScope(role.id, unit.id);
   const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units);
   if (!check.ok) return deny(ctx, "account.invite", "Access", target, check.reason);
@@ -108,7 +109,7 @@ export function setStatus(ctx: Ctx, id: string, status: "Active" | "Suspended" |
   const why = cleanText(reason, 300);
   if (status !== "Active" && why.length < 5) return invalid("Give a reason; it is shown to other administrators and kept in the audit log.");
   if (status !== "Active" && holdsAdmin(ctx, a) && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1)
-    return invalid("This is the last active University Administrator. Make someone else one before suspending this account.");
+    return invalid("This is the last active University-wide Administrator. Make someone else one before suspending this account.");
   if (a.status === status) return ok(`${a.name} is already ${status.toLowerCase()}.`);
   if (a.status === "Pending Invitation" && status === "Active") return invalid("Pending accounts become active when the person first signs in.");
   const from = a.status;
@@ -219,7 +220,7 @@ export function addRole(ctx: Ctx, accountId: string, roleId: string, scope: Scop
   const scopeProblem = validScope(ctx, scope);
   if (scopeProblem) return invalid(scopeProblem);
   if (expires && (!isDay(expires) || expires <= ctx.day)) return invalid("Temporary access must end on a future date.");
-  if (a.external && role.id !== ROLE.external) return invalid("External collaborators can only hold the External Collaborator role.");
+  if (a.external && role.id !== ROLE.external) return invalid("External partners can only hold the External role.");
   if (role.id === ROLE.external && !expires) return invalid("External access needs an end date.");
   if (a.assignments.some((x) => x.roleId === role.id && JSON.stringify(x.scope) === JSON.stringify(scope) && (!x.expires || x.expires > ctx.day)))
     return invalid(`${a.name} already holds ${role.name} with this scope.`);
@@ -244,8 +245,8 @@ export function removeRole(ctx: Ctx, accountId: string, assignmentId: string): C
   const blocked = guard(ctx, a, "edit", "assignment.remove");
   if (blocked) return blocked;
   const role = roleOf(asg.roleId);
-  const lastAdmin = asg.roleId === ROLE.admin && a.assignments.filter((x) => x.roleId === ROLE.admin && (!x.expires || x.expires > ctx.day)).length === 1;
-  if (lastAdmin && a.status === "Active" && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1) return invalid("This is the last active University Administrator.");
+  const lastAdmin = runsHub(asg) && a.assignments.filter((x) => runsHub(x) && (!x.expires || x.expires > ctx.day)).length === 1;
+  if (lastAdmin && a.status === "Active" && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1) return invalid("This is the last active University-wide Administrator.");
   a.assignments = a.assignments.filter((x) => x.id !== assignmentId);
   log(ctx, "assignment.remove", "Access", res(a), "Success", `${role?.name ?? asg.roleId} · ${scopeLabel(asg.scope, ctx.state.units)}`);
   return ok(`${role?.name ?? "Role"} removed from ${a.name}.`);

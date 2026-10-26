@@ -3,12 +3,12 @@
  * requests call them on behalf of the approvers who authorized the change.
  */
 import { roleOf } from "../catalog";
-import { UNIVERSITY, unitScope } from "../rbac";
+import { roleScope } from "../rbac";
 import type { Account, Assignment, DataGrant, OrgKind, OrgUnit, PostRecord, RoleId, Scope } from "../types";
 import { log, nextId, notify, unitById, type Ctx } from "./core";
 
 export function defaultScope(roleId: RoleId, unitId: string): Scope {
-  return roleOf(roleId)?.scopeKind === "university" ? UNIVERSITY : unitScope(unitId);
+  return roleScope(roleId, unitId);
 }
 
 export function createAccount(

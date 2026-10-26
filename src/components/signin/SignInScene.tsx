@@ -1,27 +1,9 @@
 import Image from "next/image";
-import type { CSSProperties } from "react";
 // imported rather than referenced by path: the URL then carries the file's hash, so a re-render is never served stale
 import benavides from "../../../public/images/benavides-3d.webp";
 import building from "../../../public/images/main-building-3d.webp";
-import { FACET_BOX, GOLD_FACETS, SILVER_FACETS, TOWN_LIGHTS, type Facets } from "./sceneGeometry";
+import { TOWN_LIGHTS } from "./sceneGeometry";
 import { SceneMotion } from "./SceneMotion";
-
-/** A band's cut facets: darker and lighter shades over its own gradient, and the facets that catch the light. */
-function Cut({ facets }: { facets: Facets }) {
-  return (
-    <svg className="sx__cut" viewBox={`0 0 ${FACET_BOX.w} ${FACET_BOX.h}`} preserveAspectRatio="xMidYMid slice" focusable="false">
-      {facets.dark.map((d, i) => (
-        <path key={`d${i}`} d={d} className={`sx__dk${i}`} />
-      ))}
-      {facets.light.map((d, i) => (
-        <path key={`l${i}`} d={d} className={`sx__lt${i}`} />
-      ))}
-      {facets.glints.map((g, i) => (
-        <path key={`g${i}`} d={g.d} className="sx__glint" style={{ "--d": `${g.delay}s` } as CSSProperties} />
-      ))}
-    </svg>
-  );
-}
 
 /**
  * The clock's hands over the face of the building's render, which leaves them out: SceneMotion turns them to the
@@ -43,9 +25,8 @@ function Clock() {
 
 /**
  * The scene behind the sign-in, after the Office's own title slide: a faceted black-and-gold night sky lit by a
- * crescent moon and the campus below, with a few gold stars, cut by bands of gold and silver, a gold hairline
- * with halftone dots either side, and the Main Building with the Benavides monument before it, low-poly renders
- * lit for the night. Every layer is drawn here and still without script; SceneMotion lights the canvases, gives
+ * crescent moon and the campus below, with a few gold stars, and the Main Building with the Benavides monument
+ * before it, low-poly renders lit for the night. Every layer is drawn here and still without script; SceneMotion lights the canvases, gives
  * the layers depth and runs the clock, and signin.css (scene) choreographs the entrance and the light that keeps
  * moving. Decorative throughout: the page says everything in text.
  */
@@ -57,27 +38,6 @@ export function SignInScene() {
       {/* a slim crescent in champagne, its dark side faintly lit by earthshine; it lights the facets */}
       <div className="sx__moon" />
       <div className="sx__horizon" />
-
-      {/* the bands, right to left on the page (signin.css mirrors them): dots, hairline, dark band with dots, gold, a cut of black, silver, a gold edge */}
-      <div className="sx__bands">
-        <div className="sx__band sx__dots sx__dots--a">
-          <canvas />
-        </div>
-        <i className="sx__band sx__line" />
-        <div className="sx__band sx__dark">
-          <div className="sx__dots sx__dots--b">
-            <canvas />
-          </div>
-        </div>
-        <div className="sx__band sx__gold">
-          <Cut facets={GOLD_FACETS} />
-        </div>
-        <i className="sx__band sx__gap" />
-        <div className="sx__band sx__silver">
-          <Cut facets={SILVER_FACETS} />
-        </div>
-        <i className="sx__band sx__edge" />
-      </div>
 
       {/* the building, a low-poly model rendered by scripts/signin-scene/render.py; its lights shine on the canvas */}
       <div className="sx__town">

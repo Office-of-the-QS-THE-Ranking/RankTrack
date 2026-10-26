@@ -39,8 +39,6 @@ export interface Ctx {
   iso: string;
   drafts: AuditDraft[];
   effects: Effect[];
-  /** A lone administrator's changes apply without approval (see needsApproval). Developer settings can turn it off. */
-  shortcut: boolean;
   /** The reference data (ranking frameworks, dictionary, lists) the rules check against. */
   ref: Reference;
 }
@@ -54,8 +52,8 @@ export const SYSTEM: Actor = { id: SYSTEM_ACTOR.id, name: SYSTEM_ACTOR.name, rol
 
 export const GUEST: Actor = { id: "guest", name: "Access request form", role: "Not signed in", grants: [] };
 
-export function makeCtx(state: GovernanceState, actor: Actor, ref: Reference, now = new Date(), shortcut = true): Ctx {
-  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], shortcut, ref };
+export function makeCtx(state: GovernanceState, actor: Actor, ref: Reference, now = new Date()): Ctx {
+  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], ref };
 }
 
 export function log(

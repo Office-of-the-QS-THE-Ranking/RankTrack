@@ -2,11 +2,12 @@
 
 /*
  * Request access, from the sign-in page: three steps (Profile, Affiliation, Declarations) and a receipt. A UST
- * email alone doesn't let anyone in, so Thomasians ask here too: Affiliation opens on Thomasian or External
- * partner. A Thomasian gives a UST email, their college, faculty or office, and position; an external partner
- * their affiliation and institution email. Each
- * step is a form of its own, so the browser's constraint checks, and the Hub's field messages, cover only the
- * fields in view, and Continue moves on once they pass. SignInFlow keeps the answers, so leaving for sign in and
+ * email alone doesn't let anyone in, so Thomasians ask here too: they pick University of Santo Tomas as their
+ * affiliation, then their role (Administrator, Coordinator or Student), whether they belong to a University Office
+ * or a College/Faculty (Students only the second), and which one. They prove their UST email by signing in to
+ * Google the way sign-in does (/auth/verify-email, back to this step), which puts a check on the field. An external partner gives
+ * their affiliation and institution email. Each step is a form of its own, so the browser's constraint
+ * checks, and the Hub's field messages, cover only the fields in view, and Continue moves on once they pass. SignInFlow keeps the answers, so leaving for sign in and
  * coming back loses nothing; a sent request clears them.
  */
 import Link from "next/link";
@@ -21,11 +22,15 @@ import {
   REVIEW_DAYS,
   SALUTATIONS,
   SPECIFY,
+  SECTIONS,
+  UST_ROLES,
+  DRAFT_KEY,
   asksWebsite,
-  positionText,
+  sectionsFor,
+  isThomasian,
   universityEmail,
-  type RequesterKind,
   type RequestUnit,
+  type Section,
   displayRequestBirthday,
   formatRequestBirthday,
   listedAffiliation,
@@ -36,8 +41,6 @@ import {
 import { AffiliationField } from "./AffiliationField";
 
 export type AccessDraft = {
-  /** Thomasian or External partner; nothing until chosen. */
-  kind: RequesterKind | "";
   lastName: string;
   firstName: string;
   middleName: string;
@@ -48,15 +51,17 @@ export type AccessDraft = {
   organization: string;
   website: string;
   email: string;
-  /** A Thomasian's college, faculty or office, and position. */
+  /** The UST email this browser proved with Google, if any. */
+  verified: string;
+  /** A Thomasian's role, whether in a University Office or a College/Faculty ("offices" or "academic"), and which one. */
+  roleId: string;
+  section: string;
   unitId: string;
-  position: string;
   /** One tick per declaration, in DECLARATIONS order. */
   agreed: boolean[];
 };
 
 export const EMPTY_DRAFT: AccessDraft = {
-  kind: "",
   lastName: "",
   firstName: "",
   middleName: "",
@@ -67,8 +72,10 @@ export const EMPTY_DRAFT: AccessDraft = {
   organization: "",
   website: "",
   email: "",
+  verified: "",
+  roleId: "",
+  section: "",
   unitId: "",
-  position: "",
   agreed: [false, false, false],
 };
 
@@ -101,8 +108,7 @@ function youngest() {
   return `${Number(today.slice(0, 4)) - 15}${today.slice(4)}`;
 }
 
-const stamp = (iso: string) =>
-  `${new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Manila" })} PHT`;
+const stamp = (iso: string) => `${new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Manila" })} PHT`;
 
 /** The step bar over the form: each step's number, ticked once passed. */
 function Steps({ at }: { at: number }) {
@@ -130,6 +136,7 @@ export function RequestAccessForm({
   onSignIn,
   domains,
   units,
+  startPart = 0,
 }: {
   draft: AccessDraft;
   onDraft: (d: AccessDraft) => void;
@@ -137,8 +144,10 @@ export function RequestAccessForm({
   units: { label: string; units: RequestUnit[] }[];
   onTrack: (reference: string, email: string) => void;
   onSignIn: () => void;
+  /** The step to open on: Affiliation when coming back from verifying the email. */
+  startPart?: number;
 }) {
-  const [part, setPart] = useState(0);
+  const [part, setPart] = useState(startPart);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [pending, start] = useTransition();
   const [affiliationFocused, setAffiliationFocused] = useState(false);
@@ -147,16 +156,45 @@ export function RequestAccessForm({
   const done = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
   const set = (patch: Partial<AccessDraft>) => onDraft({ ...d, ...patch });
-  const thomasian = d.kind === "thomasian";
-  const website = d.kind === "external" && asksWebsite(d.affiliation) && !listedAffiliation(d.affiliation);
+  const thomasian = isThomasian(d.affiliation);
+  const website = !thomasian && asksWebsite(d.affiliation) && !listedAffiliation(d.affiliation);
   const ustDomains = domains.map((x) => `@${x}`).join(" or ");
-  // the email must match the choice: a UST address for a Thomasian, any other for an external partner
-  const emailProblem = (email: string) =>
-    !email.trim() || !d.kind
+  const email = d.email.trim().toLowerCase();
+  const ust = universityEmail(email, domains);
+  // the units of the chosen section: University Offices, or Faculty/Colleges
+  const sectionUnits = units.find((g) => g.label === SECTIONS.find((x) => x.key === d.section)?.label)?.units ?? [];
+  const unitLabel = d.section === "offices" ? "Office" : "College/Faculty";
+  const verified = ust && d.verified === email;
+  // the email must match the affiliation: a UST address for the University, any other for an external partner
+  const emailProblem = (value: string) =>
+    !value.trim() || !d.affiliation.trim()
       ? ""
       : thomasian
-        ? universityEmail(email, domains) ? "" : `Enter your UST email, ending in ${ustDomains}.`
-        : universityEmail(email, domains) ? "That is a UST email. Choose Thomasian above." : "";
+        ? universityEmail(value, domains)
+          ? ""
+          : `Enter your UST email, ending in ${ustDomains}.`
+        : universityEmail(value, domains)
+          ? "That is a UST email. Choose University of Santo Tomas as your affiliation."
+          : "";
+
+  // Like sign-in, verifying leaves for Google; the answers wait in this tab and come back with the result (SignInFlow).
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    // the browser's Back from Google can restore this page as it was left
+    const back = (e: PageTransitionEvent) => e.persisted && setLeaving(false);
+    window.addEventListener("pageshow", back);
+    return () => window.removeEventListener("pageshow", back);
+  }, []);
+  const verify = () => {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    } catch {
+      toast("Your browser won’t keep your answers while you verify. Allow site storage, then try again.", "error");
+      return;
+    }
+    setLeaving(true);
+    location.assign(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+  };
   const showWebsite = !affiliationFocused && website;
   const resumeBirthdayEdit = (input: HTMLInputElement) => {
     if (editingBirthday || !requestBirthday(d.birthday)) return;
@@ -181,14 +219,12 @@ export function RequestAccessForm({
 
   const send = () =>
     start(async () => {
-      if (!d.kind) return;
       const r = await requestAccess({
         ...d,
-        kind: d.kind,
-        affiliation: thomasian ? "" : d.affiliation,
         organization: thomasian ? "" : d.organization,
+        roleId: thomasian ? d.roleId : "",
+        section: thomasian ? d.section : "",
         unitId: thomasian ? d.unitId : "",
-        position: thomasian ? d.position : "",
         birthday: requestBirthday(d.birthday),
         website: website ? d.website : "",
         agreed: d.agreed.every(Boolean),
@@ -198,7 +234,12 @@ export function RequestAccessForm({
         return;
       }
       moved.current = true;
-      setReceipt({ reference: r.reference, at: r.at ?? new Date().toISOString(), email: d.email.trim().toLowerCase(), link: new URL(`/signin?track=${r.reference}`, location.origin).toString() });
+      setReceipt({
+        reference: r.reference,
+        at: r.at ?? new Date().toISOString(),
+        email: d.email.trim().toLowerCase(),
+        link: new URL(`/signin?track=${r.reference}`, location.origin).toString(),
+      });
       onDraft(EMPTY_DRAFT);
     });
 
@@ -281,7 +322,9 @@ export function RequestAccessForm({
         className="si__form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (part < PARTS.length - 1) goTo(part + 1);
+          // a UST email moves on only once Google has vouched for it; Continue opens the window if it hasn't
+          if (part === 1 && ust && !verified) verify();
+          else if (part < PARTS.length - 1) goTo(part + 1);
           else send();
         }}
       >
@@ -402,60 +445,71 @@ export function RequestAccessForm({
 
         {part === 1 && (
           <>
-            <fieldset className="si__kind">
-              <legend className="field__label">I am</legend>
-              {(
-                [
-                  ["thomasian", "Thomasian", "UST faculty, staff or office"],
-                  ["external", "External partner", "Ranking body, accreditor or reviewer"],
-                ] as const
-              ).map(([kind, name, note]) => (
-                <label key={kind} className="si__check si__kind-option">
-                  <input type="radio" name="kind" title="" value={kind} checked={d.kind === kind} onChange={() => set({ kind })} data-missing="Choose Thomasian or External partner." required />
-                  <span>
-                    <b>{name}</b>
-                    <small>{note}</small>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
+            <AffiliationField value={d.affiliation} onChange={(affiliation) => set({ affiliation })} onFocusChange={setAffiliationFocused} required />
 
             {thomasian && (
-              <>
+              <div className={sectionsFor(d.roleId).length > 1 ? "si__pair si__pair--affiliation" : undefined}>
                 <label className="field">
-                  <span className="field__label">College, Faculty or Office</span>
-                  <Select className="select" name="unitId" value={d.unitId} onChange={(unitId) => set({ unitId })} placeholder="Choose" aria-label="College, Faculty or Office" required>
-                    {units.map((g) => (
-                      <optgroup key={g.label} label={g.label}>
-                        {g.units.map((u) => (
-                          <option key={u.id} value={u.id} data-depth={u.depth}>
-                            {u.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                  <span className="field__label">Role</span>
+                  <Select
+                    className="select"
+                    name="roleId"
+                    value={d.roleId}
+                    // a Student has only College/Faculty; a unit chosen in another section goes
+                    onChange={(roleId) => {
+                      const section = sectionsFor(roleId).length === 1 ? sectionsFor(roleId)[0] : sectionsFor(roleId).includes(d.section as Section) ? d.section : "";
+                      set({ roleId, section, unitId: section === d.section ? d.unitId : "" });
+                    }}
+                    placeholder="Choose"
+                    aria-label="Role"
+                    required
+                  >
+                    {UST_ROLES.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
                     ))}
                   </Select>
                 </label>
-                <label className="field">
-                  <span className="field__label">Position or Designation</span>
-                  <input
-                    className="input"
-                    name="position"
-                    title=""
-                    value={d.position}
-                    onChange={(e) => set({ position: positionText(e.target.value) })}
-                    placeholder="e.g. Associate Professor, Rankings Focal Person"
-                    autoComplete="organization-title"
-                    maxLength={120}
-                    required
-                  />
-                </label>
-              </>
+
+                {sectionsFor(d.roleId).length > 1 && (
+                  <label className="field">
+                    <span className="field__label">Unit</span>
+                    <Select
+                      className="select"
+                      name="section"
+                      value={d.section}
+                      onChange={(section) => set({ section, unitId: section === d.section ? d.unitId : "" })}
+                      placeholder="Choose"
+                      aria-label="Unit"
+                      required
+                    >
+                      {SECTIONS.map((x) => (
+                        <option key={x.key} value={x.key}>
+                          {x.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                )}
+              </div>
             )}
 
-            {d.kind === "external" && (
+            {thomasian && d.section && (
+              <label className="field">
+                <span className="field__label">{unitLabel}</span>
+                <Select key={d.section} className="select" name="unitId" value={d.unitId} onChange={(unitId) => set({ unitId })} placeholder="Type or choose" aria-label={unitLabel} searchable required>
+                  {sectionUnits.map((u) => (
+                    <option key={u.id} value={u.id} data-depth={u.depth}>
+                      {u.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+
+            {!thomasian && (
               <>
-                <AffiliationField value={d.affiliation} onChange={(affiliation) => set({ affiliation })} onFocusChange={setAffiliationFocused} required />
                 {listedAffiliation(d.affiliation) === SPECIFY && (
                   <label className="field">
                     <span className="field__label">Accreditation Organization</span>
@@ -498,9 +552,9 @@ export function RequestAccessForm({
               </>
             )}
 
-            {d.kind && (
-              <label className="field">
-                <span className="field__label">{thomasian ? "UST Email" : "Institution Email"}</span>
+            <label className="field">
+              <span className="field__label">{thomasian ? "UST Email" : "Institution Email"}</span>
+              <span className="si__email" data-adorned={ust || undefined}>
                 <input
                   className="input"
                   type="email"
@@ -512,15 +566,29 @@ export function RequestAccessForm({
                     set({ email: e.target.value });
                   }}
                   ref={(input) => {
-                    // switching between Thomasian and External partner rechecks the address already typed
+                    // changing the affiliation rechecks the address already typed
                     input?.setCustomValidity(emailProblem(input.value));
                   }}
+                  aria-describedby={verified ? "si-email-verified" : undefined}
                   placeholder={thomasian ? `name@${domains[0] ?? "ust.edu.ph"}` : "name@institution.org"}
                   autoComplete="email"
+                  spellCheck={false}
                   required
                 />
-              </label>
-            )}
+                {verified ? (
+                  <span className="si__email-mark" id="si-email-verified" title="">
+                    <Icon name="check" size={14} strokeWidth={2.6} />
+                    <span className="sr-only">Verified with Google</span>
+                  </span>
+                ) : (
+                  ust && (
+                    <button type="button" className="si__email-verify" onClick={verify} disabled={leaving} aria-busy={leaving}>
+                      <Icon name="shield-check" size={14} /> {leaving ? "Opening…" : "Verify"}
+                    </button>
+                  )
+                )}
+              </span>
+            </label>
           </>
         )}
 
@@ -534,7 +602,11 @@ export function RequestAccessForm({
                   name={`declaration-${i + 1}`}
                   title=""
                   checked={d.agreed[i]}
-                  onChange={(e) => set({ agreed: d.agreed.map((v, j) => (j === i ? e.target.checked : v)) })}
+                  onChange={(e) =>
+                    set({
+                      agreed: d.agreed.map((v, j) => (j === i ? e.target.checked : v)),
+                    })
+                  }
                   data-missing="Tick this box to send your request."
                   required
                 />

@@ -1,5 +1,6 @@
 import { AFFILIATIONS } from "./access-requests";
 import { ROLE } from "./catalog";
+import { invitationUnitMatchesRole } from "./invitation";
 import { activeAssignments } from "./rbac";
 import type { AccountRow, RequestRow, UnitRow } from "./console-types";
 import type { RequestPayload } from "./types";
@@ -10,12 +11,13 @@ export type FilterOption = { value: string; label: string };
 
 const key = (s: string) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
 const affiliationValue = (name: string) => `affiliation:${key(name)}`;
-const categoryFor = (role: string) => role === ROLE.admin ? "Administrative Office" : role === ROLE.coordinator ? "College/Faculty" : undefined;
+/** The Directory categories a role is held in: Administrators and Coordinators in offices and colleges, Students in colleges. */
+const categoriesFor = (role: string): string[] =>
+  role === ROLE.admin || role === ROLE.coordinator ? ["Administrative Office", "College/Faculty"] : role === ROLE.student ? ["College/Faculty"] : [];
 
 function eligibleUnit(unit: UnitRow, role: string, directory: DirectoryEntry[]) {
   const entry = matchDirectoryEntry(unit, directory);
-  return entry ? entry.category === categoryFor(role)
-    : role === ROLE.admin ? unit.kind === "Office" : role === ROLE.coordinator && (unit.kind === "College" || unit.kind === "Faculty");
+  return entry ? categoriesFor(role).includes(entry.category) : invitationUnitMatchesRole(unit, role);
 }
 
 const unitValue = (unit: UnitRow, directory: DirectoryEntry[]) => {
@@ -23,7 +25,7 @@ const unitValue = (unit: UnitRow, directory: DirectoryEntry[]) => {
   return entry ? `directory:${entry.key}` : `unit:${unit.id}`;
 };
 
-/** A coordinator in a department/program belongs under its college or faculty. */
+/** Someone in a unit beneath an office or college belongs under it. */
 function unitValues(unitId: string, units: UnitRow[], role: string, directory: DirectoryEntry[]): string[] {
   const seen = new Set<string>();
   let unit = units.find((u) => u.id === unitId);
@@ -35,7 +37,7 @@ function unitValues(unitId: string, units: UnitRow[], role: string, directory: D
   // Also recognize directory keys before an organizational unit has been imported.
   let entry = directory.find((e) => e.key === unitId);
   while (entry) {
-    if (entry.category === categoryFor(role)) return [`directory:${entry.key}`];
+    if (categoriesFor(role).includes(entry.category)) return [`directory:${entry.key}`];
     entry = directory.find((e) => e.key === entry!.parentKey);
   }
   return [];
@@ -63,8 +65,8 @@ export function accountFilterOptions(role: string, units: UnitRow[], accounts: A
       ...requests.flatMap((r) => r.payload.kind === "account-access" && (r.payload.external || r.payload.roleId === ROLE.external) ? requestAffiliations(r.payload) : []),
     ];
     for (const name of names) if (name.trim()) options.set(affiliationValue(name), name.trim());
-  } else if (categoryFor(role)) {
-    for (const entry of directory.filter((e) => e.category === categoryFor(role))) options.set(`directory:${entry.key}`, entry.name);
+  } else if (categoriesFor(role).length) {
+    for (const entry of directory.filter((e) => categoriesFor(role).includes(e.category))) options.set(`directory:${entry.key}`, entry.name);
     for (const unit of units.filter((u) => u.status === "Active" && eligibleUnit(u, role, directory))) {
       const value = unitValue(unit, directory);
       if (!options.has(value)) options.set(value, unit.name);

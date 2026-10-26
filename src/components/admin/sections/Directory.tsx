@@ -18,11 +18,10 @@ import { UnitSelect, parentPath } from "../parts";
 import { Block, Disclosure, EmptyNote, Field, KV, Pill, ReadOnly, RowMenu, SearchField, Sheet, fmtDate, plural, useAct, useConsole } from "../ui";
 import { Tabs, TabPanel } from "@/components/ui/interactive";
 import { Select } from "@/components/ui/pickers";
-import { useSkipChecks } from "@/lib/dev-checks";
 import { UNIT_CATEGORY_LABELS, UNIT_CATEGORY_TABS as DIRECTORY_TABS } from "@/lib/unit-categories";
 import { UNIT_EMAILS } from "@/lib/governance/catalog";
 
-const KINDS: OrgKind[] = ["Faculty", "College", "Institute", "School", "Student Government", "Research Centre", "Department", "Program", "Office"];
+const KINDS: OrgKind[] = ["Faculty", "College", "Institute", "School", "Student Government", "Research Centre", "Office"];
 const DIRECTORY_SECTIONS: Record<typeof DIRECTORY_TABS[number], DirectorySection> = {
   "Faculty/Colleges": "academic",
   "University Offices": "offices",
@@ -492,7 +491,7 @@ function MoveUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
   return (
     <Block title={`Move ${u.name}`}>
       <Field label="New parent">
-        <UnitSelect label="New parent" value={to} onChange={setTo} filter={(x) => x.status === "Active" && !tree.includes(x.id) && x.id !== u.parentId && x.kind !== "Program"} />
+        <UnitSelect label="New parent" value={to} onChange={setTo} filter={(x) => x.status === "Active" && !tree.includes(x.id) && x.id !== u.parentId} />
       </Field>
       <div className="adm-actions">
         <button type="button" className="btn btn--sm" onClick={onDone}>
@@ -557,7 +556,6 @@ function AddUnit({ parentId, section, onClose, onCreated }: { parentId: string |
   const formId = useId();
   const nextEmailId = useRef(1);
   const [emails, setEmails] = useState([{ id: 0, value: "" }]);
-  const skip = useSkipChecks();
   const { data, busy: saving } = useConsole();
   const act = useAct();
   const [emblem, setEmblem] = useState<UnitRow["emblem"]>();
@@ -594,7 +592,7 @@ function AddUnit({ parentId, section, onClose, onCreated }: { parentId: string |
             type="submit"
             form={formId}
             className="btn btn--dark"
-            disabled={saving || uploadingLogo || (!skip && (f.name.trim().length < 3 || f.code.trim().length < 2 || !f.parentId))}
+            disabled={saving || uploadingLogo || f.name.trim().length < 3 || f.code.trim().length < 2 || !f.parentId}
           >
             {direct ? "Add unit" : "Send for approval"}
           </button>

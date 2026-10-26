@@ -7,7 +7,6 @@ import { Card, Notice } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useViewer } from "@/components/hub/HubProvider";
 import { Select } from "@/components/ui/pickers";
-import { skipChecks } from "@/lib/dev-checks";
 import { useViews } from "@/components/reference/ReferenceProvider";
 
 const STAGES = ["Discover", "Screen", "Develop", "Document", "Submit", "Recognize and scale"];
@@ -72,7 +71,7 @@ export function ProposeInnovation() {
       onSubmit={async (e) => {
         e.preventDefault();
         setTried(true);
-        if (missing.length && !skipChecks()) return;
+        if (missing.length) return;
         const r = await run({ type: "innovation.propose", unitSlug: viewer?.portal.unitId ?? "", name, category });
         if (!r.ok) toast(r.message, "error");
         else setSent(typeof r.data === "string" ? r.data : "received");

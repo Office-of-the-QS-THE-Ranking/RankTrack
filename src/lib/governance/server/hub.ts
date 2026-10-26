@@ -17,6 +17,7 @@ import type { GovernanceState } from "../types";
 import { buildUnits } from "../unit-participation";
 import type { Viewer } from "../viewer";
 import { noticeVisible } from "../engine";
+import { wantsNotice } from "../notification-prefs";
 import { readState } from "./store";
 import { reference } from "./reference";
 
@@ -136,7 +137,7 @@ export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Pro
     dashboard: h.dashboard,
     site: h.site,
     notices: state.notices
-      .filter((n) => noticeVisible(n.to, viewer.id, viewer.grants) && (variant === "office" ? !n.to.startsWith("unit:") || n.to === viewer.id : n.to !== "office"))
+      .filter((n) => noticeVisible(n.to, viewer.id, viewer.grants) && wantsNotice(viewer.notify, n.templateId, "hub") && (variant === "office" ? !n.to.startsWith("unit:") || n.to === viewer.id : n.to !== "office"))
       .slice(0, 12)
       .map((n) => ({ id: n.id, text: n.text, href: n.href, at: n.at, unread: !n.readBy.includes(viewer.id) })),
     requirements: variant === "unit" ? h.requirements(viewer.portal.unitId) : [],
