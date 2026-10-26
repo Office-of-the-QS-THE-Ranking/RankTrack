@@ -13,9 +13,9 @@ import { publicHub, siteData } from "@/lib/governance/server/site";
 const BOOT = `document.documentElement.classList.add("js");`;
 
 /** The public website: its own header, footer and loader, outside the dashboard shell. */
-export function SiteFrame({ children, loader = true }: { children: ReactNode; loader?: boolean }) {
+export async function SiteFrame({ children, loader = true }: { children: ReactNode; loader?: boolean }) {
   // What the public may see is decided in Administration: menus, search, and a site-wide notice.
-  const site = siteData();
+  const site = await siteData();
   const menus = governedMenus({ publicSlugs: site.rankings.map((r) => r.slug), stories: site.stories, features: site.features });
   return (
     <div className={`site ${siteFontVars}`} id="top" data-intro={loader ? "load" : "done"} suppressHydrationWarning>
@@ -24,7 +24,7 @@ export function SiteFrame({ children, loader = true }: { children: ReactNode; lo
       <a className="w-skip" href="#main">
         Skip to content
       </a>
-      <SiteHeader menus={menus} hub={publicHub()} />
+      <SiteHeader menus={menus} hub={(await publicHub())} />
       <div className="w-nav-backdrop" aria-hidden="true" />
       <main id="main" className="w-main" tabIndex={-1}>
         {site.notice && (

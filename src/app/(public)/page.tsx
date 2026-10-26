@@ -22,8 +22,8 @@ export const metadata = {
  * several → how evidence is asked for once → the stories behind the results → the units behind them →
  * how the Office reports → how another institution can adapt a practice.
  */
-export default function HomePage() {
-  const site = siteData();
+export default async function HomePage() {
+  const site = await siteData();
   const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
   const n = site.rankings.length;
   return (

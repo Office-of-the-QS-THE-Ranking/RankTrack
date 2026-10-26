@@ -24,6 +24,7 @@ export function AdminWorkspace({ initial, base, children }: { initial: ConsoleDa
   const [data, setData] = useState<ConsoleData>(initial);
   const [ended, setEnded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [headerActions, setHeaderActions] = useState<HTMLDivElement | null>(null);
   const [focus, setFocus] = useState<{ path: string; id: string } | null>(null);
   const [ask, setAsk] = useState<{
     opts: ConfirmOptions;
@@ -102,7 +103,7 @@ export function AdminWorkspace({ initial, base, children }: { initial: ConsoleDa
     setFocus((f) => (f && f.path === pathname ? f : null));
   }, [pathname]);
 
-  const api: ConsoleApi = useMemo(() => ({ data, run, busy, notify, confirm, go, reload, focus: focusId }), [data, run, busy, notify, confirm, go, reload, focusId]);
+  const api: ConsoleApi = useMemo(() => ({ data, run, busy, notify, confirm, go, reload, focus: focusId, headerActions }), [data, run, busy, notify, confirm, go, reload, focusId, headerActions]);
 
   return (
     <div className="adm">
@@ -110,9 +111,8 @@ export function AdminWorkspace({ initial, base, children }: { initial: ConsoleDa
         <div className="ph__main">
           <h1 className="ph__title">{current && current.key !== "overview" ? current.title : "Administration"}</h1>
         </div>
-        <div className="ph__actions">
+        <div className="ph__actions" ref={setHeaderActions}>
           {busy && <span className="adm-spinner" aria-label="Saving" role="status" />}
-          <span className="adm-badge">Admin only</span>
         </div>
       </header>
 

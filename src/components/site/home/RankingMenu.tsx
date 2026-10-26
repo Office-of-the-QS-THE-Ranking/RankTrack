@@ -8,10 +8,10 @@ import { siteData } from "@/lib/governance/server/site";
  * Two-column menu with photo bullets: the eight rankings filed under their four ranking bodies, each
  * with the result where a menu would put the price. Bullets are round photographs of the University.
  */
-export function RankingMenu({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
+export async function RankingMenu({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
   const H = headingLevel === 2 ? "h3" : "h4";
   // Ranking bodies and rankings as System Configuration shows them publicly.
-  const BODIES = siteData().bodies;
+  const BODIES = (await siteData()).bodies;
   return (
     <div className="w-rkmenu">
       <nav className="w-rkmenu__jump" aria-label="Ranking bodies">

@@ -1008,7 +1008,7 @@
   color: var(--asc-dim);
   font: 500 0.9375rem/1.2 var(--font-text);
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: color var(--t-hover) ease;
 }
 .w-asc__stop::before,

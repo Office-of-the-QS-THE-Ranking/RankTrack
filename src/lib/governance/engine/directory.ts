@@ -5,17 +5,19 @@
 import type { CommandResult } from "../commands";
 import { descendants } from "../rbac";
 import type { OrgKind, OrgUnit } from "../types";
-import { accountById, can, clean, cleanText, deny, invalid, log, ok, unitById, type Ctx } from "./core";
+import { UNIT_EMAILS } from "../catalog";
+import { validUnitEmblem } from "../unit-emblems";
+import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, ok, readUnitEmails, unitById, type Ctx } from "./core";
 import { createUnit } from "./mutations";
-import { openRequest, workflowOn } from "./requests";
+import { needsApproval, openRequest } from "./requests";
 
-const KINDS: OrgKind[] = ["Office", "Faculty", "College", "Institute", "Research Centre", "Department", "Program"];
+const KINDS: OrgKind[] = ["Office", "Faculty", "College", "Institute", "School", "Student Government", "Research Centre", "Department", "Program"];
 
 const res = (u: OrgUnit) => ({ type: "Unit", id: u.id, label: u.name });
 
 const note = (ctx: Ctx, u: OrgUnit, change: string) => u.history.push({ at: ctx.iso, by: ctx.actor.id, change });
 
-export function createUnitCmd(ctx: Ctx, input: { name: string; code: string; kind: OrgKind; parentId: string; justification: string }): CommandResult {
+export function createUnitCmd(ctx: Ctx, input: { name: string; code: string; kind: OrgKind; parentId: string; justification?: string; emails?: string[]; emblem?: OrgUnit["emblem"] }): CommandResult {
   const parent = unitById(ctx, input.parentId);
   const name = clean(input.name, 120);
   const code = clean(input.code, 16).toUpperCase();
@@ -25,19 +27,42 @@ export function createUnitCmd(ctx: Ctx, input: { name: string; code: string; kin
   if (!/^[A-Z0-9][A-Z0-9-]{1,15}$/.test(code)) return invalid("Use a code of 2–16 letters, digits or dashes, like ENG-CE.");
   if (ctx.state.units.some((u) => u.code.toUpperCase() === code)) return invalid(`Code ${code} is already used by ${ctx.state.units.find((u) => u.code.toUpperCase() === code)!.name}.`);
   if (!KINDS.includes(input.kind)) return invalid("Choose the kind of unit.");
+  const emails = readUnitEmails(input.emails);
+  if (typeof emails === "string") return invalid(emails);
+  if (input.emblem !== undefined && !validUnitEmblem(input.emblem)) return invalid("Upload the logo again.");
+  const emblem = input.emblem ? { src: input.emblem.src, width: input.emblem.width, height: input.emblem.height } : undefined;
   if (!can(ctx, "directory", "create", { unitId: parent.id }))
     return deny(ctx, "unit.create", "Directory", { type: "Unit", id: code, label: name }, `You cannot add units under ${parent.name}.`);
-  if (workflowOn(ctx, "org-unit") && !ctx.actor.superAdmin) {
-    if (cleanText(input.justification).length < 10) return invalid("Add a reason for the approvers.");
-    const req = openRequest(ctx, "org-unit", { kind: "org-unit", name, code, kind2: input.kind, parentId: parent.id }, `New unit: ${name}`, input.justification);
+  if (needsApproval(ctx, "org-unit")) {
+    const summary = cleanText(input.justification) || `Add ${name} (${code}) under ${parent.name}.`;
+    const req = openRequest(ctx, "org-unit", { kind: "org-unit", name, code, kind2: input.kind, parentId: parent.id, emails, ...(emblem && { emblem }) }, `New unit: ${name}`, summary);
     return ok(`${name} sent for approval.`, { requestId: req.id });
   }
-  const u = createUnit(ctx, { name, code, kind: input.kind, parentId: parent.id });
+  const u = createUnit(ctx, { name, code, kind: input.kind, parentId: parent.id, emails, ...(emblem && { emblem }) });
   log(ctx, "unit.create", "Directory", res(u), "Success", `${input.kind} under ${parent.name}`);
   return ok(`${u.name} added under ${parent.name}.`, { data: u.id });
 }
 
-export function updateUnit(ctx: Ctx, id: string, patch: { name?: string; code?: string; adminIds?: string[] }): CommandResult {
+/** Change one coordinator against the current draft, preserving additions made by another administrator. */
+export function changeCoordinator(ctx: Ctx, id: string, accountId: string, operation: "add" | "remove"): CommandResult {
+  const unit = unitById(ctx, id);
+  if (!unit) return invalid("That unit no longer exists.");
+  if (!can(ctx, "directory", "edit", { unitId: id })) return deny(ctx, "unit.coordinator", "Directory", res(unit), "Your role cannot change this unit's coordinators.");
+  if (unit.status !== "Active") return invalid("Reactivate the unit before changing its coordinators.");
+  if (operation !== "add" && operation !== "remove") return invalid("Choose whether to add or remove a coordinator.");
+  const account = accountById(ctx, accountId);
+  if (operation === "add" && (!account || account.status === "Deactivated")) return invalid("Choose an account that has not been deactivated.");
+  if (operation === "add" && unit.adminIds.includes(accountId)) return ok("This person is already a coordinator.");
+  if (operation === "remove" && !unit.adminIds.includes(accountId)) return ok("This person is no longer a coordinator.");
+  const current = unit.adminIds.filter((other) => {
+    const person = accountById(ctx, other);
+    return person && person.status !== "Deactivated";
+  });
+  const result = updateUnit(ctx, id, { adminIds: operation === "add" ? [...current, accountId] : current.filter((other) => other !== accountId) });
+  return result.ok ? ok(`${account?.name ?? "Coordinator"} ${operation === "add" ? "added as a coordinator" : "removed from the coordinators"}.`) : result;
+}
+
+export function updateUnit(ctx: Ctx, id: string, patch: { name?: string; code?: string; adminIds?: string[]; emails?: string[]; emblem?: OrgUnit["emblem"] | null }): CommandResult {
   const u = unitById(ctx, id);
   if (!u) return invalid("That unit no longer exists.");
   if (!can(ctx, "directory", "edit", { unitId: u.id })) return deny(ctx, "unit.update", "Directory", res(u), `${u.name} is outside the units you administer.`);
@@ -65,6 +90,26 @@ export function updateUnit(ctx: Ctx, id: string, patch: { name?: string; code?: 
       changes.push(`administrators: ${ids.map((x) => accountById(ctx, x)!.name).join(", ") || "none"}`);
       u.adminIds = ids;
     }
+  }
+  if (patch.emails) {
+    const emails = [...new Set(patch.emails.map((e) => clean(e, 254).toLowerCase()).filter(Boolean))];
+    const bad = emails.find((e) => !isEmail(e));
+    if (bad) return invalid(`Enter “${bad}” as a full email address, like college@ust.edu.ph.`);
+    if (emails.length > UNIT_EMAILS) return invalid(`List up to ${UNIT_EMAILS} email addresses.`);
+    if (emails.join() !== (u.emails ?? []).join()) {
+      changes.push(`email addresses: ${emails.join(", ") || "none"}`);
+      u.emails = emails;
+    }
+  }
+  if (patch.emblem !== undefined && patch.emblem?.src !== u.emblem?.src) {
+    const next = patch.emblem;
+    if (next) {
+      if (!validUnitEmblem(next)) return invalid("Upload the logo again.");
+    }
+    changes.push(next ? (u.emblem ? "logo replaced" : "logo uploaded") : "uploaded logo removed");
+    if (u.emblem) ctx.effects.push({ kind: "delete-media", srcs: [u.emblem.src] });
+    if (next) u.emblem = { src: next.src, width: next.width, height: next.height };
+    else delete u.emblem;
   }
   if (!changes.length) return ok("No changes.");
   note(ctx, u, changes.join("; "));

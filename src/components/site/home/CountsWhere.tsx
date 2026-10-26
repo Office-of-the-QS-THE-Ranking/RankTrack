@@ -5,9 +5,9 @@ import { siteData } from "@/lib/governance/server/site";
  * The page's one live thing, on the band that splits the page: choose a kind of work and the rankings
  * that measure it light up. Built from radio buttons and CSS :has(), so it works without JavaScript.
  */
-export function CountsWhere({ id = "cw", headingLevel = 2 }: { id?: string; headingLevel?: 2 | 3 }) {
+export async function CountsWhere({ id = "cw", headingLevel = 2 }: { id?: string; headingLevel?: 2 | 3 }) {
   const H = headingLevel === 2 ? "h2" : "h3";
-  const { rankings: RANKINGS, counts: COUNTS } = siteData();
+  const { rankings: RANKINGS, counts: COUNTS } = await siteData();
   // One rule per kind of work: light the rankings that measure it and show its note.
   const rules = COUNTS.map(
     (_, i) =>

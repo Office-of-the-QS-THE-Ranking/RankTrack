@@ -943,44 +943,6 @@ body:has(> .nf) {
   font-size: 12px;
 }
 
-.tabs {
-  gap: 2px;
-  align-self: flex-start;
-  max-width: 100%;
-  padding: 3px;
-  margin-bottom: 0;
-  border: 0;
-  border-radius: 999px;
-  background: rgb(var(--hair) / 0.055);
-}
-.tabs__tab {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: 999px;
-  color: var(--text-2);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-.tabs__tab[aria-selected="true"] {
-  background: var(--surface);
-  color: var(--text);
-  font-weight: 600;
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.1);
-}
-.tabs__tab[aria-selected="true"]::after {
-  display: none;
-}
-.tabs__tab:focus-visible {
-  outline-offset: -3px;
-}
-@media (hover: hover) {
-  .tabs__tab:hover:not([aria-selected="true"]) {
-    background: transparent;
-    color: var(--text);
-  }
-}
-
 .pill {
   height: 34px;
   padding: 0 15px;
@@ -1824,15 +1786,16 @@ body:has(> .nf) {
   letter-spacing: -0.03em;
 }
 
-/* ---------- Motion ---------- */
+/* ---------- Motion ----------
+   Pages arrive on every tab switch, so their entrance stays short: a tab never waits on an animation. */
 @media (prefers-reduced-motion: no-preference) {
   .content > * {
-    animation: portal-enter 700ms var(--ease-out) both;
+    animation: portal-enter 340ms var(--ease-out) both;
   }
   .rgrid > *,
   .grid.cols-4 > * {
-    animation: portal-enter 700ms var(--ease-out) both;
-    animation-delay: calc(140ms + var(--n, 0) * 50ms);
+    animation: portal-enter 340ms var(--ease-out) both;
+    animation-delay: calc(40ms + var(--n, 0) * 30ms);
   }
   .rgrid > :nth-child(2),
   .grid.cols-4 > :nth-child(2) { --n: 1; }
@@ -1851,13 +1814,76 @@ body:has(> .nf) {
 @keyframes portal-enter {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.995);
+    transform: translateY(8px) scale(0.997);
   }
 }
 @keyframes portal-side {
   from {
     opacity: 0;
     transform: translateX(-12px);
+  }
+}
+
+/* ---------- Loading state ----------
+   The outline a tab shows while its page renders (PageSkeleton). It fades in after a beat, so a quick
+   response goes straight to the page without a flash of placeholders. */
+.skel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.skel__head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: var(--s-3);
+}
+.skel__bar {
+  display: block;
+  width: 100%;
+  height: 14px;
+  border-radius: 7px;
+  background: rgb(var(--hair) / 0.07);
+}
+.skel__bar--title {
+  width: min(420px, 70%);
+  height: 46px;
+  border-radius: 12px;
+}
+.skel__bar--lede {
+  width: min(620px, 92%);
+  height: 17px;
+}
+.skel__card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+.skel__bar--heading {
+  width: 180px;
+  height: 18px;
+  margin-bottom: 6px;
+}
+.skel__card .skel__bar:nth-child(3) { width: 84%; }
+.skel__card .skel__bar:nth-child(4) { width: 92%; }
+.skel__card .skel__bar:nth-child(5) { width: 68%; }
+@media (prefers-reduced-motion: no-preference) {
+  .content > .skel {
+    animation: skel-in 200ms ease 160ms both;
+  }
+  .skel__bar {
+    animation: skel-pulse 1100ms ease-in-out infinite alternate;
+  }
+}
+@keyframes skel-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes skel-pulse {
+  to {
+    opacity: 0.45;
   }
 }
 
@@ -1914,54 +1940,6 @@ body:has(> .nf) {
 }
 .queue-filter .seg__opt {
   border-radius: 13px;
-}
-
-/* Unit details stay over the directory while its scroll position is preserved. */
-.unit-modal {
-  width: 90vw;
-  height: 90vh;
-  height: 90dvh;
-  max-width: none;
-  max-height: none;
-  margin: auto;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--bg);
-  color: var(--text);
-  box-shadow: var(--sh-lg);
-  overflow: hidden;
-}
-.unit-modal[open] {
-  display: flex;
-  flex-direction: column;
-}
-.unit-modal::backdrop {
-  background: rgb(0 0 0 / 0.45);
-}
-.unit-modal__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-.unit-modal__head h2 {
-  font-size: 1rem;
-}
-.unit-modal__body {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  min-height: 0;
-  padding: clamp(16px, 3vw, 40px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.unit-modal__body > * {
-  flex-shrink: 0;
 }
 
 /* ---------- Sidebar header and collapse toggle ---------- */
@@ -2287,6 +2265,35 @@ html:has(.app) {
 .top__theme:active svg {
   transform: rotate(-30deg) scale(0.9);
 }
+
+/* Appearance switch. useTheme (Shell) grows the new look as a circle from the theme button;
+   the browser's own cross-fade is turned off underneath it. */
+:root.theme-wipe::view-transition-old(root),
+:root.theme-wipe::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+/* Without View Transitions, colours ease over for a moment instead. */
+:root.theme-fade,
+:root.theme-fade *,
+:root.theme-fade *::before,
+:root.theme-fade *::after {
+  transition-property: background-color, border-color, outline-color, color, fill, stroke, box-shadow, text-decoration-color !important;
+  transition-duration: 360ms !important;
+  transition-timing-function: ease !important;
+  transition-delay: 0s !important;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:is(.theme-wipe, .theme-fade) .top__theme svg {
+    animation: theme-icon-in 480ms var(--ease-spring);
+  }
+}
+@keyframes theme-icon-in {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+  }
+}
 @media (max-width: 860px) {
   .top__clock-date,
   .top__clock-time::before {
@@ -2318,6 +2325,15 @@ html:has(.app) {
 :root[data-theme="dark"] .seal {
   filter: drop-shadow(0 0 1px rgb(255 255 255 / 0.25));
 }
+.seal.seal--dark {
+  display: none;
+}
+:root[data-theme="dark"] .seal.seal--light {
+  display: none;
+}
+:root[data-theme="dark"] .seal.seal--dark {
+  display: block;
+}
 
 /* Edge target: the border and a strip either side of it toggle the sidebar too. */
 .side__edge {
@@ -2336,10 +2352,10 @@ html:has(.app) {
     padding: 0;
     border: 0;
     background: none;
-    cursor: w-resize;
+    cursor: var(--cursor-gold);
   }
-  .app--rail .side__edge {
-    cursor: e-resize;
+  .side__toggle {
+    cursor: var(--cursor-gold);
   }
   /* The highlighted border */
   .side__edge::after {

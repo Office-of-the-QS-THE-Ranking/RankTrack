@@ -92,11 +92,11 @@ textarea {
 }
 
 button {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 button:disabled {
-  cursor: not-allowed;
+  cursor: var(--cursor-not-allowed);
 }
 
 table {

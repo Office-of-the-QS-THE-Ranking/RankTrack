@@ -19,6 +19,7 @@ export type ModuleKey =
   | "data"
   | "stories"
   | "units"
+  | "posts"
   | "reports"
   | "knowledge"
   | "accounts"
@@ -48,37 +49,23 @@ export interface Scope {
   datasets: "all" | string[];
 }
 
+/** The Hub's three roles. They are fixed: what each one may do is set in catalog.ts, not in the store. */
+export type RoleId = "university-admin" | "coordinator" | "external";
+
 export interface Role {
-  id: string;
+  id: RoleId;
   name: string;
   description: string;
-  /** Built-in roles from the governance policy; they cannot be edited or deleted, only duplicated. */
-  system: boolean;
-  /** Privilege tier. Nobody can grant a role above their own tier. */
+  /** Higher ranks hold more. Giving an active account a higher-ranked role than it holds is privilege escalation. */
   tier: number;
-  /** Permission inheritance: this role starts from everything the parent grants. */
-  inherits?: string;
   permissions: PermissionSet;
-  /** Explicit exceptions: inherited actions this role does not get. */
-  exceptions?: PermissionSet;
   /** What scope an assignment of this role normally carries. */
   scopeKind: "university" | "unit" | "custom";
-  /** May hold destructive backup and restoration privileges. */
-  technical?: boolean;
-  createdAt: ISOTime;
-  createdBy?: string;
-}
-
-export interface Template {
-  id: string;
-  name: string;
-  description: string;
-  permissions: PermissionSet;
 }
 
 export interface Assignment {
   id: string;
-  roleId: string;
+  roleId: RoleId;
   scope: Scope;
   grantedBy: string;
   grantedAt: ISOTime;
@@ -96,6 +83,8 @@ export interface Account {
   name: string;
   email: string;
   title: string;
+  /** Google profile photo, refreshed at each sign-in. */
+  avatar?: string;
   /** Home organizational unit. */
   unitId: string;
   status: AccountStatus;
@@ -103,6 +92,8 @@ export interface Account {
   createdAt: ISOTime;
   invitedAt?: ISOTime;
   lastLogin?: ISOTime;
+  /** The account's first sign-in (the Submission Tracker's last stage). */
+  firstLogin?: ISOTime;
   /** Sign-in is through University Google Workspace; external collaborators use a sponsored guest identity. */
   identity: "Google Workspace" | "Sponsored guest";
   external?: boolean;
@@ -155,19 +146,27 @@ export type OrgKind =
   | "Faculty"
   | "College"
   | "Institute"
+  | "School"
+  | "Student Government"
   | "Research Centre"
   | "Department"
   | "Program";
 
 export interface OrgUnit {
   id: string;
+  /** Stable reference to the supplied UST directory, independent of editable names and codes. */
+  directoryKey?: string;
   code: string;
   name: string;
   kind: OrgKind;
   parentId: string | null;
   status: "Active" | "Archived";
-  /** Designated administrators (account ids). The first is the unit's coordinator. */
+  /** Designated coordinators (account ids). A unit can have several. */
   adminIds: string[];
+  /** The unit's own contact addresses, shown on its profile. */
+  emails?: string[];
+  /** A logo uploaded in the Directory. Shown in place of the University's official arms (unit-emblems.ts). */
+  emblem?: { src: string; width: number; height: number };
   established?: ISODate;
   archivedAt?: ISOTime;
   archivedReason?: string;
@@ -299,7 +298,7 @@ export interface Incident {
 }
 
 export interface SecurityPolicy {
-  mfa: { mode: "Everyone" | "Privileged roles" | "Off"; roles: string[]; methods: ("Authenticator app" | "Security key")[] };
+  mfa: { mode: "Everyone" | "Privileged roles" | "Off"; roles: RoleId[]; methods: ("Authenticator app" | "Security key")[] };
   sso: { provider: string; enforced: boolean; domains: string[]; allowGuests: boolean };
   session: { idleMinutes: number; absoluteHours: number; warnMinutes: number };
   lockout: { attempts: number; windowMinutes: number };
@@ -349,10 +348,9 @@ export interface AuditEvent {
 
 export type WorkflowKey = "account-access" | "privilege-escalation" | "org-unit" | "data-access" | "publication" | "destructive";
 
+/** Anyone with approve rights on workflows (the University Administrators) may decide a step. */
 export interface WorkflowStep {
   name: string;
-  /** Any account holding one of these roles (with approve rights on workflows) may decide this step. */
-  approverRoles: string[];
 }
 
 export interface Workflow {
@@ -366,10 +364,40 @@ export interface Workflow {
   separation: boolean;
 }
 
+/** Who asked for an account from the sign-in page, as they gave it (access-requests.ts). */
+export interface Applicant {
+  lastName: string;
+  firstName: string;
+  middleName?: string;
+  /** The preferred salutation (Dr., Prof., …); left out when the requester prefers not to specify. */
+  salutation?: string;
+  birthday: ISODate;
+  /** A listed affiliation, or the requester's own words when none matched (listed: false, shown as Others). */
+  affiliation: string;
+  listed: boolean;
+  /** The organization named for "International Accreditation Organization (Specify)". */
+  organization?: string;
+  /** For an organization not on the list: its website as typed (https only), shown to approvers as text. */
+  website?: string;
+  /** When the requester accepted the declarations, the Data Privacy Notice and the Terms of Use. */
+  agreedAt?: string;
+}
+
 export type RequestPayload =
-  | { kind: "account-access"; name: string; email: string; unitId: string; roleId: string; title: string }
-  | { kind: "privilege-escalation"; accountId: string; roleId: string; scope: Scope; expires?: ISODate }
-  | { kind: "org-unit"; name: string; code: string; kind2: OrgKind; parentId: string }
+  | {
+      kind: "account-access";
+      name: string;
+      email: string;
+      /** Empty when the request came without one: the approver chooses it. */
+      unitId: string;
+      roleId: RoleId;
+      title: string;
+      applicant?: Applicant;
+      /** Outside the University's sign-in domains: a sponsored guest whose access ends GUEST_DAYS after approval. */
+      external?: boolean;
+    }
+  | { kind: "privilege-escalation"; accountId: string; roleId: RoleId; scope: Scope; expires?: ISODate }
+  | { kind: "org-unit"; name: string; code: string; kind2: OrgKind; parentId: string; emails?: string[]; emblem?: OrgUnit["emblem"] }
   | { kind: "data-access"; accountId: string; datasetId: string; access: "View" | "Export"; until: ISODate }
   | { kind: "publication"; target: "story" | "report"; id: string; title: string }
   | { kind: "destructive"; operation: "restore" | "delete"; snapshotId: string };
@@ -385,6 +413,8 @@ export interface ApprovalRequest {
   status: "Pending" | "Approved" | "Rejected" | "Cancelled";
   step: number;
   decisions: { step: number; by: string; at: ISOTime; decision: "Approved" | "Rejected"; note?: string }[];
+  /** When an approver marked it under review (the Submission Tracker shows it). */
+  reviewing?: { by: string; at: ISOTime };
   due: ISODate;
   completedAt?: ISOTime;
 }
@@ -530,11 +560,57 @@ export interface Notice {
   readBy: string[];
 }
 
+/** A picture in a post. Uploads live in the private media bucket and are served from /media/…; the Hub's own photographs from /images/…. */
+export interface PostMedia {
+  src: string;
+  /** Pixel size, or 0 when unknown (the Hub's own photographs). */
+  width: number;
+  height: number;
+  /** What the picture shows, for screen readers. */
+  alt: string;
+}
+
+export type PostStatus = "Draft" | "In review" | "Published" | "Unpublished";
+
+/** A post in the Impact and Innovation library, written in the Office workspace's composer. */
+export interface PostRecord {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string;
+  sdgs: number[];
+  themes: string[];
+  /** Without the #. Missing on posts written before hashtags. */
+  hashtags?: string[];
+  /** How the public website lays the post out (lib/governance/posts.ts POST_LAYOUTS); "cover" when missing. */
+  layout?: "cover" | "feature" | "split" | "essay" | "banner" | "gallery" | "magazine" | "alternate";
+  /** Shown in lists and at the top of the post. Without one, the first photo stands in. */
+  thumbnail: PostMedia | null;
+  /** The editor's rich text (lib/rich-text.ts), or plain text from before it, where a blank line starts a paragraph. */
+  body: string;
+  photos: PostMedia[];
+  status: PostStatus;
+  /** Who wrote it. A unit's story proposal that the Office took over keeps its proposer. */
+  authorId: string;
+  /** The unit a story proposal came from. */
+  unitSlug?: string;
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+  updatedBy: string;
+  /** When it first reached the public website. */
+  publishedAt?: ISOTime;
+}
+
 export interface Records {
   /** Changes to the sample evidence and every new submission, by id. */
   evidence: Record<string, EvidenceRecord>;
-  /** Publication state of impact stories, by slug. */
-  stories: Record<string, "Published" | "In review" | "Draft" | "Withdrawn">;
+  /** Impact and Innovation posts, newest first. */
+  posts: PostRecord[];
+  /** Anonymous public post views, grouped by Manila calendar day. No reader identities are stored. */
+  postViews: Record<string, { total: number; daily: Record<string, number>; lastViewedAt?: ISOTime }>;
+  postViewsStartedAt: ISOTime;
+  /** Publication state of impact stories, by slug. "Deleted": one of the Hub's own stories that became a post. */
+  stories: Record<string, "Published" | "In review" | "Draft" | "Withdrawn" | "Deleted">;
   /** Stories proposed through the contributor workspace. */
   proposals: { slug: string; title: string; unitSlug: string; by: string; at: ISOTime; sdgs: number[]; rankings: string[]; challenge: string; outcome: string }[];
   /** Reporting-period values entered in Submit data, by requirement id. */
@@ -555,8 +631,6 @@ export interface GovernanceState {
   sessions: Session[];
   challenges: Challenge[];
   failures: { email: string; at: ISOTime }[];
-  roles: Role[];
-  templates: Template[];
   units: OrgUnit[];
   datasets: Dataset[];
   rules: QualityRule[];

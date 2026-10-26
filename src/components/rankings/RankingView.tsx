@@ -23,7 +23,8 @@ import { FiveQuestions, RankingHeader } from "./RankingHeader";
 import { IndicatorDrawer } from "./IndicatorDrawer";
 import { SpecialDashboard } from "./SpecialDashboard";
 import { actionIcon, resolveFocus } from "./focus";
-import { useCan, useHub } from "@/components/hub/HubProvider";
+import { useHub } from "@/components/hub/HubProvider";
+import { Select } from "@/components/ui/pickers";
 
 const TABS = ["Overview", "Performance", "Indicators", "Evidence", "Contributors", "Action Plan", "Methodology", "Reports"] as const;
 type Tab = (typeof TABS)[number];
@@ -42,10 +43,8 @@ function downloadCsv(name: string, rows: (string | number | null)[][]) {
 export function RankingView({ ranking }: { ranking: Ranking }) {
   // Evidence and units come from the governance store: review states, directory names and archives.
   const hub = useHub();
-  const can = useCan();
   const EVIDENCE = hub?.evidence ?? STATIC_EVIDENCE;
   const UNITS = hub ? hub.units.filter((u) => u.status === "Active") : STATIC_UNITS;
-  const canSubmit = can("evidence", "submit") && (hub ? true : false);
   const [tab, setTabState] = useState<Tab>("Overview");
   const [ind, setInd] = useState<Indicator | null>(null);
   const [made, setMade] = useState<string[]>([]);
@@ -94,16 +93,12 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
     <>
       <RankingHeader
         ranking={ranking}
+        asOf={hub?.site.asOf}
         actions={
           <>
             <button type="button" className="btn" onClick={() => setTab("Reports")}>
               <Icon name="reports" size={18} /> Reports
             </button>
-            {canSubmit && (
-              <Link href="/portal/submit" className="btn btn--primary">
-                <Icon name="upload" size={18} /> Submit evidence
-              </Link>
-            )}
           </>
         }
       />
@@ -118,6 +113,12 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
             <>
               <div className="grid cols-2-1">
                 <Card title="Executive interpretation" icon="quote">
+                  {!ranking.interpretation && !ranking.strengths.length && !ranking.gaps.length && !ranking.opportunities.length ? (
+                    <Empty icon="quote" title="No interpretation yet">
+                      The Office writes it once {ranking.short} has a result to read.
+                    </Empty>
+                  ) : (
+                  <>
                   <p className="lead-text">{ranking.interpretation}</p>
                   <div className="sgo">
                     <div>
@@ -145,6 +146,8 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
                       </ul>
                     </div>
                   </div>
+                  </>
+                  )}
                 </Card>
                 <Card
                   title="Action panel"
@@ -434,10 +437,10 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
                   </label>
                   <label className="field">
                     <span className="field__label">Reporting period</span>
-                    <select className="select" defaultValue={ranking.reportingPeriod}>
+                    <Select className="select" defaultValue={ranking.reportingPeriod}>
                       <option>{ranking.reportingPeriod}</option>
                       <option>Calendar year 2024</option>
-                    </select>
+                    </Select>
                     <span className="field__hint">Verified against this ranking&rsquo;s reporting window before review.</span>
                   </label>
                   <button className="btn btn--dark" type="submit">

@@ -7,9 +7,9 @@ import { siteData } from "@/lib/governance/server/site";
  * Stacked folders with tabs: each published story is a band of flat colour that sticks under the
  * previous one's strip as the page scrolls, filed like the folders of a dossier.
  */
-export function StoryFolders() {
+export async function StoryFolders() {
   // Only stories that passed the publication workflow, with photographs to show.
-  const PUBLISHED_STORIES = siteData().stories.filter((s) => s.images.length);
+  const PUBLISHED_STORIES = (await siteData()).stories.filter((s) => s.images.length);
   if (!PUBLISHED_STORIES.length) return null;
   return (
     <section className="w-folders" aria-labelledby="folders-title">
@@ -52,7 +52,7 @@ export function StoryFolders() {
                   {s.title}
                 </h3>
                 <p className="w-folder__fig">
-                  <span className="w-figure">{s.outcomeFigure}</span>
+                  {s.outcomeFigure && <span className="w-figure">{s.outcomeFigure}</span>}
                   <span>{s.outcomeLabel}</span>
                 </p>
                 <p className="w-folder__unit">{s.unit}</p>

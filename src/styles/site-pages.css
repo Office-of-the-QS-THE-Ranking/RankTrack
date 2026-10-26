@@ -1213,45 +1213,8 @@
 
 /* ---------- impact: theme tabs and the index ---------- */
 .w-themes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  min-width: 0;
   margin-bottom: clamp(36px, 4vw, 56px);
-}
-.w-theme {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--stone);
-  color: var(--black);
-  font-family: var(--font-text);
-  font-size: var(--step-body);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color var(--t-hover) ease,
-    color var(--t-hover) ease,
-    transform var(--t-press) var(--ease-out);
-}
-.w-theme:active {
-  transform: scale(0.96);
-}
-.w-theme[aria-selected="true"] {
-  background: var(--black);
-  color: var(--paper);
-}
-.w-theme__n {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-}
-@media (hover: hover) and (pointer: fine) {
-  .w-theme[aria-selected="false"]:hover {
-    background: var(--stone-2);
-  }
 }
 .w-index {
   display: grid;
@@ -1686,7 +1649,7 @@
   padding: 0 14px 0 22px;
   border-radius: 999px;
   background: var(--stone);
-  cursor: text;
+  cursor: var(--cursor-text);
 }
 .w-search:focus-within {
   outline: 2px solid var(--black);
@@ -1713,7 +1676,7 @@
   font-family: var(--font-text);
   font-size: var(--step-small);
   font-weight: 700;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .w-dict__count {
   margin: 18px 0 8px;
@@ -1907,7 +1870,7 @@
   font-family: var(--font-display);
   font-size: var(--step-lead);
   line-height: 1.2;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .w-faq__item summary::-webkit-details-marker {
   display: none;

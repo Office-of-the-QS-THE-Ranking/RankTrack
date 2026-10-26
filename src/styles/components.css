@@ -73,7 +73,7 @@
 }
 
 .table__clickable-row {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .table__clickable-row:focus-within {
   background: var(--surface-3);
@@ -268,7 +268,7 @@ button.link {
   border: 0;
   background: none;
   font-family: inherit;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .link svg {
   transition: transform var(--t) var(--ease-out);
@@ -396,6 +396,84 @@ button.link {
 }
 .card--link.card--gold {
   color: var(--ink);
+}
+
+/* ---------- Glowing rim (ui/GlowingEffect.tsx) ---------- */
+/* Aceternity's glowing effect, made glossy: a hairline spectrum on a rounded box's rim that faces the
+   pointer, over a faint halo, with a white glint where the light is strongest. The spectrum sweeps amber
+   to cyan and back (never through green) four times round the box, so the lit arc always shows most of it
+   and shifts hue as it moves. */
+.glow {
+  --glow-spectrum: #ffb800 0deg, #ff7a00 7.5deg, #ff2d55 15deg, #e83cf0 22.5deg, #8b5cf6 30deg, #3d5afe 37.5deg,
+    #00b2ff 45deg, #3d5afe 52.5deg, #8b5cf6 60deg, #e83cf0 67.5deg, #ff2d55 75deg, #ff7a00 82.5deg, #ffb800 90deg;
+}
+:root[data-theme="dark"] .glow {
+  --glow-spectrum: #ffd84d 0deg, #ff9f40 7.5deg, #ff4d6d 15deg, #ff5ce1 22.5deg, #b06bff 30deg, #5a8bff 37.5deg,
+    #3ddcff 45deg, #5a8bff 52.5deg, #b06bff 60deg, #ff5ce1 67.5deg, #ff4d6d 75deg, #ff9f40 82.5deg, #ffd84d 90deg;
+}
+.glow,
+.glow > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* Each layer: a ring (--glow-ring wide), lit along an arc of 2 × --glow-half degrees */
+.glow > span {
+  --glow-half: var(--glow-spread, 40);
+  --glow-paint: repeating-conic-gradient(var(--glow-spectrum));
+}
+.glow__line {
+  --glow-ring: var(--glow-bw, 1px);
+}
+.glow__bloom {
+  --glow-ring: 2px;
+  opacity: 0.35;
+  filter: blur(3px);
+}
+/* The glint lights the inner half of the line */
+.glow__gloss {
+  --glow-ring: 0.5px;
+  --glow-half: calc(var(--glow-spread, 40) * 0.3);
+  --glow-paint: #fff;
+  opacity: 0.6;
+}
+:root[data-theme="dark"] .glow__bloom {
+  opacity: 0.45;
+}
+:root[data-theme="dark"] .glow__gloss {
+  opacity: 0.8;
+}
+.glow > span::after {
+  --glow-arc: conic-gradient(
+    from calc((var(--glow-start, 0) - var(--glow-half)) * 1deg),
+    #0000 0deg,
+    #000,
+    #0000 calc(var(--glow-half) * 2deg)
+  );
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--glow-ring));
+  padding: var(--glow-ring);
+  border-radius: inherit;
+  background: var(--glow-paint);
+  opacity: 0;
+  transition: opacity 280ms ease;
+  /* The arc, kept to the ring between the padding edge and the border edge */
+  -webkit-mask: var(--glow-arc), linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: source-in, xor, source-over;
+  mask: var(--glow-arc), linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: intersect, exclude, add;
+}
+/* Lights quickly, fades out gently */
+.glow[data-lit] > span::after {
+  opacity: 1;
+  transition-duration: 120ms;
+}
+@media (forced-colors: active), print {
+  .glow {
+    display: none;
+  }
 }
 
 /* ---------- Stat tiles ---------- */
@@ -594,6 +672,10 @@ button.link {
 }
 .trend--stable {
   color: var(--text-2);
+}
+.trend--no-data {
+  color: var(--text-3);
+  font-weight: 500;
 }
 .trend--declining,
 .trend--critical {
@@ -799,56 +881,6 @@ a.chip:hover {
   text-align: right;
 }
 
-/* ---------- Tabs ---------- */
-.tabs {
-  position: relative;
-  display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
-  margin-bottom: calc(var(--s-1) * -1);
-}
-.tabs::-webkit-scrollbar {
-  display: none;
-}
-.tabs__tab {
-  position: relative;
-  flex: none;
-  height: 44px;
-  padding: 0 12px;
-  border: 0;
-  background: none;
-  color: var(--text-2);
-  font-size: var(--fs-14);
-  font-weight: 500;
-  white-space: nowrap;
-  border-radius: var(--r-sm) var(--r-sm) 0 0;
-  transition: color var(--t) ease, background-color var(--t) ease;
-}
-.tabs__tab[aria-selected="true"] {
-  color: var(--text);
-}
-.tabs__tab[aria-selected="true"]::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--ink);
-}
-.tabs__tab:focus-visible {
-  outline-offset: -2px;
-}
-@media (hover: hover) {
-  .tabs__tab:hover {
-    color: var(--text);
-    background: var(--surface-3);
-  }
-}
-
 /* Segmented control (filters, view toggles) */
 .seg {
   position: relative;
@@ -1028,7 +1060,7 @@ fieldset.field legend {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b665e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .textarea {
   height: auto;
@@ -1133,7 +1165,7 @@ fieldset.field legend {
   font-size: var(--fs-14);
   font-weight: 500;
   line-height: 1.3;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   user-select: none;
   transition: border-color var(--t) ease, background-color var(--t) ease, box-shadow var(--t) ease;
 }
@@ -1143,7 +1175,7 @@ fieldset.field legend {
   height: 16px;
   margin: 0;
   accent-color: var(--ink);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .choice:has(input:checked) {
   border-color: var(--ink);
@@ -1156,7 +1188,7 @@ fieldset.field legend {
 }
 .choice:has(input:disabled) {
   opacity: 0.6;
-  cursor: not-allowed;
+  cursor: var(--cursor-not-allowed);
 }
 .choice__text {
   display: flex;
@@ -1186,7 +1218,7 @@ fieldset.field legend {
   border-radius: var(--r-lg);
   background: var(--surface-2);
   text-align: center;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: border-color var(--t) ease, background-color var(--t) ease;
 }
 .dropzone__icon {
@@ -1304,7 +1336,7 @@ fieldset.field legend {
     background: var(--surface-2);
   }
   .table--click tbody tr {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
 }
 
@@ -1813,7 +1845,7 @@ a.list__main:hover {
   color: var(--text);
   text-decoration: none;
   font-size: var(--fs-14);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .palette__opt[aria-selected="true"] {
   background: var(--surface-3);
@@ -1870,7 +1902,7 @@ a.list__main:hover {
   background: none;
   color: inherit;
   font: inherit;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .palette__close .kbd {
   cursor: inherit;
@@ -2003,7 +2035,7 @@ a.list__main:hover {
   border-radius: 999px;
   background: rgb(255 255 255 / 0.1);
   color: inherit;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   opacity: 0.7;
   transition: opacity 160ms, background-color 160ms;
 }
@@ -2077,4 +2109,51 @@ a.list__main:hover {
     opacity: 0;
     transform: translateY(8px);
   }
+}
+
+/* A unit's logo or arms in place of its code tile (UnitMark): shown as issued, on no tile. The element
+   selector outranks any single-class tile style, wherever that is defined. */
+span.unit-mark {
+  /* Flex, not grid: a percentage height on the image resolves only against a flex or block box. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.unit-mark img {
+  display: block;
+  flex: none;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.unit-mark--seal img,
+.unit-mark--logo img {
+  height: 88%;
+}
+
+/* A unit's name with its logo in a table cell */
+.unit-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.unit-cell__mark {
+  flex: none;
+  height: 30px;
+}
+
+/* A Google profile photo filling an avatar (Face). */
+.face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
 }

@@ -277,7 +277,7 @@
 }
 .radar__hit {
   fill: transparent;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .radar__hit:hover + .radar__dot,
 .radar__dot.is-active {

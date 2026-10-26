@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ACTION_PLAN, FAMILY, RESEARCH_FUNNEL, unitByName, type Ranking } from "@/lib/data";
+import { ACTION_PLAN, FAMILY, RESEARCH_FUNNEL, unitByName, type Indicator, type Ranking } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
-import { Card, Kpi, MeterRow, Notice, PageHeader, PlanStatus, Status, Trend } from "@/components/ui/primitives";
+import { Card, Empty, Kpi, MeterRow, Notice, PageHeader, PlanStatus, Status, Trend } from "@/components/ui/primitives";
 import { BarList, ChartFrame, LineWithTarget } from "@/components/charts/charts";
 import { linkedEvidence } from "./IndicatorDrawer";
 import { criticalIndicator } from "./focus";
@@ -12,7 +12,28 @@ import { useHub } from "@/components/hub/HubProvider";
 
 /** Dedicated diagnostic for a ranking's principal structural challenge (QS: Citations per Faculty). */
 export function Diagnostic({ ranking }: { ranking: Ranking }) {
-  const ind = criticalIndicator(ranking)!;
+  const ind = criticalIndicator(ranking);
+  if (ind) return <IndicatorDiagnostic ranking={ranking} ind={ind} />;
+  return (
+    <>
+      <PageHeader
+        title="Diagnostic"
+        actions={
+          <Link href={`/admin/rankings/${ranking.slug}#indicators`} className="btn">
+            <Icon name="arrow-left" size={18} /> Back to {ranking.short}
+          </Link>
+        }
+      />
+      <Card>
+        <Empty icon="target" title="No indicator values yet">
+          The diagnostic opens on the indicator furthest from its target once {ranking.short} has values and targets.
+        </Empty>
+      </Card>
+    </>
+  );
+}
+
+function IndicatorDiagnostic({ ranking, ind }: { ranking: Ranking; ind: Indicator }) {
   const years = [2023, 2024, 2025, 2026];
   const share = ind.current !== null && ind.target ? Math.round((ind.current / ind.target) * 100) : null;
   const hub = useHub();

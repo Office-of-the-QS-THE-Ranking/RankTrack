@@ -1,6 +1,6 @@
 /**
  * Geometry for the sign-in scene (SignInScene): the cut facets of the gold and silver bands, the faceted
- * sky behind them with its stars by night and its clouds by day, and the lights of the building's render
+ * sky behind them with its stars, and the lights of the building's render
  * (SceneLight makes them shine). A seeded random keeps the markup the same on the server and in the browser.
  */
 
@@ -169,55 +169,8 @@ function field(seed: number, count: number): SkyStar[] {
 
 export const SKY_STARS = field(1611, 150);
 
-export interface Puff {
-  /** Its middle, in the cloud's own box: across from 0 to 1, up from the flat base at 0 (negative is up). */
-  x: number;
-  y: number;
-  /** Its radius, as a share of the cloud's width; its sides, and how far round its first corner stands. */
-  r: number;
-  sides: number;
-  turn: number;
-}
-
-export interface Cloud {
-  /** Where it starts: its middle across the screen and its base down it, as shares of the screen. */
-  x: number;
-  y: number;
-  /** Its width as a share of the screen's width; how near it is, 0 to 1 (the near ones are larger, faster, whiter). */
-  w: number;
-  near: number;
-  puffs: Puff[];
-}
-
 /**
- * The day's clouds (SceneLight cuts them into facets): a few low-poly cumulus, each a row of puffs on a flat
- * base, the middle ones larger and a crown or two over them. They keep below the sun and drift on the wind.
- */
-function cumulus(seed: number, count: number): Cloud[] {
-  const r = seeded(seed);
-  const clouds: Cloud[] = [];
-  for (let c = 0; c < count; c++) {
-    const n = 4 + Math.floor(r() * 3);
-    const puffs: Puff[] = [];
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n;
-      const rad = (0.11 + 0.15 * Math.sin(Math.PI * t)) * (0.85 + 0.3 * r());
-      puffs.push({ x: 0.1 + 0.8 * t + (r() - 0.5) * 0.05, y: -rad * (0.42 + 0.2 * r()), r: rad, sides: 9 + Math.floor(r() * 3), turn: r() * 6.3 });
-    }
-    for (let k = 0, crowns = 1 + Math.floor(r() * 2); k < crowns; k++) {
-      const rad = 0.12 + 0.06 * r();
-      puffs.push({ x: 0.36 + 0.3 * r(), y: -0.2 - 0.1 * r(), r: rad, sides: 10, turn: r() * 6.3 });
-    }
-    const near = r();
-    clouds.push({ x: (c + 0.2 + 0.6 * r()) / count, y: 0.34 + 0.16 * r(), w: 0.11 + 0.1 * near, near, puffs });
-  }
-  return clouds;
-}
-
-export const SKY_CLOUDS = cumulus(1611, 6);
-
-/**
- * The lights of main-building-3d.webp (and of its day render, which shares the camera), as shares of its
+ * The lights of main-building-3d.webp, as shares of its
  * width and height. scripts/signin-scene/render.py prints them with each render; paste them here when the
  * camera or the lamps move.
  */
@@ -242,6 +195,4 @@ export const TOWN_LIGHTS = {
   /** The clock face's radius across and down, as shares of the render's width and height (its live hands, .sx__clock). */
   clockR: [0.0162, 0.0255],
   cross: [0.491, 0.398],
-  /** Where the dome mirrors the day's sun (the day render's highlight). */
-  dome: [0.507, 0.444],
 } as const;

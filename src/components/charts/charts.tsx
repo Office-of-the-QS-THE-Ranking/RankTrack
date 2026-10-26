@@ -70,7 +70,12 @@ function useStepper(count: number) {
 }
 
 /* ---------- Rank trajectory: band ribbon + midpoint line, rank 1 at the top ---------- */
-export function RankTrajectory({ ranking, height = 150, compact }: { ranking: Ranking; height?: number; compact?: boolean }) {
+export function RankTrajectory(props: { ranking: Ranking; height?: number; compact?: boolean }) {
+  if (!props.ranking.history.some((p) => p.hi !== null)) return <p className="small muted">No published result yet</p>;
+  return <RankTrajectoryPlot {...props} />;
+}
+
+function RankTrajectoryPlot({ ranking, height = 150, compact }: { ranking: Ranking; height?: number; compact?: boolean }) {
   const pts = ranking.history;
   const color = FAMILY[ranking.family].color;
   const W = 280;
@@ -493,11 +498,11 @@ export function Heatmap({
 
 /* ---------- Funnel: ordinal stages with step conversion ---------- */
 export function Funnel({ steps, color = "var(--ink)", label }: { steps: { step: string; count: number }[]; color?: string; label: string }) {
-  const max = Math.max(...steps.map((s) => s.count));
+  const max = Math.max(1, ...steps.map((s) => s.count));
   return (
     <ol className="funnel" aria-label={label}>
       {steps.map((s, i) => {
-        const conv = i > 0 ? Math.round((s.count / steps[i - 1].count) * 100) : null;
+        const conv = i > 0 && steps[i - 1].count ? Math.round((s.count / steps[i - 1].count) * 100) : null;
         return (
           <li key={s.step} className="funnel__row" title={conv !== null ? `${s.step}: ${s.count} (${conv}% of the previous stage)` : `${s.step}: ${s.count}`}>
             <span className="funnel__label">
@@ -521,7 +526,7 @@ export function Funnel({ steps, color = "var(--ink)", label }: { steps: { step: 
 /* ---------- Sparkline ---------- */
 export function Sparkline({ values, width = 88, height = 28, label }: { values: number[]; width?: number; height?: number; label: string }) {
   const v = values.filter((x) => x > 0);
-  if (v.length < 2) return <span className="small muted">New</span>;
+  if (v.length < 2) return <span className="small muted">{v.length ? "New" : "—"}</span>;
   const min = Math.min(...v);
   const max = Math.max(...v);
   const r = Math.max(0.0001, max - min);
@@ -537,7 +542,12 @@ export function Sparkline({ values, width = 88, height = 28, label }: { values: 
 }
 
 /* ---------- Indicator history against target (single series, target labelled directly) ---------- */
-export function LineWithTarget({
+export function LineWithTarget(props: Parameters<typeof LineWithTargetPlot>[0]) {
+  if (!props.values.some((v) => v > 0) && !props.target) return <p className="small muted">No values recorded yet</p>;
+  return <LineWithTargetPlot {...props} />;
+}
+
+function LineWithTargetPlot({
   values,
   years,
   target,

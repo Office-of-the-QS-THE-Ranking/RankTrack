@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { Icon } from "./Icon";
 import { cx } from "./primitives";
 
@@ -61,41 +62,84 @@ function useRoving(count: number, onMove: (i: number) => void) {
 }
 
 /* ---------- Tabs (WAI-ARIA tabs pattern) ---------- */
+export type ContentTab<T extends string> = {
+  key: T;
+  label: ReactNode;
+  count?: number;
+  countTone?: "alert";
+};
+
 export function Tabs<T extends string>({
   tabs,
   value,
   onChange,
   label,
   idBase,
+  counts,
+  sliding = true,
+  search,
+  actions,
 }: {
-  tabs: readonly T[];
+  tabs: readonly (T | ContentTab<T>)[];
   value: T;
   onChange: (t: T) => void;
   label: string;
-  idBase: string;
+  idBase?: string;
+  /** A figure beside a tab's name. */
+  counts?: Partial<Record<T, number>>;
+  sliding?: boolean;
+  /** Primary content search, rendered after page-specific actions. */
+  search?: ReactNode;
+  actions?: ReactNode;
 }) {
-  const { refs, onKeyDown } = useRoving(tabs.length, (i) => onChange(tabs[i]));
-  return (
-    <div role="tablist" aria-label={label} className="tabs">
-      {tabs.map((t, i) => (
+  const indicatorId = useId();
+  const tabId = idBase ?? indicatorId;
+  const items = tabs.map((tab): ContentTab<T> => typeof tab === "string" ? { key: tab, label: tab } : tab);
+  const reduceMotion = useReducedMotion();
+  const { refs, onKeyDown } = useRoving(items.length, (i) => onChange(items[i].key));
+  const strip = (
+    <div role="tablist" aria-label={label} className={cx("tabs", sliding && "tabs--sliding")}>
+      {items.map((t, i) => (
         <button
-          key={t}
+          key={t.key}
           ref={(el) => {
             refs.current[i] = el;
           }}
           type="button"
           role="tab"
-          id={`${idBase}-tab-${i}`}
-          aria-controls={`${idBase}-panel`}
-          aria-selected={value === t}
-          tabIndex={value === t ? 0 : -1}
+          id={`${tabId}-tab-${i}`}
+          aria-controls={idBase ? `${idBase}-panel` : undefined}
+          aria-selected={value === t.key}
+          tabIndex={value === t.key ? 0 : -1}
           className="tabs__tab"
-          onClick={() => onChange(t)}
+          onClick={() => onChange(t.key)}
           onKeyDown={(e) => onKeyDown(e, i)}
         >
-          {t}
+          {sliding && value === t.key && (
+            <motion.span
+              aria-hidden="true"
+              className="tabs__highlight"
+              layoutId={indicatorId}
+              initial={false}
+              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 450, damping: 38 }}
+            />
+          )}
+          {t.label}
+          {(t.count ?? counts?.[t.key]) !== undefined && (
+            <span className={cx("count", t.countTone === "alert" && "is-alert")}>{t.count ?? counts?.[t.key]}</span>
+          )}
         </button>
       ))}
+    </div>
+  );
+  if (!search && !actions) return strip;
+  return (
+    <div className="content-tabs">
+      {strip}
+      <div className="content-tabs__controls">
+        {actions && <div className="content-tabs__actions">{actions}</div>}
+        {search && <div className="content-tabs__search">{search}</div>}
+      </div>
     </div>
   );
 }

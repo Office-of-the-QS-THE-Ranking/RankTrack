@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { GUEST_DAYS, checkDomains } from "@/lib/governance/access-requests";
+import { ROLE } from "@/lib/governance/catalog";
 import type { RequestRow } from "@/lib/governance/console-types";
+import { trackRequest, trackStatus } from "@/lib/governance/request-tracker";
 import { UNIVERSITY, unitScope } from "@/lib/governance/rbac";
-import type { RequestPayload, WorkflowKey, WorkflowStep } from "@/lib/governance/types";
+import type { Applicant, RequestPayload, RoleId, WorkflowKey, WorkflowStep } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { UnitSelect } from "../parts";
-import { Block, EmptyNote, Field, Hint, KV, Pill, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
+import { Avatar, Block, EmptyNote, Field, Hint, KV, Pill, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
 import { scopeText } from "./Accounts";
+import { DateField, NumberField, Select } from "@/components/ui/pickers";
+import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Inbox" | "All" | "Settings";
 
@@ -28,8 +33,8 @@ export function Workflows() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { key: "Inbox", label: <>Waiting for you {waiting.length > 0 && <span className="adm-tabs__count is-alert">{waiting.length}</span>}</> },
-          { key: "All", label: <>All requests <span className="adm-tabs__count">{data.requests.length}</span></> },
+          { key: "Inbox", label: "Waiting for you", count: waiting.length || undefined, countTone: "alert" },
+          { key: "All", label: "All requests", count: data.requests.length },
           { key: "Settings", label: "Settings" },
         ]}
       />
@@ -68,7 +73,7 @@ export function Workflows() {
                     <span className="adm-inline">
                       {r.overdue && <Pill tone="danger">Overdue</Pill>}
                       {tab === "All" && r.canDecide && <Pill tone="review">Your turn</Pill>}
-                      <StatusPill value={r.status} />
+                      <StatusPill value={requestStatus(r, data)} />
                     </span>
                   </button>
                 </li>
@@ -94,17 +99,88 @@ export function Workflows() {
   );
 }
 
-function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]): [string, string][] {
+/* The short name approvers know an affiliation by: its acronym when it has one. */
+const shortName = (affiliation: string) => /\(([^)]+)\)\s*$/.exec(affiliation)?.[1] ?? affiliation;
+
+/** Account requests use the same standing as the requester-facing tracker. */
+function requestStatus(r: RequestRow, data: ReturnType<typeof useConsole>["data"]) {
+  if (r.payload.kind !== "account-access") return r.status;
+  const email = r.payload.email.toLowerCase();
+  const account = data.accounts?.find((a) => a.email.toLowerCase() === email);
+  return trackStatus(r, !!(account?.firstLogin ?? account?.lastLogin));
+}
+
+/*
+ * Where a requester from the sign-in page comes from: the email's domain against the domains the affiliation
+ * is known to use, and the website they gave (Others only) as plain text, never a link.
+ */
+function originRows(email: string, a: Applicant, university: boolean): [ReactNode, ReactNode, string?][] {
+  const c = checkDomains({ email, affiliation: a.affiliation, website: a.website, university });
+  const who = shortName(a.affiliation);
+  const verdict = {
+    university: <Pill tone="ok">University domain</Pill>,
+    match: <Pill tone="ok">Matches {who}</Pill>,
+    mismatch: <Pill tone="danger">Doesn&rsquo;t match {who}</Pill>,
+    personal: null,
+    unknown: <Pill>No domain on file</Pill>,
+  }[c.email];
+  const rows: [ReactNode, ReactNode, string?][] = [
+    [
+      "Email",
+      <span key="d" className="adm-inline">
+        <span>{email}</span>
+        {verdict}
+        {c.email === "mismatch" && <small className="adm-muted">{who} uses {c.expected.join(" or ")}</small>}
+      </span>,
+      email,
+    ],
+  ];
+  if (a.website && c.site) {
+    const at = a.website.indexOf(c.site.host);
+    rows.push([
+      <>
+        Website <Hint text="Shown as text, not a link. Compare it with the email domain before opening it." />
+      </>,
+      <span key="w" className="adm-inline">
+        <span className="adm-url">
+          {a.website.slice(0, at)}
+          <b>{c.site.host}</b>
+          {a.website.slice(at + c.site.host.length)}
+        </span>
+        {c.site.matches ? <Pill tone="ok">Same as email</Pill> : <Pill tone="revise">Differs from email</Pill>}
+      </span>,
+      a.website,
+    ]);
+  }
+  return rows;
+}
+
+function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]): [ReactNode, ReactNode, string?][] {
   const person = (id: string) => data.people.find((x) => x.id === id)?.name ?? id;
   const unit = (id: string) => data.units.find((x) => x.id === id)?.name ?? id;
   const role = (id: string) => data.roles.find((x) => x.id === id)?.name ?? id;
   switch (p.kind) {
-    case "account-access":
-      return [["Person", `${p.name} <${p.email}>`], ["Position", p.title], ["Unit", unit(p.unitId)], ["Role", role(p.roleId)]];
+    case "account-access": {
+      // from the sign-in page: who they are and where they come from; the unit may be the approver's to choose
+      const a = p.applicant;
+      return [
+        ["Person", `${a?.salutation ? `${a.salutation} ` : ""}${p.name}`],
+        ...(a ? originRows(p.email, a, !p.external) : [["Email", p.email] as [string, string]]),
+        ...(a
+          ? ([
+              ["Birthday", fmtDate(a.birthday)],
+              ["Affiliation", `${a.affiliation}${a.organization ? ` · ${a.organization}` : ""}${a.listed ? "" : " (Others)"}`],
+              ...(a.agreedAt ? [["Declarations", `Accepted ${fmtDate(a.agreedAt)}`]] : []),
+            ] as [string, string][])
+          : ([["Position", p.title]] as [string, string][])),
+        ["Role", role(p.roleId)],
+        ...(p.external ? ([["Access", `Guest, for ${GUEST_DAYS} days from approval`]] as [string, string][]) : []),
+      ];
+    }
     case "privilege-escalation":
       return [["For", person(p.accountId)], ["Role", role(p.roleId)], ["Scope", scopeText(p.scope, data)], ["Ends", p.expires ? fmtDate(p.expires) : "No end date"]];
     case "org-unit":
-      return [["New unit", `${p.name} (${p.code})`], ["Type", p.kind2], ["Sits under", unit(p.parentId)]];
+      return [["New unit", `${p.name} (${p.code})`], ["Type", p.kind2], ["Sits under", unit(p.parentId)], ["Unit email addresses", p.emails?.join(", ") || "None"]];
     case "data-access":
       return [["For", person(p.accountId)], ["Dataset", data.catalog.datasets.find((d) => d.id === p.datasetId)?.name ?? p.datasetId], ["Access", p.access], ["Until", fmtDate(p.until)]];
     case "publication":
@@ -114,25 +190,104 @@ function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]
   }
 }
 
-function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: () => void }) {
+/**
+ * An access request's standing as its requester sees it in the Submission Tracker on the sign-in page,
+ * with who made the final decision.
+ */
+export function RequestTrack({ r }: { r: RequestRow }) {
+  const { data } = useConsole();
+  if (r.payload.kind !== "account-access") return null;
+  const email = r.payload.email.toLowerCase();
+  const account = r.status === "Approved" ? data.accounts?.find((a) => a.email.toLowerCase() === email) : undefined;
+  const track = trackRequest(r, r.steps.length, account && (account.firstLogin ?? account.lastLogin));
+  // Show who made the final decision.
+  const decider = r.decisions.find((d) => d.decision === "Rejected") ?? r.decisions[r.decisions.length - 1];
+  const actor = (key: string) => (key === "decision" && r.status !== "Cancelled" ? decider?.by : undefined);
+  return (
+    <section className="adm-track" aria-label="Submission Tracker">
+      <ol className="adm-track__list">
+        {track.stages.map((s, i) => {
+          const by = actor(s.key);
+          return (
+            <li
+              key={s.key}
+              className={`is-${s.state}`}
+              data-on={track.stages[i + 1] && track.stages[i + 1].state !== "upcoming" ? "" : undefined}
+              aria-current={s.state === "current" ? "step" : undefined}
+            >
+              <span className="adm-track__dot" aria-hidden="true">
+                {s.state === "done" ? <Icon name="check" size={13} strokeWidth={2.8} /> : s.state === "stopped" ? <Icon name="close" size={13} strokeWidth={2.8} /> : i + 1}
+              </span>
+              <div className="adm-track__card">
+                <div className="adm-track__head">
+                  <b>{s.label}</b>
+                  {s.state === "current" ? (
+                    <span className="adm-track__now">Now</span>
+                  ) : (
+                    s.at && <time dateTime={s.at} title={`${fmtDate(s.at, true)} PHT`}>{fmtAgo(s.at, data.now)}</time>
+                  )}
+                </div>
+                {(s.at || by) && (
+                  <div className="adm-track__meta">
+                    {s.at && <span>{fmtDate(s.at, true)}</span>}
+                    {by && (
+                      <span className="adm-track__who">
+                        <Avatar name={by} size={20} /> {by}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {s.detail && <p>{s.detail}</p>}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+export function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: () => void }) {
   const { data, confirm } = useConsole();
   const act = useAct();
   const [note, setNote] = useState("");
-  useEffect(() => setNote(""), [r?.id]);
+  const [unitId, setUnitId] = useState("");
+  const [tab, setTab] = useState<"Profile" | "Status">("Profile");
+  useEffect(() => {
+    setNote("");
+    setUnitId("");
+    setTab("Profile");
+  }, [r?.id]);
   if (!r) return null;
-  const roleNames = (ids: string[]) => ids.map((id) => data.roles.find((x) => x.id === id)?.name ?? id).join(" or ");
+  const account = r.payload.kind === "account-access" ? r.payload : null;
+  const applicant = account?.applicant;
+  const applicantName = applicant
+    ? `${applicant.lastName}, ${[applicant.firstName, applicant.middleName].filter(Boolean).join(" ")}`
+    : account?.name;
+  // an account request that came without a unit (from the sign-in page) takes one at its last step
+  const needsUnit = r.payload.kind === "account-access" && !r.payload.unitId && r.step === r.steps.length - 1;
   return (
     <Sheet
       open
       wide
       onClose={onClose}
-      title={r.title}
-      sub={
+      title={account ? (
         <span className="adm-inline">
+          <span>{applicantName ?? r.title}</span>
+          <StatusPill value={requestStatus(r, data)} />
+        </span>
+      ) : r.title}
+      sub={
+        !account && <span className="adm-inline">
           <StatusPill value={r.status} />
           <span className="adm-muted small">{r.workflowName}</span>
         </span>
       }
+      headerContent={account && (
+        <div className="adm-sheet__tabs">
+          <Tabs label="Account request details" tabs={["Profile", "Status"] as const} value={tab} onChange={setTab} />
+        </div>
+      )}
       footer={
         r.status === "Pending" && (
           <>
@@ -161,7 +316,12 @@ function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: () => voi
                 >
                   Reject
                 </button>
-                <button type="button" className="btn btn--dark" onClick={() => void act({ type: "request.decide", id: r.id, decision: "Approved", note })}>
+                <button
+                  type="button"
+                  className="btn btn--dark"
+                  disabled={needsUnit && !unitId}
+                  onClick={() => void act({ type: "request.decide", id: r.id, decision: "Approved", note, ...(needsUnit ? { unitId } : {}) })}
+                >
                   <Icon name="check" size={15} /> Approve
                 </button>
               </>
@@ -170,15 +330,22 @@ function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: () => voi
         )
       }
     >
-      <KV
+      {(!account || tab === "Profile") && <KV
+        copyable={!!account}
         rows={[
-          ["Requested by", `${r.requesterName} · ${fmtAgo(r.requestedAt, data.now)}`],
+          ...(account ? [["Reference number", r.id] as [string, string]] : []),
+          account
+            ? ["Submitted", `${fmtDate(r.requestedAt, true)} PHT`]
+            : ["Requested by", `${r.requesterName} · ${fmtAgo(r.requestedAt, data.now)}`],
+          ...(account ? [["Workflow", r.workflowName] as [string, string]] : []),
           ...(r.status === "Pending" ? [["Respond by", `${fmtDate(r.due)}${r.overdue ? " (overdue)" : ""}`] as [string, string]] : []),
           ...describe(r.payload, data),
-          ["Reason", r.justification || "—"],
+          ...(!account ? [["Reason", r.justification || "—"] as [string, string]] : []),
         ]}
-      />
-      <ol className="adm-steps" aria-label="Approval steps">
+      />}
+      {(!account || tab === "Status") && <>
+      {account && <RequestTrack r={r} />}
+      {!account && <ol className="adm-steps" aria-label="Approval steps">
         {r.steps.map((s, i) => {
           const d = r.decisions.find((x) => x.step === i);
           const state = d ? (d.decision === "Approved" ? "done" : "rejected") : r.status === "Pending" && i === r.step ? "now" : "next";
@@ -189,7 +356,6 @@ function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: () => voi
               </span>
               <div>
                 <b>{s.name}</b>
-                <small className="adm-muted block">{roleNames(s.approverRoles)}</small>
                 {d && (
                   <small className="block">
                     {d.decision} by {d.by} · {fmtDate(d.at)}
@@ -200,9 +366,15 @@ function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: () => voi
             </li>
           );
         })}
-      </ol>
-      {r.status === "Pending" && !r.canDecide && r.blocked && <p className="adm-note">{r.blocked}</p>}
-      {r.canDecide && (
+      </ol>}
+      {!account && r.status === "Pending" && !r.canDecide && r.blocked && <p className="adm-note">{r.blocked}</p>}
+      </>}
+      {(!account || tab === "Profile") && r.canDecide && needsUnit && (
+        <Field label="Unit" hint="Where the account belongs. The request didn't name one.">
+          <UnitSelect label="Unit" value={unitId} onChange={setUnitId} filter={(u) => u.status === "Active"} />
+        </Field>
+      )}
+      {!account && r.canDecide && (
         <Field label="Note (optional)">
           <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What you checked" />
         </Field>
@@ -264,7 +436,7 @@ function Definitions() {
         open={!!wf}
         onClose={() => setEdit(null)}
         title={wf?.name ?? ""}
-        sub="Steps run in order."
+        sub="Steps run in order, each decided by a different University Administrator."
         footer={
           <>
             <button type="button" className="btn" onClick={() => setEdit(null)}>
@@ -300,29 +472,14 @@ function Definitions() {
                 <Field label="Name">
                   <input className="input" value={s.name} onChange={(e) => setSteps(steps.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))} />
                 </Field>
-                <fieldset className="adm-checks">
-                  <legend className="adm-field__label">Who can approve</legend>
-                  {data.roles.map((r) => (
-                    <label key={r.id} className="choice choice--inline">
-                      <input
-                        type="checkbox"
-                        checked={s.approverRoles.includes(r.id)}
-                        onChange={(e) =>
-                          setSteps(steps.map((x, k) => (k === i ? { ...x, approverRoles: e.target.checked ? [...x.approverRoles, r.id] : x.approverRoles.filter((y) => y !== r.id) } : x)))
-                        }
-                      />
-                      {r.name}
-                    </label>
-                  ))}
-                </fieldset>
               </Block>
             ))}
-            <button type="button" className="btn btn--sm" onClick={() => setSteps([...steps, { name: "Additional approval", approverRoles: ["super-admin"] }])}>
+            <button type="button" className="btn btn--sm" onClick={() => setSteps([...steps, { name: "Additional approval" }])}>
               <Icon name="plus" size={14} /> Add step
             </button>
             <div className="adm-form-grid">
               <Field label="Respond within (days)">
-                <input className="input num" type="number" min={1} max={30} value={sla} onChange={(e) => setSla(Number(e.target.value))} />
+                <NumberField className="input num" min={1} max={30} value={sla} onChange={setSla} />
               </Field>
               <div className="adm-switchrow">
                 <span>
@@ -348,6 +505,7 @@ const KINDS: { key: Kind; label: string }[] = [
 ];
 
 function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const v = data.viewer;
@@ -355,12 +513,13 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
   const [justification, setJustification] = useState("");
   const [pe, setPe] = useState({ accountId: v.id, roleId: "", expires: "" });
   const [da, setDa] = useState({ datasetId: "", access: "View" as "View" | "Export", until: "" });
-  const [aa, setAa] = useState({ name: "", email: "", unitId: "", roleId: "contributor", title: "" });
+  const [aa, setAa] = useState({ name: "", email: "", unitId: "", title: "" });
   useEffect(() => {
     if (open) setJustification("");
   }, [open]);
   const accounts = useMemo(() => [{ id: v.id, name: `${v.name} (you)` }, ...(data.accounts ?? []).filter((a) => a.id !== v.id && a.canEdit).map((a) => ({ id: a.id, name: a.name }))], [data.accounts, v]);
   const ready =
+    skip ||
     justification.trim().length >= 10 &&
     !(kind === "data-access" && (!da.datasetId || !da.until)) &&
     !(kind === "privilege-escalation" && !pe.roleId) &&
@@ -370,9 +529,9 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
     if (kind === "privilege-escalation") {
       const role = data.roles.find((r) => r.id === pe.roleId);
       const acc = data.people.find((p) => p.id === pe.accountId);
-      payload = { kind, accountId: pe.accountId, roleId: pe.roleId, scope: role?.scopeKind === "university" ? UNIVERSITY : unitScope(acc?.unitId ?? v.unitId), expires: pe.expires || undefined };
+      payload = { kind, accountId: pe.accountId, roleId: pe.roleId as RoleId, scope: role?.scopeKind === "university" ? UNIVERSITY : unitScope(acc?.unitId ?? v.unitId), expires: pe.expires || undefined };
     } else if (kind === "data-access") payload = { kind, accountId: v.id, datasetId: da.datasetId, access: da.access, until: da.until };
-    else payload = { kind, ...aa };
+    else payload = { kind, ...aa, roleId: ROLE.coordinator };
     const r = await act({ type: "request.create", workflowId: kind, payload, justification });
     if (r.ok && r.requestId) onCreated(r.requestId);
   };
@@ -393,60 +552,60 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
       }
     >
       <Field label="I need">
-        <select className="select" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
+        <Select className="select" value={kind} onChange={(v) => setKind(v as Kind)}>
           {KINDS.map((k) => (
             <option key={k.key} value={k.key}>
               {k.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       {kind === "data-access" && (
         <div className="adm-form-grid">
           <Field label="Dataset" wide>
-            <select className="select" value={da.datasetId} onChange={(e) => setDa({ ...da, datasetId: e.target.value })}>
+            <Select className="select" value={da.datasetId} onChange={(v) => setDa({ ...da, datasetId: v })}>
               <option value="">Choose a dataset</option>
               {data.catalog.datasets.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Access">
-            <select className="select" value={da.access} onChange={(e) => setDa({ ...da, access: e.target.value as "View" | "Export" })}>
+            <Select className="select" value={da.access} onChange={(v) => setDa({ ...da, access: v as "View" | "Export" })}>
               <option>View</option>
               <option disabled={data.catalog.datasets.find((d) => d.id === da.datasetId)?.classification === "Restricted"}>Export</option>
-            </select>
+            </Select>
           </Field>
           <Field label="Until" hint="Up to 90 days">
-            <input className="input" type="date" min={data.day} value={da.until} onChange={(e) => setDa({ ...da, until: e.target.value })} />
+            <DateField className="input" min={data.day} value={da.until} onChange={(v) => setDa({ ...da, until: v })} />
           </Field>
         </div>
       )}
       {kind === "privilege-escalation" && (
         <div className="adm-form-grid">
           <Field label="For">
-            <select className="select" value={pe.accountId} onChange={(e) => setPe({ ...pe, accountId: e.target.value })}>
+            <Select className="select" value={pe.accountId} onChange={(v) => setPe({ ...pe, accountId: v })}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Role">
-            <select className="select" value={pe.roleId} onChange={(e) => setPe({ ...pe, roleId: e.target.value })}>
+            <Select className="select" value={pe.roleId} onChange={(v) => setPe({ ...pe, roleId: v })}>
               <option value="">Choose a role</option>
               {data.roles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Ends (optional)">
-            <input className="input" type="date" min={data.day} value={pe.expires} onChange={(e) => setPe({ ...pe, expires: e.target.value })} />
+            <DateField className="input" min={data.day} value={pe.expires} onChange={(v) => setPe({ ...pe, expires: v })} />
           </Field>
         </div>
       )}
@@ -463,17 +622,6 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
           </Field>
           <Field label="Unit">
             <UnitSelect label="Unit" value={aa.unitId} onChange={(id) => setAa({ ...aa, unitId: id })} filter={(u) => u.status === "Active"} />
-          </Field>
-          <Field label="Role">
-            <select className="select" value={aa.roleId} onChange={(e) => setAa({ ...aa, roleId: e.target.value })}>
-              {data.roles
-                .filter((r) => !["super-admin", "system-admin"].includes(r.id))
-                .map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-            </select>
           </Field>
         </div>
       )}

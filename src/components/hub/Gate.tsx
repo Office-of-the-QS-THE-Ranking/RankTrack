@@ -18,8 +18,8 @@ export async function Gate({ path, title, children }: { path: string; title: str
   const item = NAV[variant].flatMap((g) => g.items).find((i) => i.href === path);
   if (!viewer || !item) return children;
   const target = variant === "unit" ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
-  const featureName = item.feature ? readState().config.features.find((f) => f.id === item.feature)?.name : undefined;
-  const switchedOff = item.feature && !featureOn(readState(), item.feature);
+  const featureName = item.feature ? (await readState()).config.features.find((f) => f.id === item.feature)?.name : undefined;
+  const switchedOff = item.feature && !featureOn((await readState()), item.feature);
   const denied = item.need && !viewerCan(viewer, item.need[0], item.need[1], target);
   if (!switchedOff && !denied) return children;
   return (

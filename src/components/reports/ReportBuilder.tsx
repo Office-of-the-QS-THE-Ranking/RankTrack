@@ -11,6 +11,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Direction, Empty, MeterRow, Notice, PlanStatus, Status, Swatch } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useCan, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
+import { DateField, Select } from "@/components/ui/pickers";
 
 /* Each report draws on governed datasets; their classification decides whether it can be exported. */
 const REPORTS: { name: string; icon: IconName; note: string; datasets: string[] }[] = [
@@ -90,11 +91,11 @@ export function ReportBuilder() {
   const filter = (label: string, value: string, set: (v: string) => void, opts: string[]) => (
     <label className="field">
       <span className="field__label">{label}</span>
-      <select className="select select--sm" value={value} onChange={(e) => set(e.target.value)}>
+      <Select className="select select--sm" value={value} onChange={set}>
         {opts.map((o) => (
           <option key={o}>{o}</option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 
@@ -396,7 +397,7 @@ export function ReportBuilder() {
             >
               <label className="field">
                 <span className="field__label">Export access until</span>
-                <input className="input input--sm" type="date" value={ask.until} onChange={(e) => setAsk({ ...ask, until: e.target.value })} required />
+                <DateField className="input input--sm" value={ask.until} onChange={(v) => setAsk({ ...ask, until: v })} required />
               </label>
               <label className="field">
                 <span className="field__label">Who the report is for</span>

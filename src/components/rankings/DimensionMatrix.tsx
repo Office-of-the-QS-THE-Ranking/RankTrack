@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { DIMENSIONS, DIMENSION_NOTES, MATRIX, RANKINGS, type Dimension } from "@/lib/data";
 import { Icon } from "@/components/ui/Icon";
+import { InfoTooltip } from "@/components/ui/interactive";
 import { Card, Swatch } from "@/components/ui/primitives";
 
 const ORDER = ["qs-wur", "the-wur", "the-impact", "qs-sustainability", "greenmetric", "wuri", "the-subject", "qs-subject"];
@@ -11,7 +12,7 @@ const words = ["no", "one", "two", "three", "four", "five", "six", "seven", "eig
 
 /** Which institutional dimensions each ranking measures. Selecting a dimension explains why the
  *  same evidence can support several rankings. */
-export function DimensionMatrix({ base, slugs }: { base: string; slugs?: string[] }) {
+export function DimensionMatrix({ base, slugs, glow }: { base: string; slugs?: string[]; glow?: boolean }) {
   const [dim, setDim] = useState<Dimension | null>("Research");
   // Only the rankings System Configuration tracks (or shows publicly) are compared.
   const cols = ORDER.filter((s) => !slugs || slugs.includes(s)).map((s) => RANKINGS.find((r) => r.slug === s)!);
@@ -20,23 +21,26 @@ export function DimensionMatrix({ base, slugs }: { base: string; slugs?: string[
 
   return (
     <Card
-      title="Comparison of methodologies"
-      sub="Which institutional dimensions each ranking measures. Select a dimension to see where its evidence counts."
+      glow={glow}
+      title={
+        <>
+          Comparison of methodologies
+          <InfoTooltip label="About the methodology comparison">
+            Which institutional dimensions each ranking measures. Select a dimension to see where its evidence counts.
+            {dim && (
+              <>
+                <br /><br />
+                <b>{dim} counts in {phrase(count)}.</b>{" "}
+                {DIMENSION_NOTES[dim]}
+              </>
+            )}
+          </InfoTooltip>
+        </>
+      }
+      className="matrix-card"
       icon="grid"
       bodyClass="card__body--flush"
     >
-      <div className="lens" aria-live="polite">
-        {dim ? (
-          <p>
-            <b>
-              {dim} counts in {phrase(count)}.
-            </b>{" "}
-            {DIMENSION_NOTES[dim]}
-          </p>
-        ) : (
-          <p className="muted">Select a dimension to see where it counts.</p>
-        )}
-      </div>
       <div className="table-wrap">
         <table className="table matrix matrix--lens">
           <thead>

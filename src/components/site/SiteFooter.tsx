@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Icon } from "@/components/ui/Icon";
 import credits from "@/lib/credits.json";
-import { AS_OF_LABEL } from "@/lib/data";
-import { siteData } from "@/lib/governance/server/site";
+import { formatAsOf } from "@/lib/data";
+import { siteData, type SiteData } from "@/lib/governance/server/site";
 import { UNIT, UNIVERSITY } from "./Lockup";
 import { Stars } from "./Stars";
 import { OFFICE } from "@/lib/office";
@@ -12,7 +12,7 @@ import { OFFICE } from "@/lib/office";
 type Credit = { file: string; title: string; creator: string; license: string; page: string };
 
 /* The footer lists only what the public website currently shows (System Configuration). */
-const columns = (site: ReturnType<typeof siteData>) => [
+const columns = (site: SiteData) => [
   { id: "ft-rk", label: "Rankings", links: site.rankings.map((r) => ({ href: `/rankings/${r.slug}`, label: r.short })) },
   {
     id: "ft-ex",
@@ -43,9 +43,10 @@ const columns = (site: ReturnType<typeof siteData>) => [
  * site's links filed like the header's panels, and the unit mark built large as the signature, with the
  * reverse seal the manual requires on a dark ground.
  */
-export function SiteFooter() {
-  const year = AS_OF_LABEL.slice(-4);
-  const COLUMNS = columns(siteData()).filter((c) => c.links.length);
+export async function SiteFooter() {
+  const site = await siteData();
+  const year = site.asOf.slice(0, 4);
+  const COLUMNS = columns(site).filter((c) => c.links.length);
   return (
     <footer className="w-footer">
       <div className="w-footer__panel w-on-dark">
@@ -113,7 +114,7 @@ export function SiteFooter() {
         <div className="w-footer__base">
           <div className="w-footer__legal w-wrap">
             <p>
-              © {year} {UNIVERSITY}. Results belong to the ranking bodies and are reported exactly as published. Last updated {AS_OF_LABEL}.
+              © {year} {UNIVERSITY}. Results belong to the ranking bodies and are reported exactly as published. Last updated {formatAsOf(site.asOf)}.
             </p>
             <a href="#top" className="w-cta w-footer__totop">
               <span>Back to top</span>

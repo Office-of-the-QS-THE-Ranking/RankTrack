@@ -286,7 +286,7 @@ export function Knowledge({ mode }: { mode: "internal" | "public" }) {
                 <Link href={internal ? `/admin/impact#${s.slug}` : `/impact/${s.slug}`} className="list__main">
                   {s.title}
                 </Link>
-                <span className="list__sub">{s.replication}</span>
+                <span className="list__sub">{s.replication || s.outcomeLabel}</span>
               </li>
             ))}
                     </ul>

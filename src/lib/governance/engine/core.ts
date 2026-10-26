@@ -4,7 +4,8 @@
  * seals the audit entries into the hash chain.
  */
 import { SYSTEM_ACTOR } from "../seed";
-import { canWith, grantsFor, today, type Grant, type Target } from "../rbac";
+import { UNIT_EMAILS } from "../catalog";
+import { canWith, grantsFor, today, topGrant, type Grant, type Target } from "../rbac";
 import type { CommandResult } from "../commands";
 import type { Account, Action, AuditCategory, AuditEvent, GovernanceState, ModuleKey, Notice } from "../types";
 
@@ -16,16 +17,16 @@ export type Effect =
   | { kind: "restore"; pointId: string }
   | { kind: "delete-point"; pointId: string }
   | { kind: "verify-audit" }
-  | { kind: "reset" };
+  /** Pictures a post no longer shows; files no other post uses leave the media bucket once the change commits. */
+  | { kind: "delete-media"; srcs: string[] };
 
 export interface Actor {
   id: string;
   name: string;
   role: string;
   grants: Grant[];
-  tier: number;
-  technical: boolean;
-  superAdmin: boolean;
+  /** Hub automation (sign-in bookkeeping, housekeeping), which acts outside the roles. */
+  system?: boolean;
   account?: Account;
 }
 
@@ -37,29 +38,21 @@ export interface Ctx {
   iso: string;
   drafts: AuditDraft[];
   effects: Effect[];
+  /** A lone administrator's changes apply without approval (see needsApproval). Developer settings can turn it off. */
+  shortcut: boolean;
 }
 
 export function actorFor(state: GovernanceState, account: Account, now = new Date()): Actor {
-  const grants = grantsFor(account, state.roles, state.units, today(now));
-  const top = [...grants].sort((a, b) => b.tier - a.tier)[0];
-  return {
-    id: account.id,
-    name: account.name,
-    role: top?.roleName ?? "No role",
-    grants,
-    tier: top?.tier ?? 0,
-    technical: grants.some((g) => state.roles.find((r) => r.id === g.roleId)?.technical),
-    superAdmin: grants.some((g) => g.roleId === "super-admin"),
-    account,
-  };
+  const grants = grantsFor(account, state.units, today(now));
+  return { id: account.id, name: account.name, role: topGrant(grants)?.roleName ?? "No role", grants, account };
 }
 
-export const SYSTEM: Actor = { id: SYSTEM_ACTOR.id, name: SYSTEM_ACTOR.name, role: SYSTEM_ACTOR.role, grants: [], tier: 1000, technical: true, superAdmin: true };
+export const SYSTEM: Actor = { id: SYSTEM_ACTOR.id, name: SYSTEM_ACTOR.name, role: SYSTEM_ACTOR.role, grants: [], system: true };
 
-export const GUEST: Actor = { id: "guest", name: "Access request form", role: "Not signed in", grants: [], tier: 0, technical: false, superAdmin: false };
+export const GUEST: Actor = { id: "guest", name: "Access request form", role: "Not signed in", grants: [] };
 
-export function makeCtx(state: GovernanceState, actor: Actor, now = new Date()): Ctx {
-  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [] };
+export function makeCtx(state: GovernanceState, actor: Actor, now = new Date(), shortcut = true): Ctx {
+  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], shortcut };
 }
 
 export function log(
@@ -85,7 +78,7 @@ export function deny(ctx: Ctx, action: string, category: AuditCategory, resource
 /** A validation problem: nothing was attempted, so nothing is logged. */
 export const invalid = (message: string): CommandResult => ({ ok: false, message });
 
-export const can = (ctx: Ctx, m: ModuleKey, a: Action, t: Target = {}) => ctx.actor.superAdmin || canWith(ctx.actor.grants, m, a, t);
+export const can = (ctx: Ctx, m: ModuleKey, a: Action, t: Target = {}) => !!ctx.actor.system || canWith(ctx.actor.grants, m, a, t);
 
 export function nextId(ctx: Ctx, key: string, prefix: string, pad = 3) {
   const n = (ctx.state.records.counters[key] ?? 0) + 1;
@@ -95,7 +88,6 @@ export function nextId(ctx: Ctx, key: string, prefix: string, pad = 3) {
 
 export const accountById = (ctx: Ctx, id: string) => ctx.state.accounts.find((a) => a.id === id);
 export const unitById = (ctx: Ctx, id: string) => ctx.state.units.find((u) => u.id === id);
-export const roleById = (ctx: Ctx, id: string) => ctx.state.roles.find((r) => r.id === id);
 export const nameOf = (ctx: Ctx, id: string) => (id === "system" ? SYSTEM.name : id === "guest" ? "Access request form" : accountById(ctx, id)?.name ?? id);
 
 /** Fill a notification template: {name} placeholders from `vars`. */
@@ -125,3 +117,13 @@ export const cleanText = (s: unknown, max = MAX.text) => (typeof s === "string" 
 export const isDay = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 
 export const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+
+/** Optional unit contacts, normalized once before creation or approval. */
+export function readUnitEmails(value: unknown): string[] | string {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((email) => typeof email !== "string")) return "Enter unit email addresses as separate fields.";
+  const emails = [...new Set(value.map((email: string) => email.trim().toLowerCase()).filter(Boolean))];
+  if (emails.length > UNIT_EMAILS) return `List up to ${UNIT_EMAILS} email addresses.`;
+  if (emails.some((email) => email.length > 254 || !isEmail(email))) return "Enter an email address, like office@ust.edu.ph.";
+  return emails;
+}

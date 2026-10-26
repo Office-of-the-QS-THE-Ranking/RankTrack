@@ -53,7 +53,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
   const rankings: Entry[] = RANKINGS.map((r) => ({
     group: "Rankings",
     label: r.name,
-    sub: `${r.short} · ${r.current}`,
+    sub: r.current ? `${r.short} · ${r.current}` : r.short,
     href: `${rankingBase}/${r.slug}`,
     icon: "rankings",
     color: FAMILY[r.family].color,

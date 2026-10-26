@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { CALENDAR, DICTIONARY, EVIDENCE as ALL_EVIDENCE, FAMILY, RANKINGS as ALL_RANKINGS, RANKING_GROUPS, type EvidenceItem, type Ranking } from "@/lib/data";
+import { GlowingEffect } from "@/components/ui/GlowingEffect";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Direction, MeterRow, PageHeader, Status, Swatch } from "@/components/ui/primitives";
 import { DimensionMatrix } from "./DimensionMatrix";
@@ -39,7 +40,7 @@ export function RankingsOverview({
         />
       )}
 
-      <Card title="Current UST positions" sub={internal ? undefined : "Published results, latest edition"} icon="rankings" bodyClass="card__body--flush">
+      <Card title="Current UST positions" sub={internal ? undefined : "Published results, latest edition"} icon="rankings" bodyClass="card__body--flush" glow={embedded}>
         <div className="table-wrap">
           <table className="table table--hover table--stack">
             <thead>
@@ -94,6 +95,7 @@ export function RankingsOverview({
       <section aria-label="Rankings portfolio map" className="portfolio">
         {RANKING_GROUPS.filter((g) => rankingsInGroup(g.label).length).map((g) => (
           <div key={g.label} className="card portfolio__group">
+            {embedded && <GlowingEffect />}
             <h2 className="portfolio__title">
               <Swatch family={rankingsInGroup(g.label)[0].family} bar />
               {g.label}
@@ -101,10 +103,9 @@ export function RankingsOverview({
             <ul>
               {rankingsInGroup(g.label).map((r) => (
                 <li key={r.slug}>
-                  <Link href={`${base}/${r.slug}`} className="portfolio__item">
-                    <span className="portfolio__name">{r.name}</span>
+                  <Link href={`${base}/${r.slug}`} className="portfolio__item" aria-label={`${r.name}: ${r.current}`}>
+                    <span className="portfolio__name">{r.short}</span>
                     <span className="portfolio__now">{r.current}</span>
-                    <span className="portfolio__msg">{r.message}</span>
                     <Icon name="chevron" size={16} />
                   </Link>
                 </li>
@@ -114,13 +115,14 @@ export function RankingsOverview({
         ))}
       </section>
 
-      <DimensionMatrix base={base} slugs={RANKINGS.map((r) => r.slug)} />
+      <DimensionMatrix base={base} slugs={RANKINGS.map((r) => r.slug)} glow={embedded} />
 
       <div className="grid cols-2 grid--stretch">
         <Card
           title="Common institutional indicators"
           sub="One definition, several rankings"
           icon="target"
+          glow={embedded}
           foot={
             <Link href={knowledge} className="link">
               Open the indicator dictionary <Icon name="arrow" size={14} />
@@ -144,7 +146,7 @@ export function RankingsOverview({
             })}
           </ul>
         </Card>
-        <Card title="Annual submission calendar" sub="When each ranking body collects data" icon="calendar" tone="dark">
+        <Card title="Annual submission calendar" sub="When each ranking body collects data" icon="calendar" tone="dark" glow={embedded}>
           <ol className="cal">
             {CALENDAR.map((c) => (
               <li key={c.month}>
@@ -166,6 +168,7 @@ export function RankingsOverview({
           sub="Validated and in-review evidence that counts in more than one ranking"
           icon="layers"
           bodyClass="card__body--flush"
+          glow={embedded}
         >
           <div className="table-wrap">
             <table className="table matrix evmap">

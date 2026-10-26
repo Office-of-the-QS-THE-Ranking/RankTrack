@@ -7,6 +7,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Card, Notice } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useViewer } from "@/components/hub/HubProvider";
+import { Select } from "@/components/ui/pickers";
+import { skipChecks } from "@/lib/dev-checks";
 
 const STAGES = ["Discover", "Screen", "Develop", "Document", "Submit", "Recognize and scale"];
 const READINESS = ["Idea only", "Pilot running", "Results measured", "Results verified", "Replicated elsewhere"];
@@ -69,7 +71,7 @@ export function ProposeInnovation() {
       onSubmit={async (e) => {
         e.preventDefault();
         setTried(true);
-        if (missing.length) return;
+        if (missing.length && !skipChecks()) return;
         const r = await run({ type: "innovation.propose", unitSlug: viewer?.portal.unitId ?? "", name, category });
         if (!r.ok) toast(r.message, "error");
         else setSent(typeof r.data === "string" ? r.data : "received");
@@ -96,12 +98,12 @@ export function ProposeInnovation() {
             </label>
             <label className="field">
               <span className="field__label">WURI category</span>
-              <select className="select" value={category} aria-invalid={bad(category) || undefined} onChange={(e) => setCategory(e.target.value)}>
+              <Select className="select" value={category} aria-invalid={bad(category) || undefined} onChange={setCategory}>
                 <option value="">Choose a category</option>
                 {WURI_CATEGORIES.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="field">
               <span className="field__label">Problem it addresses</span>

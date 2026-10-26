@@ -5,7 +5,7 @@
  * Each link shows its icon in the panel; a link without one shows its preview's photograph instead.
  */
 import type { IconName } from "@/components/ui/Icon";
-import { AS_OF_LABEL, CALENDAR, FAMILY, LATEST_EDITION, PUBLISHED_STORIES, RECOGNITION } from "@/lib/data";
+import { CALENDAR, FAMILY, LATEST_EDITION, PUBLISHED_STORIES, RECOGNITION } from "@/lib/data";
 import { PHOTOS, type Photo } from "@/lib/site";
 import { OFFICE } from "@/lib/office";
 
@@ -107,7 +107,7 @@ export const MENUS: Menu[] = [
       },
     ],
     strip: {
-      text: `Results are reported exactly as each ranking body publishes them. Last updated ${AS_OF_LABEL}.`,
+      text: "Results are reported exactly as each ranking body publishes them.",
       link: { label: "Methodology disclaimer", href: "/about#disclaimer" },
     },
   },
@@ -155,7 +155,9 @@ export const MENUS: Menu[] = [
       },
     ],
     strip: {
-      text: `This cycle’s ${RECOGNITION.length} awards recognise evidence quality, outcomes and collaboration.`,
+      text: RECOGNITION.length
+        ? `This cycle’s ${RECOGNITION.length} awards recognise evidence quality, outcomes and collaboration.`
+        : "Awards recognise evidence quality, outcomes and collaboration, never the number of files uploaded.",
       link: { label: "See the awards", href: "/recognition#awards" },
     },
   },

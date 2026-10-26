@@ -5,6 +5,8 @@ import type { AccessReview, Classification, Incident, PrivacyAssessment, Securit
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { Block, EmptyNote, Field, Hint, KV, Pill, ReadOnly, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
+import { DateField, NumberField, Select } from "@/components/ui/pickers";
+import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Sign-in" | "Access reviews" | "Privacy" | "Alerts" | "Protection";
 
@@ -26,7 +28,7 @@ export function Security() {
           { key: "Sign-in", label: "Sign-in" },
           { key: "Access reviews", label: "Access reviews" },
           { key: "Privacy", label: "Privacy" },
-          { key: "Alerts", label: <>Alerts and incidents {alerts > 0 && <span className="adm-tabs__count is-alert">{alerts}</span>}</> },
+          { key: "Alerts", label: "Alerts and incidents", count: alerts || undefined, countTone: "alert" },
           { key: "Protection", label: "Data protection" },
         ]}
       />
@@ -64,6 +66,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /* ---------- Sign-in ---------- */
 
 function SignIn({ sec }: { sec: SecurityPolicy }) {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const edit = viewerCan(data.viewer, "security", "edit");
@@ -86,13 +89,13 @@ function SignIn({ sec }: { sec: SecurityPolicy }) {
     <div className="adm-cols">
       <Block title="2-step verification">
         <Field label="Required for">
-          <select className="select" value={mfa.mode} disabled={!edit} onChange={(e) => setMfa({ ...mfa, mode: e.target.value as typeof mfa.mode })}>
+          <Select className="select" value={mfa.mode} disabled={!edit} onChange={(v) => setMfa({ ...mfa, mode: v as typeof mfa.mode })}>
             <option value="Everyone">Everyone</option>
             <option value="Privileged roles">Selected roles</option>
             <option value="Off" disabled={!manage}>
               Nobody (not recommended)
             </option>
-          </select>
+          </Select>
         </Field>
         {mfa.mode === "Privileged roles" && (
           <fieldset className="adm-checks">
@@ -148,7 +151,7 @@ function SignIn({ sec }: { sec: SecurityPolicy }) {
               <button
                 type="button"
                 className="btn btn--sm"
-                disabled={!domain.trim()}
+                disabled={!skip && !domain.trim()}
                 onClick={() => {
                   setSso({ ...sso, domains: [...sso.domains, domain.trim().toLowerCase()] });
                   setDomain("");
@@ -172,13 +175,13 @@ function SignIn({ sec }: { sec: SecurityPolicy }) {
       <Block title="Sessions">
         <div className="adm-form-grid">
           <Field label="Sign out when idle (min)">
-            <input className="input num" type="number" min={5} max={240} disabled={!edit} value={session.idleMinutes} onChange={(e) => setSession({ ...session, idleMinutes: Number(e.target.value) })} />
+            <NumberField className="input num" min={5} max={240} disabled={!edit} value={session.idleMinutes} onChange={(v) => setSession({ ...session, idleMinutes: v })} />
           </Field>
           <Field label="Warn before (min)">
-            <input className="input num" type="number" min={1} max={30} disabled={!edit} value={session.warnMinutes} onChange={(e) => setSession({ ...session, warnMinutes: Number(e.target.value) })} />
+            <NumberField className="input num" min={1} max={30} disabled={!edit} value={session.warnMinutes} onChange={(v) => setSession({ ...session, warnMinutes: v })} />
           </Field>
           <Field label="Longest session (hours)">
-            <input className="input num" type="number" min={1} max={24} disabled={!edit} value={session.absoluteHours} onChange={(e) => setSession({ ...session, absoluteHours: Number(e.target.value) })} />
+            <NumberField className="input num" min={1} max={24} disabled={!edit} value={session.absoluteHours} onChange={(v) => setSession({ ...session, absoluteHours: v })} />
           </Field>
         </div>
         <SaveBar dirty={!same(session, sec.session)} onReset={() => setSession(sec.session)} onSave={() => void act({ type: "security.policy", section: "session", value: session })} />
@@ -193,13 +196,13 @@ function SignIn({ sec }: { sec: SecurityPolicy }) {
       >
         <div className="adm-form-grid">
           <Field label="Lock after failed tries">
-            <input className="input num" type="number" min={3} max={20} disabled={!edit} value={lockout.attempts} onChange={(e) => setLockout({ ...lockout, attempts: Number(e.target.value) })} />
+            <NumberField className="input num" min={3} max={20} disabled={!edit} value={lockout.attempts} onChange={(v) => setLockout({ ...lockout, attempts: v })} />
           </Field>
           <Field label="Within (min)">
-            <input className="input num" type="number" min={5} max={120} disabled={!edit} value={lockout.windowMinutes} onChange={(e) => setLockout({ ...lockout, windowMinutes: Number(e.target.value) })} />
+            <NumberField className="input num" min={5} max={120} disabled={!edit} value={lockout.windowMinutes} onChange={(v) => setLockout({ ...lockout, windowMinutes: v })} />
           </Field>
           <Field label="Flag inactive after (days)">
-            <input className="input num" type="number" min={30} max={365} disabled={!edit} value={idle} onChange={(e) => setIdle(Number(e.target.value))} />
+            <NumberField className="input num" min={30} max={365} disabled={!edit} value={idle} onChange={setIdle} />
           </Field>
         </div>
         <SaveBar
@@ -311,14 +314,14 @@ function Reviews({ sec }: { sec: SecurityPolicy }) {
             <input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Q1 2027 access review" />
           </Field>
           <Field label="Who">
-            <select className="select" value={f.population} onChange={(e) => setF({ ...f, population: e.target.value as typeof f.population })}>
+            <Select className="select" value={f.population} onChange={(v) => setF({ ...f, population: v as typeof f.population })}>
               <option value="privileged">Admins, temporary access and guests</option>
               <option value="external">Guests only</option>
               <option value="all">Everyone active</option>
-            </select>
+            </Select>
           </Field>
           <Field label="Due">
-            <input className="input" type="date" min={data.day} value={f.due} onChange={(e) => setF({ ...f, due: e.target.value })} />
+            <DateField className="input" min={data.day} value={f.due} onChange={(v) => setF({ ...f, due: v })} />
           </Field>
         </div>
       </Sheet>
@@ -399,6 +402,7 @@ function ReviewSheet({ review: r, onClose }: { review: AccessReview | null; onCl
 /* ---------- Privacy ---------- */
 
 function Privacy({ sec }: { sec: SecurityPolicy }) {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const edit = viewerCan(data.viewer, "security", "edit");
@@ -424,7 +428,7 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
             <input className="input" type="email" disabled={!edit} value={p.email} onChange={(e) => setP({ ...p, email: e.target.value })} />
           </Field>
           <Field label="Privacy notice updated">
-            <input className="input" type="date" disabled={!edit} value={p.noticeUpdated} onChange={(e) => setP({ ...p, noticeUpdated: e.target.value })} />
+            <DateField className="input" disabled={!edit} value={p.noticeUpdated} onChange={(v) => setP({ ...p, noticeUpdated: v })} />
           </Field>
           <Field
             label={
@@ -433,7 +437,7 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
               </>
             }
           >
-            <input className="input num" type="number" min={1} max={72} disabled={!edit} value={p.breachHours} onChange={(e) => setP({ ...p, breachHours: Number(e.target.value) })} />
+            <NumberField className="input num" min={1} max={72} disabled={!edit} value={p.breachHours} onChange={(v) => setP({ ...p, breachHours: v })} />
           </Field>
         </div>
         <SaveBar dirty={!same(p, sec.privacy)} onReset={() => setP(sec.privacy)} onSave={() => void act({ type: "security.policy", section: "privacy", value: p })} />
@@ -518,12 +522,12 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
                     </td>
                     <td>
                       {edit && (r.status === "Open" || r.status === "In progress") ? (
-                        <select className="select select--sm" value={r.status} aria-label={`Status of ${r.id}`} onChange={(e) => void act({ type: "dsr.update", id: r.id, status: e.target.value as SubjectRequest["status"] })}>
+                        <Select className="select select--sm" value={r.status} aria-label={`Status of ${r.id}`} onChange={(v) => void act({ type: "dsr.update", id: r.id, status: v as SubjectRequest["status"] })}>
                           <option>Open</option>
                           <option>In progress</option>
                           <option>Fulfilled</option>
                           <option>Declined</option>
-                        </select>
+                        </Select>
                       ) : (
                         <StatusPill value={r.status} />
                       )}
@@ -550,7 +554,7 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={dsr.subject.trim().length < 4}
+              disabled={!skip && dsr.subject.trim().length < 4}
               onClick={async () => {
                 const r = await act({ type: "dsr.create", request: dsr });
                 if (r.ok) {
@@ -566,14 +570,14 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
       >
         <div className="adm-form-grid">
           <Field label="Type">
-            <select className="select" value={dsr.type} onChange={(e) => setDsr({ ...dsr, type: e.target.value as SubjectRequest["type"] })}>
+            <Select className="select" value={dsr.type} onChange={(v) => setDsr({ ...dsr, type: v as SubjectRequest["type"] })}>
               {(["Access", "Correction", "Erasure or blocking", "Objection", "Portability"] as const).map((t) => (
                 <option key={t}>{t}</option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Received">
-            <input className="input" type="date" max={data.day} value={dsr.received} onChange={(e) => setDsr({ ...dsr, received: e.target.value })} />
+            <DateField className="input" max={data.day} value={dsr.received} onChange={(v) => setDsr({ ...dsr, received: v })} />
           </Field>
           <Field label="Who (describe, don't name)" wide>
             <input className="input" value={dsr.subject} onChange={(e) => setDsr({ ...dsr, subject: e.target.value })} placeholder="Alumnus, College of Nursing" />
@@ -593,7 +597,7 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={!pia?.name.trim()}
+              disabled={!skip && !pia?.name.trim()}
               onClick={async () => {
                 if (!pia) return;
                 const r = await act({ type: "pia.save", pia: { id: pia.id, name: pia.name, datasetId: pia.datasetId!, risk: pia.risk!, status: pia.status!, owner: pia.owner ?? data.viewer.id, measures: pia.measures ?? "" } });
@@ -611,27 +615,27 @@ function Privacy({ sec }: { sec: SecurityPolicy }) {
               <input className="input" value={pia.name} onChange={(e) => setPia({ ...pia, name: e.target.value })} />
             </Field>
             <Field label="Dataset">
-              <select className="select" value={pia.datasetId} onChange={(e) => setPia({ ...pia, datasetId: e.target.value })}>
+              <Select className="select" value={pia.datasetId} onChange={(v) => setPia({ ...pia, datasetId: v })}>
                 {data.catalog.datasets.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Risk">
-              <select className="select" value={pia.risk} onChange={(e) => setPia({ ...pia, risk: e.target.value as PrivacyAssessment["risk"] })}>
+              <Select className="select" value={pia.risk} onChange={(v) => setPia({ ...pia, risk: v as PrivacyAssessment["risk"] })}>
                 <option>Low</option>
                 <option>Medium</option>
                 <option>High</option>
-              </select>
+              </Select>
             </Field>
             <Field label="Status">
-              <select className="select" value={pia.status} onChange={(e) => setPia({ ...pia, status: e.target.value as PrivacyAssessment["status"] })}>
+              <Select className="select" value={pia.status} onChange={(v) => setPia({ ...pia, status: v as PrivacyAssessment["status"] })}>
                 <option>Draft</option>
                 <option>In review</option>
                 <option>Approved</option>
-              </select>
+              </Select>
             </Field>
             <Field label="Safeguards" wide>
               <textarea className="textarea" value={pia.measures} onChange={(e) => setPia({ ...pia, measures: e.target.value })} placeholder="How the data is minimized, protected, shared and disposed of" />
@@ -692,6 +696,7 @@ function Alerts({ sec }: { sec: SecurityPolicy }) {
 const ESCALATE = ["University Data Protection Officer", "National Privacy Commission (through the DPO)", "University IT Services", "Office of the Secretary General"];
 
 function Incidents({ sec }: { sec: SecurityPolicy }) {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const [sel, setSel] = useState<string | null>(null);
@@ -755,7 +760,7 @@ function Incidents({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={f.title.trim().length < 6}
+              disabled={!skip && f.title.trim().length < 6}
               onClick={async () => {
                 const r = await act({ type: "incident.report", ...f });
                 if (r.ok) {
@@ -774,12 +779,12 @@ function Incidents({ sec }: { sec: SecurityPolicy }) {
             <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Evidence file shared through a public link" />
           </Field>
           <Field label="Severity">
-            <select className="select" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value as Incident["severity"] })}>
+            <Select className="select" value={f.severity} onChange={(v) => setF({ ...f, severity: v as Incident["severity"] })}>
               <option>Low</option>
               <option>Medium</option>
               <option>High</option>
               <option>Critical</option>
-            </select>
+            </Select>
           </Field>
           <label className="choice adm-field--check">
             <input type="checkbox" checked={f.personalData} onChange={(e) => setF({ ...f, personalData: e.target.checked })} />
@@ -802,7 +807,7 @@ function Incidents({ sec }: { sec: SecurityPolicy }) {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={u.note.trim().length < 3}
+              disabled={!skip && u.note.trim().length < 3}
               onClick={async () => {
                 const r = await act({ type: "incident.update", id: inc.id, status: u.status, note: u.note, escalatedTo: u.escalatedTo || undefined });
                 if (r.ok) setU({ ...u, note: "" });
@@ -828,19 +833,19 @@ function Incidents({ sec }: { sec: SecurityPolicy }) {
             {edit && (
               <div className="adm-form-grid">
                 <Field label="Status">
-                  <select className="select" value={u.status} onChange={(e) => setU({ ...u, status: e.target.value as Incident["status"] })}>
+                  <Select className="select" value={u.status} onChange={(v) => setU({ ...u, status: v as Incident["status"] })}>
                     {(["Reported", "Investigating", "Escalated", "Contained", "Closed"] as const).map((s) => (
                       <option key={s}>{s}</option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Escalate to">
-                  <select className="select" value={u.escalatedTo} onChange={(e) => setU({ ...u, escalatedTo: e.target.value, status: e.target.value ? "Escalated" : u.status })}>
+                  <Select className="select" value={u.escalatedTo} onChange={(v) => setU({ ...u, escalatedTo: v, status: v ? "Escalated" : u.status })}>
                     <option value="">Not escalated</option>
                     {ESCALATE.map((x) => (
                       <option key={x}>{x}</option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Update" wide>
                   <textarea className="textarea" value={u.note} onChange={(e) => setU({ ...u, note: e.target.value })} />
@@ -860,7 +865,7 @@ function Protection({ sec }: { sec: SecurityPolicy }) {
   const { data, confirm } = useConsole();
   const act = useAct();
   const edit = viewerCan(data.viewer, "security", "edit");
-  const rotate = viewerCan(data.viewer, "security", "manage") && data.viewer.technical;
+  const rotate = viewerCan(data.viewer, "security", "manage");
   const [x, setX] = useState(sec.exports);
   const [s, setS] = useState(sec.sharing);
   useEffect(() => {
@@ -888,13 +893,12 @@ function Protection({ sec }: { sec: SecurityPolicy }) {
                         <StatusPill value={c} />
                       </td>
                       <td>
-                        <select
+                        <Select
                           className="select select--sm"
                           value={state}
                           disabled={!edit || c === "Restricted"}
                           aria-label={`Export rule for ${c}`}
-                          onChange={(e) => {
-                            const v = e.target.value;
+                          onChange={(v) => {
                             setX({
                               ...x,
                               blocked: v === "Blocked" ? [...new Set([...x.blocked, c])] : x.blocked.filter((b) => b !== c),
@@ -905,7 +909,7 @@ function Protection({ sec }: { sec: SecurityPolicy }) {
                           <option>Allowed</option>
                           <option>Approval required</option>
                           <option>Blocked</option>
-                        </select>
+                        </Select>
                       </td>
                     </tr>
                   );
@@ -942,7 +946,7 @@ function Protection({ sec }: { sec: SecurityPolicy }) {
       <Block
         title={
           <>
-            Encryption keys {!rotate && <Hint text="Only technical administrators can rotate keys." />}
+            Encryption keys {!rotate && <Hint text="Only University Administrators can rotate keys." />}
           </>
         }
       >

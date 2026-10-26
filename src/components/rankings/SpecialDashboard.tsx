@@ -14,14 +14,14 @@ import {
   SDG_TILES,
   SUBJECT_AREAS,
   SUBJECT_PORTFOLIO,
-  WURI_CATEGORIES,
+  WURI_PLACEMENTS,
   WURI_PIPELINE,
   inkOn,
   type Ranking,
 } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { Card, Meter, MeterRow, Notice, Status, Trend } from "@/components/ui/primitives";
-import { BarList, Funnel, Heatmap, Sparkline } from "@/components/charts/charts";
+import { Card, Empty, Meter, MeterRow, Notice, Status, Trend } from "@/components/ui/primitives";
+import { Funnel, Sparkline } from "@/components/charts/charts";
 
 /* ---------- Shared pieces ---------- */
 
@@ -46,17 +46,21 @@ export function Quadrant({ id }: { id?: string }) {
         <section key={q.quadrant} className={`quad__cell quad__cell--${q.quadrant.split(" ")[0].toLowerCase()}`} aria-label={q.quadrant}>
           <h3>{q.quadrant}</h3>
           <p className="quad__note">{QUADRANT_NOTES[q.quadrant]}</p>
-          <ul>
-            {q.subjects.map((s) => (
-              <li key={s.name}>
-                <span className="row" style={{ ["--gap" as string]: "8px" } as CSSProperties}>
-                  <i className="sw" style={{ background: SUBJECT_AREAS[s.area] }} title={s.area} aria-hidden="true" />
-                  {s.name}
-                </span>
-                <span className="quad__val">{s.note}</span>
-              </li>
-            ))}
-          </ul>
+          {q.subjects.length ? (
+            <ul>
+              {q.subjects.map((s) => (
+                <li key={s.name}>
+                  <span className="row" style={{ ["--gap" as string]: "8px" } as CSSProperties}>
+                    <i className="sw" style={{ background: SUBJECT_AREAS[s.area] }} title={s.area} aria-hidden="true" />
+                    {s.name}
+                  </span>
+                  <span className="quad__val">{s.note}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="small muted">None yet</p>
+          )}
         </section>
       ))}
     </div>
@@ -167,21 +171,26 @@ export function WuriCategories({ publicMode }: { publicMode?: boolean }) {
   const [sel, setSel] = useState<string | null>(null);
   return (
     <Card
-      title="Top 100 in 12 categories"
-      sub="Category names are sample; confirm against the official result letter"
+      title={WURI_PLACEMENTS.length ? `Top 100 in ${WURI_PLACEMENTS.length} categories` : "Top 100 placements"}
+      sub="From the official result letter"
       icon="recognition"
       tone="dark"
       id="wuri-categories"
     >
+      {!WURI_PLACEMENTS.length && (
+        <p className="small" style={{ color: "var(--on-dark-2)" }}>
+          No placements recorded yet.
+        </p>
+      )}
       <div className="cats" role="group" aria-label="WURI categories">
-        {WURI_CATEGORIES.map((c, i) => (
+        {WURI_PLACEMENTS.map((c, i) => (
           <button key={c} type="button" className="cats__btn" aria-pressed={sel === c} onClick={() => setSel(sel === c ? null : c)}>
             <span className="cats__n">{String(i + 1).padStart(2, "0")}</span>
             {c}
           </button>
         ))}
       </div>
-      <p className="small mt-4" aria-live="polite" style={{ color: "var(--on-dark-2)" }}>
+      <p className="small mt-4" aria-live="polite" style={{ color: "var(--on-dark-2)" }} hidden={!WURI_PLACEMENTS.length}>
         {sel
           ? `${sel}: Top 100 placement.${publicMode ? "" : " Linked programmes and evidence are listed under Submitted projects."}`
           : "Select a category to see its placement."}
@@ -190,12 +199,8 @@ export function WuriCategories({ publicMode }: { publicMode?: boolean }) {
   );
 }
 
-const WURI_INITIATIVES = [
-  { name: "Physics kits for public schools", category: "Social Responsibility", outcome: "Moderate", novelty: "High", scale: "High", ready: 72, replication: "Open bill of materials", recognition: "Shortlisted" },
-  { name: "Rooftop solar with student monitoring", category: "Industrial Application", outcome: "Strong", novelty: "Medium", scale: "High", ready: 88, replication: "Monitoring template", recognition: "Top 100" },
-  { name: "Clinics that follow the patient home", category: "Social Responsibility", outcome: "Strong", novelty: "Medium", scale: "Medium", ready: 81, replication: "Open clinic protocol", recognition: "Top 100" },
-  { name: "Flood-resilience design studio", category: "Value Creation", outcome: "Emerging", novelty: "High", scale: "Medium", ready: 54, replication: "Studio brief", recognition: "Candidate" },
-];
+/** Initiatives submitted to WURI this cycle, with the Office's assessment of each. */
+const WURI_INITIATIVES: { name: string; category: string; outcome: string; novelty: string; scale: string; ready: number; replication: string; recognition: string }[] = [];
 
 /* ---------- Ranking-specific dashboards ---------- */
 export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; onIndicator?: (name: string) => void }) {
@@ -219,17 +224,21 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                 </Link>
               </div>
             </Card>
-            <Card title="Philippine and ASEAN comparison" sub="Sample peers, anonymised" icon="globe">
-              <ul className="list">
-                {COMPARISON.map((c) => (
-                  <li key={c.name} className={c.own ? "list__own" : undefined}>
-                    <span className="list__main">{c.own ? `UST (${ranking.short})` : c.name}</span>
-                    <span className="num small" style={{ fontWeight: 600 }}>
-                      {c.own ? ranking.current : c.value}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+            <Card title="Philippine and ASEAN comparison" sub="Peers, anonymised" icon="globe">
+              {COMPARISON.length ? (
+                <ul className="list">
+                  {COMPARISON.map((c) => (
+                    <li key={c.name} className={c.own ? "list__own" : undefined}>
+                      <span className="list__main">{c.own ? `UST (${ranking.short})` : c.name}</span>
+                      <span className="num small" style={{ fontWeight: 600 }}>
+                        {c.own ? ranking.current : c.value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty icon="globe" title="No peer results yet" />
+              )}
             </Card>
           </div>
           <Card title="Reputation and internationalization trends" sub="Indicator score by cycle, with direction" icon="trend-up" id="qs-trends" bodyClass="card__body--flush">
@@ -259,7 +268,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                         <Sparkline values={i.history} label={i.name} />
                       </td>
                       <td data-label="Score" className="r num">
-                        <b>{i.current}</b>
+                        <b>{i.current ?? "—"}</b>
                       </td>
                       <td data-label="Trend">
                         <Trend trend={i.trend} />
@@ -287,8 +296,8 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                         {i.name}
                       </button>
                       <span className="small num">
-                        <b>{i.current}</b>
-                        <span className="muted"> / {i.target}</span>
+                        <b>{i.current ?? "—"}</b>
+                        <span className="muted"> / {i.target ?? "—"}</span>
                         <span className="muted"> · {i.weight}</span>
                       </span>
                     </div>
@@ -300,24 +309,24 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
             <Card title="Research competitiveness funnel" sub="Capacity to output to influence" icon="research" id="research-funnel">
               <Flow
                 steps={[
-                  { step: "Research capacity", value: "1,040", note: "faculty with research load" },
-                  { step: "Research output", value: "1,486", note: "outputs in 2025" },
-                  { step: "International collaboration", value: "36%", note: "co-authored abroad" },
-                  { step: "Citation influence", value: "21.3", note: "Research Quality score" },
-                  { step: "THE performance", value: ranking.current, note: "current band" },
+                  { step: "Research capacity", value: "—", note: "faculty with research load" },
+                  { step: "Research output", value: "—", note: "outputs this reporting year" },
+                  { step: "International collaboration", value: "—", note: "co-authored abroad" },
+                  { step: "Citation influence", value: "—", note: "Research Quality score" },
+                  { step: "THE performance", value: ranking.current || "—", note: "current band" },
                 ]}
               />
             </Card>
           </div>
-          <Card title="Research signals" sub="The measures THE weighs most heavily for UST's band (sample figures)" icon="target">
+          <Card title="Research signals" sub="The measures THE weighs most heavily for UST's band" icon="target">
             <div className="signals">
               {[
-                ["Research productivity", "1.43", "papers per academic"],
-                ["Research income", "₱0.31M", "per academic staff"],
-                ["Doctoral capacity", "212", "doctorates awarded in 2025"],
-                ["Citations", "0.71", "field-weighted impact"],
-                ["International co-authorship", "36%", "of 2025 papers"],
-                ["Industry income", "₱18.6M", "research income from industry"],
+                ["Research productivity", "—", "papers per academic"],
+                ["Research income", "—", "per academic staff"],
+                ["Doctoral capacity", "—", "doctorates awarded this year"],
+                ["Citations", "—", "field-weighted impact"],
+                ["International co-authorship", "—", "of this year's papers"],
+                ["Industry income", "—", "research income from industry"],
               ].map(([k, v, n]) => (
                 <div key={k} className="signal">
                   <span className="signal__k">{k}</span>
@@ -340,18 +349,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
             <Quadrant id="subject-portfolio" />
           </Card>
           <Card title="Compare subjects" sub="Pillar scores by subject" icon="layers" id="subject-compare">
-            <Heatmap
-              caption="Pillar scores by subject"
-              columns={["Research quality", "Teaching", "Intl outlook", "Industry"]}
-              rows={[
-                { label: "Education", values: [24, 31, 38, 22] },
-                { label: "Medical and Health", values: [27, 23, 35, 29] },
-                { label: "Life Sciences", values: [19, 20, 33, 25] },
-                { label: "Social Sciences", values: [15, 24, 30, 18] },
-              ]}
-              min={14}
-              max={40}
-            />
+            <Empty icon="layers" title="No subject scores yet" />
           </Card>
         </div>
       );
@@ -441,18 +439,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
               <Quadrant id="subject-portfolio" />
             </Card>
             <Card title="Distance to ranking threshold" sub="Candidate subjects, share of the QS threshold" icon="target" id="subject-threshold">
-              <BarList
-                label="Distance to ranking threshold"
-                marker={{ value: 100, label: "Ranking threshold" }}
-                rows={[
-                  { label: "Pharmacy", value: 82, detail: "Papers above threshold; reputation 64% of threshold" },
-                  { label: "Chemistry", value: 71, detail: "Needs 41 more indexed papers" },
-                  { label: "Modern Languages", value: 66, detail: "Reputation rising for two cycles" },
-                  { label: "Nursing", value: 58, detail: "Citations below threshold" },
-                  { label: "Computer Science", value: 44, detail: "Output growing; citations low" },
-                ]}
-              />
-              <p className="small muted mt-4">The line marks the threshold for a subject to be ranked.</p>
+              <Empty icon="target" title="No candidate subjects yet" />
             </Card>
           </div>
           <Card title="Medicine: five subject indicators" sub="Academic Reputation, Employer Reputation, Citations, H-index, International Research Network" icon="research" id="subject-indicators" bodyClass="card__body--flush">
@@ -468,21 +455,17 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    ...ranking.indicators.filter((i) => i.name.startsWith("Medicine")),
-                    { name: "Medicine: Employer Reputation", weight: "10%", current: 21, target: 25 },
-                    { name: "Medicine: International Research Network", weight: "10%", current: 38, target: 44 },
-                  ].map((i) => (
+                  {ranking.indicators.filter((i) => i.name.startsWith("Medicine")).map((i) => (
                     <tr key={i.name}>
                       <td className="table__primary">{i.name.replace("Medicine: ", "")}</td>
                       <td data-label="Weight" className="num">
                         {i.weight}
                       </td>
                       <td data-label="Score" className="r num">
-                        {i.current}
+                        {i.current ?? "—"}
                       </td>
                       <td data-label="Target" className="r num">
-                        {i.target}
+                        {i.target ?? "—"}
                       </td>
                       <td data-label="Share of target">
                         <MeterRow value={((i.current ?? 0) / (i.target ?? 1)) * 100} label={`${i.name} share of target`} />
@@ -522,12 +505,12 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                         <li key={m}>
                           <span className="gm__m">{m}</span>
                           <span className="gm__v num">
-                            <b>{now}</b> <span className="muted">→ {tgt}</span>
+                            <b>{now}</b> {tgt !== "—" && <span className="muted">→ {tgt}</span>}
                           </span>
                           {pct !== null ? (
                             <Meter value={pct} tone="ok" label={`${m}: ${pct}% of target`} />
                           ) : (
-                            <span className="small muted">Programme coverage</span>
+                            <span className="small muted">{now === "—" ? "Not recorded yet" : "Programme coverage"}</span>
                           )}
                         </li>
                       );
@@ -578,7 +561,10 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
             </Card>
             <WuriCategories />
           </div>
-          <Card title="Submitted projects" sub="Outcome strength, scalability, novelty, evidence readiness, replication and recognition" icon="layers" id="wuri-initiatives" bodyClass="card__body--flush">
+          <Card title="Submitted projects" sub="Outcome strength, scalability, novelty, evidence readiness, replication and recognition" icon="layers" id="wuri-initiatives" bodyClass={WURI_INITIATIVES.length ? "card__body--flush" : undefined}>
+            {!WURI_INITIATIVES.length ? (
+              <Empty icon="layers" title="No projects submitted yet" />
+            ) : (
             <div className="table-wrap">
               <table className="table table--stack">
                 <thead>
@@ -613,6 +599,7 @@ export function SpecialDashboard({ ranking, onIndicator }: { ranking: Ranking; o
                 </tbody>
               </table>
             </div>
+            )}
           </Card>
         </>
       );

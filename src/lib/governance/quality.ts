@@ -15,6 +15,8 @@ interface StoryLike {
   title: string;
   state: string;
   replication: string;
+  /** Posts are free text, with no replication field to check. */
+  post?: unknown;
 }
 
 const YEARS = /\b(19|20)\d{2}\b/g;
@@ -105,7 +107,7 @@ export function runRules(rules: QualityRule[], evidence: EvidenceRecord[], stori
         break;
       case "replication":
         failures = stories
-          .filter((s) => s.state === "Published" && !s.replication.trim())
+          .filter((s) => s.state === "Published" && !s.post && !s.replication.trim())
           .map((s) => ({ id: s.slug, label: s.title, why: "No replication guidance" }));
         break;
       case "external":

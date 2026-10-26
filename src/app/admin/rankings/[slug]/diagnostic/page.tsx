@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function DiagnosticPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   // Rankings switched off in System Configuration are not tracked in the workspace.
-  const ranking = hub().ranking(slug);
+  const ranking = (await hub()).ranking(slug);
   if (!ranking || !rankingBySlug(slug)) notFound();
   return <Diagnostic ranking={ranking} />;
 }

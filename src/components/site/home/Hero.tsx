@@ -7,7 +7,8 @@ import { siteData } from "@/lib/governance/server/site";
 import { ArchDrawing } from "./ArchDrawing";
 import { ArchMotion } from "./ArchMotion";
 
-/** The ticker's order: what rose first, then what held, then the first entry. Only rankings shown publicly run. */
+/** The ticker's order: what rose first, then what held, then the first entry. Only rankings shown publicly run;
+ * one without a result yet runs by name alone. */
 const TICKER_ORDER = ["qs-sustainability", "wuri", "the-impact", "qs-wur", "the-subject", "qs-subject", "the-wur", "greenmetric"];
 
 const ordinal = (v: string) => {
@@ -43,15 +44,15 @@ function Half({ text, from }: { text: string; from: number }) {
   });
 }
 
-function TickerItems({ hidden }: { hidden?: boolean }) {
-  const site = siteData();
+async function TickerItems({ hidden }: { hidden?: boolean }) {
+  const site = await siteData();
   const TICKER = TICKER_ORDER.flatMap((slug) => (site.ranking(slug) ? [site.ranking(slug)!] : []));
   return TICKER.map((r) => {
     const { label, value } = splitResult(r.current);
     return (
       <li key={r.slug}>
         <Link href={`/rankings/${r.slug}`} className="w-arch__tick" tabIndex={hidden ? -1 : undefined}>
-          <span className="w-arch__tick-fig">{ordinal(value)}</span>
+          {r.current && <span className="w-arch__tick-fig">{ordinal(value)}</span>}
           <span className="w-arch__tick-name">
             {r.short}
             {label ? `, ${label}` : ""}
@@ -61,7 +62,7 @@ function TickerItems({ hidden }: { hidden?: boolean }) {
               <path d="M5 1.5 9 8H1z" />
             </svg>
           )}
-          <span className="sr-only">. {movement(r)}.</span>
+          {r.current && <span className="sr-only">. {movement(r)}.</span>}
         </Link>
       </li>
     );
@@ -77,7 +78,8 @@ function TickerItems({ hidden }: { hidden?: boolean }) {
  * visitor through it (ArchMotion). The entrance is CSS and waits for the loader; without script or under
  * reduced motion the hero is a still composition.
  */
-export function HomeHero() {
+export async function HomeHero() {
+  const results = (await siteData()).rankings.some((r) => r.current);
   return (
     <section className="w-arch" id="hero" aria-labelledby="hero-title">
       <div className="w-arch__stage w-on-dark">
@@ -103,7 +105,7 @@ export function HomeHero() {
         </div>
         <div className="w-arch__actions">
           <Link href="/rankings" className="w-btn w-btn--light w-arch__cta">
-            See the {LATEST_EDITION} results
+            {results ? `See the ${LATEST_EDITION} results` : "See the eight rankings"}
           </Link>
           <Link href="/impact" className="w-link">
             Read the impact stories

@@ -1,7 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Newsreader } from "next/font/google";
+import { DevAccess } from "@/components/dev/DevAccess";
+import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
+import { FieldErrors } from "@/components/ui/validation";
 import "@/styles/tokens.css";
+import "@/styles/cursors.css";
+import "@/styles/cursor-frames.css";
 import "@/styles/base.css";
 import "@/styles/components.css";
 import "@/styles/charts.css";
@@ -9,13 +14,19 @@ import "@/styles/shell.css";
 import "@/styles/views.css";
 import "@/styles/portal.css";
 import "@/styles/admin.css";
+import "@/styles/posts.css";
 import "@/styles/signin.css";
 import "@/styles/overview.css";
+import "@/styles/unit-profile.css";
 import "@/styles/site.css";
 import "@/styles/site-home.css";
 import "@/styles/site-ascent.css";
 import "@/styles/site-pages.css";
+import "@/styles/site-post.css";
 import "@/styles/portal-typography.css";
+import "@/styles/dev.css";
+import "@/styles/pickers.css";
+import "@/styles/content-tabs.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
 const sans = Instrument_Sans({
@@ -62,6 +73,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Toaster />
+        <FieldErrors />
+        <CursorFx />
+        {process.env.NODE_ENV === "development" && <DevAccess />}
       </body>
     </html>
   );

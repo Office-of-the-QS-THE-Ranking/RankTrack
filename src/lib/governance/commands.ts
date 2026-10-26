@@ -13,9 +13,10 @@ import type {
   Incident,
   ModuleKey,
   OrgKind,
-  PermissionSet,
+  PostMedia,
   PrivacyAssessment,
   RequestPayload,
+  RoleId,
   Scope,
   SecurityAlert,
   SecurityPolicy,
@@ -30,16 +31,28 @@ export interface InviteInput {
   email: string;
   title: string;
   unitId: string;
-  roleId: string;
+  roleId: RoleId;
   scope?: Scope;
   expires?: string;
   external?: boolean;
 }
 
+/** What the post composer sends. */
+export interface PostInput {
+  title: string;
+  subtitle: string;
+  sdgs: number[];
+  themes: string[];
+  hashtags: string[];
+  layout: "cover" | "feature" | "split" | "essay" | "banner" | "gallery" | "magazine" | "alternate";
+  thumbnail: PostMedia | null;
+  body: string;
+  photos: PostMedia[];
+}
+
 export type Command =
   /* Accounts */
   | { type: "account.invite"; input: InviteInput }
-  | { type: "account.import"; rows: { name: string; email: string; title: string; unit: string; role: string }[]; file: string }
   | { type: "account.update"; id: string; name?: string; title?: string }
   | { type: "account.status"; id: string; status: Exclude<AccountStatus, "Pending Invitation">; reason: string }
   | { type: "account.resend"; id: string }
@@ -47,15 +60,12 @@ export type Command =
   | { type: "account.reauth"; id: string }
   | { type: "account.transfer"; id: string; toUnitId: string; moveScope: boolean }
   | { type: "account.keep"; id: string }
-  | { type: "assignment.add"; accountId: string; roleId: string; scope: Scope; expires?: string; note?: string }
+  | { type: "assignment.add"; accountId: string; roleId: RoleId; scope: Scope; expires?: string; note?: string }
   | { type: "assignment.remove"; accountId: string; assignmentId: string }
-  /* Roles */
-  | { type: "role.create"; name: string; description: string; inherits?: string; permissions: PermissionSet; exceptions?: PermissionSet; scopeKind: "university" | "unit" | "custom"; tier?: number }
-  | { type: "role.update"; id: string; name?: string; description?: string; inherits?: string | null; permissions?: PermissionSet; exceptions?: PermissionSet; tier?: number }
-  | { type: "role.delete"; id: string }
   /* Directory */
-  | { type: "unit.create"; name: string; code: string; kind: OrgKind; parentId: string; justification: string }
-  | { type: "unit.update"; id: string; name?: string; code?: string; adminIds?: string[] }
+  | { type: "unit.create"; name: string; code: string; kind: OrgKind; parentId: string; justification?: string; emails?: string[]; emblem?: { src: string; width: number; height: number } }
+  | { type: "unit.update"; id: string; name?: string; code?: string; adminIds?: string[]; emails?: string[]; emblem?: { src: string; width: number; height: number } | null }
+  | { type: "unit.coordinator"; id: string; accountId: string; operation: "add" | "remove" }
   | { type: "unit.move"; id: string; parentId: string }
   | { type: "unit.archive"; id: string; reason: string }
   | { type: "unit.reactivate"; id: string }
@@ -92,8 +102,9 @@ export type Command =
   | { type: "audit.export"; ids: number[]; filters: string }
   /* Approval workflows */
   | { type: "request.create"; workflowId: WorkflowKey; payload: RequestPayload; justification: string; title?: string }
-  | { type: "request.decide"; id: string; decision: "Approved" | "Rejected"; note?: string }
+  | { type: "request.decide"; id: string; decision: "Approved" | "Rejected"; note?: string; unitId?: string }
   | { type: "request.cancel"; id: string }
+  | { type: "request.review"; id: string }
   | { type: "workflow.update"; id: WorkflowKey; enabled?: boolean; slaDays?: number; separation?: boolean; steps?: WorkflowStep[] }
   /* System configuration */
   | { type: "config.body"; key: string; enabled: boolean }
@@ -116,7 +127,6 @@ export type Command =
   | { type: "backup.test"; pointId: string }
   | { type: "backup.schedule"; retentionDays?: number; monthlyMonths?: number; offsite?: boolean }
   | { type: "backup.request"; operation: "restore" | "delete"; pointId: string; justification: string }
-  | { type: "backup.reset" }
   /* Workspace records */
   | {
       type: "evidence.submit";
@@ -145,6 +155,10 @@ export type Command =
       input: { title: string; challenge: string; response: string; figure: string; figureLabel: string; beneficiaries: string; sdgs: number[]; rankings: string[]; evidence: string[] };
     }
   | { type: "story.state"; slug: string; state: "Published" | "Withdrawn" }
+  /* Impact and Innovation posts. `from` names a story or a unit's proposal the new post takes over. */
+  | { type: "post.save"; id?: string; from?: string; input: PostInput; publish: boolean }
+  | { type: "post.status"; id: string; status: "Published" | "Unpublished" | "Draft" }
+  | { type: "post.delete"; id: string }
   | { type: "innovation.propose"; unitSlug: string; name: string; category: string }
   | { type: "assistance.request"; unitSlug: string; topic: string; urgent: boolean; message: string }
   | { type: "report.export"; report: string; cycle: string; rows: number; datasets: string[] }

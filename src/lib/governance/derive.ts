@@ -2,7 +2,8 @@
  * Derived facts about the governance state that the server, the console and the workspaces all need.
  * Pure functions: no I/O.
  */
-import { RANKINGS, UNITS as PARTICIPATION } from "@/lib/data";
+import { RANKINGS } from "@/lib/data";
+import { participationKind } from "./directory";
 import { BODY_OF_FAMILY, bodyOfMapping } from "./catalog";
 import { ancestors, canWith, descendants, has, type Grant } from "./rbac";
 import type { Account, BodyKey, Dataset, GovernanceState, OrgUnit, SecretKey } from "./types";
@@ -28,8 +29,6 @@ export function isInactive(a: Account, days: number, now: Date) {
   return a.status === "Active" && daysSince(lastActivity(a), now) > days;
 }
 
-export const tierOf = (grants: Grant[]) => grants.reduce((n, g) => Math.max(n, g.tier), 0);
-
 /** Which workspaces a set of grants opens. */
 export function workspacesOf(grants: Grant[]): ("office" | "portal")[] {
   const out: ("office" | "portal")[] = [];
@@ -40,11 +39,9 @@ export function workspacesOf(grants: Grant[]): ("office" | "portal")[] {
   return out;
 }
 
-const PARTICIPATING = new Set(PARTICIPATION.map((u) => u.slug));
-
-/** The nearest unit at or above `unitId` that takes part in rankings reporting (has a participation record). */
+/** The nearest reporting unit in the directory, even before it has received a submission. */
 export function participatingUnit(units: OrgUnit[], unitId: string): string | undefined {
-  return ancestors(units, unitId).find((u) => PARTICIPATING.has(u.id))?.id;
+  return ancestors(units, unitId).find((u) => participationKind(u))?.id;
 }
 
 /** The unit the contributor workspace opens on, and the units its records may come from. */

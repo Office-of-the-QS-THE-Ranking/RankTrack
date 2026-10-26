@@ -3,7 +3,7 @@
  * from lib/data.ts; this file adds the pictures, short labels and plain-language copy around them.
  * Pictures are found photographs of the University (credited in the footer from lib/credits.json).
  */
-import { DIMENSIONS, DIMENSION_NOTES, FAMILY, MATRIX, PIPELINE, RANKINGS, RANKING_GROUPS, UNITS, rankingBySlug, type Ranking } from "./data";
+import { DIMENSIONS, DIMENSION_NOTES, FAMILY, MATRIX, PIPELINE, RANKINGS, RANKING_GROUPS, rankingBySlug, type Ranking } from "./data";
 
 export type Photo = { src: string; alt: string; pos?: string };
 
@@ -74,6 +74,7 @@ export function movement(r: Ranking): string {
   if (r.direction === "up") return `Up from ${r.previous}`;
   if (r.direction === "down") return `Down from ${r.previous}`;
   if (r.direction === "new") return "Baseline year, building a first ranked entry";
+  if (r.direction === "none") return "No result recorded yet";
   return `Held from the previous edition`;
 }
 
@@ -83,8 +84,8 @@ export function splitResult(current: string): { label?: string; value: string } 
   return m ? { label: m[1] || undefined, value: m[2] } : { value: current };
 }
 
-/** The movers in the latest editions, in the order the home page shows them. */
-export const MOVERS = ["the-impact", "wuri", "qs-wur", "qs-sustainability"].map((s) => rankingBySlug(s)!);
+/** The results that rose in their latest editions, in the order the home page shows them. */
+export const MOVERS = RANKINGS.filter((r) => r.direction === "up");
 
 /** "Where your work counts": which rankings measure each kind of work (lib/data MATRIX). */
 export const COUNTS = DIMENSIONS.map((dim) => ({
@@ -134,16 +135,5 @@ export const STAGES = [
   },
 ].map((s, i) => ({ ...s, count: PIPELINE[i].count }));
 
-/** Short names for the folder tabs on the home page. */
-export const STORY_TAB: Record<string, string> = {
-  "water-reuse": "Rain into reuse",
-  "community-clinics": "Clinics at home",
-  "heritage-library": "Heritage library",
-  "science-kits": "Physics kits",
-  "solar-array": "Rooftop solar",
-  coauthorship: "Nineteen countries",
-  "flood-resilience": "Streets that drain",
-};
-
-/** Units on the home page board: those whose evidence counts in the most rankings. */
-export const BOARD_UNITS = [...UNITS].sort((a, b) => b.rankingsServed - a.rankingsServed || b.validated - a.validated).slice(0, 10);
+/** Short names for the folder tabs on the home page, by story slug; a story without one shows its kind. */
+export const STORY_TAB: Record<string, string> = {};

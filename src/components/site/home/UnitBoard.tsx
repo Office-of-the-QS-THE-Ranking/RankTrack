@@ -1,20 +1,21 @@
 import Link from "next/link";
-import { SUMMARY } from "@/lib/data";
 import { siteData } from "@/lib/governance/server/site";
 
 /** Large marks on tiles: the units behind the results, named in full rather than logos. */
-export function UnitBoard() {
+export async function UnitBoard() {
   // Units from the Organizational Directory: archived ones leave the board, renamed ones show their new name.
-  const BOARD_UNITS = siteData().boardUnits;
+  const { boardUnits: BOARD_UNITS, unitsEngaged, units } = await siteData();
   return (
     <section className="w-units w-section w-wrap" aria-labelledby="units-title">
       <ul className="w-board">
         <li className="w-board__lead" data-reveal>
           <h2 id="units-title" className="w-head">
-            Forty-two units, one result
+            Every unit, one result
           </h2>
           <p>
-            {SUMMARY.unitsEngaged} of the University&rsquo;s {SUMMARY.unitsTotal} colleges, centres and offices contribute evidence this cycle.
+            {unitsEngaged
+              ? `${unitsEngaged} of the University’s ${units.length} colleges, centres and offices contribute evidence this cycle.`
+              : "The colleges, centres and offices whose evidence counts appear here as this cycle's submissions are validated."}
           </p>
         </li>
         {BOARD_UNITS.map((u, i) => (

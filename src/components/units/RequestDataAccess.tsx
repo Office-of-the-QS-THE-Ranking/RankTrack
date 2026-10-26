@@ -5,6 +5,7 @@ import { useGovern, useViewer } from "@/components/hub/HubProvider";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
+import { DateField, Select } from "@/components/ui/pickers";
 
 /** Ask for temporary access to a dataset; it goes to the data access approval workflow. */
 export function RequestDataAccess({ datasets }: { datasets: { id: string; name: string; classification: string }[] }) {
@@ -26,18 +27,18 @@ export function RequestDataAccess({ datasets }: { datasets: { id: string; name: 
         <div className="grid cols-2">
           <label className="field">
             <span className="field__label">Dataset</span>
-            <select className="select" value={f.datasetId} onChange={(e) => setF({ ...f, datasetId: e.target.value })} required>
+            <Select className="select" value={f.datasetId} onChange={(v) => setF({ ...f, datasetId: v })} required>
               <option value="">Choose</option>
               {datasets.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name} ({d.classification})
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field__label">Until</span>
-            <input className="input" type="date" value={f.until} onChange={(e) => setF({ ...f, until: e.target.value })} required />
+            <DateField className="input" value={f.until} onChange={(v) => setF({ ...f, until: v })} required />
           </label>
         </div>
         <label className="field">

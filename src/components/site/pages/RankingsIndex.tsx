@@ -21,8 +21,8 @@ const TABS = [
 const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 
 /** Rankings overview: how the rankings shown publicly relate to UST, the results as published, and when each collects data. */
-export function RankingsIndex() {
-  const { rankings: RANKINGS, bodies: BODIES, dictionary: DICTIONARY } = siteData();
+export async function RankingsIndex() {
+  const { rankings: RANKINGS, bodies: BODIES, dictionary: DICTIONARY } = await siteData();
   const bodyOf = (slug: string) => BODIES.find((b) => b.rankings.some((r) => r.slug === slug))!;
   const n = RANKINGS.length;
   return (

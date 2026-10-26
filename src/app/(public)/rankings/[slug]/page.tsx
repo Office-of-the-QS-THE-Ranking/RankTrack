@@ -9,14 +9,14 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const r = siteData().ranking(slug);
+  const r = (await siteData()).ranking(slug);
   return r ? { title: r.name, description: `${r.publicNote} ${r.measures}.` } : { title: "Ranking" };
 }
 
 export default async function PublicRankingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   // Only rankings System Configuration shows publicly, with a Public results dataset, have a page.
-  const ranking = siteData().ranking(slug);
+  const ranking = (await siteData()).ranking(slug);
   if (!ranking) notFound();
   return <RankingDetail ranking={ranking} />;
 }

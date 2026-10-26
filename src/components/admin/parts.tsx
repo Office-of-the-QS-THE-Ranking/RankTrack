@@ -11,6 +11,7 @@ import { has, unitPath } from "@/lib/governance/rbac";
 import type { Action, BodyKey, ModuleKey, OrgUnit, PermissionSet, Scope } from "@/lib/governance/types";
 import { Icon } from "@/components/ui/Icon";
 import { Disclosure, Hint, plural, useConsole } from "./ui";
+import { Select } from "@/components/ui/pickers";
 
 /** Where a unit sits, without the unit itself or the University root: "Faculty of Engineering › Department of Civil Engineering". */
 export const parentPath = (units: OrgUnit[], id: string) => unitPath(units, id).split(" › ").slice(0, -1).join(" › ");
@@ -31,23 +32,21 @@ export function useUnitTree(filter: (u: UnitRow) => boolean = () => true) {
     };
     walk(null, 0);
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.units]);
+  }, [data.units, filter]);
 }
 
-export function UnitSelect({ value, onChange, filter, placeholder = "Choose a unit", label, id }: { value: string; onChange: (id: string) => void; filter?: (u: UnitRow) => boolean; placeholder?: string; label: string; id?: string }) {
+export function UnitSelect({ value, onChange, filter, placeholder = "Choose a unit", label, id, required }: { value: string; onChange: (id: string) => void; filter?: (u: UnitRow) => boolean; placeholder?: string; label: string; id?: string; required?: boolean }) {
   const tree = useUnitTree(filter);
   return (
-    <select id={id} className="select" value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
+    <Select id={id} className="select" value={value} onChange={onChange} aria-label={label} required={required}>
       <option value="">{placeholder}</option>
       {tree.map(({ unit, depth }) => (
-        <option key={unit.id} value={unit.id} disabled={unit.status !== "Active"}>
-          {" ".repeat(depth)}
+        <option key={unit.id} value={unit.id} disabled={unit.status !== "Active"} data-depth={depth}>
           {unit.name}
           {unit.status !== "Active" ? " (archived)" : ""}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -154,24 +153,12 @@ export function ScopeEditor({ value, onChange, allowUniversity, unitFilter }: { 
   );
 }
 
-export type CellState = "granted" | "inherited" | "excepted" | "none" | "added" | "removed";
+export type CellState = "granted" | "none" | "added" | "removed";
 
-/**
- * Modules down the side, actions across the top. Cells show where each permission comes from:
- * granted by the role, inherited from its parent, taken away by an exception, or changed by an edit.
- */
-export function PermissionMatrix({
-  cell,
-  onToggle,
-  locked,
-  caption,
-}: {
-  cell: (m: ModuleKey, a: Action) => CellState;
-  onToggle?: (m: ModuleKey, a: Action) => void;
-  locked?: (m: ModuleKey, a: Action) => string | null;
-  caption: string;
-}) {
+/** Modules down the side, actions across the top. A preview marks what a change adds and removes. */
+export function PermissionMatrix({ cell, caption }: { cell: (m: ModuleKey, a: Action) => CellState; caption: string }) {
   const groups = [...new Set(MODULES.map((m) => m.group))];
+  const changes = MODULES.some((m) => m.actions.some((a) => ["added", "removed"].includes(cell(m.key, a))));
   return (
     <div className="adm-matrix-wrap">
       <table className="adm-matrix">
@@ -200,20 +187,12 @@ export function PermissionMatrix({
                   {ACTIONS.map((a) => {
                     if (!m.actions.includes(a.key)) return <td key={a.key} className="adm-matrix__na" aria-label="Not applicable" />;
                     const st = cell(m.key, a.key);
-                    const lock = locked?.(m.key, a.key) ?? null;
-                    const on = st === "granted" || st === "inherited" || st === "added";
-                    const label = `${m.label}: ${a.label} — ${st === "inherited" ? "inherited" : st === "excepted" ? "removed by exception" : st === "added" ? "added" : st === "removed" ? "removed" : on ? "granted" : "not granted"}`;
+                    const label = `${m.label}: ${a.label} — ${st === "added" ? "added" : st === "removed" ? "removed" : st === "granted" ? "granted" : "not granted"}`;
                     return (
                       <td key={a.key} className={`adm-matrix__cell is-${st}`}>
-                        {onToggle ? (
-                          <button type="button" aria-pressed={on} aria-label={label} title={lock ?? undefined} disabled={!!lock} onClick={() => onToggle(m.key, a.key)}>
-                            <CellMark st={st} />
-                          </button>
-                        ) : (
-                          <span role="img" aria-label={label}>
-                            <CellMark st={st} />
-                          </span>
-                        )}
+                        <span role="img" aria-label={label}>
+                          <CellMark st={st} />
+                        </span>
                       </td>
                     );
                   })}
@@ -225,9 +204,7 @@ export function PermissionMatrix({
       </table>
       <p className="adm-matrix__legend" aria-hidden="true">
         <span><CellMark st="granted" /> Granted</span>
-        <span><CellMark st="inherited" /> Inherited</span>
-        <span><CellMark st="excepted" /> Exception</span>
-        {onToggle && (
+        {changes && (
           <>
             <span><CellMark st="added" /> Adding</span>
             <span><CellMark st="removed" /> Removing</span>
@@ -240,7 +217,7 @@ export function PermissionMatrix({
 
 function CellMark({ st }: { st: CellState }) {
   if (st === "none") return <span className="adm-mark adm-mark--none" />;
-  if (st === "excepted" || st === "removed") return <span className={`adm-mark adm-mark--${st}`}><Icon name="minus" size={12} strokeWidth={2.6} /></span>;
+  if (st === "removed") return <span className="adm-mark adm-mark--removed"><Icon name="minus" size={12} strokeWidth={2.6} /></span>;
   return (
     <span className={`adm-mark adm-mark--${st}`}>
       <Icon name={st === "added" ? "plus" : "check"} size={12} strokeWidth={2.6} />

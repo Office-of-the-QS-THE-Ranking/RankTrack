@@ -6,6 +6,8 @@ import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { UnitSelect } from "../parts";
 import { Block, Field, Hint, Pill, ReadOnly, Sheet, StatusPill, Switch, Tabs, plural, useAct, useConsole } from "../ui";
+import { DateField, NumberField, Select } from "@/components/ui/pickers";
+import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Rankings" | "Calendar" | "Workspace" | "Notifications" | "Features";
 
@@ -62,6 +64,7 @@ function SaveRow({ dirty, onSave, onReset }: { dirty: boolean; onSave: () => voi
 /* ---------- Rankings ---------- */
 
 function Bodies() {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const c = data.config!;
@@ -112,13 +115,12 @@ function Bodies() {
                             <Switch checked={rc.public} disabled={!edit || !b.enabled || !rc.enabled} label={`Show ${r.short} on the website`} onChange={(v) => void act({ type: "config.ranking", slug: r.slug, public: v })} />
                           </td>
                           <td>
-                            <input
+                            <DateField
                               className="input input--sm"
-                              type="date"
                               disabled={!edit}
-                              defaultValue={rc.deadline}
+                              value={rc.deadline}
                               aria-label={`${r.short} data due`}
-                              onBlur={(e) => e.target.value !== rc.deadline && void act({ type: "config.ranking", slug: r.slug, deadline: e.target.value })}
+                              onChange={(v) => v !== rc.deadline && void act({ type: "config.ranking", slug: r.slug, deadline: v })}
                             />
                           </td>
                         </tr>
@@ -146,7 +148,7 @@ function Bodies() {
             <button
               type="button"
               className="btn btn--dark"
-              disabled={add.name.trim().length < 2 || !add.short.trim()}
+              disabled={!skip && (add.name.trim().length < 2 || !add.short.trim())}
               onClick={async () => {
                 const r = await act({ type: "config.bodyAdd", ...add });
                 if (r.ok) {
@@ -179,6 +181,7 @@ function Bodies() {
 /* ---------- Calendar ---------- */
 
 function AddRow({ label, placeholder, onAdd }: { label: string; placeholder: string; onAdd: (value: string) => Promise<boolean> }) {
+  const skip = useSkipChecks();
   const [v, setV] = useState("");
   return (
     <span className="adm-inline">
@@ -186,7 +189,7 @@ function AddRow({ label, placeholder, onAdd }: { label: string; placeholder: str
       <button
         type="button"
         className="btn btn--sm"
-        disabled={!v.trim()}
+        disabled={!skip && !v.trim()}
         onClick={async () => {
           if (await onAdd(v.trim())) setV("");
         }}
@@ -198,6 +201,7 @@ function AddRow({ label, placeholder, onAdd }: { label: string; placeholder: str
 }
 
 function Calendar() {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const c = data.config!;
@@ -211,11 +215,11 @@ function Calendar() {
             <li key={cy.id}>
               <b className="num">{cy.id}</b>
               {edit ? (
-                <select className="select select--sm" value={cy.status} aria-label={`Status of cycle ${cy.id}`} onChange={(e) => void act({ type: "config.cycle", id: cy.id, status: e.target.value as CycleConfig["status"] })}>
+                <Select className="select select--sm" value={cy.status} aria-label={`Status of cycle ${cy.id}`} onChange={(v) => void act({ type: "config.cycle", id: cy.id, status: v as CycleConfig["status"] })}>
                   {(["Current", "Open", "Closed", "Archived"] as const).map((s) => (
                     <option key={s}>{s}</option>
                   ))}
-                </select>
+                </Select>
               ) : (
                 <StatusPill value={cy.status} />
               )}
@@ -268,7 +272,7 @@ function Calendar() {
             <button
               type="button"
               className="btn btn--sm"
-              disabled={!p.label.trim()}
+              disabled={!skip && !p.label.trim()}
               onClick={async () => {
                 const r = await act({ type: "config.periodAdd", ...p });
                 if (r.ok) setP({ label: "", note: "" });
@@ -296,10 +300,10 @@ function Uploads() {
     <Block title="Uploads">
       <div className="adm-form-grid">
         <Field label="Largest file (MB)">
-          <input className="input num" type="number" min={1} max={200} disabled={!edit} value={u.maxFileMB} onChange={(e) => setU({ ...u, maxFileMB: Number(e.target.value) })} />
+          <NumberField className="input num" min={1} max={200} disabled={!edit} value={u.maxFileMB} onChange={(v) => setU({ ...u, maxFileMB: v })} />
         </Field>
         <Field label="Files per submission">
-          <input className="input num" type="number" min={1} max={50} disabled={!edit} value={u.maxFiles} onChange={(e) => setU({ ...u, maxFiles: Number(e.target.value) })} />
+          <NumberField className="input num" min={1} max={50} disabled={!edit} value={u.maxFiles} onChange={(v) => setU({ ...u, maxFiles: v })} />
         </Field>
       </div>
       <fieldset className="adm-checks">
@@ -326,13 +330,13 @@ function Dashboard() {
   return (
     <Block title="Dashboards">
       <Field label="Office dashboard opens on">
-        <select className="select" disabled={!edit} value={d.officeView} onChange={(e) => setD({ ...d, officeView: e.target.value as typeof d.officeView })}>
+        <Select className="select" disabled={!edit} value={d.officeView} onChange={(v) => setD({ ...d, officeView: v as typeof d.officeView })}>
           <option value="submissions">Submissions</option>
           <option value="rankings">Rankings</option>
-        </select>
+        </Select>
       </Field>
       <Field label="Flag deadlines this many days ahead">
-        <input className="input num" type="number" min={3} max={90} disabled={!edit} value={d.deadlineWarningDays} onChange={(e) => setD({ ...d, deadlineWarningDays: Number(e.target.value) })} />
+        <NumberField className="input num" min={3} max={90} disabled={!edit} value={d.deadlineWarningDays} onChange={(v) => setD({ ...d, deadlineWarningDays: v })} />
       </Field>
       <div className="adm-switchrow">
         <span>
@@ -351,7 +355,7 @@ const SAMPLE: Record<string, string> = {
   name: "Dr. J. Santiago",
   inviter: "Engr. Nestor R. Ong",
   unit: "Faculty of Engineering",
-  role: "Data Contributor",
+  role: "College/Faculty Coordinator",
   title: "Flood-resilience design studio",
   comment: "Please attach the barangay resolution.",
   count: "3",
@@ -543,11 +547,11 @@ function FlagEditor({ f }: { f: FeatureFlag }) {
           <b>{f.name}</b>
           <Hint text={f.description} />
         </span>
-        <select className="select select--sm" disabled={!edit} value={mode} aria-label={`${f.name}: who sees it`} onChange={(e) => setMode(e.target.value as FeatureFlag["mode"])}>
+        <Select className="select select--sm" disabled={!edit} value={mode} aria-label={`${f.name}: who sees it`} onChange={(v) => setMode(v as FeatureFlag["mode"])}>
           <option value="Off">Off</option>
           <option value="Selected">Selected units and people</option>
           <option value="Everyone">Everyone</option>
-        </select>
+        </Select>
       </div>
       {mode === "Selected" && (
         <div className="adm-form-grid">
@@ -580,7 +584,7 @@ function FlagEditor({ f }: { f: FeatureFlag }) {
               ))}
             </div>
             {edit && (
-              <select className="select" value="" aria-label="Add a person" onChange={(e) => e.target.value && setAccounts([...accounts, e.target.value])}>
+              <Select className="select" value="" aria-label="Add a person" onChange={(v) => v && setAccounts([...accounts, v])}>
                 <option value="">Add a person…</option>
                 {data.people
                   .filter((p) => p.status === "Active" && !accounts.includes(p.id))
@@ -589,7 +593,7 @@ function FlagEditor({ f }: { f: FeatureFlag }) {
                       {p.name}
                     </option>
                   ))}
-              </select>
+              </Select>
             )}
           </Field>
         </div>

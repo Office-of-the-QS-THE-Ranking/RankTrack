@@ -10,8 +10,8 @@ import { AdaptCoupon } from "../home/AdaptCoupon";
 const photoFor = (src: string): Photo => Object.values(PHOTOS).find((p) => p.src === src) ?? { src, alt: "" };
 
 /** One practice, in the order the proposal sets: challenge, response, implementation, outcome, beneficiaries, alignment, replication. */
-export function StoryDetail({ story: s }: { story: Story }) {
-  const { stories: PUBLISHED_STORIES, rankings: RANKINGS } = siteData();
+export async function StoryDetail({ story: s }: { story: Story }) {
+  const { stories: PUBLISHED_STORIES, rankings: RANKINGS } = await siteData();
   const related = PUBLISHED_STORIES.filter((o) => o.slug !== s.slug && o.themes.some((t) => s.themes.includes(t))).slice(0, 3);
   const counts = s.rankings.map((short) => RANKINGS.find((r) => r.short === short)).filter((r): r is (typeof RANKINGS)[number] => !!r);
   const [, second, third] = s.images;
@@ -159,7 +159,7 @@ export function StoryDetail({ story: s }: { story: Story }) {
                   <span className="w-storyrow__title">{o.title}</span>
                   <span className="w-storyrow__unit">{o.unit}</span>
                   <span className="w-storyrow__fig">
-                    <b className="w-figure">{o.outcomeFigure}</b> {o.outcomeLabel}
+                    {o.outcomeFigure && <b className="w-figure">{o.outcomeFigure}</b>} {o.outcomeLabel}
                   </span>
                 </Link>
               </li>

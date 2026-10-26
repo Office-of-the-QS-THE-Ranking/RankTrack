@@ -1,103 +1,204 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { startEmblemUpload, startUnitLogoUpload } from "@/app/actions/emblems";
 import type { UnitRow } from "@/lib/governance/console-types";
+import { directorySection, matchesUnitParent, participationKind, type DirectorySection, type UnitCreationKind } from "@/lib/governance/directory";
 import { descendants } from "@/lib/governance/rbac";
 import type { OrgKind } from "@/lib/governance/types";
+import { EMBLEM_MAX_MB, EMBLEM_MAX_SIDE, EMBLEM_PICK_TYPES, EMBLEM_TYPES, emblemOf, officialEmblem } from "@/lib/governance/unit-emblems";
 import { viewerCan } from "@/lib/governance/viewer";
+import { prepare, upload } from "@/components/impact/media";
 import { Icon } from "@/components/ui/Icon";
+import { toast } from "@/components/ui/toast";
+import { UnitMark } from "@/components/units/UnitMark";
+import { LogoDropzone } from "@/components/units/LogoDropzone";
 import { UnitSelect, parentPath } from "../parts";
 import { Block, Disclosure, EmptyNote, Field, KV, Pill, ReadOnly, RowMenu, SearchField, Sheet, fmtDate, plural, useAct, useConsole } from "../ui";
+import { Tabs, TabPanel } from "@/components/ui/interactive";
+import { Select } from "@/components/ui/pickers";
+import { useSkipChecks } from "@/lib/dev-checks";
+import { UNIT_CATEGORY_LABELS, UNIT_CATEGORY_TABS as DIRECTORY_TABS } from "@/lib/unit-categories";
+import { UNIT_EMAILS } from "@/lib/governance/catalog";
 
-const KINDS: OrgKind[] = ["Faculty", "College", "Institute", "Research Centre", "Department", "Program", "Office"];
+const KINDS: OrgKind[] = ["Faculty", "College", "Institute", "School", "Student Government", "Research Centre", "Department", "Program", "Office"];
+const DIRECTORY_SECTIONS: Record<typeof DIRECTORY_TABS[number], DirectorySection> = {
+  "Faculty/Colleges": "academic",
+  "University Offices": "offices",
+  "Research Centers": "research",
+};
+const SEARCH_EXAMPLES: Record<DirectorySection, readonly string[]> = {
+  academic: ["Search by name or code", "Try Architecture", "Try Accountancy", "Try a college code: C11"],
+  offices: ["Search by name or code", "Try Registrar", "Try Office of the Rector", "Try an office code: A01"],
+  research: ["Search by center name", "Search by research center code", "Try Research"],
+};
+const CREATION_TYPES: { kind: UnitCreationKind; label: string }[] = [
+  { kind: "College", label: "Faculty/Colleges" },
+  { kind: "Office", label: "University Office" },
+  { kind: "Research Centre", label: "Research Centers" },
+];
+const CREATION_KIND: Record<DirectorySection, UnitCreationKind> = {
+  academic: "College", offices: "Office", research: "Research Centre",
+};
+
+const byStatusThenName = (a: UnitRow, b: UnitRow) => Number(a.status === "Archived") - Number(b.status === "Archived") || a.name.localeCompare(b.name);
 
 export function Directory() {
   const { data } = useConsole();
   const [q, setQ] = useState("");
   const [archived, setArchived] = useState(false);
-  const [sel, setSel] = useState("engineering");
-  const [open, setOpen] = useState<Set<string>>(() => new Set(["ust", "engineering", "rector", "vrri"]));
+  const [section, setSection] = useState<DirectorySection>("academic");
+  const [viewing, setViewing] = useState<string | null>(null);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState<string | null>(null);
-  const unit = data.units.find((u) => u.id === sel) ?? data.units[0];
-  const archivedCount = data.units.filter((u) => u.status === "Archived").length;
+  const closeModal = useCallback(() => setViewing(null), []);
+  const sectionUnits = useMemo(() => data.units.filter((u) => section === "academic"
+    ? participationKind(u) === "Faculty or college"
+    : directorySection(data.units, u) === section), [data.units, section]);
+  const sectionIds = new Set(sectionUnits.map((u) => u.id));
+  const archivedCount = sectionUnits.filter((u) => u.status === "Archived").length;
+  const showUnit = (id: string) => {
+    const target = data.units.find((u) => u.id === id);
+    const targetSection = target && directorySection(data.units, target);
+    if (!targetSection) return;
+    if (targetSection !== section) {
+      setSection(targetSection);
+      setQ("");
+    }
+    if (target.status === "Archived") setArchived(true);
+    setViewing(id);
+  };
 
   const matches = useMemo(() => {
     const t = q.trim().toLowerCase();
     const hit = (u: UnitRow) => (!t || u.name.toLowerCase().includes(t) || u.code.toLowerCase().includes(t)) && (archived || u.status === "Active");
-    // Keep ancestors of any hit so the tree stays readable.
+    // Keep ancestors of any hit so each match still shows where it sits.
     const keep = new Set<string>();
-    for (const u of data.units)
+    for (const u of sectionUnits)
       if (hit(u)) {
         let cur: UnitRow | undefined = u;
-        while (cur) {
+        while (cur && sectionUnits.some((u) => u.id === cur!.id) && !keep.has(cur.id)) {
           keep.add(cur.id);
           cur = data.units.find((x) => x.id === cur!.parentId);
         }
       }
     return keep;
-  }, [data.units, q, archived]);
+  }, [data.units, sectionUnits, q, archived]);
+  const roots = sectionUnits.filter((u) => (!u.parentId || !sectionIds.has(u.parentId)) && matches.has(u.id)).sort(byStatusThenName);
+  const kidsOf = (id: string) => sectionUnits.filter((x) => x.parentId === id && matches.has(x.id)).sort(byStatusThenName);
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const node = (u: UnitRow, depth: number): React.ReactNode => {
-    if (!matches.has(u.id)) return null;
-    const kids = data.units
-      .filter((x) => x.parentId === u.id && matches.has(x.id))
-      .sort((a, b) => Number(a.status === "Archived") - Number(b.status === "Archived") || a.name.localeCompare(b.name));
+    const kids = kidsOf(u.id);
     const expanded = open.has(u.id) || !!q.trim();
+    const activeKids = kids.filter((k) => k.status === "Active").length;
     return (
-      <li key={u.id}>
-        <div className={`adm-tree__row${u.id === sel ? " is-current" : ""}${u.status === "Archived" ? " is-archived" : ""}`} style={{ ["--depth" as string]: depth }}>
-          {kids.length ? (
-            <button
-              type="button"
-              className="adm-tree__twisty"
-              aria-label={expanded ? `Collapse ${u.name}` : `Expand ${u.name}`}
-              aria-expanded={expanded}
-              onClick={() => setOpen((s) => { const n = new Set(s); if (n.has(u.id)) n.delete(u.id); else n.add(u.id); return n; })}
-            >
-              <Icon name={expanded ? "chevron-down" : "chevron"} size={14} />
+      <li key={u.id} className={`adm-dir__item${expanded && kids.length ? " is-open" : ""}`}>
+        <div className={`adm-dir__row${u.status === "Archived" ? " is-archived" : ""}`} style={{ ["--depth" as string]: depth }}>
+          <button type="button" className="adm-dir__open" aria-haspopup="dialog" onClick={() => setViewing(u.id)}>
+            <UnitMark emblem={emblemOf(u)} code={u.code} className="adm-dir__mark" />
+            <span className="adm-dir__text">
+              <span className="adm-dir__name">{u.name}</span>
+              <span className="adm-dir__meta">
+                {u.kind}
+                {activeKids > 0 && ` · ${plural(activeKids, "unit")} beneath`}
+                {u.accounts > 0 && ` · ${plural(u.accounts, "account")}`}
+              </span>
+            </span>
+            <span className="adm-dir__tags">
+              {u.status === "Archived" && <Pill tone="missing">{u.mergedInto ? "Merged" : "Archived"}</Pill>}
+              {u.participating && u.status === "Active" && <Pill tone="gold">Reports rankings</Pill>}
+            </span>
+          </button>
+          {kids.length > 0 ? (
+            <button type="button" className="adm-dir__toggle" aria-expanded={expanded} aria-label={expanded ? `Hide units beneath ${u.name}` : `Show units beneath ${u.name}`} onClick={() => toggle(u.id)}>
+              <span>{kids.length}</span>
+              <Icon name="chevron-down" size={15} />
             </button>
           ) : (
-            <span className="adm-tree__twisty" aria-hidden="true" />
+            <span className="adm-dir__toggle adm-dir__toggle--none" aria-hidden="true" />
           )}
-          <button type="button" className="adm-tree__label" aria-current={u.id === sel ? "true" : undefined} title={`${u.name} (${u.code})`} onClick={() => setSel(u.id)}>
-            <span className="adm-tree__name">{u.name}</span>
-            <span className="adm-tree__code">{u.code}</span>
-            {u.status === "Archived" && <Pill tone="missing">{u.mergedInto ? "Merged" : "Archived"}</Pill>}
-          </button>
         </div>
-        {expanded && kids.length > 0 && <ul>{kids.map((k) => node(k, depth + 1))}</ul>}
+        {expanded && kids.length > 0 && <ul className="adm-dir__kids">{kids.map((k) => node(k, depth + 1))}</ul>}
       </li>
     );
   };
 
   return (
     <div className="adm-stack">
-      <div className="adm-toolbar">
-        <SearchField value={q} onChange={setQ} placeholder="Search units or codes" label="Search the directory" />
-        {archivedCount > 0 && (
-          <label className="choice choice--inline">
-            <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
-            Show archived ({archivedCount})
-          </label>
-        )}
-        <span className="adm-toolbar__spacer" />
-        {viewerCan(data.viewer, "directory", "create") && (
-          <button type="button" className="btn btn--dark btn--sm" onClick={() => setAdding(unit?.status === "Active" ? unit.id : "ust")}>
+      <Tabs
+        label="Directory sections"
+        idBase="organizational-directory"
+        tabs={DIRECTORY_TABS}
+        value={UNIT_CATEGORY_LABELS[section]}
+        onChange={(value) => { setSection(DIRECTORY_SECTIONS[value]); setQ(""); }}
+        sliding
+        actions={viewerCan(data.viewer, "directory", "create") && (
+          <button type="button" className="btn content-tabs__action" onClick={() => setAdding(data.units.find((u) => u.kind === "University")?.id ?? "ust")}>
             <Icon name="plus" size={15} /> Add unit
           </button>
         )}
-      </div>
-      <div className="adm-split">
-        <div className="adm-split__list adm-split__list--tree">
-          <ul className="adm-tree" role="tree" aria-label="Organizational directory">
-            {data.units.filter((u) => u.parentId === null).map((u) => node(u, 0))}
+        search={<SearchField value={q} onChange={setQ} placeholder="Search by name or code" label={`Search ${UNIT_CATEGORY_LABELS[section]} by name or code`} examples={SEARCH_EXAMPLES[section]} shortcuts />}
+      />
+      <TabPanel idBase="organizational-directory" index={DIRECTORY_TABS.indexOf(UNIT_CATEGORY_LABELS[section])} className="adm-stack">
+        {archivedCount > 0 && (
+          <div className="adm-toolbar">
+            <label className="choice choice--inline">
+              <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
+              Show archived ({archivedCount})
+            </label>
+          </div>
+        )}
+        {roots.length ? (
+          <ul className="adm-dir" aria-label={UNIT_CATEGORY_LABELS[section]}>
+            {roots.map((u) => node(u, 0))}
           </ul>
-          {!matches.size && <EmptyNote icon="search" title="No units match" />}
-        </div>
-        <div className="adm-split__detail">{unit && <UnitDetail key={unit.id} unit={unit} onSelect={setSel} onAdd={() => setAdding(unit.id)} />}</div>
-      </div>
-      <AddUnit parentId={adding} onClose={() => setAdding(null)} onCreated={(id) => setSel(id)} />
+        ) : (
+          <EmptyNote icon="search" title="No units match" />
+        )}
+      </TabPanel>
+      <UnitModal id={viewing} onClose={closeModal} onSelect={showUnit} onAdd={(id) => { setViewing(null); setAdding(id); }} />
+      <AddUnit parentId={adding} section={section} onClose={() => setAdding(null)} onCreated={(kind, parentId) => {
+        setQ("");
+        if (["Faculty", "College", "Institute", "School"].includes(kind)) setSection("academic");
+        else if (kind === "Research Centre") setSection("research");
+        else if (["Office", "Student Government"].includes(kind)) setSection("offices");
+        else {
+          const parent = data.units.find((unit) => unit.id === parentId);
+          const parentSection = parent && directorySection(data.units, parent);
+          if (parentSection) setSection(parentSection);
+        }
+        setOpen((s) => new Set(s).add(parentId));
+      }} />
     </div>
+  );
+}
+
+function UnitModal({ id, onClose, onSelect, onAdd }: { id: string | null; onClose: () => void; onSelect: (id: string) => void; onAdd: (parentId: string) => void }) {
+  const { data } = useConsole();
+  const u = id ? data.units.find((x) => x.id === id) : undefined;
+  const path = u ? parentPath(data.units, u.id) : "";
+  return (
+    <Sheet
+      open={!!u}
+      modal
+      onClose={onClose}
+      title={u?.name}
+      sub={path || undefined}
+      headerContent={
+        u && (
+          <p className="adm-inline adm-inline--wrap adm-dir__head-meta">
+            <span className="adm-muted small">
+              {u.code} · {u.kind}
+            </span>
+            {u.status === "Archived" && <Pill tone="missing">{u.mergedInto ? "Merged" : "Archived"}</Pill>}
+            {u.participating && <Pill tone="gold">Reports rankings</Pill>}
+          </p>
+        )
+      }
+    >
+      {u && <UnitDetail key={u.id} unit={u} onSelect={onSelect} onAdd={() => onAdd(u.id)} />}
+    </Sheet>
   );
 }
 
@@ -108,10 +209,14 @@ function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id
   const parent = data.units.find((x) => x.id === u.parentId);
   const merged = u.mergedInto ? data.units.find((x) => x.id === u.mergedInto) : undefined;
   const absorbed = data.units.filter((x) => x.mergedInto === u.id);
-  const children = data.units.filter((x) => x.parentId === u.id);
+  const children = data.units.filter((x) => x.parentId === u.id).sort(byStatusThenName);
+  const visibleChildren = participationKind(u) === "Faculty or college"
+    ? children.filter((child) => participationKind(child) === "Faculty or college")
+    : children;
   const person = (id: string) => data.people.find((p) => p.id === id);
   const canAdd = u.canEdit && u.status === "Active" && viewerCan(data.viewer, "directory", "create", { unitId: u.id });
   const structural = u.canManage && !!u.parentId;
+  const hasActions = (u.canEdit && u.status === "Active") || canAdd || (structural && !u.mergedInto);
 
   const archive = async () => {
     const below = children.filter((c) => c.status === "Active").length;
@@ -126,20 +231,9 @@ function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id
   };
 
   return (
-    <div className="adm-stack adm-stack--tight">
-      <header className="adm-detail-head">
-        <div>
-          {parentPath(data.units, u.id) && <p className="adm-muted small">{parentPath(data.units, u.id)}</p>}
-          <h3 className="adm-detail-head__title">{u.name}</h3>
-          <p className="adm-inline adm-inline--wrap">
-            <span className="adm-muted small">
-              {u.code} · {u.kind}
-            </span>
-            {u.status === "Archived" && <Pill tone="missing">{merged ? "Merged" : "Archived"}</Pill>}
-            {u.participating && <Pill tone="gold">Reports rankings</Pill>}
-          </p>
-        </div>
-        <div className="adm-actions">
+    <>
+      {hasActions && mode === "view" && (
+        <div className="adm-actions adm-dir__actions">
           {u.canEdit && u.status === "Active" && (
             <button type="button" className="btn btn--sm" onClick={() => setMode("edit")}>
               <Icon name="pen" size={15} /> Edit
@@ -166,7 +260,7 @@ function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id
             />
           )}
         </div>
-      </header>
+      )}
 
       {u.status === "Archived" && (
         <p className="adm-note">
@@ -181,16 +275,51 @@ function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id
       {mode === "merge" && <MergeUnit u={u} onDone={() => setMode("view")} />}
 
       {mode === "view" && (
-        <KV
-          rows={[
-            ["Parent", parent ? <button type="button" className="link" onClick={() => onSelect(parent.id)}>{parent.name}</button> : "None"],
-            ["Administrators", u.adminIds.length ? u.adminIds.map((id) => person(id)?.name ?? id).join(", ") : "None"],
-            ["Units beneath", children.length ? `${children.filter((c) => c.status === "Active").length} active${children.some((c) => c.status === "Archived") ? `, ${children.filter((c) => c.status === "Archived").length} archived` : ""}` : "None"],
-            ["Accounts", u.accounts],
-            ["Submissions", `${u.records}${absorbed.length ? ` (incl. ${absorbed.map((a) => a.name).join(", ")})` : ""}`],
-            ["Established", u.established ? fmtDate(u.established) : "—"],
-          ]}
-        />
+        <>
+          <div className="adm-dir__stats">
+            <div>
+              <b>{visibleChildren.filter((c) => c.status === "Active").length}</b>
+              <span>Units beneath</span>
+            </div>
+            <div>
+              <b>{u.accounts}</b>
+              <span>Accounts</span>
+            </div>
+            <div>
+              <b>{u.records}</b>
+              <span>Submissions</span>
+            </div>
+          </div>
+          <KV
+            rows={[
+              ["Parent", parent ? parent.kind === "University" ? parent.name : <button type="button" className="link" onClick={() => onSelect(parent.id)}>{parent.name}</button> : "None"],
+              ["Unit email addresses", u.emails?.join(", ") || "None"],
+              ["Administrators", u.adminIds.length ? u.adminIds.map((id) => person(id)?.name ?? id).join(", ") : "None"],
+              ...(absorbed.length ? [["Absorbed", absorbed.map((a) => a.name).join(", ")] as [string, string]] : []),
+              ...(visibleChildren.some((c) => c.status === "Archived") ? [["Archived beneath", String(visibleChildren.filter((c) => c.status === "Archived").length)] as [string, string]] : []),
+              ["Established", u.established ? fmtDate(u.established) : "—"],
+            ]}
+          />
+          {visibleChildren.length > 0 && (
+            <Disclosure title="Units beneath" meta={visibleChildren.length}>
+              <ul className="adm-dir__sublist">
+                {visibleChildren.map((c) => {
+                  const mark = emblemOf(c);
+                  return (
+                  <li key={c.id}>
+                    <button type="button" className={c.status === "Archived" ? "is-archived" : undefined} onClick={() => onSelect(c.id)}>
+                      {mark && <UnitMark emblem={mark} code={c.code} className="adm-dir__submark" />}
+                      <span className="adm-dir__name">{c.name}</span>
+                      <span className="adm-muted small">{c.code}</span>
+                      <Icon name="chevron" size={14} />
+                    </button>
+                  </li>
+                  );
+                })}
+              </ul>
+            </Disclosure>
+          )}
+        </>
       )}
 
       {u.history.length > 0 && (
@@ -207,7 +336,7 @@ function UnitDetail({ unit: u, onSelect, onAdd }: { unit: UnitRow; onSelect: (id
           </ul>
         </Disclosure>
       )}
-    </div>
+    </>
   );
 }
 
@@ -217,9 +346,11 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
   const [name, setName] = useState(u.name);
   const [code, setCode] = useState(u.code);
   const [admins, setAdmins] = useState<string[]>(u.adminIds);
+  // undefined: unchanged; null: back to the University's arms; else a newly uploaded logo.
+  const [emblem, setEmblem] = useState<UnitRow["emblem"] | null>();
   const tree = descendants(data.units, u.id);
   const person = (id: string) => data.people.find((p) => p.id === id);
-  const dirty = name !== u.name || code !== u.code || admins.join() !== u.adminIds.join();
+  const dirty = name !== u.name || code !== u.code || admins.join() !== u.adminIds.join() || emblem !== undefined;
   return (
     <Block title="Edit unit">
       <div className="adm-form-grid">
@@ -230,6 +361,7 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
           <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
         </Field>
       </div>
+      <LogoField u={u} code={code} value={emblem === undefined ? u.emblem : emblem ?? undefined} onChange={setEmblem} />
       <Field label="Administrators">
         <div className="adm-chips">
           {admins.map((id) => (
@@ -241,7 +373,7 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
             </span>
           ))}
         </div>
-        <select className="select" value="" onChange={(e) => e.target.value && setAdmins([...admins, e.target.value])} aria-label="Add an administrator">
+        <Select className="select" value="" onChange={(v) => v && setAdmins([...admins, v])} aria-label="Add an administrator">
           <option value="">Add an administrator…</option>
           {data.people
             .filter((p) => !admins.includes(p.id) && p.status !== "Deactivated")
@@ -252,7 +384,7 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
                 {tree.includes(p.unitId) ? "" : ` (${data.units.find((x) => x.id === p.unitId)?.code ?? p.unitId})`}
               </option>
             ))}
-        </select>
+        </Select>
       </Field>
       <div className="adm-actions">
         <button type="button" className="btn btn--sm" onClick={onDone}>
@@ -263,7 +395,7 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
           className="btn btn--sm btn--dark"
           disabled={!dirty}
           onClick={async () => {
-            const r = await act({ type: "unit.update", id: u.id, name, code, adminIds: admins });
+            const r = await act({ type: "unit.update", id: u.id, name, code, adminIds: admins, ...(emblem !== undefined && { emblem }) });
             if (r.ok) onDone();
           }}
         >
@@ -271,6 +403,80 @@ function EditUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
         </button>
       </div>
     </Block>
+  );
+}
+
+/** The unit's logo: upload one to show in place of the University's arms, or go back to the arms. Saved with the form. */
+function LogoField({ u, parentId, code, value, onChange, onBusyChange }: { u?: UnitRow; parentId?: string; code: string; value: UnitRow["emblem"]; onChange: (v: UnitRow["emblem"] | null) => void; onBusyChange?: (busy: boolean) => void }) {
+  const uploading = useRef(false);
+  const [progress, setProgress] = useState(0);
+  const [pendingFile, setPendingFile] = useState<{ name: string; size: number }>();
+  const [savedFile, setSavedFile] = useState<{ name: string; size: number }>();
+  const [localPreview, setLocalPreview] = useState<UnitRow["emblem"]>();
+  useEffect(() => () => { if (localPreview) URL.revokeObjectURL(localPreview.src); }, [localPreview]);
+  const [busy, setBusy] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; onBusyChange?.(false); };
+  }, [onBusyChange]);
+  const official = u ? officialEmblem(u) : null;
+  const shown = value ? { key: u?.id ?? "new-unit", form: "logo" as const, ...value } : u ? emblemOf({ ...u, emblem: value }) : null;
+  const pick = async (file: File) => {
+    if (uploading.current || (!u && !parentId)) return;
+    if (!EMBLEM_PICK_TYPES[file.type]) return toast("Use a PNG or JPG logo.", "error");
+    if (file.size > EMBLEM_MAX_MB * 1_048_576) return toast(`The logo must be under ${EMBLEM_MAX_MB} MB.`, "error");
+    uploading.current = true;
+    setBusy(true);
+    setProgress(0);
+    setPendingFile({ name: file.name, size: file.size });
+    onBusyChange?.(true);
+    try {
+      const ready = await prepare(file, EMBLEM_MAX_SIDE, true);
+      if (typeof ready === "string") return toast(ready, "error");
+      if (!mounted.current) return;
+      if (!EMBLEM_TYPES[ready.type]) return toast("Use a PNG or JPG logo.", "error");
+      if (ready.blob.size > EMBLEM_MAX_MB * 1_048_576) return toast(`The logo must be under ${EMBLEM_MAX_MB} MB.`, "error");
+      setLocalPreview({ src: URL.createObjectURL(ready.blob), width: ready.width, height: ready.height });
+      const fileInfo = { type: ready.type, size: ready.blob.size };
+      const ticket = u ? await startEmblemUpload(u.id, fileInfo) : await startUnitLogoUpload(parentId ?? "", fileInfo);
+      if (!mounted.current) return;
+      if (!ticket.ok) return toast(ticket.message, "error");
+      await upload(ticket.url, ready, (fraction) => { if (mounted.current) setProgress(fraction); });
+      if (mounted.current) {
+        setSavedFile({ name: file.name, size: ready.blob.size });
+        onChange({ src: ticket.src, width: ready.width, height: ready.height });
+      }
+    } catch {
+      if (mounted.current) toast("The logo couldn’t be uploaded. Try again.", "error");
+    } finally {
+      uploading.current = false;
+      if (mounted.current) {
+        setBusy(false);
+        setPendingFile(undefined);
+        setLocalPreview(undefined);
+        onBusyChange?.(false);
+      }
+    }
+  };
+  const preview = localPreview ? { key: "pending-logo", form: "logo" as const, ...localPreview } : shown;
+  const file = busy ? pendingFile : savedFile;
+  return (
+    <div className="adm-field">
+      <span className="adm-field__label">Logo</span>
+      <LogoDropzone
+        preview={preview}
+        code={code}
+        fileName={file?.name}
+        fileSize={file?.size}
+        busy={busy}
+        disabled={!u && !parentId}
+        progress={progress}
+        onPick={(file) => void pick(file)}
+        onRemove={value ? () => { setSavedFile(undefined); onChange(u?.emblem ? null : undefined); } : undefined}
+        removeLabel={official ? "Use the University’s arms" : "Remove logo"}
+      />
+    </div>
   );
 }
 
@@ -343,17 +549,32 @@ function MergeUnit({ u, onDone }: { u: UnitRow; onDone: () => void }) {
   );
 }
 
-function AddUnit({ parentId, onClose, onCreated }: { parentId: string | null; onClose: () => void; onCreated: (id: string) => void }) {
-  const { data } = useConsole();
+function AddUnit({ parentId, section, onClose, onCreated }: { parentId: string | null; section: DirectorySection; onClose: () => void; onCreated: (kind: OrgKind, parentId: string) => void }) {
+  const formId = useId();
+  const nextEmailId = useRef(1);
+  const [emails, setEmails] = useState([{ id: 0, value: "" }]);
+  const skip = useSkipChecks();
+  const { data, busy: saving } = useConsole();
   const act = useAct();
-  const [f, setF] = useState({ name: "", code: "", kind: "Department" as OrgKind, parentId: "", justification: "" });
+  const [emblem, setEmblem] = useState<UnitRow["emblem"]>();
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [f, setF] = useState({ name: "", code: "", kind: "College" as UnitCreationKind, parentId: "" });
   useEffect(() => {
     if (parentId) {
+      setEmblem(undefined);
+      setEmails([{ id: 0, value: "" }]);
+      nextEmailId.current = 1;
       const p = data.units.find((u) => u.id === parentId);
-      setF({ name: "", code: p && p.code !== "UST" ? `${p.code}-` : "", kind: p?.kind === "Department" ? "Program" : p?.kind === "University" ? "College" : "Department", parentId, justification: "" });
+      const kind = CREATION_KIND[section];
+      const allowed = p?.status === "Active" && matchesUnitParent(p, kind) && viewerCan(data.viewer, "directory", "create", { unitId: p.id });
+      setF({ name: "", code: p && allowed && p.code !== "UST" ? `${p.code}-` : "", kind, parentId: allowed ? parentId : "" });
     }
-  }, [parentId, data.units]);
-  const direct = data.viewer.superAdmin || !data.workflows.find((w) => w.id === "org-unit")?.enabled;
+  }, [parentId, data.units, data.viewer, section]);
+  const canPickParent = (unit: UnitRow) => {
+    if (unit.status !== "Active" || !viewerCan(data.viewer, "directory", "create", { unitId: unit.id })) return false;
+    return matchesUnitParent(unit, f.kind);
+  };
+  const direct = !data.approvals.includes("org-unit");
   return (
     <Sheet
       open={!!parentId}
@@ -366,45 +587,82 @@ function AddUnit({ parentId, onClose, onCreated }: { parentId: string | null; on
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="btn btn--dark"
-            disabled={f.name.trim().length < 3 || f.code.trim().length < 2 || !f.parentId}
-            onClick={async () => {
-              const r = await act({ type: "unit.create", ...f });
-              if (r.ok) {
-                onClose();
-                if (typeof r.data === "string") onCreated(r.data);
-              }
-            }}
+            disabled={saving || uploadingLogo || (!skip && (f.name.trim().length < 3 || f.code.trim().length < 2 || !f.parentId))}
           >
             {direct ? "Add unit" : "Send for approval"}
           </button>
         </>
       }
     >
-      <div className="adm-form-grid">
+      <form id={formId} className="adm-form-grid adm-add-unit" onSubmit={async (event) => {
+        event.preventDefault();
+        if (saving || uploadingLogo) return;
+        const r = await act({ type: "unit.create", ...f, emails: emails.map((email) => email.value.trim()).filter(Boolean), ...(emblem && { emblem }) });
+        if (r.ok) {
+          onClose();
+          onCreated(f.kind, f.parentId);
+        }
+      }}>
         <Field label="Name" wide>
-          <input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Department of Data Science" />
+          <input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Name of faculty, office or center" required minLength={3} maxLength={120} />
         </Field>
         <Field label="Code">
-          <input className="input" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.toUpperCase() })} placeholder="CICS-DS" />
+          <input className="input" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.toUpperCase() })} placeholder="CICS-DS" required minLength={2} maxLength={16} pattern="[A-Z0-9][A-Z0-9\-]{1,15}" title="" />
         </Field>
         <Field label="Type">
-          <select className="select" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as OrgKind })}>
-            {KINDS.map((k) => (
-              <option key={k}>{k}</option>
+          <Select className="select" value={f.kind} onChange={(value) => {
+            const kind = value as UnitCreationKind;
+            const parent = data.units.find((unit) => unit.id === f.parentId);
+            setF({ ...f, kind, parentId: parent && matchesUnitParent(parent, kind) ? f.parentId : "" });
+          }}>
+            {CREATION_TYPES.map(({ kind, label }) => (
+              <option key={kind} value={kind}>{label}</option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Sits under" wide>
-          <UnitSelect label="Parent unit" value={f.parentId} onChange={(id) => setF({ ...f, parentId: id })} filter={(u) => u.status === "Active" && viewerCan(data.viewer, "directory", "create", { unitId: u.id })} />
+          <UnitSelect
+            label="Parent unit"
+            value={f.parentId}
+            onChange={(id) => setF({ ...f, parentId: id })}
+            filter={canPickParent}
+            required
+          />
         </Field>
-        {!direct && (
-          <Field label="Reason" wide>
-            <textarea className="textarea" value={f.justification} onChange={(e) => setF({ ...f, justification: e.target.value })} placeholder="Academic Senate resolution or memo" />
+        {emails.map((email, index) => (
+          <Field key={email.id} label={index === 0 ? "Unit email address" : `Additional email address ${index}`} wide>
+            <div className="adm-unit-email">
+              <input
+                className="input"
+                type="email"
+                name={`unit-email-${email.id}`}
+                value={email.value}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  event.currentTarget.setCustomValidity(value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim()) ? "Enter an email address, like office@ust.edu.ph." : "");
+                  setEmails(emails.map((row) => row.id === email.id ? { ...row, value } : row));
+                }}
+                placeholder="office@ust.edu.ph"
+                maxLength={254}
+                title=""
+              />
+              {emails.length > 1 && <button type="button" className="adm-iconbtn" aria-label={`Remove email address ${index + 1}`} onClick={() => setEmails(emails.filter((row) => row.id !== email.id))}><Icon name="close" size={16} /></button>}
+            </div>
           </Field>
+        ))}
+        {emails.length < UNIT_EMAILS && (
+          <div className="adm-add-unit__emails-action">
+            <button type="button" className="btn btn--sm" onClick={() => setEmails([...emails, { id: nextEmailId.current++, value: "" }])}><Icon name="plus" size={14} /> Add email address</button>
+          </div>
         )}
-      </div>
+        <div className="adm-add-unit__logo">
+          <LogoField parentId={f.parentId} code={f.code} value={emblem} onChange={(value) => setEmblem(value ?? undefined)} onBusyChange={setUploadingLogo} />
+          {!f.parentId && <p className="adm-muted small">Choose where the unit sits to upload a logo.</p>}
+        </div>
+      </form>
     </Sheet>
   );
 }

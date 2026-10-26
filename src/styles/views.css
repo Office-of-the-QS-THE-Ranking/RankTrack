@@ -1,6 +1,117 @@
 /* Domain views: dashboard header, ranking cards and pages, SDG tiles, portfolio, contribution flows,
    impact stories, recognition and sign-in. Identity details (Dominican pattern) live here. */
 
+.unit-participation-table > .card__head {
+  align-items: center;
+}
+.unit-participation-table > .card__head > .card__actions {
+  margin-inline-start: auto;
+}
+.unit-leaderboard__intro {
+  display: grid;
+  gap: 7px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.unit-leaderboard__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.unit-leaderboard__label svg {
+  color: var(--gold-700);
+}
+.unit-leaderboard__intro p {
+  max-width: 78ch;
+  color: var(--text-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.unit-leaderboard__podium {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--border);
+}
+.unit-leaderboard__podium > li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 16px 12px;
+  padding: 24px;
+  background: var(--surface);
+}
+.unit-leaderboard__podium > li[data-rank="1"] {
+  background: var(--gold-50);
+}
+.unit-leaderboard__place {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+[data-rank="1"] > .unit-leaderboard__place {
+  border-color: var(--gold-500);
+  background: var(--gold-400);
+  color: #1d1d1f;
+}
+.unit-leaderboard__leader .unit-cell {
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.unit-leaderboard__leader-meta {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.unit-leaderboard__score {
+  grid-column: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.unit-leaderboard__score b {
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.unit-leaderboard__score > span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.unit-leaderboard__position {
+  display: inline-block;
+  min-width: 3ch;
+  color: var(--text-3);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.unit-leaderboard__table tr[data-rank="1"] .unit-leaderboard__position,
+.unit-leaderboard__table tr[data-rank="2"] .unit-leaderboard__position,
+.unit-leaderboard__table tr[data-rank="3"] .unit-leaderboard__position {
+  color: var(--gold-700);
+}
+.unit-leaderboard__validated {
+  font-size: 20px;
+  font-weight: 600;
+}
+
 /* ---------- Dominican-inspired pattern: a cross fleury lattice, used subtly ---------- */
 .pattern {
   position: absolute;
@@ -1057,7 +1168,7 @@
   letter-spacing: -0.02em;
 }
 .expand summary {
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--text-2);
@@ -1290,6 +1401,14 @@
   }
 }
 
+.matrix-card .info-tooltip__content {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: min(320px, calc(100vw - 64px));
+  font-weight: 400;
+  white-space: normal;
+}
 .lens {
   margin: 0 var(--s-5) var(--s-4);
   padding: 12px 14px;
@@ -2303,7 +2422,7 @@ a.matrix__col:hover {
   align-items: center;
   gap: 12px;
   padding: 14px 2px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   list-style: none;
   font-size: var(--fs-14);
   font-weight: 600;
@@ -2567,7 +2686,7 @@ a.matrix__col:hover {
 }
 .chip--btn {
   border: 0;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   font-family: inherit;
 }
 .chip--btn:hover {

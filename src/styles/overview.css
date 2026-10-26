@@ -1,23 +1,27 @@
 /*
- * Executive overview (/admin): a compact analytics board. KPI strip, a three-column bento of
- * readiness, dimension and per-ranking charts, then one action table. Rides on the portal system
- * (portal.css): white tiles, capsule controls, ink with gold as the accent.
+ * Executive overview (/admin): one bento of tiles. Each tile is a glass bezel round a solid core, and its
+ * rim lights toward the pointer (Aceternity's glowing effect, .glow in components.css). Gold and ink pair
+ * up in every chart: gold is readiness, ink the goals and the other measures. Family colours stay on the
+ * dots that name a ranking.
  */
 
 .ov {
+  --tip-bg: rgb(29 29 31 / 0.94);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: 20px;
+}
+:root[data-theme="dark"] .ov {
+  --tip-bg: rgb(72 72 74 / 0.97);
 }
 
-/* ---------- Head ---------- */
+/* ---------- Head: title, view switch, actions ---------- */
 .ov__head {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 24px;
+  align-items: center;
   flex-wrap: wrap;
-  padding: 4px 2px 6px;
+  gap: 12px 20px;
+  padding: 2px 2px 0;
 }
 .ov__title {
   font-family: var(--font-serif);
@@ -34,417 +38,704 @@
 .ov__actions {
   display: flex;
   gap: 8px;
-}
-.ov__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-}
-
-/* ---------- Chips ---------- */
-.ov-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  background: var(--surface-3);
-  color: var(--text-2);
-}
-.ov-chip--up {
-  background: var(--ok-bg);
-  color: var(--ok);
-}
-.ov-chip--down {
-  background: var(--revise-bg);
-  color: var(--revise);
-}
-
-/* ---------- KPI strip ---------- */
-.ov-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-.ov-kpi {
-  display: grid;
-  gap: 10px;
-  padding: 18px 20px;
-  color: inherit;
-  text-decoration: none;
-  transition:
-    box-shadow var(--t) ease,
-    transform var(--t) var(--ease-out);
-}
-.ov-kpi:hover {
-  box-shadow: var(--sh-sm);
-  transform: translateY(-1px);
-}
-.ov-kpi__label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-3);
-}
-.ov-kpi__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.ov-kpi__value {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  margin-left: auto;
 }
 
 /* ---------- Bento ---------- */
 .ov-bento {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
 }
-.ov-stack {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto 1fr;
-  gap: 16px;
+.ov-bento > .ov-tile {
+  grid-column: span 12;
 }
+@container content (min-width: 620px) {
+  .ov-bento > .ov-units,
+  .ov-bento > .ov-dims {
+    grid-column: span 6;
+  }
+}
+@container content (min-width: 960px) {
+  .ov-bento > .ov-hero {
+    grid-column: span 6;
+    grid-row: span 2;
+  }
+  .ov-bento > .ov-next {
+    grid-column: span 6;
+  }
+  .ov-bento > .ov-units,
+  .ov-bento > .ov-dims {
+    grid-column: span 3;
+  }
+  .ov-bento > .ov-rank {
+    grid-column: span 5;
+  }
+  .ov-bento > .ov-acts {
+    grid-column: span 7;
+  }
+}
+
+/* ---------- Tile: bezel and core ---------- */
 .ov-tile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  padding: 6px;
+  border-radius: var(--r-xl);
+  background: rgb(var(--glass) / 0.4);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.07);
+}
+/* Tooltips rise over the neighbouring tiles */
+.ov-tile:hover,
+.ov-tile:focus-within {
+  z-index: 1;
+}
+.ov-tile__core {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 20px;
+  gap: 16px;
+  padding: 18px 22px 22px;
+  border-radius: calc(var(--r-xl) - 6px);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgb(var(--hair) / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 12px 28px -20px rgb(0 0 0 / 0.22);
+  color: inherit;
+  text-decoration: none;
 }
 .ov-tile__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
 }
 .ov-tile__title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
-.ov-tile__btns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: auto;
-}
-.ov-tile__btns .btn {
-  justify-content: center;
-}
-.ov-iconbtn {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  background: var(--surface-3);
+.ov-tile__title .count {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 7px;
+  background: rgb(var(--hair) / 0.06);
   color: var(--text-2);
-  transition: background-color var(--t) ease;
+  font-size: 12px;
+  font-weight: 600;
 }
-.ov-iconbtn:hover {
-  background: var(--n-150);
+.ov-tile__go {
+  flex: none;
+  color: var(--text-3);
+  transition:
+    color var(--t) ease,
+    transform var(--t) var(--ease-out);
+}
+@media (hover: hover) {
+  a.ov-tile__core:hover .ov-tile__go {
+    color: var(--text);
+    transform: translateX(2px);
+  }
 }
 
-.ov-big,
-.ov-mid {
-  font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: -0.035em;
+/* ---------- Figures ---------- */
+.ov-figrow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.ov-value {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
   line-height: 1;
+  color: var(--text);
 }
-.ov-big {
-  font-size: 44px;
-}
-.ov-mid {
-  font-size: 32px;
-}
-.ov-big small,
-.ov-mid small {
-  margin-left: 2px;
-  font-size: 0.45em;
-  font-weight: 500;
+.ov-value small {
+  margin-left: 6px;
+  font-size: 15px;
+  font-weight: 400;
   letter-spacing: 0;
   color: var(--text-3);
 }
-.ov-sub {
-  font-size: 13px;
-  color: var(--text-3);
+.ov-stat {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  line-height: 1;
 }
-.ov-sub--row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: -4px;
-}
-.ov-note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: auto;
+.ov-stat span {
   font-size: 12px;
   color: var(--text-3);
 }
-
-/* Readiness progress: a glowing gold track */
-.ov-progress {
-  position: relative;
-  height: 10px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: var(--surface-3);
+.ov-stat b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
 }
-.ov-progress__fill {
+.ov-none {
+  margin: auto 0;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* Hover and focus readouts on chart marks */
+.ov [data-tip] {
+  position: relative;
+}
+.ov [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 3;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: var(--tip-bg);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 160ms ease,
+    transform 220ms var(--ease-out);
+}
+.ov [data-tip]:hover::after,
+.ov [data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ---------- Welcome: the greeting on the sign-in's night ---------- */
+.ov-welcome .ov-tile__core {
+  /* where the gold cut crosses the card */
+  --slash: 58%;
+  justify-content: center;
+  min-height: 150px;
+  padding: 24px 28px;
+  overflow: hidden;
+  color: #f5f5f7;
+  background:
+    /* a few gold stars */
+    radial-gradient(circle at 57% 30%, rgb(247 207 94 / 0.85) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 64% 13%, rgb(247 207 94 / 0.55) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 73% 26%, rgb(247 207 94 / 0.7) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 86% 12%, rgb(247 207 94 / 0.8) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 96% 30%, rgb(247 207 94 / 0.5) 0 0.8px, transparent 1.4px),
+    /* the campus lights warming the sky */
+    radial-gradient(50% 120% at 80% 125%, rgb(252 191 21 / 0.3), transparent 65%),
+    /* a cut of gold beside a faint band, as on the sign-in */
+    linear-gradient(112deg, transparent calc(var(--slash) - 0.75px), rgb(252 191 21 / 0.45) var(--slash), transparent calc(var(--slash) + 0.75px)),
+    linear-gradient(
+      112deg,
+      transparent calc(var(--slash) + 1.5%),
+      rgb(255 255 255 / 0.035) calc(var(--slash) + 1.5%) calc(var(--slash) + 9%),
+      transparent calc(var(--slash) + 9%)
+    ),
+    linear-gradient(160deg, #17130b 0%, #0b0a07 55%, #050505 100%);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 16px 32px -22px rgb(0 0 0 / 0.6);
+}
+.ov-welcome__text {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  max-width: 58%;
+}
+.ov-welcome__title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #fff;
+}
+.ov-welcome__sub {
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: rgb(235 235 245 / 0.72);
+}
+.ov-welcome__btn {
+  --btn-bg: #fff;
+  --btn-fg: #1d1d1f;
+  --btn-bg-h: #ececf0;
+  margin-top: 10px;
+  font-weight: 600;
+}
+/* The Main Building, lit for the night, rising out of the dark at the right */
+.ov-welcome__scene {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(44%, 420px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 34%);
+  mask-image: linear-gradient(to right, transparent, #000 34%);
+}
+.ov-welcome__art {
+  object-fit: cover;
+  object-position: 50% 80%;
+}
+
+/* ---------- Readiness (hero) ---------- */
+.ov-hero .ov-tile__core {
+  background:
+    radial-gradient(90% 70% at 0% 0%, var(--gold-tint), transparent 70%),
+    var(--surface);
+}
+.ov-hero__value {
+  font-size: 120px;
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.84;
+  color: var(--text);
+}
+.ov-hero__value small {
+  margin-left: 4px;
+  font-size: 0.34em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-3);
+}
+
+/* One tick per two points: gold up to readiness, pale gold for the shortfall, an ink marker at the goal */
+.ov-meter {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(50, minmax(0, 1fr));
+  align-items: end;
+  height: 74px;
+  /* Room for the goal's label */
+  padding-top: 26px;
+  margin-top: auto;
+}
+.ov-meter i {
+  justify-self: center;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: rgb(var(--hair) / 0.09);
+  transform-origin: bottom;
+}
+.ov-meter i.is-gap {
+  background: var(--gold-200);
+}
+.ov-meter i.is-on {
+  background: color-mix(in oklab, var(--gold-300), var(--gold-600) calc(var(--i) * 2%));
+  animation: ov-tick 520ms var(--ease-out) both;
+  animation-delay: calc(var(--i) * 14ms);
+}
+.ov-meter__goal {
+  position: absolute;
+  bottom: -5px;
+  width: 2px;
+  height: 60px;
+  border-radius: 2px;
+  background: var(--ink);
+  transform: translateX(-50%);
+}
+.ov-meter__goal span {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-2);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Evidence pipeline: proportions, then the counts with their status shapes */
+.ov-pipe {
+  display: grid;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.ov-pipe__bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ov-pipe__bar:empty {
+  background: rgb(var(--hair) / 0.06);
+}
+.ov-pipe__bar i {
+  min-width: 4px;
+  flex-basis: 0;
+}
+.ov-pipe__bar .is-ok {
+  background: var(--ok);
+}
+.ov-pipe__bar .is-review {
+  background: var(--review);
+}
+.ov-pipe__bar .is-revise {
+  background: var(--revise);
+}
+.ov-pipe__bar .is-missing {
+  background: var(--missing);
+}
+.ov-pipe__legend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.ov-pipe__legend dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.ov-pipe__legend dd {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+}
+/* A status label reduced to its shape */
+.status.ov-key {
+  height: auto;
+  padding: 0;
+  background: none;
+}
+
+/* ---------- Next deadline: the figure, then every deadline on one runway ---------- */
+.ov-next__what {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  text-decoration: none;
+}
+.ov-next__what time {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-3);
+}
+@media (hover: hover) {
+  .ov-next__what:hover time {
+    color: var(--text-2);
+  }
+}
+.ov-run {
+  position: relative;
+  height: 54px;
+  margin: auto 6px 0;
+}
+.ov-run__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  border-top: 1px solid var(--border-strong);
+}
+/* Today at the origin, a tick where each month starts */
+.ov-run__axis::before,
+.ov-run__axis i {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: 1px;
+  height: 6px;
+  background: var(--border-strong);
+}
+.ov-run__axis::before {
+  left: 0;
+  top: -4px;
+  width: 2px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--text);
+}
+.ov-run__axis span {
+  position: absolute;
+  top: 9px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-3);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.ov-run__axis span:first-of-type {
+  left: 0;
+  color: var(--text-2);
+  font-weight: 600;
+  transform: none;
+}
+.ov-run__stop {
+  position: absolute;
+  bottom: 15px;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 3px;
+  transform: translateX(-50%);
+}
+.ov-run__dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0 2px var(--surface);
+  transition: transform var(--t) var(--ease-out);
+}
+/* A hit area larger than the mark */
+.ov-run__dot::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+}
+.ov-run__dot.is-next {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4.5px color-mix(in srgb, var(--c) 30%, transparent);
+}
+@media (hover: hover) {
+  .ov-run__dot:hover {
+    transform: scale(1.25);
+  }
+}
+
+/* ---------- Units engaged: one dot per unit ---------- */
+.ov-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: auto;
+}
+.ov-dots i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px rgb(var(--hair) / 0.16);
+}
+.ov-dots i.is-on {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+/* ---------- Dimension index: a column per dimension, a gold tick at each target ---------- */
+.ov-cols {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  height: 58px;
+  margin-top: auto;
+}
+.ov-cols i {
+  position: relative;
+  flex: 1;
+  max-width: 10px;
+  height: 100%;
+  border-radius: 4px 4px 0 0;
+  background: rgb(var(--hair) / 0.06);
+}
+.ov-cols b {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--v);
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--n-500), var(--ink));
+  transform-origin: bottom;
+  animation: ov-rise 900ms var(--ease-out) both;
+}
+.ov-cols i::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  bottom: var(--t);
+  z-index: 1;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--gold-500);
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+/* ---------- By ranking ---------- */
+.ov-seg .seg__opt {
+  height: 26px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+.ov-bars {
+  display: grid;
+  gap: 2px;
+  margin: -4px -8px -8px;
+}
+.ov-bars__row {
+  display: grid;
+  grid-template-columns: minmax(84px, 8.5rem) minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 12px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 10px;
+  color: var(--text-2);
+  font-size: 13px;
+  text-decoration: none;
+  transition: background-color var(--t) ease;
+}
+.ov-bars__row > .row {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (hover: hover) {
+  .ov-bars__row:hover {
+    background: rgb(var(--hair) / 0.04);
+    color: var(--text);
+  }
+}
+.ov-bars__track {
+  position: relative;
+  height: 8px;
+}
+.ov-bars__track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0 4px 4px 0;
+  background: rgb(var(--hair) / 0.05);
+}
+.ov-bars__fill {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
-  box-shadow: 0 0 14px rgb(242 183 5 / 0.45);
-  animation: ov-grow 1.1s var(--ease-out) both;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(90deg, var(--n-500), var(--ink));
   transform-origin: left;
+  animation: ov-grow 900ms var(--ease-out) both;
+  transition: width 600ms var(--ease-out);
 }
-.ov-progress__goal {
+.ov-bars.is-readiness .ov-bars__fill {
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
+}
+/* The goal, notched into every track */
+.ov-bars.is-readiness .ov-bars__track::after {
+  content: "";
   position: absolute;
   top: -4px;
   bottom: -4px;
+  left: var(--goal);
   width: 2px;
-  border-radius: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
   background: var(--ink);
 }
+.ov-bars__value {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
 
-.ov-stats {
+/* ---------- Open actions ---------- */
+.ov-acts__list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding-top: 14px;
+  margin: -6px -10px -10px;
+}
+.ov-acts__list li + li {
   border-top: 1px solid var(--border);
 }
-.ov-stats dt {
-  font-size: 11.5px;
-  color: var(--text-3);
-}
-.ov-stats dd {
-  margin-top: 2px;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-/* Dimension index: eight mini columns, a tick for each target */
-.ov-dim {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-}
-.ov-dim__bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 5px;
-  height: 56px;
-}
-.ov-dim__bars span {
-  position: relative;
-  width: 9px;
-  height: 100%;
-  border-radius: 4px;
-  background: var(--surface-3);
-}
-.ov-dim__bars span::before {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: var(--h);
-  border-radius: inherit;
-  background: linear-gradient(180deg, var(--n-600), var(--ink));
-  animation: ov-rise 0.9s var(--ease-out) both;
-  transform-origin: bottom;
-}
-.ov-dim__bars span::after {
-  content: "";
-  position: absolute;
-  left: -2px;
-  right: -2px;
-  bottom: var(--t);
-  height: 2px;
-  border-radius: 2px;
-  background: var(--gold-500);
-}
-
-/* Units engaged: one tick per unit */
-.ov-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--text-2);
-}
-.ov-line b {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-.ov-line .ov-chip {
-  margin-left: auto;
-}
-.ov-ticks {
+.ov-act {
   display: grid;
-  grid-template-columns: repeat(51, minmax(0, 1fr));
-  gap: 2px;
-  height: 30px;
-  margin-top: auto;
-}
-.ov-ticks i {
-  border-radius: 2px;
-  background: var(--n-150);
-}
-.ov-ticks i.is-on {
-  background: linear-gradient(180deg, var(--n-500), var(--ink));
-}
-
-/* Per-ranking column chart */
-.ov-rkhead {
-  display: flex;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "what status"
+    "meta due";
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--border);
-  font-size: 13px;
-  font-weight: 600;
-}
-.ov-rkhead .ov-sub {
-  font-weight: 400;
-}
-.ov-cols {
-  display: grid;
-  gap: 10px;
-}
-.ov-cols__seg {
-  width: 100%;
-}
-.ov-cols__seg .seg__opt {
-  flex: 1;
-}
-.ov-cols__plot {
-  position: relative;
-  display: grid;
-  grid-template-columns: 30px repeat(8, minmax(0, 1fr));
-  gap: 6px;
-  height: 168px;
-}
-.ov-cols__axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 10.5px;
-  color: var(--chart-label);
-  font-variant-numeric: tabular-nums;
-  padding-top: 12px;
-  margin-bottom: -6px;
-}
-.ov-cols__line {
-  position: absolute;
-  left: 36px;
-  right: 0;
-  height: 0;
-  border-top: 1.5px dashed var(--gold-600);
-  pointer-events: none;
-  z-index: 1;
-}
-.ov-cols__col {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
+  gap: 6px 16px;
+  padding: 11px 10px;
+  border-radius: 12px;
   color: inherit;
   text-decoration: none;
+  transition: background-color var(--t) ease;
 }
-.ov-cols__val {
-  height: 18px;
-  font-size: 10.5px;
+@media (hover: hover) {
+  .ov-act:hover {
+    background: rgb(var(--hair) / 0.035);
+  }
+}
+.ov-act__what {
+  grid-area: what;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--text);
+}
+.ov-act > .status {
+  grid-area: status;
+  justify-self: end;
+}
+.ov-act__meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-size: 12.5px;
   color: var(--text-2);
 }
-.ov-cols__track {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  max-width: 26px;
-  border-radius: 8px;
-  background: var(--surface-3);
+.ov-act__meta > :last-child {
   overflow: hidden;
-}
-.ov-cols__bar {
-  position: absolute;
-  inset: auto 0 0;
-  border-radius: 8px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 70%, var(--surface)), var(--c));
-  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55);
-  transform-origin: bottom;
-  animation: ov-rise 0.8s var(--ease-out) both;
-  transition: height 0.5s var(--ease-out);
-}
-.ov-cols__col:hover .ov-cols__track {
-  box-shadow: 0 0 0 2px var(--n-150);
-}
-.ov-cols__names {
-  display: grid;
-  grid-template-columns: 30px repeat(8, minmax(0, 1fr));
-  gap: 6px;
-  font-size: 9.5px;
-  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-3);
-  text-align: center;
 }
-.ov-cols__names i {
-  display: block;
-  width: 6px;
-  height: 6px;
-  margin: 0 auto 3px;
-  border-radius: 2px;
+.ov-act__due {
+  grid-area: due;
+  justify-self: end;
+  font-size: 12.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
-
-/* ---------- Action table ---------- */
-.ov-table {
-  overflow: hidden;
-}
-.ov-table__head {
-  padding: 18px 20px 12px;
-}
-.ov-table .count {
-  min-width: 22px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--text);
-  font-size: 12px;
+.ov-act__due.is-soon {
   font-weight: 600;
-  display: inline-grid;
-  place-items: center;
+  color: var(--revise);
+}
+.ov-acts .empty {
+  margin: auto 0;
 }
 
+@keyframes ov-tick {
+  from {
+    opacity: 0;
+    transform: scaleY(0.35);
+  }
+}
 @keyframes ov-rise {
   from {
     transform: scaleY(0);
@@ -456,42 +747,61 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ov-progress__fill,
-  .ov-dim__bars span::before,
-  .ov-cols__bar {
+  .ov-meter i.is-on,
+  .ov-cols b,
+  .ov-bars__fill {
     animation: none;
+    transition: none;
   }
 }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 1180px) {
-  .ov-bento {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .ov-bento > :last-child {
-    grid-column: 1 / -1;
+/* ---------- Narrow screens ---------- */
+@container content (max-width: 959px) {
+  .ov-hero__value {
+    font-size: 104px;
   }
 }
-@media (max-width: 900px) {
-  .ov-kpis {
+@container content (max-width: 619px) {
+  .ov-hero__value {
+    font-size: 84px;
+  }
+  .ov-welcome__title {
+    font-size: 22px;
+  }
+  .ov-welcome__text {
+    max-width: none;
+  }
+  /* The building stands behind the words, dimmed, and the gold cut moves behind it */
+  .ov-welcome .ov-tile__core {
+    --slash: 90%;
+  }
+  .ov-welcome__scene {
+    width: 80%;
+    opacity: 0.35;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 60%);
+    mask-image: linear-gradient(to right, transparent, #000 60%);
+  }
+  .ov-value {
+    font-size: 34px;
+  }
+  .ov-tile__core {
+    padding: 16px 16px 18px;
+  }
+  .ov-pipe__legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-@media (max-width: 680px) {
-  .ov-bento {
-    grid-template-columns: minmax(0, 1fr);
+  /* A month named too close to "Today" would touch it */
+  .ov-run__axis .is-near {
+    display: none;
   }
-  .ov-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .ov-act {
+    grid-template-areas:
+      "what what"
+      "meta due"
+      "status status";
   }
-  .ov-kpi {
-    padding: 16px;
-  }
-  .ov-kpi__value {
-    font-size: 26px;
-  }
-  .ov-cols__val {
-    font-size: 9.5px;
+  .ov-act > .status {
+    justify-self: start;
   }
 }
 

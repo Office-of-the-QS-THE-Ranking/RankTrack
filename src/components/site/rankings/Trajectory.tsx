@@ -96,6 +96,7 @@ export function Trajectory({ ranking: r }: { ranking: Ranking }) {
 
 /** Four cycles of one indicator as a short line ending in a dot. */
 export function Spark({ values, label }: { values: number[]; label: string }) {
+  if (values.length < 2) return null;
   const w = 96;
   const h = 30;
   const lo = Math.min(...values);

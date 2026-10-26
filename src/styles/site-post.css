@@ -1,0 +1,442 @@
+/*
+ * A post on the public website (components/site/impact/PostDetail.tsx, PostGallery.tsx): the story as
+ * readable prose, its photos as a collage cut by the motif's quarter circle, and a full-screen viewer.
+ */
+.w-phero__lead .w-post__byline {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: var(--step-body);
+  letter-spacing: 0.01em;
+}
+.w-post {
+  display: grid;
+  gap: clamp(36px, 4.5vw, 64px);
+  min-width: 0;
+}
+.w-post__body {
+  max-width: 66ch;
+}
+.w-post__body p {
+  font-size: clamp(1rem, 0.94rem + 0.26vw, 1.14rem);
+  line-height: 1.72;
+}
+.w-post__body p + p {
+  margin-top: 1.1em;
+}
+.w-post__body .w-post__first {
+  font-family: var(--font-display);
+  font-size: var(--step-lead);
+  line-height: 1.45;
+}
+.w-post__body a {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- the collage ---------- */
+.w-gallery {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-top-right-radius: var(--arc);
+  list-style: none;
+}
+.w-gallery__tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--stone);
+}
+.w-gallery__open {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+.w-gallery__open img {
+  object-fit: cover;
+  transition: transform 0.6s var(--ease-out);
+}
+.w-gallery__open:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: -3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-gallery__open:hover img {
+    transform: scale(1.04);
+  }
+}
+.w-gallery--1 .w-gallery__tile {
+  max-height: 82vh;
+  aspect-ratio: var(--ratio, 16 / 9);
+}
+.w-gallery--2 {
+  grid-template-columns: 1fr 1fr;
+}
+.w-gallery--2 .w-gallery__tile {
+  aspect-ratio: 4 / 5;
+}
+.w-gallery--3 {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  aspect-ratio: 3 / 2;
+}
+.w-gallery--3 .w-gallery__tile:first-child {
+  grid-row: span 2;
+}
+.w-gallery--4 {
+  grid-template-columns: 1fr 1fr;
+}
+.w-gallery--4 .w-gallery__tile {
+  aspect-ratio: 4 / 3;
+}
+.w-gallery--5 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.w-gallery--5 .w-gallery__tile:nth-child(-n + 2) {
+  grid-column: span 3;
+  aspect-ratio: 4 / 3;
+}
+.w-gallery--5 .w-gallery__tile:nth-child(n + 3) {
+  grid-column: span 2;
+  aspect-ratio: 1;
+}
+.w-gallery__more {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(22 20 18 / 0.5);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: var(--step-head);
+}
+
+/* ---------- full-screen viewer ---------- */
+html:has(.w-lightbox[open]) {
+  overflow: hidden;
+}
+.w-lightbox {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: rgb(12 11 10 / 0.97);
+  color: var(--on-dark);
+}
+.w-lightbox[open] {
+  display: grid;
+  place-items: center;
+  animation: w-lightbox-in 220ms var(--ease-out) both;
+}
+.w-lightbox::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+@keyframes w-lightbox-in {
+  from {
+    opacity: 0;
+  }
+}
+.w-lightbox__fig {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 14px;
+  width: min(86vw, 1600px);
+  height: calc(100dvh - 128px);
+  margin: 0;
+}
+.w-lightbox__pic {
+  position: relative;
+  min-height: 0;
+}
+.w-lightbox__pic img {
+  object-fit: contain;
+}
+.w-lightbox__cap {
+  display: flex;
+  gap: 24px;
+  min-height: 1.4em;
+  color: var(--on-dark-muted);
+  font-size: var(--step-small);
+}
+.w-lightbox__count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.w-lightbox__btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color var(--t-hover) ease,
+    color var(--t-hover) ease,
+    transform var(--t-press) var(--ease-out);
+}
+.w-lightbox__btn:active {
+  transform: scale(0.94);
+}
+.w-lightbox__btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-lightbox__btn:hover {
+    background: var(--gold);
+    color: var(--black);
+  }
+}
+.w-lightbox__btn--prev,
+.w-lightbox__btn--next {
+  top: 50%;
+  translate: 0 -50%;
+}
+.w-lightbox__btn--prev {
+  left: clamp(10px, 2vw, 32px);
+}
+.w-lightbox__btn--next {
+  right: clamp(10px, 2vw, 32px);
+}
+.w-lightbox__btn--close {
+  top: clamp(12px, 2vw, 24px);
+  right: clamp(12px, 2vw, 24px);
+}
+@media (max-width: 700px) {
+  .w-lightbox__fig {
+    width: 100vw;
+    height: calc(100dvh - 150px);
+  }
+  .w-lightbox__cap {
+    padding-inline: 16px;
+  }
+  .w-lightbox__btn--prev,
+  .w-lightbox__btn--next {
+    top: auto;
+    bottom: 18px;
+    translate: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .w-lightbox[open] {
+    animation: none;
+  }
+  .w-gallery__open img {
+    transition: none;
+  }
+}
+
+/* Stories written in the post editor: lists, highlights and the first paragraph's lead size. */
+.w-post__body :is(ul, ol) {
+  margin: 1.1em 0 0;
+  padding-left: 1.4em;
+  font-size: clamp(1rem, 0.94rem + 0.26vw, 1.14rem);
+  line-height: 1.72;
+}
+.w-post__body ul { list-style: disc; }
+.w-post__body ol { list-style: decimal; }
+.w-post__body :is(ul, ol) :is(ul, ol) { margin-top: 0.2em; font-size: 1em; }
+.w-post__body ul ul { list-style: circle; }
+.w-post__body ol ol { list-style: lower-alpha; }
+.w-post__body li + li { margin-top: 0.3em; }
+.w-post__body li::marker { color: var(--text-3, currentColor); }
+.w-post__body :is(ul, ol) + p { margin-top: 1.1em; }
+.w-post__body sup,
+.w-post__body sub { font-size: 0.72em; line-height: 0; }
+.w-post__body .rt-hl { padding: 0.05em 0.1em; border-radius: 3px; color: #1d1d1f; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.w-post__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  max-width: 66ch;
+  margin: 1.4em 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--gold-700, #8a6a00);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Layouts chosen in the composer (lib/governance/posts.ts POST_LAYOUTS). Cover and Essay use the default flow. */
+.w-post__feature {
+  position: relative;
+  aspect-ratio: 2.2;
+  margin: 0 0 clamp(28px, 4vw, 48px);
+  overflow: hidden;
+  border-top-right-radius: var(--arc);
+  background: var(--stone);
+}
+.w-post__feature img {
+  object-fit: cover;
+}
+@media (min-width: 900px) {
+  .w-post--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+  .w-post--split > .w-gallery {
+    position: sticky;
+    top: 96px;
+  }
+}
+
+/* Banner: the title over a full-width cover, darkened beneath the words so they read. */
+.w-post-banner {
+  position: relative;
+  display: grid;
+  align-items: end;
+  min-height: clamp(420px, 68vh, 720px);
+  overflow: hidden;
+  background: var(--ink-deep, #141210);
+  color: #fff;
+}
+.w-post-banner__img {
+  object-fit: cover;
+}
+.w-post-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0) 30%, rgb(0 0 0 / 0.72) 100%);
+}
+.w-post-banner__copy {
+  position: relative;
+  z-index: 1;
+  padding-block: clamp(96px, 14vh, 140px) clamp(36px, 6vh, 64px);
+}
+.w-post-banner__copy .w-phero__title {
+  max-width: 22ch;
+  color: #fff;
+}
+.w-post-banner__lead {
+  max-width: 60ch;
+  margin-top: 16px;
+  color: rgb(255 255 255 / 0.86);
+  font-size: var(--step-lead, 1.15rem);
+}
+.w-post-banner .w-link {
+  color: #fff;
+}
+/* Gallery first: the pictures lead the story. */
+.w-post--gallery > .w-gallery {
+  order: -1;
+}
+/* Magazine: the story in two columns on wide screens. */
+@media (min-width: 900px) {
+  .w-post--magazine .w-post__body {
+    max-width: none;
+    column-count: 2;
+    column-gap: clamp(32px, 4vw, 56px);
+  }
+  .w-post--magazine .w-post__body > * {
+    break-inside: avoid-column;
+  }
+}
+/* Alternating: text beside a photo, the photo switching sides each paragraph. */
+.w-post--alternate .w-post__body {
+  display: grid;
+  gap: clamp(28px, 4vw, 56px);
+  max-width: none;
+}
+.w-post__alt {
+  display: grid;
+  gap: clamp(16px, 2.5vw, 28px);
+}
+.w-post__altpic {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  margin: 0;
+  overflow: hidden;
+  border-top-right-radius: var(--arc);
+  background: var(--stone);
+}
+.w-post__altpic img {
+  object-fit: cover;
+}
+@media (min-width: 900px) {
+  .w-post__alt {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(32px, 4vw, 64px);
+    align-items: center;
+  }
+  .w-post__alt--flip .w-post__altpic {
+    order: -1;
+    border-top-right-radius: 0;
+    border-top-left-radius: var(--arc);
+  }
+}
+
+/* The composer's preview tab: a strip over the page that marks it as a preview, with a way out. */
+.w-preview-strip {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+  padding: 8px clamp(16px, 5vw, 64px);
+  background: #050609;
+  color: rgb(255 255 255 / 0.72);
+  font-size: 13.5px;
+  box-shadow: inset 0 -2px 0 var(--gold);
+}
+.w-preview-strip__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gold);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.w-preview-strip__note {
+  flex: 1;
+  min-width: 0;
+}
+.w-preview-strip__exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: var(--cursor-pointer);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.w-preview-strip__exit:hover {
+  background: rgb(255 255 255 / 0.1);
+  border-color: rgb(255 255 255 / 0.5);
+}
+.w-preview-strip__exit:focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .w-preview-strip__note {
+    display: none;
+  }
+  .w-preview-strip__label {
+    flex: 1;
+  }
+}

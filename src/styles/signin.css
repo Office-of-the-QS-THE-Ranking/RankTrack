@@ -1,18 +1,15 @@
 /*
  * Sign-in: the one portal screen that steps out of the light system, at the user's request (2026-10-21), on
- * a scene after the Office's own title slide that keeps the time of day (sky.ts; .signin[data-sky]). Bands of
- * cut gold and silver slash down through a faceted sky beside a glowing gold hairline and its halftone dots,
- * over the Main Building with the Benavides monument before it, both low-poly models (scripts/signin-scene).
- * By night the sky is black and gold, lit by a champagne crescent moon, and the building is lit for the night;
- * by day the sky is pale crystal, lit by the sun, with clouds, and the building stands in the morning sun. The
- * building and the monument stand at the left, turned to the right; the Hub's name stays at the upper left, and
- * the form sits on glass at the right, below it: dark by night, light by day.
- *   Page    layout, the night palette for the form's controls, the card and the flow (SignInFlow)
+ * a night scene after the Office's own title slide. Bands of cut gold and silver slash down through a faceted
+ * black-and-gold sky beside a glowing gold hairline and its halftone dots, lit by a champagne crescent moon,
+ * over the Main Building, lit for the night, with the Benavides monument before it, both low-poly models
+ * (scripts/signin-scene). The building and the monument stand at the left, turned to the right, under the
+ * University's name; at the right a full-height sidebar of dark glass, with a gilt seam down its edge, holds the
+ * Hub's name and the form. On phones the scene is a poster and the sidebar a sheet under it.
+ *   Page    layout, the palette for the form's controls, the card and the flow (SignInFlow)
  *   Scene   SignInScene's layers; SceneMotion sets --mx/--my (depth) and lights the canvases (SceneLight)
- *   Day     the day's palette for the page, the form and the scene
  *   Motion  the entrance, then light that keeps moving: sweeps down the bands, comets on the hairlines,
- *           glints on the facets, the moon's halo or the sun's bloom, a sheen across the sky's facets, the
- *           stars or the clouds and birds (SceneLight); and the slow cross-fade when the sky turns
+ *           glints on the facets, the moon's halo, a sheen across the sky's facets, the stars (SceneLight)
  * Without script the scene stands still but whole; under reduced motion nothing moves.
  */
 
@@ -27,7 +24,7 @@ body:has(> .signin) {
   scrollbar-color: rgb(255 255 255 / 0.2) transparent;
 }
 .signin {
-  /* the night palette: the shared controls (buttons, fields, notices) read these */
+  /* the palette: the shared controls (buttons, fields, notices) read these */
   --ust-gold: #fcbf15;
   --text: #f5f5f7;
   --text-2: rgb(235 235 245 / 0.72);
@@ -37,7 +34,7 @@ body:has(> .signin) {
   --surface: rgb(255 255 255 / 0.06);
   --surface-2: rgb(255 255 255 / 0.09);
   --hair: 255 255 255;
-  /* the tint the glass's controls are laid with, the secondary labels, and the titles: white by night */
+  /* the tint the glass's controls are laid with, the secondary labels, and the titles */
   --veil: 255 255 255;
   --label: 235 235 245;
   --hi: #fff;
@@ -62,8 +59,16 @@ body:has(> .signin) {
   --si-r: 8px;
   --si-r-sm: 5px;
   --pad-l: clamp(32px, 6.6vw, 124px);
+  /* the frame on desktop: the gold rail's width (.sx__rail) and one margin in from it and from the top and
+     bottom, which the University's name (upper left), the policy bar (lower left) and the sidebar's foot keep */
+  --rail: clamp(6px, 0.8vw, 14px);
+  --edge: clamp(20px, 3.4vh, 34px);
+  /* the sidebar's width */
+  --side: clamp(400px, 34vw, 520px);
   position: relative;
   isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side);
   min-height: 100dvh;
   background: #050505;
   color: var(--text);
@@ -74,20 +79,16 @@ body:has(> .signin) {
   color: #fff;
 }
 
-/* the Hub's name at the left; the card and the unit beneath it at the right, the same distance in from the edge */
+/* The University identity at the upper left, over the scene; the sidebar takes the right. */
 .signin__col {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  padding: calc(clamp(28px, 9.5vh, 120px) + 48px) var(--pad-l) clamp(22px, 4.2vh, 44px);
+  grid-area: 1 / 1;
+  padding: var(--edge) var(--pad-l) 0 calc(var(--rail) + var(--edge));
 }
 
 /* The full University identity, using the main site's seal and logotype face. */
 .signin__university {
-  position: relative;
-  top: -48px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -95,18 +96,10 @@ body:has(> .signin) {
   color: var(--hi);
   text-decoration: none;
 }
-.signin__seals {
-  display: grid;
+.signin__seal {
   flex: none;
   width: clamp(48px, 5vw, 60px);
-}
-.signin__seal {
-  grid-area: 1 / 1;
-  width: 100%;
   height: auto;
-}
-.signin__seal--day {
-  visibility: hidden;
 }
 .signin__university-words {
   display: flex;
@@ -126,60 +119,245 @@ body:has(> .signin) {
   font-weight: 600;
   letter-spacing: 0.04em;
 }
-.signin__display {
-  margin-top: clamp(18px, 3vh, 28px);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 2.8rem;
-  line-height: 1.06;
-  color: var(--hi);
+/* The Hub's name, in the serif the workspaces keep for their titles (Newsreader): the first line in ivory,
+   the second in gilt italic; it keeps to two lines as the sidebar narrows. (.signin before it outranks the plain
+   type the account screens share, portal-typography.css.) */
+.signin .signin__display {
+  margin: 0 0 clamp(14px, 2.2vh, 20px);
+  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(2.5rem, 3.4vw, 3.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  color: #fbf6ea;
   text-wrap: balance;
 }
 /* each line rises out of its own slot; the padding keeps the descenders inside it */
 .signin__row {
   display: block;
   overflow: hidden;
-  padding-bottom: 0.08em;
-  margin-bottom: -0.08em;
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
 }
 .signin__row > span {
   display: block;
 }
-/* the second line in champagne gold */
+/* the second line in gilt italic; the padding keeps the italic's overhang inside its slot */
 .signin__row--gold > span {
   display: inline-block;
-  background: linear-gradient(100deg, #fff1c7 0%, #f9d980 34%, #fcbf15 68%, #e6a800 100%);
+  padding-right: 0.08em;
+  font-style: italic;
+  background: linear-gradient(100deg, #fff4d6 0%, #f7d98a 30%, #ecb83e 64%, #c98f12 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* a text-shadow would show through the clipped gold, so the shade goes behind it */
+  text-shadow: none;
+  filter: drop-shadow(0 1px 10px rgb(0 0 0 / 0.5));
+}
+/* a gold mark over the Hub's name: a small lozenge, and a hairline drawn out from it */
+.signin__mark {
+  position: relative;
+  display: block;
+  width: 56px;
+  height: 7px;
+  margin-bottom: clamp(18px, 2.8vh, 26px);
+}
+.signin__mark::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 5px;
+  height: 5px;
+  rotate: 45deg;
+  background: #f3d27a;
+  box-shadow: 0 0 10px rgb(252 191 21 / 0.55);
+}
+.signin__mark::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 14px;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(243 210 122 / 0.9), rgb(243 210 122 / 0));
+  transform-origin: left;
 }
 
-/* the login window: dark glass with a gilt hairline round it and a beam of light on the rim (below) */
+/* The sidebar: liquid glass at the right, full height, a gilt seam down its left edge and a beam of light on
+   the seam (below). The Hub's name and the form stand high in it (.signin__side), the offices, version and
+   clock at its foot.
+   The glass is clear rather than smoked (user, 2026-10-24: more see-through): a light frost that keeps the
+   scene's colour (saturated, a touch dimmed), a very thin warm tint, a soft shadow under the type so it reads
+   over the bands (.signin__side), and light on and in it: a bright lip along the edge and the edge's
+   thickness catching the light inside it (the inset shadows), a pool of light in the top corner and a soft
+   band of sheen that drifts across it (::before), and along the seam a lens that bends the scene behind
+   (GlassLens, .signin__lens) */
 .signin__card {
+  --seam: 0 0 0 1px;
   position: relative;
+  z-index: 1;
   isolation: isolate;
-  align-self: flex-end;
-  width: min(100%, 436px);
-  margin-top: clamp(26px, 4.4vh, 44px);
-  padding: 30px 30px 22px;
-  border-radius: 0;
-  background:
-    radial-gradient(90% 60% at 0% 0%, rgb(252 191 21 / 0.08), transparent 60%),
-    linear-gradient(180deg, rgb(32 28 23 / 0.6), rgb(11 10 9 / 0.78));
-  -webkit-backdrop-filter: blur(28px) saturate(1.6);
-  backdrop-filter: blur(28px) saturate(1.6);
+  grid-area: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: var(--edge) clamp(32px, 3.6vw, 60px);
+  background: linear-gradient(180deg, rgb(24 20 15 / 0.12), rgb(10 9 7 / 0.24));
+  -webkit-backdrop-filter: blur(9px) saturate(1.8) brightness(0.86);
+  backdrop-filter: blur(9px) saturate(1.8) brightness(0.86);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 60px 110px -50px rgb(0 0 0 / 0.95),
-    0 22px 44px -26px rgb(0 0 0 / 0.85);
+    inset 1px 0 0 rgb(255 255 255 / 0.2),
+    inset 14px 0 22px -14px rgb(255 246 226 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 -1px 0 rgb(255 255 255 / 0.05),
+    -70px 0 120px -40px rgb(0 0 0 / 0.7);
+}
+.signin__card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .86 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(110% 46% at 0% 0%, rgb(255 255 255 / 0.11), rgb(255 255 255 / 0.03) 46%, transparent 70%),
+    radial-gradient(90% 36% at 100% 100%, rgb(252 191 21 / 0.07), transparent 72%),
+    linear-gradient(112deg, transparent 38%, rgb(255 255 255 / 0.06) 46%, rgb(255 250 236 / 0.025) 52%, transparent 60%);
+  background-size: 160px 160px, 100% 100%, 100% 100%, 300% 100%;
+  background-position: 0 0, 0 0, 0 0, 100% 0;
+}
+/* the Hub's name and the form: well above the middle (user, 2026-10-24), as the lower padding lifts it by half
+   its height */
+.signin__side {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  padding: clamp(20px, 3vh, 32px) 0 clamp(48px, 16vh, 180px);
+  text-shadow: 0 1px 14px rgb(0 0 0 / 0.55);
+}
+/* the lens: a strip over the sidebar's seam whose backdrop the SVG filter bends, in Chromium (GlassLens) */
+.signin__lens-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+.signin__lens {
+  display: none;
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  width: clamp(36px, 3.4vw, 56px);
+  pointer-events: none;
+}
+.signin__lens[data-on] {
+  display: block;
+  -webkit-backdrop-filter: url(#si-lens) saturate(1.25) brightness(1.08);
+  backdrop-filter: url(#si-lens) saturate(1.25) brightness(1.08);
+  -webkit-mask-image: linear-gradient(90deg, #000 70%, transparent);
+  mask-image: linear-gradient(90deg, #000 70%, transparent);
+}
+/* the foot: the University and its offices at the left; the app's version (package.json) with its stage on a
+   small gilt tag, the date and a live clock (FootClock) at the right; under a rule that is gilt where it meets
+   the seam and fades across */
+.signin__foot {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  align-items: end;
+  gap: 10px 16px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding-top: 16px;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1.5;
+  color: rgb(var(--label) / 0.42);
+}
+.signin__foot::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(243 210 122 / 0.34), rgb(var(--veil) / 0.1) 38%, rgb(var(--veil) / 0.05));
+}
+.signin__foot-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.signin__foot-col--end {
+  align-items: flex-end;
+  text-align: right;
+}
+.signin__foot-lead {
+  color: rgb(var(--label) / 0.7);
+}
+.signin__version {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgb(var(--label) / 0.72);
+  font-weight: 600;
+}
+.signin__stage {
+  color: #f0cf7a;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.signin__version,
+.signin__clock {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.signin__clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+/* the clock's live dot; its ring pulses while the clock runs (Motion) */
+.signin__live {
+  position: relative;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f0cf7a;
+  box-shadow: 0 0 6px rgb(252 191 21 / 0.6);
+}
+.signin__live::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(240 207 122 / 0.55);
+  opacity: 0;
+}
+/* asked for less see-through glass: a solid sidebar */
+@media (prefers-reduced-transparency: reduce) {
+  .signin__card {
+    background: #100e0b;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .signin__lens[data-on] {
+    display: none;
+  }
 }
 .signin__card::after {
   content: "";
   position: absolute;
   inset: 0;
-  padding: 1px;
-  border-radius: inherit;
-  background: linear-gradient(155deg, rgb(255 214 110 / 0.5), rgb(255 255 255 / 0.1) 30%, rgb(255 255 255 / 0.05) 64%, rgb(252 191 21 / 0.22));
+  padding: var(--seam);
+  background: linear-gradient(180deg, rgb(255 214 110 / 0.1), rgb(255 214 110 / 0.5) 34%, rgb(252 191 21 / 0.24) 74%, rgb(255 214 110 / 0.06));
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -190,17 +368,16 @@ body:has(> .signin) {
   mask-composite: exclude;
   pointer-events: none;
 }
-/* the beam (CardBeam): gold light on the rim, under the form. It rests along the top; with a mouse near,
-   it runs round the rim to the pointer (--bx, --by) and flares as the pointer closes in (--bk, 0 to 1):
-   a white-hot heart and a glow off the rim; no spotlight on the glass (user, 2026-10-22) */
+/* the beam (CardBeam): gold light on the seam, under the form. It rests a little above the seam's middle; with
+   a mouse near, it slides along the seam to the pointer (--bx, --by) and flares as the pointer closes in (--bk,
+   0 to 1): a white-hot heart and a glow off the seam; no spotlight on the glass (user, 2026-10-22) */
 .signin__beam {
-  --bx: 39%;
-  --by: 0px;
+  --bx: 0px;
+  --by: 38%;
   --bk: 0;
   position: absolute;
   inset: 0;
   z-index: -1;
-  border-radius: inherit;
   pointer-events: none;
   filter: drop-shadow(0 0 4px rgb(255 220 130 / calc(var(--bk) * 0.95)))
     drop-shadow(0 0 18px rgb(252 191 21 / calc(var(--bk) * 0.65)));
@@ -210,8 +387,7 @@ body:has(> .signin) {
   content: "";
   position: absolute;
   inset: 0;
-  padding: 1px;
-  border-radius: inherit;
+  padding: var(--seam);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -234,27 +410,12 @@ body:has(> .signin) {
   opacity: var(--bk);
 }
 
-.signin__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  align-self: flex-end;
-  gap: 8px 16px;
-  width: min(100%, 436px);
-  margin-top: auto;
-  padding-top: clamp(24px, 4vh, 40px);
-}
-.signin__unit {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgb(var(--label) / 0.86);
-}
-/* the policies, bottom left over the plaza: a small glass bar so they read on the lit scene, with the sky
-   button at its head, before a hairline */
+/* Compact glass policy bar at the bottom left, held to the screen like the scene behind it, so a long form
+   never carries it out of view. */
 .signin__legal {
-  position: absolute;
-  left: clamp(16px, 2.4vw, 36px);
-  bottom: clamp(18px, 3.4vh, 36px);
+  position: fixed;
+  left: calc(var(--rail) + var(--edge));
+  bottom: var(--edge);
   z-index: 2;
   display: flex;
   align-items: center;
@@ -281,65 +442,21 @@ body:has(> .signin) {
     color: var(--hi);
   }
 }
-.signin__policies {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.signin__policies::before {
-  content: "";
-  width: 1px;
-  height: 16px;
-  margin: 0 2px 0 1px;
-  background: rgb(var(--veil) / 0.14);
-}
-/* the sky button (SkyToggle): just the icon of the pick it is on, night, day or auto, in gold; the icon turns
-   in as the pick changes */
-.signin__sky {
-  position: relative;
-  flex: none;
-  width: 31px;
-  height: 31px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--si-r-sm);
-  background: none;
-  color: var(--ust-gold);
-  cursor: pointer;
-  transition:
-    background-color var(--t) ease,
-    transform 320ms var(--ease-out);
-}
-.signin__sky svg {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  opacity: 0;
-  rotate: -90deg;
-  scale: 0.5;
-  transition:
-    opacity 260ms ease,
-    rotate 420ms var(--ease-out),
-    scale 420ms var(--ease-out);
-}
-.signin__sky svg.is-on {
-  opacity: 1;
-  rotate: 0deg;
-  scale: 1;
-}
-@media (hover: hover) {
-  .signin__sky:hover {
-    background: rgb(var(--veil) / 0.08);
-  }
-}
-.signin__sky:active {
-  transform: scale(0.94);
-}
-
-/* Past the first step the account list and the forms need the room: the title steps down. */
+/* The request form and the tracker get extra space, with the gold mark stepping aside. */
 @media (min-width: 861px) {
-  .signin:has(.si[data-step="choose"], .si[data-step="mfa"], .si[data-step="request"]) .signin__display {
-    font-size: 2.4rem;
+  .signin:has(.si[data-step="request"]) .signin__display {
+    margin-bottom: 32px;
+  }
+  .signin:has(.si:is([data-step="request"], [data-step="track"])) .signin__mark {
+    display: none;
+  }
+  .signin:has(.si:is([data-step="request"], [data-step="track"])) .signin__side {
+    padding: clamp(28px, 4vh, 40px) 0;
+  }
+  /* Keep the request heading and step bar anchored as each form changes height. */
+  .signin:has(.si[data-step="request"]) .signin__side {
+    margin-top: 0;
+    flex-shrink: 0;
   }
 }
 
@@ -354,31 +471,32 @@ body:has(> .signin) {
   display: grid;
   gap: 6px;
 }
-.signin__title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.75rem;
-  line-height: 1.15;
-  color: var(--hi);
-}
 .si__sub {
   font-size: 14.5px;
-  line-height: 1.5;
-  color: var(--text-2);
+  line-height: 1.55;
+  color: rgb(var(--label) / 0.7);
 }
-/* later steps: a back button beside the title */
+/* the start's one line: whom the portal is for */
+.si__lede {
+  max-width: 34ch;
+  margin-bottom: clamp(8px, 1.8vh, 16px);
+  font-size: 15px;
+  text-wrap: pretty;
+}
+/* later steps: a back button beside the title; the titles in the serif of the Hub's name */
 .si__head {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 36px;
 }
-.si__title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.3rem;
-  line-height: 1.2;
-  color: var(--hi);
+.signin .si__title {
+  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 1.65rem;
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+  color: #fbf6ea;
 }
 .si__back {
   flex: none;
@@ -389,35 +507,106 @@ body:has(> .signin) {
   padding: 0;
   border: 0;
   border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.06);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.08);
-  color: var(--text-2);
-  cursor: pointer;
+  background: rgb(var(--veil) / 0.05);
+  box-shadow: none;
+  color: rgb(var(--label) / 0.75);
+  cursor: var(--cursor-pointer);
   transition:
-    background-color var(--t) ease,
-    color var(--t) ease,
-    transform 320ms var(--ease-out);
+    background-color var(--t) var(--ease-out),
+    color var(--t) var(--ease-out);
+}
+.si__back svg {
+  position: relative;
+  transition: transform 200ms var(--ease-out);
+}
+.si__back:focus-visible {
+  outline: 2px solid #f7d98a;
+  outline-offset: 4px;
+}
+.si__back:active svg {
+  transform: translateX(-1px);
+}
+.si__heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.signin .signin__card .signin__side .si__heading .signin__display {
+  margin-bottom: 0;
+}
+@media (min-width: 861px) {
+  .si__back--seam {
+    position: absolute;
+    top: 50%;
+    left: calc((100% - var(--side)) / 2);
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--si-r);
+    background: linear-gradient(180deg, rgb(255 214 110 / 0.35), rgb(255 214 110 / 0.7) 50%, rgb(252 191 21 / 0.35));
+    color: #ecd49b;
+    box-shadow: none;
+  }
+  .si__back--seam::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: calc(var(--si-r) - 1px);
+    background: #18150f;
+    transition: background-color 200ms var(--ease-out);
+  }
+  .si__back--seam:focus-visible {
+    outline: none;
+    background: #fff0bc;
+    color: #fff0bc;
+  }
+  .si__back--seam:focus-visible::before {
+    background: #40321a;
+  }
 }
 @media (hover: hover) {
   .si__back:hover {
-    background: rgb(var(--veil) / 0.11);
+    background: rgb(var(--veil) / 0.1);
     color: var(--hi);
-    transform: translateX(-2px);
+  }
+  .si__back:hover svg {
+    transform: translateX(-3px);
   }
 }
-.si__tag {
-  margin-left: auto;
-  padding: 4px 10px;
-  border-radius: var(--si-r-sm);
-  background: var(--gold-wash);
-  box-shadow: inset 0 0 0 1px rgb(252 191 21 / 0.2);
-  color: var(--gold-ink);
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: help;
+@media (min-width: 861px) and (hover: hover) {
+  .si__back--seam:hover {
+    background: linear-gradient(180deg, rgb(255 214 110 / 0.5), #ffe5a1 50%, rgb(252 191 21 / 0.5));
+    color: #fff0bc;
+  }
+  .si__back--seam:hover::before {
+    background: #302617;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .si__back,
+  .si__back svg,
+  .si__back--seam::before {
+    transition: none;
+  }
+  .si__back:is(:hover, :active) svg {
+    transform: none;
+  }
 }
 
-/* the University's account: a UST Gold button under black type, Google's G on a white tile, an arrow at its end */
+/* The two ways in, stacked: the University's account in gold, and asking for one in glass. Each starts with a
+   tile, so their words line up. */
+.si__actions {
+  display: grid;
+  gap: 12px;
+}
+.si__actions button {
+  text-shadow: none;
+}
+/* the University's account: polished gold set in a dark tray behind a gilt hairline (the outer rings), lit
+   from above, with a short warm shadow; Google's G on a white tile; no arrow (user, 2026-10-22) */
 .si__google {
   position: relative;
   isolation: isolate;
@@ -427,24 +616,31 @@ body:has(> .signin) {
   gap: 12px;
   width: 100%;
   height: 56px;
-  margin-top: 4px;
   padding: 0 9px;
   border: 0;
   border-radius: var(--si-r);
-  background: linear-gradient(180deg, #ffd65e, var(--ust-gold) 56%, #eeaa00);
-  color: #1d1d1f;
-  font-size: 15.5px;
+  background: linear-gradient(180deg, #ffe08c 0%, #fdc93c 40%, #f4b30d 74%, #e2a000 100%);
+  color: #1a1408;
+  font-size: 15px;
   font-weight: 700;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.6),
-    inset 0 -1px 0 rgb(122 89 0 / 0.3),
-    0 16px 36px -16px rgb(252 191 21 / 0.75);
+    inset 0 1px 0 rgb(255 250 230 / 0.75),
+    inset 0 -1px 0 rgb(122 82 0 / 0.38),
+    inset 0 0 0 1px rgb(255 236 170 / 0.28),
+    0 0 0 3px rgb(12 10 7 / 0.5),
+    0 0 0 4px rgb(243 210 122 / 0.22),
+    0 14px 30px -14px rgb(214 150 0 / 0.6);
   transition:
-    transform 320ms var(--ease-out),
-    box-shadow 320ms var(--ease-out);
+    transform 420ms var(--ease-out),
+    box-shadow 420ms var(--ease-out),
+    filter var(--t) var(--ease-out);
   --focus: #fff;
+}
+/* the focus ring stands clear of the tray */
+.si__google:focus-visible {
+  outline-offset: 6px;
 }
 /* now and then a sheen passes over it */
 .si__google::after {
@@ -463,7 +659,10 @@ body:has(> .signin) {
   height: 38px;
   border-radius: var(--si-r-sm);
   background: #fff;
-  box-shadow: 0 1px 3px rgb(80 50 0 / 0.3);
+  box-shadow:
+    0 1px 2px rgb(80 50 0 / 0.35),
+    inset 0 -1px 0 rgb(0 0 0 / 0.06);
+  transition: transform 420ms var(--ease-out);
 }
 /* a spinner at the end while Google answers */
 .si__spin {
@@ -479,168 +678,151 @@ body:has(> .signin) {
 @media (hover: hover) {
   .si__google:hover:not(:disabled) {
     transform: translateY(-1px);
+    filter: brightness(1.03) saturate(1.04);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.6),
-      inset 0 -1px 0 rgb(122 89 0 / 0.3),
-      0 22px 44px -16px rgb(252 191 21 / 0.9);
+      inset 0 1px 0 rgb(255 250 230 / 0.8),
+      inset 0 -1px 0 rgb(122 82 0 / 0.38),
+      inset 0 0 0 1px rgb(255 236 170 / 0.34),
+      0 0 0 3px rgb(12 10 7 / 0.5),
+      0 0 0 4px rgb(243 210 122 / 0.36),
+      0 20px 38px -16px rgb(214 150 0 / 0.75);
+  }
+  .si__google:hover:not(:disabled) .si__google-mark {
+    transform: scale(1.04);
   }
 }
 .si__google:active:not(:disabled) {
-  transform: scale(0.99);
+  transform: scale(0.985);
 }
 .si__google:disabled {
-  cursor: progress;
+  cursor: var(--cursor-default);
 }
-/* "or", on a hairline between the two ways in */
-.si__or {
+/* asking for an account: clear glass with a hairline, a gilt tile, and the arrow in a well of its own */
+.si__alt {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: -4px 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-3);
-}
-.si__or::before,
-.si__or::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(var(--veil) / 0.12));
-}
-.si__or::after {
-  background: linear-gradient(90deg, rgb(var(--veil) / 0.12), transparent);
-}
-/* the way into the portal demo: a quiet outline button under Google's */
-.si__alt {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   width: 100%;
-  height: 46px;
+  height: 54px;
+  padding: 0 9px;
   border: 0;
   border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.12);
-  color: var(--text-2);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.025));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--veil) / 0.11),
+    inset 0 1px 0 rgb(255 255 255 / 0.07);
+  color: rgb(var(--label) / 0.9);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: var(--cursor-pointer);
   transition:
-    background-color var(--t) ease,
-    color var(--t) ease,
-    box-shadow var(--t) ease;
+    background-color var(--t) var(--ease-out),
+    box-shadow var(--t) var(--ease-out),
+    color var(--t) var(--ease-out),
+    transform 420ms var(--ease-out);
 }
-.si__alt svg {
-  color: var(--ust-gold);
+.si__alt-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--si-r-sm);
+  background: rgb(243 210 122 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(243 210 122 / 0.24);
+  color: #f0cf7a;
 }
-@media (hover: hover) {
-  .si__alt:hover {
-    background: rgb(var(--veil) / 0.08);
-    box-shadow: inset 0 0 0 1px rgb(252 191 21 / 0.35);
-    color: var(--hi);
-  }
-}
-.si__alt:active {
-  transform: scale(0.99);
-}
-
-/* the portal demo: the same gilt glass, as a modal over the scene, apart from the real sign-in */
-.signin__card.si-demo {
-  position: fixed;
-  inset: 0;
-  width: min(calc(100% - 32px), 460px);
-  max-height: calc(100svh - 32px);
-  margin: auto;
-  padding: 26px 26px 22px;
-  border: 0;
-  overflow: visible;
-  color: var(--text);
-}
-/* the demo keeps the beam still along its top rim */
-.si-demo::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 12%;
-  right: 34%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(255 230 160 / 0.9), transparent);
-}
-.si-demo::backdrop {
-  background: rgb(5 5 5 / 0.62);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .si-demo[open] {
-    animation: si-in 0.4s var(--ease-out) both;
-  }
-}
-.si__close {
+.si__alt-go {
   flex: none;
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
   margin-left: auto;
-  padding: 0;
-  border: 0;
-  border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.06);
-  color: var(--text-2);
-  cursor: pointer;
+  border-radius: var(--si-r-sm);
+  background: rgb(var(--veil) / 0.05);
+  color: rgb(var(--label) / 0.7);
   transition:
-    background-color var(--t) ease,
-    color var(--t) ease;
-}
-.si__tag + .si__close {
-  margin-left: 0;
+    transform 420ms var(--ease-out),
+    background-color var(--t) var(--ease-out),
+    color var(--t) var(--ease-out);
 }
 @media (hover: hover) {
-  .si__close:hover {
-    background: rgb(var(--veil) / 0.11);
+  .si__alt:hover {
+    background-color: rgb(255 255 255 / 0.05);
+    box-shadow:
+      inset 0 0 0 1px rgb(var(--veil) / 0.2),
+      inset 0 1px 0 rgb(255 255 255 / 0.1);
     color: var(--hi);
   }
+  .si__alt:hover .si__alt-go {
+    transform: translateX(3px);
+    background: rgb(243 210 122 / 0.14);
+    color: #f3d27a;
+  }
 }
-/* the gold button for Verify and Send request */
+.si__alt:active {
+  transform: scale(0.985);
+}
+/* how signing in works, in one line under the buttons */
+.si__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgb(var(--label) / 0.52);
+}
+.si__note svg {
+  flex: none;
+  margin-top: 1px;
+  color: #e7c46c;
+}
+
+/* the gold button for Send request, in the same gold as the University's account */
 .si__primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 48px;
+  height: 50px;
   padding: 0 20px;
   border: 0;
   border-radius: var(--si-r);
-  background: linear-gradient(180deg, #ffd65e, var(--ust-gold) 56%, #eeaa00);
-  color: #1d1d1f;
+  background: linear-gradient(180deg, #ffe08c 0%, #fdc93c 40%, #f4b30d 74%, #e2a000 100%);
+  color: #1a1408;
   font-size: 15px;
   font-weight: 700;
-  cursor: pointer;
+  text-shadow: none;
+  cursor: var(--cursor-pointer);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.55),
-    0 12px 28px -14px rgb(252 191 21 / 0.7);
+    inset 0 1px 0 rgb(255 250 230 / 0.75),
+    inset 0 -1px 0 rgb(122 82 0 / 0.38),
+    0 12px 26px -14px rgb(214 150 0 / 0.6);
   transition:
-    filter 220ms ease,
-    transform 320ms var(--ease-out),
-    opacity 220ms ease;
+    filter var(--t) var(--ease-out),
+    transform 420ms var(--ease-out),
+    opacity var(--t) var(--ease-out);
   --focus: #fff;
 }
 @media (hover: hover) {
   .si__primary:hover:not(:disabled) {
-    filter: brightness(1.05);
+    filter: brightness(1.04);
     transform: translateY(-1px);
   }
 }
+.si__primary:active:not(:disabled) {
+  transform: scale(0.985);
+}
 .si__primary:disabled {
   opacity: 0.38;
-  cursor: default;
+  cursor: var(--cursor-default);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4);
 }
-/* the card's last row, under a hairline */
+/* the signed-in step's last row, under a hairline */
 .si__foot {
   display: flex;
   flex-wrap: wrap;
@@ -649,9 +831,9 @@ body:has(> .signin) {
   gap: 6px 12px;
   margin-top: 4px;
   padding-top: 16px;
-  border-top: 1px solid rgb(var(--veil) / 0.07);
+  border-top: 1px solid rgb(var(--veil) / 0.08);
   font-size: 13.5px;
-  color: var(--text-3);
+  color: rgb(var(--label) / 0.52);
 }
 .si__link {
   display: inline-flex;
@@ -664,11 +846,12 @@ body:has(> .signin) {
   color: var(--text);
   font-size: 13.5px;
   font-weight: 700;
-  cursor: pointer;
-  transition: color var(--t) ease;
+  text-shadow: none;
+  cursor: var(--cursor-pointer);
+  transition: color var(--t) var(--ease-out);
 }
 .si__link svg {
-  transition: transform 320ms var(--ease-out);
+  transition: transform 420ms var(--ease-out);
 }
 @media (hover: hover) {
   .si__link:hover {
@@ -678,267 +861,12 @@ body:has(> .signin) {
     transform: translateX(2px);
   }
 }
-.si__notice,
-.si__error {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0;
-  padding: 11px 14px;
-  border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.05);
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--text-2);
-}
-.si__notice svg,
-.si__error svg {
-  flex: none;
-  margin-top: 2px;
-}
-.si__error {
-  background: var(--danger-bg);
-  color: var(--danger);
-}
-.si__demo {
-  align-self: center;
-  padding: 6px 14px;
-  border-radius: var(--si-r-sm);
-  background: var(--gold-wash);
-  box-shadow: inset 0 0 0 1px rgb(252 191 21 / 0.16);
-  font-size: 12.5px;
-  color: var(--gold-ink);
-}
-.si__demo b {
-  margin-left: 4px;
-  font-weight: 700;
-  color: var(--hi);
-}
-
-/* the account chooser */
-.si__search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 16px;
-  border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.06);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.07);
-  color: var(--text-3);
-  transition: box-shadow var(--t) ease;
-}
-.si__search:focus-within {
-  box-shadow:
-    inset 0 0 0 1px rgb(252 191 21 / 0.6),
-    0 0 0 4px rgb(252 191 21 / 0.14);
-}
-.si__search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: none;
-  color: var(--text);
-  font-size: 14px;
-}
-.si__search input::placeholder {
-  color: rgb(var(--label) / 0.4);
-}
-.si__search input:focus {
-  outline: none;
-}
-.si__accounts {
-  display: grid;
-  gap: 14px;
-  max-height: min(44vh, 440px);
-  overflow-y: auto;
-  margin-right: -8px;
-  padding: 2px 6px 2px 0;
-}
-.si__accounts[aria-busy="true"] {
-  opacity: 0.6;
-}
-.si__accounts ul {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.si__group {
-  margin: 0 0 6px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-3);
-}
-.si__account {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: var(--si-r);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--t) ease;
-}
-.si__chev {
-  color: var(--text-3);
-  opacity: 0;
-  transition:
-    opacity var(--t) ease,
-    transform 320ms var(--ease-out);
-}
-@media (hover: hover) {
-  .si__account:hover:not(:disabled) {
-    background: rgb(var(--veil) / 0.06);
-  }
-  .si__account:hover:not(:disabled) .si__chev {
-    opacity: 1;
-    transform: translateX(2px);
-  }
-}
-.si__avatar {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: linear-gradient(150deg, #ffe08a, var(--ust-gold) 70%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
-  color: #3b2c00;
-  font-size: 13.5px;
-  font-weight: 700;
-}
-.si__who {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.si__who b {
-  overflow: hidden;
-  font-size: 14.5px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.si__who span {
-  overflow: hidden;
-  font-size: 12.5px;
-  color: var(--text-3);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.si__status {
-  padding: 3px 9px;
-  border-radius: var(--si-r-sm);
-  font-size: 11.5px;
-  font-weight: 700;
-  background: var(--missing-bg);
-  color: var(--missing);
-}
-.si__status.is-suspended {
-  background: var(--revise-bg);
-  color: var(--revise);
-}
-.si__status.is-pending {
-  background: var(--review-bg);
-  color: var(--review);
-}
-.si__status.is-guest {
-  background: var(--gold-wash);
-  color: var(--gold-ink);
-}
-.si__empty {
-  padding: 8px 10px;
-  font-size: 13px;
-  color: var(--text-3);
-}
-
-/* the second factor: who is signing in, then six cells over one real field */
-.si__person {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.06);
-}
-.si__code {
-  display: grid;
-  gap: 12px;
-}
-.si__otp {
-  position: relative;
-  display: block;
-  cursor: text;
-}
-.si__otp input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: none;
-  color: transparent;
-  caret-color: transparent;
-  font-size: 16px;
-  opacity: 0;
-}
-.si__cells {
-  display: flex;
-  gap: 8px;
-}
-.si__cell {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  height: 56px;
-  border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.05);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.1);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--hi);
-  font-variant-numeric: tabular-nums;
-  transition:
-    background-color var(--t) ease,
-    box-shadow var(--t) ease;
-}
-.si__cell:nth-child(4) {
-  margin-left: 8px;
-}
-.si__cell.is-filled {
-  background: rgb(var(--veil) / 0.08);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.16);
-}
-.si__cell.is-active {
-  box-shadow:
-    inset 0 0 0 1.5px rgb(252 191 21 / 0.85),
-    0 0 0 4px rgb(252 191 21 / 0.14);
-}
-.si__cell.is-active:empty::after {
-  content: "";
-  width: 2px;
-  height: 24px;
-  border-radius: 1px;
-  background: var(--ust-gold);
-}
-.si__otp input:disabled + .si__cells {
-  opacity: 0.45;
-}
 
 /* a request sent */
 .si__done {
   display: grid;
   justify-items: start;
-  gap: 12px;
+  gap: 14px;
   padding: 2px 0 4px;
 }
 .si__done-mark {
@@ -947,84 +875,743 @@ body:has(> .signin) {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--ok-bg);
-  color: var(--ok);
+  background: rgb(243 210 122 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(243 210 122 / 0.3);
+  color: #f3d27a;
 }
 .si__done p {
   font-size: 14.5px;
-  line-height: 1.5;
-  color: var(--text-2);
+  line-height: 1.55;
+  color: rgb(var(--label) / 0.75);
 }
+/* the request's reference code, under the confirmation */
+.si__ref {
+  display: grid;
+  gap: 4px;
+}
+.si__done .si__ref span {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--label) / 0.5);
+}
+.si__ref b {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  color: var(--gold-ink);
+}
+.si__done .si__primary {
+  margin-top: 6px;
+}
+
+/* "Already submitted your request?": the tracker's way in, under the password note */
+.si__note--track {
+  margin-top: -6px;
+}
+.si__link--inline {
+  display: inline;
+  font-size: inherit;
+  color: var(--gold-ink);
+  text-decoration: underline;
+  text-decoration-color: rgb(247 207 94 / 0.4);
+  text-underline-offset: 3px;
+}
+@media (hover: hover) {
+  .si__link--inline:hover {
+    color: #ffe39a;
+    text-decoration-color: currentColor;
+  }
+}
+.si__code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Submission Tracker ---------- */
+.si-track__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgb(var(--veil) / 0.08);
+}
+.si-track__ref {
+  display: grid;
+  gap: 2px;
+}
+.si-track__ref small {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--label) / 0.5);
+}
+.si-track__ref b {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--gold-ink);
+}
+.si-track__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgb(var(--label) / 0.62);
+}
+.si-track__live small {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--label) / 0.45);
+}
+.si-track__live i {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(var(--label) / 0.4);
+}
+.si-track__live.is-on i {
+  background: var(--ok);
+  box-shadow: 0 0 8px rgb(98 210 127 / 0.6);
+}
+
+/* the vertical progress bar: a dot per stage, joined by a rail that fills in gold as the request moves */
+.si-track {
+  --dot: 28px;
+  display: grid;
+  gap: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.si-track__stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--dot) minmax(0, 1fr);
+  gap: 16px;
+  padding-bottom: 22px;
+}
+.si-track__stage:last-child {
+  padding-bottom: 0;
+}
+/* the rail from this dot to the next, and its gold fill */
+.si-track__stage:not(:last-child)::before,
+.si-track__stage:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--dot) + 4px);
+  bottom: 4px;
+  left: calc(var(--dot) / 2 - 1px);
+  width: 2px;
+  border-radius: 2px;
+}
+.si-track__stage::before {
+  background: rgb(var(--veil) / 0.1);
+}
+.si-track__stage::after {
+  background: linear-gradient(180deg, #ffe08c, #e2a000);
+  box-shadow: 0 0 10px rgb(252 191 21 / 0.35);
+  transform: scaleY(0);
+  transform-origin: top;
+}
+.si-track__stage[data-on]::after {
+  transform: scaleY(1);
+}
+.si-track__dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+  background: rgb(8 7 6 / 0.4);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--veil) / 0.16);
+  color: #1a1408;
+  transition:
+    background 500ms var(--ease-out),
+    box-shadow 500ms var(--ease-out);
+}
+.si-track__stage.is-done .si-track__dot {
+  background: linear-gradient(180deg, #ffe08c 0%, #fdc93c 45%, #e2a000 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 250 230 / 0.7),
+    0 6px 16px -8px rgb(214 150 0 / 0.7);
+}
+.si-track__stage.is-current .si-track__dot {
+  background: rgb(252 191 21 / 0.08);
+  box-shadow: inset 0 0 0 1.5px #f3c94f;
+}
+/* the stage the request is at: a gold heart, breathing (below) */
+.si-track__stage.is-current .si-track__dot::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fdc93c;
+  box-shadow: 0 0 10px rgb(252 191 21 / 0.7);
+}
+.si-track__stage.is-stopped .si-track__dot {
+  background: var(--danger-bg);
+  box-shadow: inset 0 0 0 1.5px rgb(255 128 128 / 0.7);
+  color: var(--danger);
+}
+.si-track__body {
+  display: grid;
+  gap: 3px;
+  min-height: var(--dot);
+  align-content: start;
+  padding-top: 4px;
+}
+.si-track__body b {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.si-track__stage.is-upcoming .si-track__body b {
+  font-weight: 400;
+  color: rgb(var(--label) / 0.45);
+}
+.si-track__stage.is-stopped .si-track__body b {
+  color: var(--danger);
+}
+.si-track__body time {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--label) / 0.5);
+}
+.si-track__body p {
+  margin-top: 2px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgb(var(--label) / 0.72);
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .si-track__stage.is-current .si-track__dot::before {
+    animation: si-track-beat 2.2s ease-in-out infinite;
+  }
+  .si-track__stage.is-current .si-track__dot::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px rgb(243 201 79 / 0.6);
+    animation: si-track-ring 2.2s var(--ease-out) infinite;
+  }
+  .si-track__live.is-on i::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--ok);
+    animation: si-track-ring 2s var(--ease-out) infinite;
+  }
+  /* each segment fills in turn, on arrival and again when a poll moves the request on */
+  .si-track__stage[data-on]::after {
+    animation: si-track-fill 900ms var(--ease-out) calc(var(--i, 0) * 260ms + 250ms) both;
+  }
+}
+@keyframes si-track-fill {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes si-track-beat {
+  50% {
+    transform: scale(0.72);
+    opacity: 0.75;
+  }
+}
+@keyframes si-track-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
 .si__form {
   display: grid;
-  gap: 12px;
+  gap: 24px;
+}
+.si__form .field {
+  gap: 10px;
+}
+.signin:has(.si[data-step="request"]) .signin__display {
+  margin-bottom: 32px;
+  white-space: nowrap;
+}
+.signin:has(.si[data-step="request"]) .signin__row {
+  display: inline-block;
+  vertical-align: bottom;
 }
 .si__pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 10px;
+  gap: 24px 18px;
 }
 .si__form .textarea {
-  min-height: 76px;
+  min-height: 80px;
 }
 .si__form .si__primary {
-  margin-top: 4px;
+  margin-top: 12px;
 }
 
-/* fields on the glass */
-.signin :is(.input, .select, .textarea) {
-  height: 44px;
-  border-color: rgb(var(--veil) / 0.12);
+/* Request access in steps (RequestAccessForm): numbered steps over a hairline that fills in gold */
+.si-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.si-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 2px solid rgb(var(--veil) / 0.1);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgb(var(--label) / 0.45);
+  transition:
+    border-color 320ms var(--ease-out),
+    color 320ms var(--ease-out);
+}
+.si-steps li:is(.is-current, .is-done) {
+  border-top-color: #e7c46c;
+  color: rgb(var(--label) / 0.9);
+}
+.si-steps__n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.16);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.si-steps .is-current .si-steps__n {
+  box-shadow: inset 0 0 0 1px rgb(243 210 122 / 0.6);
+  color: #f3d27a;
+}
+.si-steps .is-done .si-steps__n {
+  background: #e7c46c;
+  box-shadow: none;
+  color: #1a1408;
+}
+.si-steps__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Back beside Continue; the first step has Continue alone */
+.si__nav {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+.si__form .si__nav .si__primary {
+  flex: 1;
+  margin-top: 0;
+}
+.si__secondary {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 50px;
+  padding: 0 18px;
+  border: 0;
   border-radius: var(--si-r);
-  background-color: rgb(var(--veil) / 0.05);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.025));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--veil) / 0.11),
+    inset 0 1px 0 rgb(255 255 255 / 0.07);
+  color: rgb(var(--label) / 0.9);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color var(--t) var(--ease-out),
+    color var(--t) var(--ease-out),
+    transform 420ms var(--ease-out);
+}
+@media (hover: hover) {
+  .si__secondary:hover:not(:disabled) {
+    background-color: rgb(var(--veil) / 0.06);
+    color: var(--hi);
+  }
+}
+.si__secondary:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.si__secondary:disabled {
+  opacity: 0.38;
+  cursor: var(--cursor-default);
+}
+
+/* the declarations: a native checkbox in gold beside each statement */
+.si__declare {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.si__declare legend {
+  margin-bottom: 4px;
+  padding: 0;
+}
+.si__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--si-r);
+  background: rgb(8 7 6 / 0.34);
+  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.11);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgb(var(--label) / 0.78);
+  cursor: var(--cursor-pointer);
+  transition:
+    box-shadow var(--t) var(--ease-out),
+    color var(--t) var(--ease-out);
+}
+.si__check:has(input:checked) {
+  box-shadow: inset 0 0 0 1px rgb(243 210 122 / 0.4);
+  color: rgb(var(--label) / 0.95);
+}
+.si__check:has(input:focus-visible) {
+  box-shadow: inset 0 0 0 2px #f3d27a;
+}
+.si__check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #e7c46c;
+  cursor: var(--cursor-pointer);
+}
+/* an unticked declaration on a failed submit: a red edge, and room after the box for the warning sign */
+.si__check:has(input[data-invalid]) {
+  box-shadow: inset 0 0 0 1px rgb(255 128 112 / 0.7);
+}
+.si__check input[data-invalid] {
+  margin-right: 18px;
+}
+.si__check a {
+  color: var(--gold-ink);
+  text-decoration: underline;
+  text-decoration-color: rgb(247 207 94 / 0.4);
+  text-underline-offset: 3px;
+}
+@media (hover: hover) {
+  .si__check:hover:not(:has(input:checked)) {
+    box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.2);
+  }
+  .si__check a:hover {
+    color: #ffe39a;
+    text-decoration-color: currentColor;
+  }
+}
+
+/* the receipt: what was received, its reference, date and tracker link on one well, then the way back */
+.si__receipt {
+  display: grid;
+  gap: 20px;
+}
+.si__receipt-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.si__receipt-head .si__done-mark {
+  flex: none;
+}
+.si__receipt-head .si__title {
+  outline: none;
+}
+.si__receipt-head .si__sub {
+  margin-top: 4px;
+}
+.si__receipt-list {
+  display: grid;
+  margin: 0;
+  border-radius: var(--si-r);
+  background: rgb(8 7 6 / 0.34);
+  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.11);
+}
+.si__receipt-list > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+}
+.si__receipt-list > div + div {
+  border-top: 1px solid rgb(var(--veil) / 0.08);
+}
+.si__receipt-list dt {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--label) / 0.5);
+}
+.si__receipt-list dd {
+  margin: 0;
+  font-size: 14.5px;
+  color: rgb(var(--label) / 0.9);
+}
+.si__receipt-list .si__receipt-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  color: var(--gold-ink);
+}
+.si__receipt-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.si__receipt-link a {
+  min-width: 0;
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+.si__copy {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--si-r-sm);
+  background: rgb(var(--veil) / 0.05);
+  color: rgb(var(--label) / 0.75);
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color var(--t) var(--ease-out),
+    color var(--t) var(--ease-out);
+}
+@media (hover: hover) {
+  .si__copy:hover {
+    background: rgb(var(--veil) / 0.1);
+    color: var(--hi);
+  }
+}
+.si__receipt .si__note {
+  margin-top: -6px;
+}
+.si__receipt .si__note b {
+  color: rgb(var(--label) / 0.85);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* fields on the glass: a darker well with a hairline, gilt when focused */
+.signin :is(.input, .select, .textarea) {
+  height: 46px;
+  border-color: rgb(var(--veil) / 0.11);
+  border-radius: var(--si-r);
+  background-color: rgb(8 7 6 / 0.34);
   color: var(--text);
+  text-shadow: none;
+  transition:
+    border-color var(--t) var(--ease-out),
+    box-shadow var(--t) var(--ease-out),
+    background-color var(--t) var(--ease-out);
 }
 .signin .textarea {
   height: auto;
 }
 .signin :is(.input, .textarea)::placeholder {
-  color: rgb(var(--label) / 0.38);
+  color: rgb(var(--label) / 0.36);
 }
 .signin .field__label {
-  color: var(--text-2);
+  font-size: 12.5px;
+  color: rgb(var(--label) / 0.75);
 }
 .signin .select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
-.signin .select option {
-  background: #1c1c1e;
-  color: #f5f5f7;
+
+/* The affiliation (AffiliationField): the field, a check or an Others tag at its end once the list closes,
+   and the suggestions below it (or above, near the foot of the screen) on dark glass, the matched part in
+   gold, the marked one lit, and the requester's own words last, under Others. It sits above the fields
+   after it, so its list covers them. */
+.si__combo {
+  position: relative;
+  z-index: 5;
+}
+.si__combo-box {
+  position: relative;
+}
+.si__combo .input {
+  padding-right: 38px;
+}
+.si__combo .input.has-tag {
+  padding-right: 116px;
+}
+.si__combo-box > .si__combo-tag {
+  position: absolute;
+  top: 50%;
+  right: 44px;
+  translate: 0 -50%;
+  pointer-events: none;
+}
+.si__combo-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--si-r-sm);
+  background: transparent;
+  color: rgb(var(--label) / 0.7);
+  cursor: var(--cursor-pointer);
+}
+.si__combo-clear:hover,
+.si__combo-clear:focus-visible {
+  background: rgb(243 210 122 / 0.11);
+  color: var(--hi);
+}
+.si__combo-clear:focus-visible {
+  outline: 2px solid #f0cf7a;
+  outline-offset: -2px;
+}
+.si__combo-tag {
+  flex: none;
+  padding: 2px 6px 1px;
+  border-radius: 4px;
+  background: rgb(243 210 122 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(243 210 122 / 0.32);
+  color: #f0cf7a;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.si__combo-list {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  border: 0;
+  color: var(--text);
+  max-height: 248px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border-radius: var(--si-r);
+  background: linear-gradient(180deg, #1c1813, #100e0b);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--veil) / 0.1),
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 26px 50px -18px rgb(0 0 0 / 0.85);
+  text-shadow: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+  animation: si-pop 260ms var(--ease-out) both;
+}
+.si__combo-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--si-r-sm);
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: rgb(var(--label) / 0.82);
+  cursor: var(--cursor-pointer);
+}
+.si__combo-option[aria-selected="true"],
+.si__combo-option.is-selected {
+  background: rgb(243 210 122 / 0.11);
+  color: var(--hi);
+}
+.si__combo-option > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.si__combo-option mark {
+  background: none;
+  color: #f3d27a;
+  font-weight: 700;
+}
+.si__combo-option--others {
+  margin-top: 4px;
+  border-top: 1px solid rgb(var(--veil) / 0.08);
+  border-radius: 0 0 var(--si-r-sm) var(--si-r-sm);
+}
+.si__combo-option--others:first-child {
+  margin-top: 0;
+  border-top: 0;
+  border-radius: var(--si-r-sm);
+}
+.si__combo-option--others b {
+  color: var(--hi);
+  font-weight: 700;
 }
 @media (hover: hover) {
   .signin :is(.input, .select, .textarea):hover {
-    border-color: rgb(var(--veil) / 0.22);
+    border-color: rgb(var(--veil) / 0.2);
   }
 }
 .signin :is(.input, .select, .textarea):focus {
-  border-color: rgb(252 191 21 / 0.7);
-  box-shadow: 0 0 0 4px rgb(252 191 21 / 0.14);
+  border-color: rgb(240 200 100 / 0.75);
+  background-color: rgb(8 7 6 / 0.48);
+  box-shadow: 0 0 0 3px rgb(252 191 21 / 0.12);
 }
 
-/* signed in already: the workspaces open from here */
+/* signed in already: the workspaces open from here, as rows like the ways in (a tile, the words, an arrow) */
 .signin__choices {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 .signin__choice {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  padding: 14px 16px;
+  padding: 10px 14px 10px 10px;
   border-radius: var(--si-r);
-  background: rgb(var(--veil) / 0.06);
-  box-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.07);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.025));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--veil) / 0.11),
+    inset 0 1px 0 rgb(255 255 255 / 0.07);
   color: var(--text);
   text-decoration: none;
+  text-shadow: none;
   transition:
-    transform 320ms var(--ease-out),
-    background-color 220ms ease,
-    filter 220ms ease;
+    transform 420ms var(--ease-out),
+    box-shadow var(--t) var(--ease-out),
+    filter var(--t) var(--ease-out);
 }
 .signin__choice b {
   display: block;
@@ -1036,7 +1623,7 @@ body:has(> .signin) {
   margin-top: 2px;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--text-2);
+  color: rgb(var(--label) / 0.62);
 }
 .signin__icon {
   display: grid;
@@ -1044,38 +1631,61 @@ body:has(> .signin) {
   width: 42px;
   height: 42px;
   border-radius: var(--si-r-sm);
-  background: rgb(var(--veil) / 0.08);
-  color: var(--ust-gold);
+  background: rgb(243 210 122 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(243 210 122 / 0.24);
+  color: #f0cf7a;
 }
 .signin__choice > svg {
-  transition: transform 320ms var(--ease-out);
+  color: rgb(var(--label) / 0.6);
+  transition: transform 420ms var(--ease-out);
 }
 .signin__choice--gold {
-  background: linear-gradient(150deg, #ffd65c, var(--ust-gold) 55%, #eaa900);
+  background: linear-gradient(180deg, #ffe08c 0%, #fdc93c 40%, #f4b30d 74%, #e2a000 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.45),
-    0 12px 30px -14px rgb(252 191 21 / 0.6);
-  color: #1d1d1f;
+    inset 0 1px 0 rgb(255 250 230 / 0.75),
+    inset 0 -1px 0 rgb(122 82 0 / 0.38),
+    0 0 0 3px rgb(12 10 7 / 0.5),
+    0 0 0 4px rgb(243 210 122 / 0.22),
+    0 14px 30px -14px rgb(214 150 0 / 0.6);
+  color: #1a1408;
   --focus: #fff;
 }
+.signin__choice--gold:focus-visible {
+  outline-offset: 6px;
+}
 .signin__choice--gold > span:nth-child(2) > span {
-  color: rgb(29 29 31 / 0.74);
+  color: rgb(26 20 8 / 0.72);
 }
 .signin__choice--gold .signin__icon {
-  background: rgb(29 29 31 / 0.12);
-  color: #1d1d1f;
+  background: rgb(26 20 8 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(26 20 8 / 0.12);
+  color: #1a1408;
+}
+.signin__choice--gold > svg {
+  color: #1a1408;
 }
 @media (hover: hover) {
   .signin__choice:hover {
-    transform: translateY(-2px);
-    background-color: rgb(var(--veil) / 0.09);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 0 0 1px rgb(var(--veil) / 0.2),
+      inset 0 1px 0 rgb(255 255 255 / 0.1);
   }
   .signin__choice--gold:hover {
-    filter: brightness(1.05);
+    filter: brightness(1.03);
+    box-shadow:
+      inset 0 1px 0 rgb(255 250 230 / 0.8),
+      inset 0 -1px 0 rgb(122 82 0 / 0.38),
+      0 0 0 3px rgb(12 10 7 / 0.5),
+      0 0 0 4px rgb(243 210 122 / 0.36),
+      0 20px 38px -16px rgb(214 150 0 / 0.75);
   }
   .signin__choice:hover > svg {
     transform: translateX(3px);
   }
+}
+.signin__choice:active {
+  transform: scale(0.99);
 }
 
 /* ---------- Scene ---------- */
@@ -1085,11 +1695,9 @@ body:has(> .signin) {
   --th: calc(var(--tw) * 2 / 3);
   --tx: 25vw;
   --sink: 5vh;
-  /* the band group: its centre at mid-height, but never so far left that the metal along its left edge crosses
-     the Hub's name (whose foot stands some 12.2vh + 208px down and whose second line is 336px long; the edge
-     stands 15.8vw left of the centre and climbs to the right at tan 30.5°), its tilt (it is mirrored, so it
-     leans to the right), the widths of its bands */
-  --bx: max(43vw, calc(var(--pad-l) + 15.8vw - 22.3vh + 497px));
+  /* the band group: its centre at mid-height, its tilt (it is mirrored, so it leans to the right), the widths
+     of its bands */
+  --bx: 43vw;
   --tilt: 30.5deg;
   --bw-dots: 7vw;
   --bw-dark: 6.7vw;
@@ -1104,14 +1712,15 @@ body:has(> .signin) {
   overflow: hidden;
   contain: strict;
   pointer-events: none;
-  /* where the moon stands (.sx__moon) and the sun (.sx__sun), as shares of the scene, and their sizes;
-     SceneLight lights the facets by them */
-  --moon-x: 86%;
-  --moon-y: 17%;
-  --moon: clamp(44px, 4vw, 76px);
-  --sun-x: 84%;
-  --sun-y: 17%;
-  --sun: clamp(46px, 4.2vw, 80px);
+  /* where the moon stands (.sx__moon), and its size: over the building's left wing,
+     in line with the University's name, midway between its foot (the seal's, as .signin__university sets it)
+     and the wing's roofline (0.471 of --th up from the foot of the render), and never more than 45% of that
+     gap across, so it never touches them; SceneLight lights the facets by it */
+  --orb-top: calc(var(--edge) + clamp(48px, 5vw, 60px));
+  --orb-gap: calc(105vh - var(--th) * 0.471 - var(--orb-top));
+  --moon-x: calc(var(--pad-l) + 6vw);
+  --moon-y: calc(var(--orb-top) + var(--orb-gap) / 2);
+  --moon: min(clamp(44px, 4vw, 76px), var(--orb-gap) * 0.45);
   /* the warm black night under the faceted sky (SceneLight draws the facets over it): a faint bloom of
      moonlight, and the campus's amber low behind the building */
   background:
@@ -1119,8 +1728,9 @@ body:has(> .signin) {
     radial-gradient(80% 40% at 26% 100%, rgb(110 70 24 / 0.2), transparent 72%),
     linear-gradient(180deg, #050403 0%, #070605 45%, #0b0806 75%, #0f0b07 100%);
 }
-/* the sky's edges fall away, and it darkens under the words: the Hub's name at the upper left, the form at the
-   right, below the moon; a fine grain keeps the dark from banding */
+/* the sky's edges fall away, and it darkens under the words: a deep vignette in the upper left corner behind
+   the University's name (user, 2026-10-24: so the lockup reads), and the form at the right; a fine grain keeps
+   the dark from banding */
 .sx::after {
   content: "";
   position: absolute;
@@ -1128,12 +1738,13 @@ body:has(> .signin) {
   z-index: 8;
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .055 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(52% 58% at 0% 0%, rgb(3 3 2 / 0.6), rgb(3 3 2 / 0.2) 62%, transparent),
+    radial-gradient(36% 26% at 0% 0%, rgb(3 3 2 / 0.86), rgb(3 3 2 / 0.6) 38%, rgb(3 3 2 / 0.22) 70%, transparent),
+    radial-gradient(52% 40% at 0% 0%, rgb(3 3 2 / 0.4), transparent 80%),
     radial-gradient(44% 52% at 100% 68%, rgb(3 3 2 / 0.5), rgb(3 3 2 / 0.14) 64%, transparent),
     radial-gradient(130% 110% at 38% 42%, transparent 52%, rgb(0 0 0 / 0.6));
 }
 
-/* the faceted sky with its stars or its clouds (SceneLight), on a canvas a little larger than the screen, so
+/* the faceted sky with its stars (SceneLight), on a canvas a little larger than the screen, so
    its slow drift never shows an edge; it assembles itself as the canvases light up */
 .sx__sky {
   position: absolute;
@@ -1179,48 +1790,6 @@ body:has(> .signin) {
     0 0 calc(var(--moon) * 0.16) rgb(255 234 190 / 0.18);
 }
 
-/* The sun, by day, where the moon stands by night: a white-hot disc with a warm limb in a close glow; ::before
-   is its wide bloom, a little warm, and ::after a faint corona of fine rays that turns very slowly. */
-.sx__sun {
-  position: absolute;
-  left: calc(var(--sun-x) - var(--sun) / 2);
-  top: calc(var(--sun-y) - var(--sun) / 2);
-  width: var(--sun);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  translate: calc(var(--mx) * -3px) calc(var(--my) * -2px);
-  background: radial-gradient(closest-side, #fffffc 0 70%, #fffaf0 86%, rgb(255 246 222 / 0.9));
-  box-shadow:
-    0 0 calc(var(--sun) * 0.45) calc(var(--sun) * 0.14) rgb(255 253 245 / 0.95),
-    0 0 calc(var(--sun) * 1.5) calc(var(--sun) * 0.45) rgb(255 242 204 / 0.5),
-    0 0 calc(var(--sun) * 3.2) calc(var(--sun) * 0.8) rgb(255 232 180 / 0.24);
-}
-.sx__sun::before {
-  content: "";
-  position: absolute;
-  inset: -460%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(255 253 244 / 0.85), rgb(255 246 220 / 0.45) 12%, rgb(255 236 196 / 0.16) 32%, transparent 68%);
-}
-.sx__sun::after {
-  content: "";
-  position: absolute;
-  inset: -240%;
-  border-radius: 50%;
-  background: repeating-conic-gradient(rgb(255 252 238 / 0.3) 0deg, transparent 2.2deg 9.8deg, rgb(255 252 238 / 0.3) 12deg);
-  -webkit-mask: radial-gradient(closest-side, transparent 21%, #000 27%, rgb(0 0 0 / 0.3) 58%, transparent 96%);
-  mask: radial-gradient(closest-side, transparent 21%, #000 27%, rgb(0 0 0 / 0.3) 58%, transparent 96%);
-}
-/* one orb and one pair of renders at a time: the night's unless the sky is day */
-.sx__sun,
-.sx__art--day,
-.signin[data-sky="day"] :is(.sx__moon, .sx__art--night) {
-  display: none;
-}
-.signin[data-sky="day"] :is(.sx__sun, .sx__art--day) {
-  display: block;
-}
-
 /* the air over the campus: a low, warm haze of its lights along the roofline that sets the building off the sky */
 .sx__horizon {
   position: absolute;
@@ -1232,22 +1801,6 @@ body:has(> .signin) {
   background:
     radial-gradient(closest-side, rgb(150 104 40 / 0.13), rgb(110 74 28 / 0.05) 55%, transparent),
     radial-gradient(60% 34% at 45% 78%, rgb(190 140 70 / 0.06), transparent 80%);
-}
-
-/* the glow of dawn or dusk along the horizon below the orbs, where they set and rise: seen only in the
-   time-lapse (below), warm gold toward day and amber toward night */
-.sx__dusk {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background:
-    radial-gradient(46% 40% at var(--sun-x) 64%, rgb(255 190 116 / 0.7), rgb(255 146 104 / 0.26) 46%, transparent 76%),
-    linear-gradient(to top, transparent 6%, rgb(255 168 104 / 0.24) 32%, transparent 64%);
-}
-:root.is-dusk .sx__dusk {
-  background:
-    radial-gradient(46% 40% at var(--sun-x) 64%, rgb(255 150 64 / 0.7), rgb(226 84 56 / 0.28) 46%, transparent 76%),
-    linear-gradient(to top, transparent 6%, rgb(240 116 56 / 0.26) 32%, transparent 64%);
 }
 
 /* the band group, mirrored left for right (SceneLight undoes it to find the pointer on the dots) */
@@ -1435,23 +1988,19 @@ body:has(> .signin) {
 .sx.is-lit .sx__lights {
   opacity: 1;
 }
-/* the clock's hands, over the render's face (which leaves them out): dark iron on the glowing face by night,
-   on the pale face by day; SceneMotion turns them */
+/* the clock's hands, over the render's face (which leaves them out): dark iron on the glowing face;
+   SceneMotion turns them */
 .sx__clock {
   position: absolute;
   overflow: visible;
   fill: #241a12;
 }
-.signin[data-sky="day"] .sx__clock {
-  fill: #2c2824;
-}
 
 .sx__monument {
   position: absolute;
   /* before the building's right wing, but on a narrow screen never so far right that the raised hand goes
-     behind the card (whose left edge is --pad-l + 436px in from the right; the hand is about 0.17 of --th
-     right of the middle) */
-  left: min(calc(var(--tx) + var(--tw) * 0.215), calc(100% - var(--pad-l) - 470px - var(--th) * 0.169));
+     behind the sidebar (--side wide; the hand is about 0.17 of --th right of the middle) */
+  left: min(calc(var(--tx) + var(--tw) * 0.215), calc(100% - var(--side) - 34px - var(--th) * 0.169));
   bottom: calc(var(--sink) * -0.55);
   height: calc(var(--th) * 0.6);
   aspect-ratio: 615 / 874;
@@ -1467,7 +2016,7 @@ body:has(> .signin) {
   bottom: 0;
   left: 0;
   z-index: 9;
-  width: clamp(6px, 0.8vw, 14px);
+  width: var(--rail);
   overflow: hidden;
   background: linear-gradient(180deg, #ffd04a, var(--ust-gold) 40%, #e6a400);
   transform-origin: top;
@@ -1481,188 +2030,6 @@ body:has(> .signin) {
   height: 22%;
   background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.75), transparent);
   transform: translateY(-110%);
-}
-
-/* ---------- Day ---------- */
-/* From sunrise to sunset (sky.ts) the page turns light: an ivory ground, ink type, the form on white glass with
-   the same gilt rim and beam, and deeper golds that read on it. The controls follow through --veil, --label
-   and --hi; the rest is set here. */
-html:has(body > .signin[data-sky="day"]),
-body:has(> .signin[data-sky="day"]) {
-  background: #f3efe6;
-  color-scheme: light;
-  scrollbar-color: rgb(0 0 0 / 0.2) transparent;
-}
-.signin[data-sky="day"] {
-  --text: #1d1d1f;
-  --text-2: rgb(60 60 67 / 0.8);
-  --text-3: rgb(60 60 67 / 0.58);
-  --border: rgb(0 0 0 / 0.1);
-  --border-strong: rgb(0 0 0 / 0.16);
-  --surface: rgb(255 255 255 / 0.62);
-  --surface-2: rgb(255 255 255 / 0.8);
-  --hair: 0 0 0;
-  --veil: 29 29 31;
-  --label: 60 60 67;
-  --hi: #1d1d1f;
-  --ink: #1d1d1f;
-  --on-ink: #fff;
-  --n-300: rgb(0 0 0 / 0.22);
-  --n-500: rgb(0 0 0 / 0.5);
-  --focus: #b07d00;
-  --danger: #c8001a;
-  --danger-bg: rgb(200 0 26 / 0.08);
-  --ok: #1d7a36;
-  --ok-bg: rgb(29 122 54 / 0.1);
-  --review: #0062c4;
-  --review-bg: rgb(0 98 196 / 0.09);
-  --revise: #a84b00;
-  --revise-bg: rgb(168 75 0 / 0.09);
-  --missing: #6e6e73;
-  --missing-bg: rgb(0 0 0 / 0.05);
-  --gold-wash: rgb(252 191 21 / 0.18);
-  --gold-ink: #7a5900;
-  background: #f3efe6;
-  color-scheme: light;
-}
-.signin[data-sky="day"] ::selection {
-  background: rgb(252 191 21 / 0.45);
-  color: #1d1d1f;
-}
-/* Match the seal to the sky, including when the viewer toggles it. */
-.signin[data-sky="day"] .signin__seal--night {
-  visibility: hidden;
-}
-.signin[data-sky="day"] .signin__seal--day {
-  visibility: visible;
-}
-.signin[data-sky="day"] .signin__row--gold > span {
-  background-image: linear-gradient(100deg, #8a6100 0%, #b07c00 30%, #cf9a0c 58%, #a87400 100%);
-}
-/* white glass, the gilt rim brighter at its corners, a soft warm shadow under it */
-.signin[data-sky="day"] .signin__card {
-  background:
-    radial-gradient(90% 60% at 0% 0%, rgb(252 191 21 / 0.1), transparent 60%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 252 246 / 0.64));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    0 60px 110px -50px rgb(92 64 20 / 0.42),
-    0 22px 44px -26px rgb(92 64 20 / 0.3);
-}
-.signin[data-sky="day"] .signin__card::after {
-  background: linear-gradient(155deg, rgb(214 158 20 / 0.85), rgb(255 255 255 / 0.85) 30%, rgb(214 186 120 / 0.35) 64%, rgb(214 158 20 / 0.6));
-}
-.signin[data-sky="day"] .signin__beam {
-  filter: drop-shadow(0 0 4px rgb(240 176 30 / calc(var(--bk) * 0.9))) drop-shadow(0 0 16px rgb(252 191 21 / calc(var(--bk) * 0.6)));
-}
-.signin[data-sky="day"] .signin__beam::before {
-  background: radial-gradient(
-    calc(118px + var(--bk) * 64px) circle at var(--bx) var(--by),
-    rgb(236 168 10 / 0.95),
-    rgb(252 191 21 / 0.4) 56%,
-    transparent
-  );
-}
-.signin[data-sky="day"] .signin__beam::after {
-  background: radial-gradient(72px circle at var(--bx) var(--by), #fff3c4, rgb(255 206 70 / 0.8) 40%, transparent);
-}
-.signin[data-sky="day"] .si-demo::before {
-  background: linear-gradient(90deg, transparent, rgb(230 165 20 / 0.9), transparent);
-}
-.signin[data-sky="day"] .si-demo::backdrop {
-  background: rgb(236 230 218 / 0.5);
-}
-/* the controls on white glass: white fields, a dark focus ring on the gold buttons */
-.signin[data-sky="day"] :is(.si__google, .si__primary, .signin__choice--gold) {
-  --focus: #1d1d1f;
-}
-.signin[data-sky="day"] .si__alt {
-  background: rgb(255 255 255 / 0.5);
-}
-.signin[data-sky="day"] :is(.input, .select, .textarea, .si__search, .si__cell) {
-  background-color: rgb(255 255 255 / 0.72);
-}
-.signin[data-sky="day"] .si__cell.is-filled {
-  background-color: rgb(255 255 255 / 0.92);
-}
-.signin[data-sky="day"] .select option {
-  background: #fff;
-  color: #1d1d1f;
-}
-@media (hover: hover) {
-  .signin[data-sky="day"] .si__alt:hover {
-    background: rgb(255 255 255 / 0.85);
-  }
-}
-.signin[data-sky="day"] .signin__legal {
-  background: rgb(255 255 255 / 0.62);
-  box-shadow:
-    inset 0 0 0 1px rgb(0 0 0 / 0.06),
-    0 10px 30px -14px rgb(80 56 20 / 0.3);
-}
-.signin[data-sky="day"] .signin__legal a {
-  color: rgb(60 60 67 / 0.82);
-}
-.signin[data-sky="day"] .signin__sky {
-  color: #b07d00;
-}
-
-/* the scene by day: the sky's own colours under the facets, bluer overhead and warm low down, in the sun's bloom */
-.signin[data-sky="day"] .sx {
-  background:
-    radial-gradient(circle at var(--sun-x) var(--sun-y), rgb(255 250 234 / 0.9), rgb(255 242 210 / 0.4) 9vw, transparent 34vw),
-    radial-gradient(80% 42% at 26% 100%, rgb(255 238 206 / 0.55), transparent 72%),
-    linear-gradient(180deg, #7ea4c9 0%, #a0c0dc 30%, #cbd8df 58%, #e9e5d8 80%, #f3e9d4 100%);
-}
-/* an ivory wash under the words instead of the night's shade, a faint warm fall-off, and a fine dark grain */
-.signin[data-sky="day"] .sx::after {
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .16 0 0 0 0 .1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(54% 60% at 0% 0%, rgb(246 242 233 / 0.92), rgb(246 242 233 / 0.5) 52%, transparent),
-    radial-gradient(44% 52% at 100% 68%, rgb(246 242 233 / 0.6), rgb(246 242 233 / 0.16) 64%, transparent),
-    radial-gradient(130% 110% at 38% 42%, transparent 62%, rgb(70 90 120 / 0.08));
-}
-/* the haze over the roofline is the day's own, pale and warm */
-.signin[data-sky="day"] .sx__horizon {
-  background:
-    radial-gradient(closest-side, rgb(255 247 228 / 0.5), rgb(255 240 214 / 0.18) 55%, transparent),
-    radial-gradient(60% 34% at 45% 78%, rgb(255 250 236 / 0.3), transparent 80%);
-}
-/* the bands in the sun: the hairlines in a deeper gold with a closer glow, the dark band turned to pale glass,
-   the cut between gold and silver a shadow, and the metal standing a little off the sky */
-.signin[data-sky="day"] .sx__line {
-  background: linear-gradient(to bottom, transparent 8%, #e7a91c 24%, #fff3cc 44%, #f0b52a 60%, #c7860c 76%, transparent 92%);
-  box-shadow:
-    0 0 4px 1px rgb(236 168 20 / 0.55),
-    0 0 18px 2px rgb(255 196 60 / 0.3);
-}
-.signin[data-sky="day"] .sx__edge {
-  background: linear-gradient(to bottom, transparent 10%, #e0a018 30%, #ffd66e 52%, #d48f10 72%, transparent 90%);
-  box-shadow:
-    0 0 4px 1px rgb(236 168 20 / 0.5),
-    0 0 16px 2px rgb(255 196 60 / 0.26);
-}
-.signin[data-sky="day"] .sx__dark {
-  background: linear-gradient(90deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.22) 70%, rgb(255 222 140 / 0.26));
-}
-.signin[data-sky="day"] .sx__gap {
-  background: rgb(46 34 18 / 0.72);
-  box-shadow: 0 0 14px 2px rgb(60 40 10 / 0.18);
-}
-.signin[data-sky="day"] .sx__gold {
-  box-shadow:
-    inset 1px 0 0 rgb(255 236 170 / 0.85),
-    inset -1px 0 0 rgb(255 214 110 / 0.4),
-    0 0 36px rgb(130 90 20 / 0.2);
-}
-.signin[data-sky="day"] .sx__silver {
-  box-shadow:
-    inset 1px 0 0 rgb(255 255 255 / 0.9),
-    0 0 30px rgb(60 70 90 / 0.16);
-}
-/* the bronze in the sun: a fine bright rim and a soft shadow on the building behind */
-.signin[data-sky="day"] .sx__monument {
-  filter: drop-shadow(0 0 1px rgb(255 246 222 / 0.6)) drop-shadow(0 22px 30px rgb(70 50 20 / 0.3));
 }
 
 /* ---------- Motion ---------- */
@@ -1679,33 +2046,6 @@ body:has(> .signin[data-sky="day"]) {
     animation:
       sx-fade 3s ease 1.3s both,
       sx-halo 9s ease-in-out 4.3s infinite alternate;
-  }
-  /* the sun rises a little and opens its bloom; the bloom breathes and the corona turns */
-  .sx__sun {
-    animation: sx-sun 2.8s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
-  }
-  .sx__sun::before {
-    animation:
-      sx-fade 3s ease 1.1s both,
-      sx-bloom 8s ease-in-out 4.1s infinite alternate;
-  }
-  .sx__sun::after {
-    animation:
-      sx-fade 3.4s ease 1.6s both,
-      sx-turn 240s linear infinite;
-  }
-  /* once the sky has turned, the orb that comes stands in its place at once (the time-lapse brought it) */
-  .sx.is-turned :is(.sx__moon, .sx__sun) {
-    animation: none;
-  }
-  .sx.is-turned .sx__moon::before {
-    animation: sx-halo 9s ease-in-out infinite alternate;
-  }
-  .sx.is-turned .sx__sun::before {
-    animation: sx-bloom 8s ease-in-out infinite alternate;
-  }
-  .sx.is-turned .sx__sun::after {
-    animation: sx-turn 240s linear infinite;
   }
   .sx__rail {
     animation: sx-rail 1.1s cubic-bezier(0.65, 0, 0.35, 1) both;
@@ -1784,17 +2124,72 @@ body:has(> .signin[data-sky="day"]) {
     animation-delay: 0.36s;
   }
   .signin__card {
-    animation: sx-card 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+    animation: sx-side 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
   }
-  .signin__foot,
+  /* the sheen on the glass drifts slowly across and back */
+  .signin__card::before {
+    animation: si-glass 16s ease-in-out 1.6s infinite alternate;
+  }
+  .signin__lens[data-on] {
+    animation: sx-fade 1.2s ease 1.2s both;
+  }
   .signin__legal {
     animation: sx-fade 1.4s ease 1s both;
   }
-  .si {
-    animation: si-in 0.5s var(--ease-out) both;
+  /* inside the sidebar, after it slides in: the gold mark drawing out, the Hub's name a line at a time (above),
+     then the step's parts one after another, each rising out of a soft blur; the foot last.
+     Moving between steps runs the step's parts again at once (SignInFlow sets data-moved), and a request
+     form's fields follow one another */
+  .signin__mark::before {
+    animation: si-rise 0.9s var(--ease-out) 0.55s both;
   }
-  .si__cell.is-active:empty::after {
-    animation: si-caret 1.05s steps(1) infinite;
+  .signin__mark::after {
+    animation: si-draw 1.1s var(--ease-out) 0.7s both;
+  }
+  .si > * {
+    animation: si-rise 0.9s var(--ease-out) calc(0.85s + var(--n, 4) * 90ms) both;
+  }
+  .si > :nth-child(1) {
+    --n: 0;
+  }
+  .si > :nth-child(2) {
+    --n: 1;
+  }
+  .si > :nth-child(3) {
+    --n: 2;
+  }
+  .si > :nth-child(4) {
+    --n: 3;
+  }
+  .si[data-moved] > * {
+    animation-delay: calc(var(--n, 4) * 70ms);
+  }
+  .si__form > * {
+    animation: si-rise 0.8s var(--ease-out) calc(0.1s + var(--m, 6) * 50ms) both;
+  }
+  .si__form > :nth-child(1) {
+    --m: 0;
+  }
+  .si__form > :nth-child(2) {
+    --m: 1;
+  }
+  .si__form > :nth-child(3) {
+    --m: 2;
+  }
+  .si__form > :nth-child(4) {
+    --m: 3;
+  }
+  .si__form > :nth-child(5) {
+    --m: 4;
+  }
+  .si__form > :nth-child(6) {
+    --m: 5;
+  }
+  .signin__foot {
+    animation: si-rise 1s var(--ease-out) 1.35s both;
+  }
+  .signin__live::after {
+    animation: si-pulse 2.4s var(--ease-out) 2s infinite;
   }
 }
 
@@ -1814,10 +2209,21 @@ body:has(> .signin[data-sky="day"]) {
     transform: translateY(105%);
   }
 }
-@keyframes sx-card {
+@keyframes sx-side {
   from {
     opacity: 0;
-    transform: translateY(22px) scale(0.985);
+    transform: translateX(48px);
+  }
+}
+@keyframes si-glass {
+  to {
+    background-position: 0 0, 0 0, 0% 0;
+  }
+}
+@keyframes sx-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
   }
 }
 @keyframes sx-rail {
@@ -1867,23 +2273,6 @@ body:has(> .signin[data-sky="day"]) {
   to {
     opacity: 0.78;
     scale: 1.06;
-  }
-}
-@keyframes sx-sun {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.86);
-  }
-}
-@keyframes sx-bloom {
-  to {
-    opacity: 0.8;
-    scale: 1.08;
-  }
-}
-@keyframes sx-turn {
-  to {
-    rotate: 1turn;
   }
 }
 
@@ -1944,15 +2333,33 @@ body:has(> .signin[data-sky="day"]) {
     opacity: 0;
   }
 }
-@keyframes si-in {
+@keyframes si-rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(14px);
+    filter: blur(6px);
   }
 }
-@keyframes si-caret {
-  50% {
+@keyframes si-pop {
+  from {
     opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes si-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes si-pulse {
+  0% {
+    opacity: 0.9;
+    scale: 0.6;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    scale: 1.9;
   }
 }
 @keyframes si-spin {
@@ -1976,134 +2383,21 @@ body:has(> .signin[data-sky="day"]) {
     opacity: 1;
     transition: none;
   }
-  .signin__sky svg {
-    transition: none;
-  }
-}
-
-/* ---------- The time-lapse ---------- */
-/* When the sky turns (SceneMotion, a view transition of --lapse seconds), time runs fast. The moon or the sun
-   goes down along a curve to the horizon at the right, a little larger as it nears it, and fades into the haze;
-   a warm glow of dawn or dusk swells along the horizon; the rest of the page cross-fades in the middle; and the
-   other orb comes up out of the haze, slowing into its place. Meanwhile the new sky runs fast (SceneLight:
-   clouds race, stars trail) and the clock's hands whirl through twelve hours. The orbs, the glow and the
-   clock are lifted out of the page's cross-fade for it: --lapse-drop and --lapse-drift are how far down and
-   right the orbs travel. */
-:root.is-lapse .sx__dusk {
-  view-transition-name: sx-dusk;
-}
-:root.is-lapse .sx__moon {
-  view-transition-name: sx-moon;
-}
-:root.is-lapse .sx__sun {
-  view-transition-name: sx-sun;
-}
-:root.is-lapse .sx__clock {
-  view-transition-name: sx-clock;
-}
-:root.is-lapse::view-transition-old(root),
-:root.is-lapse::view-transition-new(root) {
-  animation-duration: calc(var(--lapse) * 0.42);
-  animation-delay: calc(var(--lapse) * 0.3);
-  animation-timing-function: ease-in-out;
-  animation-fill-mode: both;
-}
-/* the orbs move as wholes; the glow and the clock show only as they are now, live */
-:root.is-lapse::view-transition-old(sx-moon),
-:root.is-lapse::view-transition-new(sx-moon),
-:root.is-lapse::view-transition-old(sx-sun),
-:root.is-lapse::view-transition-new(sx-sun),
-:root.is-lapse::view-transition-group(sx-dusk),
-:root.is-lapse::view-transition-new(sx-dusk),
-:root.is-lapse::view-transition-group(sx-clock),
-:root.is-lapse::view-transition-new(sx-clock) {
-  animation: none;
-}
-:root.is-lapse::view-transition-old(sx-dusk),
-:root.is-lapse::view-transition-old(sx-clock) {
-  display: none;
-}
-/* the moon on the move gives light only: its dark side, opaque when it stands still, would read as an eclipse
-   against the glow. (On the group: each image pair is isolated, so a blend there would reach nothing.) */
-:root.is-lapse::view-transition-group(sx-moon) {
-  mix-blend-mode: screen;
-}
-/* the orb going down: across to the right (its group) and down (its image pair), each eased its own way, so it
-   falls along a curve */
-:root.is-dawn::view-transition-group(sx-moon),
-:root.is-dusk::view-transition-group(sx-sun) {
-  animation: sx-set-across calc(var(--lapse) * 0.55) cubic-bezier(0.6, 0, 0.9, 0.5) both;
-}
-:root.is-dawn::view-transition-image-pair(sx-moon),
-:root.is-dusk::view-transition-image-pair(sx-sun) {
-  animation: sx-set-down calc(var(--lapse) * 0.55) cubic-bezier(0.45, 0, 0.7, 0.45) both;
-}
-/* the setting sun reddens */
-:root.is-dusk::view-transition-old(sx-sun) {
-  animation: sx-redden calc(var(--lapse) * 0.55) ease-in both;
-}
-/* the orb coming up out of the haze, slowing into its place */
-:root.is-dawn::view-transition-group(sx-sun),
-:root.is-dusk::view-transition-group(sx-moon) {
-  animation: sx-rise-across calc(var(--lapse) * 0.58) cubic-bezier(0.1, 0.5, 0.4, 1) calc(var(--lapse) * 0.42) both;
-}
-:root.is-dawn::view-transition-image-pair(sx-sun),
-:root.is-dusk::view-transition-image-pair(sx-moon) {
-  animation: sx-rise-up calc(var(--lapse) * 0.58) cubic-bezier(0.25, 0.55, 0.4, 1) calc(var(--lapse) * 0.42) both;
-}
-/* the glow of dawn or dusk swells as one orb goes down and fades as the other comes up */
-.sx.is-lapsing .sx__dusk {
-  animation: sx-dusk var(--lapse) ease-in-out both;
-}
-@keyframes sx-set-across {
-  62% {
-    opacity: 1;
-  }
-  to {
-    translate: var(--lapse-drift) 0;
-    opacity: 0;
-  }
-}
-@keyframes sx-set-down {
-  to {
-    translate: 0 var(--lapse-drop);
-    scale: 1.12;
-  }
-}
-@keyframes sx-redden {
-  to {
-    filter: sepia(0.5) saturate(2.2) hue-rotate(-14deg) brightness(1.05);
-  }
-}
-@keyframes sx-rise-across {
-  from {
-    translate: var(--lapse-drift) 0;
-    opacity: 0;
-  }
-  32% {
-    opacity: 1;
-  }
-}
-@keyframes sx-rise-up {
-  from {
-    translate: 0 var(--lapse-drop);
-    scale: 1.12;
-  }
-}
-@keyframes sx-dusk {
-  45% {
-    opacity: 1;
+  .si__combo-list {
+    animation: none;
   }
 }
 
 /* ---------- Phone and narrow windows ---------- */
-/* The scene becomes a poster above the words: the bands cross it from the upper right, the moon or the sun
+/* The scene becomes a poster above the words: the bands cross it from the upper right, the moon
    stands clear of them at the upper left, the building and the monument stand at its foot, and it fades to
    night where the words begin. */
 @media (max-width: 860px) {
   .signin {
     --pad-l: clamp(18px, 5vw, 40px);
     --scene-h: clamp(360px, 50svh, 560px);
+    display: flex;
+    flex-direction: column;
   }
   .sx {
     --tw: calc(var(--scene-h) * 1.47);
@@ -2111,7 +2405,8 @@ body:has(> .signin[data-sky="day"]) {
     --sink: calc(var(--scene-h) * 0.03);
     --bx: 60vw;
     --moon-x: 14%;
-    --sun-x: 16%;
+    --moon-y: 17%;
+    --moon: clamp(44px, 4vw, 76px);
     --bw-dots: 13vw;
     --bw-dark: 11vw;
     --bw-gold: 14vw;
@@ -2128,11 +2423,6 @@ body:has(> .signin[data-sky="day"]) {
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .055 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"),
       radial-gradient(130% 110% at 38% 42%, transparent 58%, rgb(0 0 0 / 0.45));
   }
-  .signin[data-sky="day"] .sx::after {
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .16 0 0 0 0 .1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"),
-      radial-gradient(130% 110% at 38% 42%, transparent 62%, rgb(110 84 40 / 0.08));
-  }
   /* the building may be narrower than the screen: both its ends fade */
   .sx__town {
     -webkit-mask-image: linear-gradient(270deg, transparent 4%, #000 26%, #000 84%, transparent);
@@ -2141,30 +2431,48 @@ body:has(> .signin[data-sky="day"]) {
   .sx__monument {
     left: calc(var(--tx) + var(--tw) * 0.235);
   }
-  
-  
   .signin__col {
-    width: 100%;
-    padding: calc(var(--scene-h) - 36px) var(--pad-l) 28px;
+    padding: calc(var(--scene-h) - 60px) var(--pad-l) 0;
   }
-  .signin__display {
-    font-size: clamp(1.8rem, 1rem + 3.6vw, 2.7rem);
+  .signin .signin__display {
+    font-size: clamp(2.2rem, 1.3rem + 4vw, 3rem);
   }
-  .signin__university {
-    top: -24px;
-  }
+  /* the sidebar becomes a sheet under the poster, its seam along the top */
   .signin__card {
-    align-self: auto;
-    width: 100%;
-    max-width: 560px;
-    padding: 24px 20px 18px;
+    --seam: 1px 0 0;
+    flex: 1;
+    justify-content: flex-start;
+    min-height: 0;
+    margin-top: clamp(20px, 3vh, 28px);
+    padding: 28px max(var(--pad-l), (100% - 560px) / 2) 20px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      inset 0 14px 22px -14px rgb(255 246 226 / 0.14),
+      0 -40px 80px -40px rgb(0 0 0 / 0.8);
+  }
+  .signin__lens[data-on] {
+    display: none;
+  }
+  .signin__card::after {
+    background: linear-gradient(90deg, rgb(255 214 110 / 0.08), rgb(255 214 110 / 0.5) 36%, rgb(252 191 21 / 0.24) 74%, rgb(255 214 110 / 0.06));
+  }
+  .signin__beam {
+    --bx: 39%;
+    --by: 0px;
+  }
+  .signin__side {
+    max-width: none;
+    margin: 0 0 28px;
+    padding: 0;
   }
   .signin__foot {
-    align-self: auto;
-    width: auto;
+    max-width: none;
+    margin-top: auto;
   }
-  .signin__col {
-    min-height: 0;
+  @media (prefers-reduced-motion: no-preference) {
+    .signin__card {
+      animation-name: sx-sheet;
+    }
   }
   .signin__legal {
     position: static;
@@ -2186,25 +2494,79 @@ body:has(> .signin[data-sky="day"]) {
   .signin {
     --pad-l: 16px;
   }
-  .signin__card {
-    padding: 22px 16px 16px;
-  }
   .si__google {
     gap: 10px;
-    font-size: 15px;
   }
-  .si__cells {
-    gap: 6px;
-  }
-  .si__cell {
-    height: 50px;
-  }
-  .si__cell:nth-child(4) {
-    margin-left: 4px;
+}
+/* the narrowest phones: the account button's words keep to one line */
+@media (max-width: 380px) {
+  .si__google,
+  .si__alt {
+    font-size: 14px;
   }
 }
 @media (max-width: 350px) {
   .si__pair {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A typed birthday and the existing calendar share one field. */
+.si__birthday {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.si__birthday > input {
+  width: 100%;
+  padding-right: 44px;
+}
+.signin .si__birthday-calendar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.si__birthday-calendar .pick-trigger__label {
+  display: none;
+}
+
+/* Reveal optional verification only after an unlisted affiliation loses focus. */
+.si__form > .si__verification {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-block: -12px;
+  opacity: 0;
+  visibility: hidden;
+  animation: none;
+  transition: grid-template-rows 240ms ease, opacity 180ms ease, visibility 0s 240ms;
+}
+.si__form > .si__verification[data-visible="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 280ms ease, opacity 220ms ease 40ms, visibility 0s;
+}
+.si__verification-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.si__verification .field {
+  padding-block: 12px;
+  transform: translateY(-6px);
+  transition: transform 240ms ease;
+}
+.si__verification[data-visible="true"] .field {
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .si__form > .si__verification,
+  .si__verification .field {
+    transition: none;
   }
 }

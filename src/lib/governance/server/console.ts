@@ -4,21 +4,22 @@ import "server-only";
  * Shapes the governance store for the Administration console, section by section, according to what
  * the viewer may see.
  */
-import { DICTIONARY, RANKINGS, UNITS as PARTICIPATION } from "@/lib/data";
-import { BODY_OF_FAMILY } from "../catalog";
+import { DICTIONARY, RANKINGS } from "@/lib/data";
+import { participationKind } from "../directory";
+import { BODY_OF_FAMILY, ROLES } from "../catalog";
 import type { AccountRow, Attention, ConsoleData, DatasetRow, DuplicateRow, Health, RequestRow, RoleRow, TermRow, UnitRow } from "../console-types";
-import { actorFor, decisionBlock, makeCtx } from "../engine";
+import { actorFor, decisionBlock, makeCtx, needsApproval } from "../engine";
 import { daysSince, isInactive, keyOverdue, lastActivity, mfaRequired, rankingActive, rankingPublic, recordReach, workspacesOf } from "../derive";
 import { findDuplicates, qualityScore, runRules } from "../quality";
-import { canWith, grantCheck, grantsFor, rolePermissions, today, type Grant } from "../rbac";
+import { grantCheck, grantsFor, today, UNIVERSITY, unitScope, type Grant } from "../rbac";
 import { evidenceList, storyList } from "../records";
 import type { Classification, GovernanceState } from "../types";
-import type { Viewer } from "../viewer";
+import { viewerCan as can, type Viewer } from "../viewer";
+import { adminShortcut } from "./dev-access";
 import { readState } from "./store";
 
-const can = (v: Viewer, m: Parameters<typeof canWith>[1], a: Parameters<typeof canWith>[2], t: Parameters<typeof canWith>[3] = {}) => v.superAdmin || canWith(v.grants, m, a, t);
-
-export function consoleData(viewer: Viewer, state: GovernanceState = readState()): ConsoleData {
+export async function consoleData(viewer: Viewer, given?: GovernanceState): Promise<ConsoleData> {
+  const state = given ?? (await readState());
   const now = new Date();
   const day = today(now);
   const nameOf = (id: string) => (id === "system" ? "Hub automation" : id === "guest" ? "Access request form" : state.accounts.find((a) => a.id === id)?.name ?? id);
@@ -29,7 +30,7 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
   const stories = storyList(state);
 
   /* Accounts */
-  const grantsOf = new Map<string, Grant[]>(state.accounts.map((a) => [a.id, grantsFor(a, state.roles, state.units, day)]));
+  const grantsOf = new Map<string, Grant[]>(state.accounts.map((a) => [a.id, grantsFor(a, state.units, day)]));
   const accountReach = (unitId: string) => can(viewer, "accounts", "view", { unitId });
   const accounts: AccountRow[] | undefined = viewer.admin.includes("accounts")
     ? state.accounts
@@ -39,13 +40,12 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
           const sessions = state.sessions.filter((s) => s.accountId === a.id);
           return {
             ...a,
-            tier: g.reduce((n, x) => Math.max(n, x.tier), 0),
             inactive: isInactive(a, state.security.inactivityDays, now),
             idleDays: daysSince(lastActivity(a), now),
             sessions: sessions.length,
             lastSeen: sessions.map((s) => s.lastSeen).sort().at(-1),
             workspaces: workspacesOf(g),
-            canEdit: a.id !== viewer.id && can(viewer, "accounts", "edit", { unitId: a.unitId }) && (viewer.superAdmin || g.reduce((n, x) => Math.max(n, x.tier), 0) <= viewer.tier),
+            canEdit: a.id !== viewer.id && can(viewer, "accounts", "edit", { unitId: a.unitId }),
             mfaRequired: mfaRequired(state, g),
             roleNames: [...new Set(g.map((x) => x.roleName))],
           };
@@ -53,23 +53,21 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
     : undefined;
 
   /* Roles */
-  const roles: RoleRow[] = state.roles.map((r) => ({
+  const roles: RoleRow[] = ROLES.map((r) => ({
     ...r,
-    effective: rolePermissions(r.id, state.roles),
     members: state.accounts.filter((a) => a.status !== "Deactivated" && a.assignments.some((x) => x.roleId === r.id && (!x.expires || x.expires > day))).length,
-    canEdit: !r.system && can(viewer, "roles", "edit") && (viewer.superAdmin || r.tier <= viewer.tier),
-    grantable: viewer.superAdmin || grantCheck(viewer.grants, r, state.roles, { units: [viewer.portal.unitId], rankingBodies: "all", years: "all", datasets: "all" }, state.units).ok || grantCheck(viewer.grants, r, state.roles, { units: "all", rankingBodies: "all", years: "all", datasets: "all" }, state.units).ok,
+    grantable: [unitScope(viewer.portal.unitId), UNIVERSITY].some((scope) => grantCheck(viewer.grants, r, scope, state.units).ok),
   }));
 
   /* Directory */
-  const participating = new Set(PARTICIPATION.map((u) => u.slug));
+  const participating = new Set(state.units.filter((unit) => participationKind(unit)).map((unit) => unit.id));
   const units: UnitRow[] = state.units.map((u) => {
     const reach = recordReach(state.units, u.id);
     return {
       ...u,
       accounts: state.accounts.filter((a) => a.unitId === u.id && a.status !== "Deactivated").length,
       records: evidence.filter((e) => reach.includes(e.programId ?? e.unitSlug)).length,
-      participating: participating.has(u.id),
+      participating: !!participationKind(u),
       canEdit: can(viewer, "directory", "edit", { unitId: u.id }),
       canManage: can(viewer, "directory", "manage", { unitId: u.id }),
     };
@@ -103,7 +101,7 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
     : undefined;
 
   /* Workflows */
-  const ctx = makeCtx(state, actor, now);
+  const ctx = makeCtx(state, actor, now, await adminShortcut());
   const requests: RequestRow[] = state.requests
     .filter((r) => can(viewer, "workflows", "view") || r.requesterId === viewer.id)
     .map((r) => {
@@ -120,6 +118,7 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
         overdue: r.status === "Pending" && r.due < day,
         mine: r.requesterId === viewer.id,
         decisions: r.decisions.map((d) => ({ ...d, by: nameOf(d.by) })),
+        ...(r.reviewing ? { reviewing: { ...r.reviewing, by: nameOf(r.reviewing.by) } } : {}),
       };
     });
 
@@ -178,7 +177,6 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
       temporary: state.accounts.filter((a) => a.assignments.some((x) => x.expires && x.expires > day)).length,
     },
     sessions: state.sessions.length,
-    roles: { system: state.roles.filter((r) => r.system).length, custom: state.roles.filter((r) => !r.system).length },
     units: { active: state.units.filter((u) => u.status === "Active").length, archived: state.units.filter((u) => u.status === "Archived").length, participating: participating.size },
     datasets: classes,
     alertsOpen,
@@ -207,8 +205,7 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
     viewer,
     health,
     accounts,
-    roles: viewer.admin.includes("roles") || viewer.admin.includes("accounts") ? roles : roles.map((r) => ({ ...r, permissions: {}, exceptions: undefined, effective: {} })),
-    templates: state.templates,
+    roles,
     units,
     datasets,
     rules: governance ? results : undefined,
@@ -217,6 +214,7 @@ export function consoleData(viewer: Viewer, state: GovernanceState = readState()
     security: viewer.admin.includes("security") ? state.security : undefined,
     audit,
     workflows: state.workflows,
+    approvals: state.workflows.filter((w) => needsApproval(ctx, w.id)).map((w) => w.id),
     requests,
     config: viewer.admin.includes("config")
       ? {

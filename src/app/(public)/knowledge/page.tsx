@@ -8,8 +8,8 @@ export const metadata = {
   description: "Ranking methodologies in plain language, a searchable indicator dictionary and the evidence standards UST applies.",
 };
 
-export default function PublicKnowledge() {
+export default async function PublicKnowledge() {
   // System Configuration can switch this public section off.
-  if (!siteData().features.knowledge) notFound();
+  if (!(await siteData()).features.knowledge) notFound();
   return <KnowledgePage />;
 }

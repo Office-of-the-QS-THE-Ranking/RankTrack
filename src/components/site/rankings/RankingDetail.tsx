@@ -9,7 +9,7 @@ import {
   SDG_TILES,
   SUBJECT_AREAS,
   SUBJECT_PORTFOLIO,
-  WURI_CATEGORIES,
+  WURI_PLACEMENTS,
   inkOn,
   type Ranking,
 } from "@/lib/data";
@@ -22,12 +22,20 @@ import { Spark, Trajectory } from "./Trajectory";
 
 const FOCUS_TITLE: Record<string, string> = {
   "the-impact": "The SDGs UST was rated on",
-  wuri: "Top 100 in twelve categories",
+  wuri: "Top 100 categories",
   "the-subject": "Subjects ranked and rising",
   "qs-subject": "Subjects ranked and rising",
   "qs-sustainability": "Three lenses, weighted",
   greenmetric: "Six parts of campus life",
 };
+
+/** Whether a ranking's focus section has anything to show yet: the pillars and parts are the method's own, the rest is UST's. */
+function hasFocus(r: Ranking) {
+  if (r.slug === "the-impact") return SDG_TILES.some((t) => t.submittedForRating);
+  if (r.slug === "wuri") return WURI_PLACEMENTS.length > 0;
+  if (r.slug === "the-subject" || r.slug === "qs-subject") return SUBJECT_PORTFOLIO.some((q) => q.subjects.length);
+  return r.slug in FOCUS_TITLE;
+}
 
 function Focus({ r }: { r: Ranking }): ReactNode {
   if (r.slug === "the-impact") {
@@ -55,14 +63,14 @@ function Focus({ r }: { r: Ranking }): ReactNode {
     return (
       <>
         <ul className="w-cats">
-          {WURI_CATEGORIES.map((c, i) => (
+          {WURI_PLACEMENTS.map((c, i) => (
             <li key={c} data-reveal style={{ ["--d" as string]: `${(i % 4) * 60}ms` }}>
               <i className="w-dot" aria-hidden="true" />
               {c}
             </li>
           ))}
         </ul>
-        <p className="w-focus__note">Category names are listed for review; the Office confirms them against the official result letter.</p>
+        <p className="w-focus__note">As confirmed in the official result letter.</p>
       </>
     );
   }
@@ -124,9 +132,9 @@ function Focus({ r }: { r: Ranking }): ReactNode {
 }
 
 /** One ranking: the published result, its trajectory, what it measures and the Thomasian work behind it. */
-export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
+export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
   // Siblings, neighbours and stories are limited to what the public website may show.
-  const { rankings: RANKINGS, bodies: BODIES, stories: PUBLISHED_STORIES } = siteData();
+  const { rankings: RANKINGS, bodies: BODIES, stories: PUBLISHED_STORIES } = await siteData();
   const body = BODIES.find((b) => b.rankings.some((x) => x.slug === r.slug))!;
   const siblings = body.rankings.filter((x) => x.slug !== r.slug);
   const stories = PUBLISHED_STORIES.filter((s) => s.rankings.includes(r.short));
@@ -134,13 +142,15 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
   const prev = RANKINGS[(at - 1 + RANKINGS.length) % RANKINGS.length];
   const next = RANKINGS[(at + 1) % RANKINGS.length];
   const res = splitResult(r.current);
-  const focus = FOCUS_TITLE[r.slug];
+  const result = !!r.current;
+  const focus = hasFocus(r) ? FOCUS_TITLE[r.slug] : undefined;
+  const highlights = r.strengths.length > 0;
 
   const tabs = [
-    { id: "trajectory", label: "Five editions" },
+    ...(r.history.length ? [{ id: "trajectory", label: "Five editions" }] : []),
     { id: "measures", label: "What it measures" },
     ...(focus ? [{ id: "focus", label: focus.split(",")[0] }] : []),
-    { id: "highlights", label: "Highlights" },
+    ...(highlights ? [{ id: "highlights", label: "Highlights" }] : []),
     { id: "method", label: "Method" },
     ...(stories.length ? [{ id: "stories", label: "Stories" }] : []),
     { id: "related", label: "Related rankings" },
@@ -153,7 +163,7 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
         title={r.name}
         lead={
           <p>
-            Published by {body.name}. {r.publicNote}
+            Published by {body.name}. {result ? r.publicNote : "The Office posts UST's result here once the ranking body publishes it."}
           </p>
         }
         actions={
@@ -166,20 +176,26 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
             </Link>
           </>
         }
-        figure={{
-          label: res.label,
-          value: res.value,
-          note: (
-            <>
-              {LATEST_EDITION} edition
-              <br />
-              {movement(r)}
-            </>
-          ),
-        }}
+        photo={result ? undefined : RANKING_PHOTO[r.slug]}
+        figure={
+          result
+            ? {
+                label: res.label,
+                value: res.value,
+                note: (
+                  <>
+                    {LATEST_EDITION} edition
+                    <br />
+                    {movement(r)}
+                  </>
+                ),
+              }
+            : undefined
+        }
       />
       <PageTabs items={tabs} label="On this page" />
 
+      {r.history.length > 0 && (
       <section id="trajectory" className="w-band w-band--stone" aria-labelledby="traj-title">
         <div className="w-wrap">
           <div className="w-intro w-grid">
@@ -195,6 +211,7 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
           </div>
         </div>
       </section>
+      )}
 
       <section id="measures" className="w-section w-wrap" aria-labelledby="measures-title">
         <div className="w-intro w-grid">
@@ -251,6 +268,7 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
         </section>
       )}
 
+      {highlights && (
       <section id="highlights" className="w-band w-band--gold" aria-labelledby="hl-title">
         <div className="w-wrap w-grid w-hl">
           <h2 id="hl-title" className="w-head w-hl__title" data-reveal>
@@ -277,6 +295,7 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
           </div>
         </div>
       </section>
+      )}
 
       <section id="method" className="w-section w-wrap" aria-labelledby="method-title">
         <h2 id="method-title" className="w-head w-rows__title" data-reveal>
@@ -328,7 +347,7 @@ export function RankingDetail({ ranking: r }: { ranking: Ranking }) {
                     <span className="w-storyrow__title">{s.title}</span>
                     <span className="w-storyrow__unit">{s.unit}</span>
                     <span className="w-storyrow__fig">
-                      <b className="w-figure">{s.outcomeFigure}</b> {s.outcomeLabel}
+                      {s.outcomeFigure && <b className="w-figure">{s.outcomeFigure}</b>} {s.outcomeLabel}
                     </span>
                   </Link>
                 </li>

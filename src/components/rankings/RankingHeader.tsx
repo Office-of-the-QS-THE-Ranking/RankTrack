@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import {
   ACTIONS,
-  AS_OF_LABEL,
   EVIDENCE,
   FAMILY,
   LATEST_EDITION,
   daysUntil,
+  formatAsOf,
   formatDate,
   groupOf,
   readinessLevel,
@@ -34,7 +34,7 @@ export function nextAction(r: Ranking) {
   return ind ? { action: ind.actions[0], unit: ind.owner, due: undefined } : null;
 }
 
-export function RankingHeader({ ranking: r, actions }: { ranking: Ranking; actions?: ReactNode }) {
+export function RankingHeader({ ranking: r, actions, asOf }: { ranking: Ranking; actions?: ReactNode; asOf?: string }) {
   const fam = FAMILY[r.family];
   const days = daysUntil(r.deadline);
   const lvl = readinessLevel(r.readiness);
@@ -57,7 +57,7 @@ export function RankingHeader({ ranking: r, actions }: { ranking: Ranking; actio
         <dl className="rhead__facts">
           <div>
             <dt>Target</dt>
-            <dd className="num">{r.target}</dd>
+            <dd className="num">{r.target || <span className="muted">Not set</span>}</dd>
           </div>
           <div>
             <dt>Next submission deadline</dt>
@@ -79,7 +79,7 @@ export function RankingHeader({ ranking: r, actions }: { ranking: Ranking; actio
           <div>
             <dt>Data last updated</dt>
             <dd>
-              {AS_OF_LABEL}
+              {r.current && asOf ? formatAsOf(asOf) : "No data yet"}
               <span className="muted"> · {r.reportingPeriod.split(";")[0]}</span>
             </dd>
           </div>
@@ -107,10 +107,8 @@ export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { rank
     <section className="fq" aria-label="Five questions">
       <div className="fq__cell">
         <p className="fq__q">Where is UST now?</p>
-        <p className="fq__big">{r.current}</p>
-        <p className="fq__note">
-          {r.short}, {LATEST_EDITION} edition
-        </p>
+        <p className="fq__big">{r.current || "—"}</p>
+        <p className="fq__note">{r.current ? `${r.short}, ${LATEST_EDITION} edition` : "No result recorded yet"}</p>
       </div>
       <div className="fq__cell">
         <p className="fq__q">What changed?</p>
@@ -118,7 +116,7 @@ export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { rank
           <Direction dir={r.direction} />
         </p>
         <p className="fq__note">
-          {r.direction === "new" ? "Building a first ranked entry" : <>From {r.previous} in the previous edition</>}
+          {r.direction === "new" ? "Building a first ranked entry" : r.direction === "none" ? "Nothing to compare yet" : <>From {r.previous} in the previous edition</>}
         </p>
       </div>
       <div className="fq__cell fq__cell--wide">
@@ -132,8 +130,8 @@ export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { rank
               </span>
               <span className="row nowrap" style={{ ["--gap" as string]: "10px" } as CSSProperties}>
                 <span className="num small">
-                  {i.current}
-                  <span className="muted"> / {i.target}</span>
+                  {i.current ?? "—"}
+                  <span className="muted"> / {i.target ?? "—"}</span>
                 </span>
                 <Trend trend={i.trend} />
               </span>
@@ -204,15 +202,15 @@ export function PublicRankingHeader({ ranking: r }: { ranking: Ranking }) {
       <div className="fq fq--flush">
         <div className="fq__cell">
           <p className="fq__q">Where is UST now?</p>
-          <p className="fq__big">{r.current}</p>
-          <p className="fq__note">{LATEST_EDITION} edition</p>
+          <p className="fq__big">{r.current || "—"}</p>
+          <p className="fq__note">{r.current ? `${LATEST_EDITION} edition` : "Not yet published"}</p>
         </div>
         <div className="fq__cell">
           <p className="fq__q">What changed?</p>
           <p className="fq__mid">
             <Direction dir={r.direction} />
           </p>
-          <p className="fq__note">{r.direction === "new" ? "Baseline year" : <>From {r.previous}</>}</p>
+          <p className="fq__note">{r.direction === "new" ? "Baseline year" : r.direction === "none" ? "Nothing to compare yet" : <>From {r.previous}</>}</p>
         </div>
         <div className="fq__cell fq__cell--wide">
           <p className="fq__q">What does it measure?</p>

@@ -6,11 +6,14 @@
  */
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Tabs as ContentTabs, type ContentTab } from "@/components/ui/interactive";
 import type { Command, CommandResult } from "@/lib/governance/commands";
 import type { ConsoleData } from "@/lib/governance/console-types";
 import { STATUS_TONE } from "@/lib/governance/catalog";
 import { initials } from "@/lib/governance/rbac";
+import { Face } from "@/components/ui/Face";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { toast } from "@/components/ui/toast";
 import type { SectionKey } from "./sections";
 
 /* ---------- Context ---------- */
@@ -25,6 +28,7 @@ export interface ConfirmOptions {
 }
 
 export interface ConsoleApi {
+  headerActions?: HTMLDivElement | null;
   data: ConsoleData;
   run: (cmd: Command) => Promise<CommandResult>;
   busy: boolean;
@@ -99,10 +103,9 @@ const STATUS_LABEL: Record<string, string> = { "Pending Invitation": "Invited", 
 
 export function StatusPill({ value }: { value: string }) {
   return (
-    <Pill tone={STATUS_TONE[value] ?? "neutral"}>
-      <i aria-hidden="true" className="adm-pill__dot" />
+    <span className={`adm-pill adm-pill--${STATUS_TONE[value] ?? "neutral"} adm-pill--status`}>
       {STATUS_LABEL[value] ?? value}
-    </Pill>
+    </span>
   );
 }
 
@@ -129,10 +132,10 @@ export function Disclosure({ title, meta, children, open }: { title: ReactNode; 
   );
 }
 
-export function Avatar({ name, size = 30 }: { name: string; size?: number }) {
+export function Avatar({ name, src, size = 30, placeholder = false }: { name: string; src?: string; size?: number; placeholder?: boolean }) {
   return (
-    <span className="adm-avatar" style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }} aria-hidden="true">
-      {initials(name)}
+    <span className={`adm-avatar${placeholder ? " adm-avatar--placeholder" : ""}`} style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }} aria-hidden="true">
+      <Face src={src}>{placeholder ? <Icon name="user" size={Math.round(size * 0.6)} /> : initials(name)}</Face>
     </span>
   );
 }
@@ -145,27 +148,10 @@ export function Switch({ checked, onChange, label, disabled, describe }: { check
   );
 }
 
-export function SearchField({ value, onChange, placeholder, label }: { value: string; onChange: (v: string) => void; placeholder: string; label: string }) {
-  return (
-    <label className="adm-search">
-      <Icon name="search" size={16} />
-      <span className="sr-only">{label}</span>
-      <input type="search" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-    </label>
-  );
-}
+export { SearchField } from "@/components/ui/search-field";
 
-export function Tabs<T extends string>({ tabs, value, onChange, label }: { tabs: readonly (T | { key: T; label: ReactNode })[]; value: T; onChange: (t: T) => void; label: string }) {
-  const items = tabs.map((t) => (typeof t === "string" ? { key: t, label: t } : t));
-  return (
-    <div className="adm-tabs" role="tablist" aria-label={label}>
-      {items.map((t) => (
-        <button key={t.key} type="button" role="tab" aria-selected={value === t.key} className="adm-tabs__tab" onClick={() => onChange(t.key)}>
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
+export function Tabs<T extends string>({ tabs, value, onChange, label, search, actions }: { tabs: readonly (T | ContentTab<T>)[]; value: T; onChange: (t: T) => void; label: string; search?: ReactNode; actions?: ReactNode }) {
+  return <ContentTabs tabs={tabs} value={value} onChange={onChange} label={label} search={search} actions={actions} />;
 }
 
 export function Stat({ label, value, sub, tone, icon, onClick }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "ok" | "revise" | "danger" | "review"; icon?: IconName; onClick?: () => void }) {
@@ -225,13 +211,33 @@ export function Field({ label, hint, children, wide }: { label: ReactNode; hint?
   );
 }
 
-export function KV({ rows }: { rows: [ReactNode, ReactNode][] }) {
+export function KV({ rows, copyable = false }: { rows: [ReactNode, ReactNode, string?][]; copyable?: boolean }) {
   return (
     <dl className="adm-kv">
-      {rows.map(([k, v], i) => (
+      {rows.map(([k, v, copyText], i) => (
         <div key={i}>
           <dt>{k}</dt>
-          <dd>{v}</dd>
+          <dd>{copyable ? (
+            <button
+              type="button"
+              className="adm-kv__copy"
+              aria-label={typeof k === "string" ? `Copy ${k.toLowerCase()}` : "Copy value"}
+              onClick={async (e) => {
+                const text = copyText ?? e.currentTarget.innerText.trim();
+                try {
+                  await navigator.clipboard.writeText(text);
+                  toast("Copied to clipboard", "ok");
+                } catch {
+                  toast("Couldn’t copy. Select the text and copy it instead.", "error");
+                }
+              }}
+            >
+              <span className="adm-kv__value">{v}</span>
+              <span className="adm-kv__copy-icon" aria-hidden="true">
+                <Icon name="copy" size={15} />
+              </span>
+            </button>
+          ) : v}</dd>
         </div>
       ))}
     </dl>
@@ -256,7 +262,7 @@ export function Layer({ children }: { children: ReactNode }) {
 
 /* ---------- Inspector: a panel that slides over the right of the window ---------- */
 
-export function Sheet({ open, title, sub, onClose, children, footer, wide }: { open: boolean; title: ReactNode; sub?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Sheet({ open, title, sub, headerContent, onClose, children, footer, wide, modal }: { open: boolean; title: ReactNode; sub?: ReactNode; headerContent?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; modal?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const returnTo = useRef<HTMLElement | null>(null);
@@ -281,15 +287,16 @@ export function Sheet({ open, title, sub, onClose, children, footer, wide }: { o
   return (
     <Layer>
       <div className="adm-sheet__scrim" onClick={onClose} aria-hidden="true" />
-      <div ref={ref} className={`adm-sheet${wide ? " adm-sheet--wide" : ""}`} role="region" aria-labelledby={titleId}>
+      <div ref={ref} className={`adm-sheet${wide ? " adm-sheet--wide" : ""}${modal ? " adm-sheet--modal" : ""}`} role={modal ? "dialog" : "region"} aria-modal={modal || undefined} aria-labelledby={titleId}>
         <header className="adm-sheet__head">
           <div className="adm-sheet__titles">
             <h3 id={titleId} className="adm-sheet__title">
               {title}
             </h3>
             {sub && <p className="adm-sheet__sub">{sub}</p>}
+            {headerContent}
           </div>
-          <button type="button" className="adm-iconbtn adm-sheet__close" onClick={onClose} aria-label="Close panel">
+          <button type="button" className="adm-iconbtn adm-sheet__close" onClick={onClose} aria-label={modal ? "Close" : "Close panel"}>
             <Icon name="close" size={18} />
           </button>
         </header>

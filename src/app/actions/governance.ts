@@ -39,16 +39,16 @@ export async function governConsole(cmd: Command): Promise<{ result: CommandResu
   const result = await run(viewer.id, cmd);
   revalidatePath("/", "layout");
   const after = await getViewer();
-  return { result, data: after && after.admin.length ? consoleData(after) : null };
+  return { result, data: after && after.admin.length ? await consoleData(after) : null };
 }
 
 /** Export audit entries as CSV. The export is itself audited as a sensitive export. */
 export async function exportAudit(seqs: number[], filters: string): Promise<CommandResult & { csv?: string }> {
   const viewer = await getViewer();
   if (!viewer) return ENDED;
-  const allowed = viewer.superAdmin || canWith(viewer.grants, "audit", "export");
+  const allowed = canWith(viewer.grants, "audit", "export");
   const wanted = new Set(seqs);
-  const rows = readState().audit.filter((e) => wanted.has(e.seq));
+  const rows = (await readState()).audit.filter((e) => wanted.has(e.seq));
   const result = await run(viewer.id, (ctx) => {
     const target = { type: "Audit log", id: "audit", label: `Audit log export, ${rows.length} entries` };
     if (!allowed) {

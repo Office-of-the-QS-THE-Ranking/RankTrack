@@ -7,7 +7,7 @@ next-env.d.ts
 .DS_Store
 .taste-skill/shots
 
-# Governance store and recovery points written by the running Hub
+# The prototype's local governance store (the Hub now keeps it in Supabase)
 .data
 
 # Secrets: keep keys out of git; .env.example documents them

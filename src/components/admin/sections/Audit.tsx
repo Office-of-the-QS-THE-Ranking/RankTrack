@@ -6,6 +6,7 @@ import type { AuditCategory, AuditEvent } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { Disclosure, EmptyNote, Hint, KV, Pill, SearchField, Sheet, download, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
+import { Select } from "@/components/ui/pickers";
 
 const CATEGORIES: AuditCategory[] = ["Account", "Access", "Session", "Data", "Approval", "Export", "Directory", "Security", "Configuration", "Backup"];
 const PERIODS = [
@@ -43,24 +44,24 @@ export function Audit() {
     <div className="adm-stack">
       <div className="adm-toolbar">
         <SearchField value={q} onChange={setQ} placeholder="Search names or actions" label="Search the audit log" />
-        <select className="select select--sm" value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category">
+        <Select className="select select--sm" value={category} onChange={setCategory} aria-label="Category">
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
             <option key={c}>{c}</option>
           ))}
-        </select>
-        <select className="select select--sm" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="When">
+        </Select>
+        <Select className="select select--sm" value={period} onChange={setPeriod} aria-label="When">
           {PERIODS.map((p) => (
             <option key={p.key} value={p.key}>
               {p.label}
             </option>
           ))}
-        </select>
-        <select className="select select--sm" value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="Outcome">
+        </Select>
+        <Select className="select select--sm" value={outcome} onChange={setOutcome} aria-label="Outcome">
           <option value="">All results</option>
           <option value="Success">Succeeded</option>
           <option value="Problems">Refused or failed</option>
-        </select>
+        </Select>
         <span className="adm-toolbar__spacer" />
         <span className="adm-inline">
           <button

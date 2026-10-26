@@ -1,168 +1,46 @@
 "use server";
 
 /*
- * Sign-in through the University's Google Workspace (simulated in this prototype by an account
- * chooser), the second factor, sign-out, the activity heartbeat and access requests. Every attempt,
- * successful or not, is audited.
+ * Sign-in through the University's Google Workspace (Supabase Auth hands off to Google; /auth/callback
+ * finishes), sign-out, the activity heartbeat and access requests. Every attempt, successful or not, is
+ * audited.
  */
-import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { domainAllowed, mfaRequired, workspacesOf } from "@/lib/governance/derive";
-import { log } from "@/lib/governance/engine/core";
-import { raiseAlert } from "@/lib/governance/engine";
+import { SPECIFY, SPECIFY_LABEL, SALUTATIONS, OTHER_SALUTATION, NO_SALUTATION, listedAffiliation, validRequestText, asksWebsite, cleanWebsite, salutationText } from "@/lib/governance/access-requests";
+import { ROLE } from "@/lib/governance/catalog";
+import { domainAllowed } from "@/lib/governance/derive";
+import { clean, isDay, isEmail, log } from "@/lib/governance/engine/core";
 import { openRequest } from "@/lib/governance/engine/requests";
-import { activeAssignments, grantsFor, today } from "@/lib/governance/rbac";
 import { run, runSystem } from "@/lib/governance/server/run";
-import { ACTING_COOKIE, SESSION_COOKIE, checkSession, getViewer } from "@/lib/governance/server/session";
-import { readState, sha256, touch } from "@/lib/governance/server/store";
-import type { Account, GovernanceState } from "@/lib/governance/types";
+import { SESSION_COOKIE, checkSession } from "@/lib/governance/server/session";
+import { safeNext } from "@/lib/governance/server/signin";
+import { readState, touch } from "@/lib/governance/server/store";
+import { normalizeReference, trackRequest, type Track } from "@/lib/governance/request-tracker";
+import { authClient } from "@/lib/supabase/server";
 
-export type SignInResult =
-  | { ok: false; message: string }
-  | { ok: true; mfa: { challengeId: string; name: string; email: string; method: string; enrolled: boolean; demoCode: string } };
-
-const safeNext = (next: string | undefined) => (next && /^\/(admin|portal)(\/|$|\?)/.test(next) ? next : undefined);
-
-/** The code an authenticator app would show for this challenge. The prototype displays it on screen. */
-const demoCode = (challengeId: string) => String(parseInt(sha256(`totp:${challengeId}`).slice(0, 8), 16) % 1_000_000).padStart(6, "0");
-
-async function device() {
-  const ua = (await headers()).get("user-agent") ?? "";
-  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "A browser";
-  const os = /Mac OS X/.test(ua) ? "macOS" : /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "an unknown system";
-  return `${browser} on ${os}`;
-}
-
-const res = (a: Account) => ({ type: "Account", id: a.id, label: a.name });
-
-function landing(state: GovernanceState, a: Account, next?: string) {
-  const ws = workspacesOf(grantsFor(a, state.roles, state.units, today()));
-  if (next?.startsWith("/admin") && ws.includes("office")) return next;
-  if (next?.startsWith("/portal") && ws.includes("portal")) return next;
-  return ws.includes("office") ? "/admin" : "/portal";
-}
-
-/**
- * The real way in: hand off to Google Workspace's OAuth consent, whose callback resolves the account and
- * continues with startSignIn. Not connected yet; the demo (DemoSignIn) stands in until it is.
- */
+/** The way in: off to Google's account chooser, and back through /auth/callback. */
 export async function startGoogleSignIn(next?: string): Promise<{ ok: false; message: string }> {
-  void safeNext(next);
-  return { ok: false, message: "Google sign-in isn’t connected yet. Use the portal demo for now." };
-}
-
-/** Step one: the account comes back from Google Workspace (or the demo's chooser). */
-export async function startSignIn(accountId: string, next?: string): Promise<SignInResult> {
-  const dev = await device();
-  let sessionId = null as string | null;
-  let mfa = null as SignInResult | null;
-  const result = await runSystem((ctx) => {
-    const s = ctx.state;
-    const a = s.accounts.find((x) => x.id === accountId);
-    if (!a) return { ok: false, message: "That account is not registered in the Hub. Ask your unit coordinator for an invitation, or request access." };
-    const fail = (why: string) => {
-      log(ctx, "session.signin", "Session", res(a), "Failed", why, { ...ctx.actor, id: a.id, name: a.name, role: "Signing in" });
-      return { ok: true, message: why, data: "fail" };
-    };
-    if (a.status === "Suspended") return fail(`This account is suspended. ${a.statusReason ?? ""}`.trim());
-    if (a.status === "Deactivated") return fail("This account is deactivated.");
-    if (!a.external && !domainAllowed(s, a.email)) return fail(`Sign-in is limited to ${s.security.sso.domains.join(", ")} accounts.`);
-    if (a.external && !s.security.sso.allowGuests) return fail("Sponsored guest sign-in is switched off.");
-    const grants = grantsFor(a, s.roles, s.units, ctx.day);
-    if (!activeAssignments(a, ctx.day).length || !workspacesOf(grants).length) return fail("This account has no active role. Its access may have expired.");
-    if (mfaRequired(s, grants)) {
-      const id = randomBytes(12).toString("base64url");
-      s.challenges.push({ id, accountId: a.id, createdAt: ctx.iso, next: next ?? "", attempts: 0 });
-      mfa = { ok: true, mfa: { challengeId: id, name: a.name, email: a.email, method: a.mfa.method ?? "Authenticator app", enrolled: a.mfa.enrolled, demoCode: demoCode(id) } };
-      return { ok: true, message: "Second factor required" };
-    }
-    sessionId = openSession(ctx.state, a, false, dev, ctx.iso);
-    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${dev}`, { ...ctx.actor, id: a.id, name: a.name, role: grants[0]?.roleName ?? "" });
-    activate(ctx, a);
-    return { ok: true, message: "Signed in" };
+  const h = await headers();
+  const origin = h.get("origin") ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+  const back = new URL("/auth/callback", origin);
+  const to = safeNext(next);
+  if (to) back.searchParams.set("next", to);
+  const { sso } = (await readState()).security;
+  const { data, error } = await (await authClient()).auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: back.toString(),
+      // Google lists only University accounts unless sponsored guests may sign in too.
+      queryParams: { prompt: "select_account", ...(!sso.allowGuests && sso.domains.length === 1 ? { hd: sso.domains[0] } : {}) },
+    },
   });
-  if (result.data === "fail") return { ok: false, message: result.message };
-  if (!result.ok) return { ok: false, message: result.message };
-  if (mfa) return mfa;
-  if (sessionId) {
-    await setSession(sessionId);
-    const s = readState();
-    redirect(landing(s, s.accounts.find((a) => a.id === accountId)!, safeNext(next)));
-  }
-  return { ok: false, message: "Sign-in did not complete. Try again." };
+  if (error || !data.url) return { ok: false, message: "Google sign-in is unavailable right now. Try again in a moment." };
+  redirect(data.url);
 }
 
-function openSession(s: GovernanceState, a: Account, mfa: boolean, device: string, at: string) {
-  const id = randomBytes(24).toString("base64url");
-  s.sessions.push({ id, accountId: a.id, createdAt: at, lastSeen: at, mfa, device });
-  a.lastLogin = at;
-  return id;
-}
-
-function activate(ctx: Parameters<Parameters<typeof runSystem>[0]>[0], a: Account) {
-  if (a.status !== "Pending Invitation") return;
-  a.status = "Active";
-  a.statusChangedAt = ctx.iso;
-  log(ctx, "account.activate", "Account", res(a), "Success", "Invitation accepted at first sign-in");
-}
-
-async function setSession(id: string) {
-  const jar = await cookies();
-  jar.set(SESSION_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" });
-}
-
-/** Step two: the six-digit code. Repeated failures lock the account under the lockout policy. */
-export async function verifySecondFactor(challengeId: string, code: string): Promise<{ ok: false; message: string; locked?: boolean }> {
-  const dev = await device();
-  let sessionId = null as string | null;
-  let dest = "/admin";
-  const result = await runSystem((ctx) => {
-    const s = ctx.state;
-    const ch = s.challenges.find((c) => c.id === challengeId);
-    if (!ch) return { ok: false, message: "This sign-in expired. Start again." };
-    const a = s.accounts.find((x) => x.id === ch.accountId);
-    if (!a || a.status === "Suspended" || a.status === "Deactivated") return { ok: false, message: "This account can no longer sign in." };
-    const as = { ...ctx.actor, id: a.id, name: a.name, role: "Signing in" };
-    if (code.replace(/\s/g, "") !== demoCode(ch.id)) {
-      ch.attempts += 1;
-      s.failures.push({ email: a.email, at: ctx.iso });
-      const recent = s.failures.filter((f) => f.email === a.email).length;
-      log(ctx, "session.signin", "Session", res(a), "Failed", `Wrong second factor · ${dev} · ${recent} of ${s.security.lockout.attempts}`, as);
-      if (recent >= s.security.lockout.attempts) {
-        a.status = "Suspended";
-        a.statusReason = `${recent} failed sign-ins within ${s.security.lockout.windowMinutes} minutes. Suspended automatically by the lockout policy, pending review.`;
-        a.statusChangedAt = ctx.iso;
-        s.sessions = s.sessions.filter((x) => x.accountId !== a.id);
-        s.challenges = s.challenges.filter((c) => c.accountId !== a.id);
-        log(ctx, "account.suspend", "Account", res(a), "Success", `Lockout policy: ${recent} failures in ${s.security.lockout.windowMinutes} minutes`);
-        raiseAlert(ctx, "Repeated failed sign-ins", "High", `${recent} failed sign-ins for ${a.name} from ${dev}. Account suspended by the lockout policy.`, a.id);
-        return { ok: true, message: "locked", data: "locked" };
-      }
-      return { ok: true, message: `That code is not right. ${s.security.lockout.attempts - recent} ${s.security.lockout.attempts - recent === 1 ? "attempt" : "attempts"} left before the account locks.`, data: "wrong" };
-    }
-    s.challenges = s.challenges.filter((c) => c.id !== ch.id);
-    s.failures = s.failures.filter((f) => f.email !== a.email);
-    const first = !a.mfa.enrolled;
-    if (first) a.mfa = { enrolled: true, method: "Authenticator app" };
-    const known = s.audit.some((e) => e.actorId === a.id && e.action === "session.signin" && e.outcome === "Success" && (e.detail ?? "").includes(dev));
-    sessionId = openSession(s, a, true, dev, ctx.iso);
-    const top = grantsFor(a, s.roles, s.units, ctx.day).sort((x, y) => y.tier - x.tier)[0];
-    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · second factor verified${first ? " (enrolled now)" : ""} · ${dev}`, { ...as, role: top?.roleName ?? "No role" });
-    if (!known && a.external) raiseAlert(ctx, "Suspicious sign-in", "Medium", `External collaborator ${a.name} signed in from a new device (${dev}).`, a.id);
-    activate(ctx, a);
-    dest = landing(s, a, safeNext(ch.next));
-    return { ok: true, message: "Signed in" };
-  });
-  if (result.data === "locked") return { ok: false, locked: true, message: "Too many wrong codes. The account is now suspended; an administrator must review it before it can sign in again." };
-  if (result.data === "wrong" || !result.ok) return { ok: false, message: result.message };
-  if (sessionId) {
-    await setSession(sessionId);
-    redirect(dest);
-  }
-  return { ok: false, message: "Sign-in did not complete. Try again." };
-}
+const res = (id: string, label: string) => ({ type: "Account", id, label });
 
 export async function signOut() {
   const jar = await cookies();
@@ -172,12 +50,11 @@ export async function signOut() {
       const sess = ctx.state.sessions.find((x) => x.id === id);
       const a = sess && ctx.state.accounts.find((x) => x.id === sess.accountId);
       ctx.state.sessions = ctx.state.sessions.filter((x) => x.id !== id);
-      if (a) log(ctx, "session.signout", "Session", res(a), "Success", "Signed out", { ...ctx.actor, id: a.id, name: a.name, role: "Signed in" });
+      if (a) log(ctx, "session.signout", "Session", res(a.id, a.name), "Success", "Signed out", { ...ctx.actor, id: a.id, name: a.name, role: "Signed in" });
       return { ok: true, message: "Signed out" };
     });
   }
   jar.delete(SESSION_COOKIE);
-  jar.delete(ACTING_COOKIE);
   redirect("/signin?ended=signed-out");
 }
 
@@ -185,42 +62,119 @@ export async function signOut() {
 export async function heartbeat(active: boolean): Promise<{ ok: boolean; problem?: string; idleMinutes?: number; warnMinutes?: number }> {
   const id = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!id) return { ok: false, problem: "ended" };
-  const state = readState();
+  const state = await readState();
   const check = checkSession(state, id);
   if ("problem" in check) return { ok: false, problem: check.problem };
-  if (active) touch(id, new Date().toISOString());
+  if (active) await touch(id, new Date().toISOString());
   return { ok: true, idleMinutes: state.security.session.idleMinutes, warnMinutes: state.security.session.warnMinutes };
 }
 
-/** University-wide contributors choose which unit the contributor workspace acts for. */
-export async function actFor(unitId: string) {
-  const viewer = await getViewer();
-  if (!viewer || !viewer.portal.canSwitch || !viewer.portal.units.some((u) => u.id === unitId)) return;
-  (await cookies()).set(ACTING_COOKIE, unitId, { httpOnly: true, sameSite: "lax", path: "/" });
-  await run(viewer.id, (ctx) => {
-    log(ctx, "portal.act-for", "Access", { type: "Unit", id: unitId, label: ctx.state.units.find((u) => u.id === unitId)?.name ?? unitId }, "Success", "Contributor workspace switched to act for this unit");
-    return { ok: true, message: "" };
-  });
-  revalidatePath("/portal", "layout");
-}
-
-/** Someone without an account asks for one; it enters the account access workflow. */
-export async function requestAccess(input: { name: string; email: string; unitId: string; title: string; justification: string }): Promise<{ ok: boolean; message: string }> {
-  const name = input.name.trim().replace(/\s+/g, " ").slice(0, 120);
-  const email = input.email.trim().toLowerCase();
-  if (name.length < 3) return { ok: false, message: "Enter your full name." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { ok: false, message: "Enter your UST email address." };
-  if (input.justification.trim().length < 10) return { ok: false, message: "Say what you need access for." };
-  const state = readState();
-  if (!domainAllowed(state, email)) return { ok: false, message: `Requests are accepted from ${state.security.sso.domains.join(", ")} addresses. External collaborators are invited by the Office.` };
-  if (state.accounts.some((a) => a.email === email)) return { ok: false, message: "That email already has an account. Sign in, or ask your coordinator if it is suspended." };
+/**
+ * Someone without an account asks for one from the sign-in page; it enters the account access workflow.
+ * From the University's own domains it asks for a contributor account, in the unit the approver chooses; from
+ * anywhere else, for a sponsored guest of the Office of QS/THE Rankings, whose access ends GUEST_DAYS after
+ * approval (and which needs guest sign-in on to approve).
+ */
+export async function requestAccess(input: {
+  lastName: string;
+  firstName: string;
+  middleName: string;
+  salutation: string;
+  otherSalutation?: string;
+  birthday: string;
+  email: string;
+  affiliation: string;
+  organization: string;
+  website?: string;
+  agreed: boolean;
+}): Promise<{ ok: boolean; message: string; reference?: string; at?: string }> {
+  const lastName = clean(input.lastName, 60).normalize("NFC").toUpperCase();
+  const firstName = clean(input.firstName, 60).normalize("NFC").toUpperCase();
+  const middleName = clean(input.middleName, 60).normalize("NFC").toUpperCase();
+  const email = clean(input.email).toLowerCase();
+  const answer = clean(input.affiliation, 160).normalize("NFC").toUpperCase();
+  if (!lastName || !validRequestText(lastName)) return { ok: false, message: "Enter your last name." };
+  if (!firstName || !validRequestText(firstName)) return { ok: false, message: "Enter your first name." };
+  if (middleName && !validRequestText(middleName)) return { ok: false, message: "Check your middle name." };
+  const salutation = input.salutation === OTHER_SALUTATION ? salutationText(String(input.otherSalutation ?? "")).trim() : input.salutation;
+  if (input.salutation !== NO_SALUTATION && !(SALUTATIONS.includes(salutation) || (input.salutation === OTHER_SALUTATION && /\p{L}/u.test(salutation))))
+    return { ok: false, message: "Choose a salutation, or Prefer not to specify." };
+  const today = new Date().toISOString().slice(0, 10);
+  const youngest = `${Number(today.slice(0, 4)) - 15}${today.slice(4)}`;
+  if (!isDay(input.birthday) || input.birthday < "1900-01-01" || input.birthday > youngest) return { ok: false, message: "Check your birthday." };
+  if (!isEmail(email)) return { ok: false, message: "Enter your institution email address." };
+  if (!validRequestText(answer, true)) return { ok: false, message: "Enter an affiliation using letters, spaces, hyphens, em dashes, slashes or parentheses only." };
+  const listed = listedAffiliation(answer);
+  const organization = listed === SPECIFY ? clean(input.organization, 160).normalize("NFC").toUpperCase() : "";
+  if (listed === SPECIFY && !validRequestText(organization)) return { ok: false, message: "Name your accreditation organization." };
+  const affiliation = listed === SPECIFY ? SPECIFY_LABEL : (listed ?? answer);
+  const website = asksWebsite(answer) ? cleanWebsite(input.website ?? "") : "";
+  if (asksWebsite(answer) && input.website?.trim() && !website) return { ok: false, message: "Enter the website as a full address starting with https://." };
+  if (input.agreed !== true) return { ok: false, message: "Accept the declarations to send your request." };
+  const state = await readState();
+  if (state.accounts.some((a) => a.email === email)) return { ok: false, message: "That email already has an account. Sign in, or ask the Office if it is suspended." };
   if (state.requests.some((r) => r.status === "Pending" && r.payload.kind === "account-access" && r.payload.email === email)) return { ok: false, message: "A request for this email is already waiting for approval." };
-  const unit = state.units.find((u) => u.id === input.unitId && u.status === "Active");
-  if (!unit) return { ok: false, message: "Choose your unit." };
+  const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+  const external = !domainAllowed(state, email);
+  // guests are sponsored by the Office; University staff go to the unit the approver chooses
+  const office = state.units.find((u) => u.id === "rankings-office" && u.status === "Active");
+  let at = "";
   const out = await run(null, (ctx) => {
-    const req = openRequest(ctx, "account-access", { kind: "account-access", name, email, unitId: unit.id, roleId: "contributor", title: input.title.trim().slice(0, 120) || "Staff" }, `Account for ${name}, ${unit.name}`, input.justification);
+    at = ctx.iso;
+    const req = openRequest(
+      ctx,
+      "account-access",
+      {
+        kind: "account-access",
+        name,
+        email,
+        unitId: external && office ? office.id : "",
+        roleId: external ? ROLE.external : ROLE.coordinator,
+        title: organization || affiliation,
+        applicant: {
+          lastName,
+          firstName,
+          ...(middleName ? { middleName } : {}),
+          ...(input.salutation !== NO_SALUTATION ? { salutation } : {}),
+          birthday: input.birthday,
+          affiliation,
+          listed: !!listed,
+          ...(organization ? { organization } : {}),
+          ...(website ? { website } : {}),
+          agreedAt: ctx.iso,
+        },
+        ...(external ? { external: true } : {}),
+      },
+      `Account for ${name}, ${organization || affiliation}`,
+      "",
+    );
     return { ok: true, message: req.id };
   });
   revalidatePath("/", "layout");
-  return out.ok ? { ok: true, message: `Request ${out.message} is with the system administrators. You will receive an invitation by email once it is approved.` } : { ok: false, message: out.message };
+  // The receipt is also to be emailed to the requester once the Hub's outgoing mail is set up.
+  return out.ok
+    ? { ok: true, message: `Your request is with the administrators. Once it is approved, sign in with ${email}.`, reference: out.message, at }
+    : { ok: false, message: out.message };
+}
+
+const NO_MATCH = "No request matches that reference code and email. Check both and try again.";
+
+/**
+ * The Submission Tracker's lookup, polled while the page is open: an access request by its reference code
+ * and the email it was sent with. Both must match, and a miss never says which one was wrong. Only the
+ * stages come back. Lookups are not audited, since the tracker asks every few seconds.
+ */
+export async function trackAccessRequest(input: { reference: string; email: string }): Promise<{ ok: true; track: Track } | { ok: false; message: string; errors: Partial<Record<"reference" | "email", string>> }> {
+  const reference = normalizeReference(String(input.reference ?? ""));
+  const email = clean(String(input.email ?? "")).toLowerCase();
+  const errors: Partial<Record<"reference" | "email", string>> = {};
+  if (!reference) errors.reference = "Enter the reference code from your request, like RQ-0001.";
+  if (!isEmail(email)) errors.email = "Enter the email address you sent the request with.";
+  if (errors.reference || errors.email) return { ok: false, message: (errors.reference ?? errors.email)!, errors };
+  const state = await readState();
+  const req = state.requests.find((r) => r.id === reference);
+  if (!req || req.payload.kind !== "account-access" || req.payload.email.toLowerCase() !== email) return { ok: false, message: NO_MATCH, errors: { reference: NO_MATCH, email: NO_MATCH } };
+  const steps = state.workflows.find((w) => w.id === req.workflowId)?.steps.length ?? 1;
+  const account = req.status === "Approved" ? state.accounts.find((a) => a.email.toLowerCase() === email) : undefined;
+  return { ok: true, track: trackRequest(req, steps, account && (account.firstLogin ?? account.lastLogin)) };
 }

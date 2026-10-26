@@ -1,31 +1,40 @@
 import "server-only";
 
 /*
- * The governance store: one JSON document on disk, held in memory, changed only through serialized
- * transactions. Audit entries are sealed into a SHA-256 hash chain as they are committed, so editing or
- * deleting any entry afterwards is detectable.
+ * The governance store: one JSON document in Supabase (table hub_state), changed only through serialized
+ * transactions that commit with optimistic concurrency, so every server instance shares it safely. Audit
+ * entries are sealed into a SHA-256 hash chain as they are committed, so editing or deleting any entry
+ * afterwards is detectable. Recovery points live beside it (table hub_recovery_points).
  */
 import { createHash } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-import { buildSeed, SCHEMA } from "../seed";
+import { adminDb } from "@/lib/supabase/server";
+import { migrate } from "../migrate";
+import { buildSeed, SCHEMA, SYSTEM_ACTOR } from "../seed";
 import type { AuditEvent, GovernanceState } from "../types";
 import type { AuditDraft } from "../engine/core";
+import { removeMedia, syncPublicMedia } from "./media";
 
-const DIR = path.join(process.cwd(), ".data");
-const FILE = path.join(DIR, "governance.json");
-const POINTS = path.join(DIR, "recovery-points");
 const GENESIS = "0".repeat(64);
+/** How long a read trusts the copy in memory before asking the database whether another instance changed it. */
+const FRESH_MS = 1000;
+/** How often a session's last activity is written back, at most. */
+const TOUCH_MS = 60_000;
+const ATTEMPTS = 5;
+
+type PointOp = { op: "put"; id: string; checksum: string; body: string } | { op: "delete"; id: string } | { op: "media"; paths: string[] };
 
 interface Holder {
   state: GovernanceState | null;
-  mtime: number;
+  version: number;
+  checkedAt: number;
+  reading: Promise<GovernanceState> | null;
   queue: Promise<unknown>;
-  timer: ReturnType<typeof setTimeout> | null;
+  /** Recovery point writes and media deletions of the transaction attempt in progress, applied once it commits. */
+  pending: PointOp[] | null;
 }
 
-const g = globalThis as typeof globalThis & { __hubGovernance?: Holder };
-const holder: Holder = (g.__hubGovernance ??= { state: null, mtime: 0, queue: Promise.resolve(), timer: null });
+const g = globalThis as typeof globalThis & { __hubStore?: Holder };
+const holder: Holder = (g.__hubStore ??= { state: null, version: 0, checkedAt: 0, reading: null, queue: Promise.resolve(), pending: null });
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
@@ -47,42 +56,92 @@ function freshState(): GovernanceState {
   return { ...structuredClone(seed), audit } as GovernanceState;
 }
 
-function write(state: GovernanceState) {
-  fs.mkdirSync(DIR, { recursive: true });
-  const tmp = `${FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(state));
-  fs.renameSync(tmp, FILE);
-  holder.mtime = fs.statSync(FILE).mtimeMs;
+const failed = (what: string, e: { message: string }) => new Error(`Governance store: ${what} failed (${e.message})`);
+
+/** A state and the version it was read at, always together: a commit names the version its draft started from. */
+type Snapshot = { state: GovernanceState; version: number };
+
+async function fetchRow(): Promise<Snapshot | null> {
+  const { data, error } = await adminDb().from("hub_state").select("schema, version, state").eq("id", 1).maybeSingle();
+  if (error) throw failed("reading", error);
+  if (!data) return null;
+  const row = { state: data.state as GovernanceState, version: Number(data.version) };
+  return data.schema === SCHEMA ? row : upgrade(data.schema, row);
 }
 
-function load(): GovernanceState {
-  try {
-    const raw = fs.readFileSync(FILE, "utf8");
-    const parsed = JSON.parse(raw) as GovernanceState;
-    if (parsed.schema === SCHEMA) {
-      holder.mtime = fs.statSync(FILE).mtimeMs;
-      return parsed;
-    }
-    // A store from an older build: keep it beside the new one rather than losing it.
-    fs.copyFileSync(FILE, path.join(DIR, `governance.schema-${parsed.schema ?? 0}.${Date.now()}.json`));
-  } catch {
-    /* no store yet, or unreadable: start from the seed */
-  }
-  const s = freshState();
-  write(s);
-  return s;
+/** Never re-seed over real records: an older store is migrated in place, and the migration is audited. */
+async function upgrade(schema: number, row: Snapshot): Promise<Snapshot | null> {
+  const state = migrate({ ...row.state, schema });
+  if (!state)
+    throw new Error(`Governance store: it holds schema ${schema} and this build expects ${SCHEMA}, with no migration between them. Deleting the hub_state row starts the Hub empty.`);
+  seal(state, [
+    {
+      at: new Date().toISOString(),
+      actorId: SYSTEM_ACTOR.id,
+      actorName: SYSTEM_ACTOR.name,
+      actorRole: SYSTEM_ACTOR.role,
+      action: "store.migrate",
+      category: "Configuration",
+      resource: { type: "Governance store", id: "hub_state", label: "Governance store" },
+      outcome: "Success",
+      detail: `Schema ${schema} → ${SCHEMA}`,
+    },
+  ]);
+  const { data, error } = await adminDb()
+    .from("hub_state")
+    .update({ schema: SCHEMA, state, version: row.version + 1, updated_at: new Date().toISOString() })
+    .eq("id", 1)
+    .eq("version", row.version)
+    .select("version");
+  if (error) throw failed("migrating", error);
+  // Another instance migrated it first: read theirs.
+  return data.length ? { state, version: row.version + 1 } : fetchRow();
 }
 
-/** The current state. Picks up changes another server process wrote to disk. */
-export function readState(): GovernanceState {
-  if (holder.state) {
-    try {
-      if (fs.statSync(FILE).mtimeMs > holder.mtime + 1) holder.state = null;
-    } catch {
-      holder.state = null;
+/** The first read anywhere: the seed goes in, unless another instance put it there first. */
+async function seedRow(): Promise<Snapshot> {
+  const state = freshState();
+  const { error } = await adminDb().from("hub_state").insert({ id: 1, schema: SCHEMA, version: 1, state });
+  if (!error) return { state, version: 1 };
+  if (error.code !== "23505") throw failed("seeding", error);
+  const row = await fetchRow();
+  if (!row) throw failed("seeding", error);
+  return row;
+}
+
+function remember(row: Snapshot) {
+  holder.state = row.state;
+  holder.version = row.version;
+  holder.checkedAt = Date.now();
+  return row;
+}
+
+async function load() {
+  return remember((await fetchRow()) ?? (await seedRow()));
+}
+
+/** The copy in memory if the database is still at its version, else the database's. */
+async function refresh(): Promise<Snapshot> {
+  if (holder.state?.schema === SCHEMA) {
+    const known = { state: holder.state, version: holder.version };
+    const { data, error } = await adminDb().from("hub_state").select("version").eq("id", 1).maybeSingle();
+    if (error) throw failed("reading", error);
+    if (data && Number(data.version) === known.version) {
+      holder.checkedAt = Date.now();
+      return known;
     }
   }
-  return (holder.state ??= load());
+  return load();
+}
+
+/** The current state. Read it, never change it: changes go through transact. */
+export function readState(): Promise<GovernanceState> {
+  if (holder.state?.schema === SCHEMA && Date.now() - holder.checkedAt < FRESH_MS) return Promise.resolve(holder.state);
+  return (holder.reading ??= refresh()
+    .then((s) => s.state)
+    .finally(() => {
+      holder.reading = null;
+    }));
 }
 
 /** Seal drafted audit entries onto the end of the chain. */
@@ -97,30 +156,54 @@ export function seal(state: GovernanceState, drafts: AuditDraft[]) {
   }
 }
 
-/** Run `fn` on a private copy of the state, one transaction at a time, and commit what it returns. */
-export function transact<T>(fn: (draft: GovernanceState, current: GovernanceState) => { commit: GovernanceState; result: T }): Promise<T> {
-  const run = holder.queue.then(() => {
-    const current = readState();
-    const draft = structuredClone(current);
-    const { commit, result } = fn(draft, current);
-    holder.state = commit;
-    write(commit);
-    return result;
+type Change<T> = { commit: GovernanceState; result: T };
+
+/**
+ * Run `fn` on a private copy of the state, one transaction at a time in this instance, and commit what it
+ * returns if no other instance committed meanwhile; otherwise `fn` runs again on the newer state.
+ */
+export function transact<T>(fn: (draft: GovernanceState, current: GovernanceState) => Change<T> | Promise<Change<T>>): Promise<T> {
+  const run = holder.queue.then(async () => {
+    for (let attempt = 1; ; attempt++) {
+      const { state: current, version } = await refresh();
+      holder.pending = [];
+      let change: Change<T>;
+      let ops: PointOp[];
+      try {
+        change = await fn(structuredClone(current), current);
+      } finally {
+        ops = holder.pending ?? [];
+        holder.pending = null;
+      }
+      const { data, error } = await adminDb()
+        .from("hub_state")
+        .update({ state: change.commit, version: version + 1, updated_at: new Date().toISOString() })
+        .eq("id", 1)
+        .eq("version", version)
+        .select("version");
+      if (error) throw failed("saving", error);
+      if (data.length) {
+        remember({ state: change.commit, version: version + 1 });
+        await applyPoints(ops);
+        await syncPublicMedia(current, change.commit);
+        return change.result;
+      }
+      if (attempt === ATTEMPTS) throw new Error("Governance store: too many changes at once. Try again in a moment.");
+    }
   });
   holder.queue = run.catch(() => undefined);
   return run;
 }
 
-/** Record that a session was used, without a full transaction; saved with the next write or shortly after. */
-export function touch(sessionId: string, at: string) {
-  const s = readState().sessions.find((x) => x.id === sessionId);
-  if (!s) return;
-  s.lastSeen = at;
-  if (holder.timer) return;
-  holder.timer = setTimeout(() => {
-    holder.timer = null;
-    if (holder.state) write(holder.state);
-  }, 4000);
+/** Record that a session was used. The store is written at most once a minute per session. */
+export async function touch(sessionId: string, at: string) {
+  const s = (await readState()).sessions.find((x) => x.id === sessionId);
+  if (!s || Date.parse(at) - Date.parse(s.lastSeen) < TOUCH_MS) return;
+  await transact((draft) => {
+    const d = draft.sessions.find((x) => x.id === sessionId);
+    if (d && d.lastSeen < at) d.lastSeen = at;
+    return { commit: draft, result: undefined };
+  });
 }
 
 /* ---------- Audit verification ---------- */
@@ -149,34 +232,62 @@ function restorable(state: GovernanceState) {
   return rest;
 }
 
+function queue(op: PointOp) {
+  if (!holder.pending) throw new Error("Governance store: recovery points and media change only inside a transaction.");
+  holder.pending.push(op);
+}
+
+/** Remove post pictures from the media bucket once the transaction commits. */
+export function deleteMediaLater(paths: string[]) {
+  queue({ op: "media", paths });
+}
+
+/** Take a recovery point of the state as it stands; it is saved once the transaction commits. */
 export function writePoint(state: GovernanceState, id: string): { checksum: string; sizeMB: number } {
-  fs.mkdirSync(POINTS, { recursive: true });
   const body = JSON.stringify(restorable(state));
   const checksum = sha256(body);
-  fs.writeFileSync(path.join(POINTS, `${id}.json`), JSON.stringify({ id, checksum, body }));
+  queue({ op: "put", id, checksum, body });
   return { checksum, sizeMB: Math.max(0.01, Math.round((Buffer.byteLength(body) / 1_048_576) * 100) / 100) };
 }
 
-function readPoint(id: string): { ok: true; data: ReturnType<typeof restorable> } | { ok: false; reason: string } {
-  try {
-    const raw = JSON.parse(fs.readFileSync(path.join(POINTS, `${id}.json`), "utf8")) as { checksum: string; body: string };
-    if (sha256(raw.body) !== raw.checksum) return { ok: false, reason: "Checksum mismatch: the file changed after it was written." };
-    const data = JSON.parse(raw.body);
-    if (data.schema !== SCHEMA) return { ok: false, reason: `Taken by an older version of the Hub (schema ${data.schema}).` };
-    return { ok: true, data };
-  } catch {
-    return { ok: false, reason: "The recovery point file is missing or unreadable." };
-  }
+/** Remove a recovery point once the transaction commits. */
+export function deletePoint(id: string) {
+  queue({ op: "delete", id });
 }
 
-export function verifyPoint(id: string) {
-  const r = readPoint(id);
+async function applyPoints(ops: PointOp[]) {
+  const table = () => adminDb().from("hub_recovery_points");
+  const puts = ops.flatMap((o) => (o.op === "put" ? [{ id: o.id, checksum: o.checksum, body: o.body }] : []));
+  const deletes = ops.flatMap((o) => (o.op === "delete" ? [o.id] : []));
+  // The state already names these points; if saving one fails, verifying it reports the gap.
+  if (puts.length) {
+    const { error } = await table().upsert(puts);
+    if (error) console.error(failed("saving a recovery point", error).message);
+  }
+  if (deletes.length) {
+    const { error } = await table().delete().in("id", deletes);
+    if (error) console.error(failed("deleting a recovery point", error).message);
+  }
+  await removeMedia(ops.flatMap((o) => (o.op === "media" ? o.paths : [])));
+}
+
+async function readPoint(id: string): Promise<{ ok: true; data: ReturnType<typeof restorable> } | { ok: false; reason: string }> {
+  const { data: row, error } = await adminDb().from("hub_recovery_points").select("checksum, body").eq("id", id).maybeSingle();
+  if (error || !row) return { ok: false, reason: "The recovery point is missing or unreadable." };
+  if (sha256(row.body) !== row.checksum) return { ok: false, reason: "Checksum mismatch: the point changed after it was written." };
+  const data = migrate(JSON.parse(row.body));
+  if (!data) return { ok: false, reason: "Taken by a version of the Hub this one can't read." };
+  return { ok: true, data };
+}
+
+export async function verifyPoint(id: string) {
+  const r = await readPoint(id);
   return r.ok ? { ok: true as const, accounts: r.data.accounts.length, units: r.data.units.length } : r;
 }
 
 /** Replace everything restorable with the recovery point's contents; the audit trail and sessions carry on. */
-export function restoreInto(state: GovernanceState, id: string): { ok: boolean; reason?: string } {
-  const r = readPoint(id);
+export async function restoreInto(state: GovernanceState, id: string): Promise<{ ok: boolean; reason?: string }> {
+  const r = await readPoint(id);
   if (!r.ok) return r;
   const keep = { audit: state.audit, sessions: state.sessions, challenges: state.challenges, failures: state.failures };
   // Keep the catalogue of recovery points current, including this one and any taken after it.
@@ -189,19 +300,4 @@ export function restoreInto(state: GovernanceState, id: string): { ok: boolean; 
   // Identifiers never repeat, even across a restore.
   for (const [k, n] of Object.entries(counters)) state.records.counters[k] = Math.max(n, state.records.counters[k] ?? 0);
   return { ok: true };
-}
-
-export function deletePointFile(id: string) {
-  try {
-    fs.unlinkSync(path.join(POINTS, `${id}.json`));
-  } catch {
-    /* sample points have no file */
-  }
-}
-
-/** The seed, for the prototype reset; the audit trail is kept and continues. */
-export function seedInto(state: GovernanceState) {
-  const fresh = freshState();
-  const keep = { audit: state.audit, sessions: state.sessions, challenges: state.challenges, failures: state.failures };
-  Object.assign(state, fresh, keep);
 }

@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { AccountRow } from "@/lib/governance/console-types";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { ROLE } from "@/lib/governance/catalog";
+import { invitationUnitMatchesRole } from "@/lib/governance/invitation";
+import { accountFilterOptions, matchesAccountFilter, matchesAccessRequestFilter } from "@/lib/governance/account-filters";
+import type { AccountRow, RequestRow } from "@/lib/governance/console-types";
+import { trackStatus } from "@/lib/governance/request-tracker";
 import { UNIVERSITY, has, rolePermissions, union, unitScope } from "@/lib/governance/rbac";
-import type { AccountStatus, Scope } from "@/lib/governance/types";
+import type { RoleId, Scope } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { PermissionMatrix, ScopeEditor, UnitSelect, diffCell, parentPath } from "../parts";
-import { readSheetFile } from "../sheet-reader";
+import { RequestSheet } from "./Workflows";
 import {
   Avatar,
   Block,
@@ -22,7 +26,6 @@ import {
   Sheet,
   StatusPill,
   Tabs,
-  download,
   fmtAgo,
   fmtDate,
   plural,
@@ -30,18 +33,19 @@ import {
   useConsole,
   type ConfirmOptions,
 } from "../ui";
+import { DateField, Select } from "@/components/ui/pickers";
+import { useSkipChecks } from "@/lib/dev-checks";
 
-type Filter = "All" | AccountStatus | "Flagged";
+type Filter = "Accounts" | "Requests";
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: "All", label: "All" },
-  { key: "Active", label: "Active" },
-  { key: "Pending Invitation", label: "Invited" },
-  { key: "Suspended", label: "Suspended" },
-  { key: "Deactivated", label: "Deactivated" },
-  { key: "Flagged", label: "Needs review" },
+  { key: "Accounts", label: "Accounts" },
+  { key: "Requests", label: "Access Requests" },
 ];
 
-/** The confirmations shared by the row menu and the account panel. */
+/** While the access requests are on screen, new ones and the requesters' first sign-ins come in this often. */
+const REQUESTS_POLL_MS = 15_000;
+
+/** The confirmations used by the account panel. */
 const reasonInput = { label: "Reason", placeholder: "Saved in the audit log", required: true };
 const STATUS_CONFIRM: Record<"Suspended" | "Deactivated" | "Cancel", (name: string) => ConfirmOptions> = {
   Suspended: (name) => ({ title: `Suspend ${name}?`, body: "They are signed out now and can't sign in until reactivated.", confirm: "Suspend", tone: "danger", input: reasonInput }),
@@ -61,97 +65,80 @@ function useStatusChange() {
 }
 
 export function Accounts() {
-  const { data, focus } = useConsole();
+  const { data, focus, reload } = useConsole();
   const v = data.viewer;
   const accounts = data.accounts ?? [];
+  const requests = data.requests.filter((r) => r.payload.kind === "account-access");
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<Filter>(focus === "flagged" ? "Flagged" : "All");
   const [unit, setUnit] = useState("");
   const [role, setRole] = useState("");
+  const [filter, setFilter] = useState<Filter>(focus?.startsWith("RQ-") ? "Requests" : "Accounts");
+  const [openRequest, setOpenRequest] = useState<string | null>(focus?.startsWith("RQ-") ? focus : null);
   const [open, setOpen] = useState<string | null>(focus && focus.startsWith("ACC-") ? focus : null);
   const [inviting, setInviting] = useState(false);
-  const [importing, setImporting] = useState(false);
   const canCreate = viewerCan(v, "accounts", "create");
 
-  const count = (f: Filter) => (f === "All" ? accounts.length : f === "Flagged" ? accounts.filter((a) => a.inactive).length : accounts.filter((a) => a.status === f).length);
+  const count = (f: Filter) =>
+    f === "Accounts" ? accounts.length : requests.filter((r) => r.status === "Pending").length;
+
+  // keep the access requests live while they are on screen
+  useEffect(() => {
+    if (filter !== "Requests") return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void reload();
+    }, REQUESTS_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [filter, reload]);
 
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase();
     return accounts
       .filter((a) => !t || a.name.toLowerCase().includes(t) || a.email.includes(t) || a.title.toLowerCase().includes(t))
-      .filter((a) => (filter === "All" ? true : filter === "Flagged" ? a.inactive : a.status === filter))
-      .filter((a) => !unit || a.unitId === unit)
-      .filter((a) => !role || a.assignments.some((x) => x.roleId === role))
+      .filter((a) => matchesAccountFilter(a, role, unit, data.units, requests, data.day))
       .sort((a, b) => Number(b.inactive) - Number(a.inactive) || a.name.replace(/^\S+\.\s/, "").localeCompare(b.name.replace(/^\S+\.\s/, "")));
-  }, [accounts, q, filter, unit, role]);
+  }, [accounts, q, unit, role, data.units, requests, data.day]);
 
   const unitName = (id: string) => data.units.find((u) => u.id === id)?.name ?? id;
   const current = accounts.find((a) => a.id === open) ?? null;
-  const everywhere = v.superAdmin || v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "view"));
+  const everywhere = v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "view"));
 
   return (
     <div className="adm-stack">
-      <div className="adm-toolbar">
-        <SearchField value={q} onChange={setQ} placeholder="Search people" label="Search accounts" />
-        <select className="select select--sm" value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Filter by unit">
-          <option value="">All units</option>
-          {[...new Set(accounts.map((a) => a.unitId))]
-            .sort((a, b) => unitName(a).localeCompare(unitName(b)))
-            .map((u) => (
-              <option key={u} value={u}>
-                {unitName(u)}
-              </option>
-            ))}
-        </select>
-        <select className="select select--sm" value={role} onChange={(e) => setRole(e.target.value)} aria-label="Filter by role">
-          <option value="">All roles</option>
-          {data.roles.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-        <span className="adm-toolbar__spacer" />
-        {canCreate && (
-          <>
-            <button type="button" className="btn btn--sm" onClick={() => setImporting(true)}>
-              <Icon name="upload" size={15} /> Import
-            </button>
-            <button type="button" className="btn btn--dark btn--sm" onClick={() => setInviting(true)}>
-              <Icon name="user-plus" size={15} /> Invite
-            </button>
-          </>
-        )}
-      </div>
-
       <Tabs<Filter>
-        label="Filter accounts by status"
+        label="Accounts and access requests"
         value={filter}
         onChange={setFilter}
-        tabs={FILTERS.filter((f) => f.key === "All" || f.key === filter || count(f.key) > 0).map((f) => ({
+        tabs={FILTERS.map((f) => ({
           key: f.key,
-          label: (
-            <>
-              {f.label}
-              <span className={`adm-tabs__count${f.key === "Flagged" && count(f.key) ? " is-alert" : ""}`}>{count(f.key)}</span>
-            </>
-          ),
+          label: f.label,
+          count: count(f.key),
+          countTone: f.key === "Requests" && count(f.key) ? "alert" : undefined,
         }))}
+        actions={
+          <>
+            {canCreate && (
+              <button type="button" className="btn content-tabs__action" onClick={() => setInviting(true)}>
+                <Icon name="user-plus" size={15} /> Invite
+              </button>
+            )}
+            <AccountFilters unit={unit} role={role} onUnit={setUnit} onRole={setRole} />
+          </>
+        }
+        search={<SearchField value={q} onChange={setQ} placeholder={filter === "Requests" ? "Search requests" : "Search people"} label={filter === "Requests" ? "Search access requests" : "Search accounts"} shortcuts />}
       />
 
-      {shown.length ? (
+      {filter === "Requests" ? (
+        <AccessRequests requests={requests} q={q} unit={unit} role={role} onOpen={setOpenRequest} />
+      ) : shown.length ? (
         <div className="adm-table-wrap">
-          <table className="adm-table">
+          <table className="adm-table adm-table--accounts">
             <thead>
               <tr>
                 <th>Person</th>
                 <th>Unit</th>
                 <th>Roles</th>
-                <th>Status</th>
                 <th>Last sign-in</th>
-                <th>
-                  <span className="sr-only">Actions</span>
-                </th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -159,7 +146,7 @@ export function Accounts() {
                 <tr key={a.id} className="is-clickable" onClick={() => setOpen(a.id)}>
                   <td>
                     <button type="button" className="adm-person" onClick={(e) => { e.stopPropagation(); setOpen(a.id); }}>
-                      <Avatar name={a.name} />
+                      <Avatar name={a.name} src={a.avatar} placeholder />
                       <span>
                         <b>{a.name}</b>
                         <small>{a.email}</small>
@@ -180,16 +167,12 @@ export function Accounts() {
                       {!a.roleNames.length && <span className="adm-muted small">None</span>}
                     </span>
                   </td>
+                  <td className="adm-muted num">{a.status === "Pending Invitation" ? "—" : fmtAgo(a.lastLogin, data.now)}</td>
                   <td>
                     <span className="adm-inline">
                       <StatusPill value={a.status} />
                       {a.inactive && <Pill tone="revise">Idle {a.idleDays} days</Pill>}
-                      {a.external && <Pill tone="gold">Guest</Pill>}
                     </span>
-                  </td>
-                  <td className="adm-muted num">{a.status === "Pending Invitation" ? "—" : fmtAgo(a.lastLogin, data.now)}</td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <QuickMenu a={a} onOpen={() => setOpen(a.id)} />
                   </td>
                 </tr>
               ))}
@@ -199,35 +182,145 @@ export function Accounts() {
       ) : (
         <EmptyNote icon="search" title="No accounts match" />
       )}
-      <p className="adm-count">
-        {plural(shown.length, "account")}
-        {everywhere ? "" : " in your units"}
-      </p>
+      {filter !== "Requests" && (
+        <p className="adm-count">
+          {plural(shown.length, "account")}
+          {everywhere ? "" : " in your units"}
+        </p>
+      )}
 
       <AccountSheet account={current} onClose={() => setOpen(null)} />
       <InviteSheet open={inviting} onClose={() => setInviting(false)} onCreated={(id) => setOpen(id)} />
-      <ImportSheet open={importing} onClose={() => setImporting(false)} />
+      <RequestSheet r={data.requests.find((r) => r.id === openRequest) ?? null} onClose={() => setOpenRequest(null)} />
     </div>
   );
 }
 
-/* ---------- Row quick actions ---------- */
+/* ---------- Access requests ---------- */
 
-function QuickMenu({ a, onOpen }: { a: AccountRow; onOpen: () => void }) {
-  const act = useAct();
-  const status = useStatusChange();
+function AccountFilters({ unit, role, onUnit, onRole }: { unit: string; role: string; onUnit: (value: string) => void; onRole: (value: string) => void }) {
+  const { data } = useConsole();
+  const options = accountFilterOptions(role, data.units, data.accounts ?? [], data.requests);
+  const unitLabel = role === ROLE.admin ? "UST Office" : role === ROLE.coordinator ? "College/Faculty" : role === ROLE.external ? "Affiliation" : "Unit";
+  const allUnits = role === ROLE.admin ? "All UST offices" : role === ROLE.coordinator ? "All colleges/faculties" : "All affiliations";
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  useEffect(() => {
+    if (!open) return;
+    root.current?.querySelector<HTMLButtonElement>(".pick-trigger")?.focus();
+    const outside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      setOpen(false);
+      trigger.current?.focus();
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
   return (
-    <RowMenu
-      label={`Actions for ${a.name}`}
-      items={[
-        { label: "Open", icon: "eye", onSelect: onOpen },
-        a.canEdit && a.status === "Pending Invitation" && { label: "Re-send invitation", icon: "send", onSelect: () => void act({ type: "account.resend", id: a.id }) },
-        a.canEdit && a.inactive && { label: "Keep active", icon: "check", onSelect: () => void act({ type: "account.keep", id: a.id }) },
-        a.canEdit && a.status === "Active" && { label: "Suspend", icon: "ban", danger: true, onSelect: () => void status(a, "Suspended") },
-        a.canEdit && (a.status === "Suspended" || a.status === "Deactivated") && { label: "Reactivate", icon: "refresh", onSelect: () => void status(a, "Active") },
-        a.canEdit && a.sessions > 0 && { label: "Sign out everywhere", icon: "logout", onSelect: () => void act({ type: "account.revoke", id: a.id }) },
-      ]}
-    />
+    <div className="adm-account-filter" ref={root}>
+      <button ref={trigger} type="button" className={`adm-iconbtn content-tabs__action content-tabs__action--icon adm-account-filter__trigger${unit || role ? " is-active" : ""}`} aria-label="Filter results" aria-haspopup="dialog" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)}>
+        <Icon name="filter" size={18} />
+      </button>
+      {open && <div id={panelId} className="adm-account-filter__panel" role="dialog" aria-labelledby={`${panelId}-title`}>
+        <div className="adm-account-filter__head">
+          <h3 id={`${panelId}-title`}>Filter Results</h3>
+          <button type="button" className="adm-iconbtn" aria-label="Close filters" onClick={() => { setOpen(false); trigger.current?.focus(); }}>
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+        <Field label="Role">
+          <Select className="select select--sm" value={role} onChange={(value) => { onRole(value); onUnit(""); }}>
+            <option value="">All roles</option>
+            {data.roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </Select>
+        </Field>
+        <Field label={unitLabel}>
+          <Select className="select select--sm" value={unit} onChange={onUnit} disabled={!role}>
+            <option value="">{role ? allUnits : "Choose a role first"}</option>
+            {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+        </Field>
+        {(unit || role) && <button type="button" className="btn btn--sm" onClick={() => { onUnit(""); onRole(""); }}>Clear filters</button>}
+      </div>}
+    </div>
+  );
+}
+
+/**
+ * Requests for an account sent from the sign-in page, each with the standing its requester sees in the
+ * Submission Tracker. Waiting ones first, oldest first; then the rest, newest first.
+ */
+function AccessRequests({ requests, q, unit, role, onOpen }: { requests: RequestRow[]; q: string; unit: string; role: string; onOpen: (id: string) => void }) {
+  const { data } = useConsole();
+  const signedIn = (email: string) => {
+    const a = data.accounts?.find((x) => x.email.toLowerCase() === email.toLowerCase());
+    return !!(a && (a.firstLogin ?? a.lastLogin));
+  };
+  const t = q.trim().toLowerCase();
+  const rows = requests
+    .flatMap((r) => (r.payload.kind === "account-access" ? [{ r, p: r.payload }] : []))
+    .filter(({ p }) => matchesAccessRequestFilter(p, role, unit, data.units))
+    .filter(({ r, p }) => !t || p.name.toLowerCase().includes(t) || p.email.includes(t) || r.id.toLowerCase().includes(t) || p.title.toLowerCase().includes(t))
+    .sort((a, b) =>
+      a.r.status === "Pending" && b.r.status === "Pending"
+        ? a.r.requestedAt.localeCompare(b.r.requestedAt)
+        : Number(b.r.status === "Pending") - Number(a.r.status === "Pending") || b.r.requestedAt.localeCompare(a.r.requestedAt),
+    );
+  if (!rows.length) return <EmptyNote icon="inbox" title={t || unit || role ? "No requests match" : "No access requests"} />;
+  return (
+    <>
+      <div className="adm-table-wrap">
+        <table className="adm-table adm-table--accounts">
+          <thead>
+            <tr>
+              <th>Applicant Name</th>
+              <th>Reference</th>
+              <th>Affiliation</th>
+              <th>Application Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ r, p }) => (
+              <tr key={r.id} className="is-clickable" onClick={() => onOpen(r.id)}>
+                <td>
+                  <button type="button" className="adm-person" onClick={(e) => { e.stopPropagation(); onOpen(r.id); }}>
+                    <Avatar name={p.name} placeholder />
+                    <span>
+                      <b>{p.name}</b>
+                      <small>{p.email}</small>
+                    </span>
+                  </button>
+                </td>
+                <td className="num">{r.id}</td>
+                <td className="adm-muted adm-cell-unit">
+                  <span title={p.title}>{p.title}</span>
+                </td>
+                <td className="adm-muted num">
+                  <span title={fmtDate(r.requestedAt, true)}>{fmtDate(r.requestedAt)}</span>
+                </td>
+                <td>
+                  <span className="adm-inline">
+                    <StatusPill value={trackStatus(r, r.status === "Approved" && signedIn(p.email))} />
+                    {r.overdue && <Pill tone="danger">Overdue</Pill>}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="adm-count">{plural(rows.length, "request")}</p>
+    </>
   );
 }
 
@@ -258,7 +351,7 @@ function AccountSheet({ account: a, onClose }: { account: AccountRow | null; onC
       onClose={onClose}
       title={
         <span className="adm-inline">
-          <Avatar name={a.name} size={34} />
+          <Avatar name={a.name} src={a.avatar} size={34} placeholder />
           <span>
             {a.name}
             <small className="adm-sheet__mail">{a.email}</small>
@@ -411,6 +504,7 @@ function AccountSheet({ account: a, onClose }: { account: AccountRow | null; onC
 }
 
 function EditDetails({ a, onDone }: { a: AccountRow; onDone: () => void }) {
+  const skip = useSkipChecks();
   const act = useAct();
   const [name, setName] = useState(a.name);
   const [title, setTitle] = useState(a.title);
@@ -432,7 +526,7 @@ function EditDetails({ a, onDone }: { a: AccountRow; onDone: () => void }) {
         <button
           type="button"
           className="btn btn--sm btn--dark"
-          disabled={!dirty || name.trim().length < 3}
+          disabled={!dirty || (!skip && name.trim().length < 3)}
           onClick={async () => {
             const r = await act({ type: "account.update", id: a.id, name: name.trim(), title: title.trim() });
             if (r.ok) onDone();
@@ -485,17 +579,18 @@ function Transfer({ a, onDone }: { a: AccountRow; onDone: () => void }) {
 /* ---------- Roles held, and adding one with a preview ---------- */
 
 function RolesTab({ a }: { a: AccountRow }) {
+  const skip = useSkipChecks();
   const { data, confirm } = useConsole();
   const act = useAct();
   const v = data.viewer;
   const roleOf = (id: string) => data.roles.find((r) => r.id === id);
-  const current = union(...a.assignments.filter((x) => !x.expires || x.expires > data.day).map((x) => rolePermissions(x.roleId, data.roles)));
+  const current = union(...a.assignments.filter((x) => !x.expires || x.expires > data.day).map((x) => rolePermissions(x.roleId)));
   const [adding, setAdding] = useState(false);
   const [roleId, setRoleId] = useState("");
   const [scope, setScope] = useState<Scope>(UNIVERSITY);
   const [expires, setExpires] = useState("");
   const [note, setNote] = useState("");
-  const universityAdmin = v.superAdmin || v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "edit"));
+  const universityAdmin = v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "edit"));
   const pick = (id: string) => {
     setRoleId(id);
     const r = roleOf(id);
@@ -507,8 +602,8 @@ function RolesTab({ a }: { a: AccountRow }) {
     setNote("");
     setExpires("");
   };
-  const after = roleId ? union(current, rolePermissions(roleId, data.roles)) : current;
-  const needsEnd = roleId === "external";
+  const after = roleId ? union(current, rolePermissions(roleId)) : current;
+  const needsEnd = roleId === ROLE.external;
 
   return (
     <div className="adm-stack adm-stack--tight">
@@ -568,18 +663,18 @@ function RolesTab({ a }: { a: AccountRow }) {
         <Block title="Add role">
           <div className="adm-form-grid">
             <Field label="Role">
-              <select className="select" value={roleId} onChange={(e) => pick(e.target.value)} autoFocus>
+              <Select className="select" value={roleId} onChange={pick} autoFocus>
                 <option value="">Choose a role</option>
                 {data.roles.map((r) => (
-                  <option key={r.id} value={r.id} disabled={!r.grantable || (!!a.external && r.id !== "external")}>
+                  <option key={r.id} value={r.id} disabled={!r.grantable || (!!a.external && r.id !== ROLE.external)}>
                     {r.name}
                     {!r.grantable ? " (above your access)" : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label={needsEnd ? "Ends" : "Ends (optional)"}>
-              <input className="input" type="date" min={data.day} value={expires} onChange={(e) => setExpires(e.target.value)} aria-label="End date" />
+              <DateField className="input" min={data.day} value={expires} onChange={setExpires} aria-label="End date" />
             </Field>
           </div>
           {roleId && (
@@ -600,9 +695,9 @@ function RolesTab({ a }: { a: AccountRow }) {
             <button
               type="button"
               className="btn btn--dark btn--sm"
-              disabled={!roleId || (needsEnd && !expires)}
+              disabled={!skip && (!roleId || (needsEnd && !expires))}
               onClick={async () => {
-                const r = await act({ type: "assignment.add", accountId: a.id, roleId, scope, expires: expires || undefined, note });
+                const r = await act({ type: "assignment.add", accountId: a.id, roleId: roleId as RoleId, scope, expires: expires || undefined, note });
                 if (r.ok) reset();
               }}
             >
@@ -627,21 +722,31 @@ export function scopeText(s: Scope, data: ReturnType<typeof useConsole>["data"])
 /* ---------- Invite ---------- */
 
 function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
+  const formId = useId();
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const v = data.viewer;
-  const [f, setF] = useState({ name: "", email: "", title: "", unitId: "", roleId: "", expires: "", external: false });
+  const [f, setF] = useState({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", expires: "", external: false });
   const [custom, setCustom] = useState(false);
   const [scope, setScope] = useState<Scope>(UNIVERSITY);
-  const universityAdmin = v.superAdmin || v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "edit"));
+  const universityAdmin = v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "edit"));
   useEffect(() => {
     if (open) {
-      setF({ name: "", email: "", title: "", unitId: "", roleId: "", expires: "", external: false });
+      setF({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", expires: "", external: false });
       setCustom(false);
     }
   }, [open]);
   const role = data.roles.find((r) => r.id === f.roleId);
-  const ready = f.name.trim().length > 2 && /@/.test(f.email) && f.unitId && f.roleId && (!f.external || f.expires);
+  const ready = skip || f.lastName.trim() && f.firstName.trim() && /@/.test(f.email) && f.unitId && f.roleId && (!f.external || f.expires);
+  const effectiveRole = f.external ? ROLE.external : f.roleId;
+  const unitOptions = data.units.filter((unit) => unit.status === "Active" && invitationUnitMatchesRole(unit, effectiveRole) && viewerCan(v, "accounts", "create", { unitId: unit.id })).sort((a, b) => a.name.localeCompare(b.name));
+  const changeRole = (roleId: string, external = f.external) => {
+    const unit = data.units.find((candidate) => candidate.id === f.unitId);
+    setF({ ...f, roleId, external, unitId: unit && invitationUnitMatchesRole(unit, roleId) ? unit.id : "" });
+    setCustom(false);
+    setScope(UNIVERSITY);
+  };
   return (
     <Sheet
       open={open}
@@ -654,56 +759,58 @@ function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="btn btn--dark"
             disabled={!ready}
-            onClick={async () => {
-              const r = await act({
-                type: "account.invite",
-                input: { name: f.name, email: f.email, title: f.title, unitId: f.unitId, roleId: f.external ? "external" : f.roleId, expires: f.expires || undefined, external: f.external, scope: custom ? scope : undefined },
-              });
-              if (r.ok) {
-                onClose();
-                if (typeof r.data === "string") onCreated(r.data);
-              }
-            }}
           >
             <Icon name="send" size={15} /> Send invitation
           </button>
         </>
       }
     >
-      <div className="adm-form-grid">
-        <Field label="Full name">
-          <input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Dr. J. Santiago" />
+      <form id={formId} className="adm-form-grid adm-invite" onSubmit={async (event) => {
+        event.preventDefault();
+        const name = [f.firstName, f.middleName, f.lastName].map((part) => part.trim()).filter(Boolean).join(" ");
+        const r = await act({ type: "account.invite", input: { name, email: f.email, title: "", unitId: f.unitId, roleId: effectiveRole as RoleId, expires: f.expires || undefined, external: f.external, scope: custom ? scope : undefined } });
+        if (r.ok) { onClose(); if (typeof r.data === "string") onCreated(r.data); }
+      }}>
+        <Field label="Last name">
+          <input className="input" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} autoComplete="family-name" required maxLength={60} />
+        </Field>
+        <Field label="First Name">
+          <input className="input" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} autoComplete="given-name" required maxLength={60} />
+        </Field>
+        <Field label="Middle Name (optional)">
+          <input className="input" value={f.middleName} onChange={(e) => setF({ ...f, middleName: e.target.value })} autoComplete="additional-name" maxLength={60} />
         </Field>
         <Field label="Email">
-          <input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder={f.external ? "name@partner.org" : "name@ust.edu.ph"} />
-        </Field>
-        <Field label="Position">
-          <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Data Encoder" />
-        </Field>
-        <Field label="Unit">
-          <UnitSelect label="Unit" value={f.unitId} onChange={(id) => setF({ ...f, unitId: id })} filter={(u) => u.status === "Active" && viewerCan(v, "accounts", "create", { unitId: u.id })} />
+          <input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder={f.external ? "name@partner.org" : "name@ust.edu.ph"} autoComplete="email" required maxLength={254} title="" />
         </Field>
         <Field label="Role">
-          <select className="select" value={f.external ? "external" : f.roleId} disabled={f.external} onChange={(e) => setF({ ...f, roleId: e.target.value })}>
+          <Select className="select" value={effectiveRole} disabled={f.external} onChange={(value) => changeRole(value)} required>
             <option value="">Choose a role</option>
             {data.roles.map((r) => (
-              <option key={r.id} value={r.id} disabled={!r.grantable || (r.id === "external" && !f.external)}>
+              <option key={r.id} value={r.id} disabled={!r.grantable || (r.id === ROLE.external && !f.external)}>
                 {r.name}
-                {!r.grantable ? " (above your access)" : r.id === "external" && !f.external ? " (guests only)" : ""}
+                {!r.grantable ? " (above your access)" : r.id === ROLE.external && !f.external ? " (guests only)" : ""}
               </option>
             ))}
-          </select>
+          </Select>
+        </Field>
+        <Field label="Unit">
+          <Select className="select" value={f.unitId} onChange={(unitId) => { setF({ ...f, unitId }); setCustom(false); }} disabled={!effectiveRole} required aria-label="Unit">
+            <option value="">{!effectiveRole ? "Choose a role first" : effectiveRole === ROLE.coordinator ? "Choose a Faculty/College" : "Choose a University Office"}</option>
+            {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+          </Select>
         </Field>
         <Field label={f.external ? "Access ends" : "Access ends (optional)"}>
-          <input className="input" type="date" min={data.day} value={f.expires} onChange={(e) => setF({ ...f, expires: e.target.value })} />
+          <DateField className="input" min={data.day} value={f.expires} onChange={(v) => setF({ ...f, expires: v })} required={f.external} />
         </Field>
-      </div>
+      </form>
       {viewerCan(v, "accounts", "manage") && (
         <label className="choice">
-          <input type="checkbox" checked={f.external} onChange={(e) => setF({ ...f, external: e.target.checked, roleId: e.target.checked ? "external" : "" })} />
+          <input type="checkbox" checked={f.external} onChange={(e) => changeRole(e.target.checked ? ROLE.external : "", e.target.checked)} />
           Guest from outside the University
         </label>
       )}
@@ -736,159 +843,8 @@ function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () 
         ))}
       {role && (
         <Disclosure title={`What ${role.name} can do`}>
-          <PermissionMatrix caption={`${role.name} permissions`} cell={diffCell({}, rolePermissions(role.id, data.roles))} />
+          <PermissionMatrix caption={`${role.name} permissions`} cell={diffCell({}, role.permissions)} />
         </Disclosure>
-      )}
-    </Sheet>
-  );
-}
-
-/* ---------- Bulk import ---------- */
-
-const TEMPLATE = "name,email,title,unit,role\nDr. A. Example,a.example@ust.edu.ph,Faculty member,ENG-CE,Data Contributor\nMs. B. Sample,b.sample@ust.edu.ph,Data Encoder,SCI,Data Contributor\n";
-
-function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data } = useConsole();
-  const act = useAct();
-  const [file, setFile] = useState("");
-  const [rows, setRows] = useState<{ name: string; email: string; title: string; unit: string; role: string; problem?: string }[]>([]);
-  const [error, setError] = useState("");
-  const [result, setResult] = useState<{ invited: string[]; skipped: { row: number; why: string }[] } | null>(null);
-  useEffect(() => {
-    if (open) {
-      setFile("");
-      setRows([]);
-      setError("");
-      setResult(null);
-    }
-  }, [open]);
-
-  const load = async (f: File) => {
-    setError("");
-    setResult(null);
-    setFile(f.name);
-    try {
-      const raw = await readSheetFile(f);
-      if (raw.length < 2) throw new Error("The file needs a header row and at least one person.");
-      const head = raw[0].map((h) => h.trim().toLowerCase());
-      const col = (...names: string[]) => head.findIndex((h) => names.some((n) => h === n || h.includes(n)));
-      const ci = { name: col("name", "full name"), email: col("email", "e-mail"), title: col("title", "position"), unit: col("unit", "code"), role: col("role") };
-      if (ci.name < 0 || ci.email < 0 || ci.unit < 0 || ci.role < 0) throw new Error("Columns needed: name, email, unit, role.");
-      const seen = new Set<string>();
-      const known = new Set((data.accounts ?? []).map((a) => a.email));
-      // Bulk imports add University staff; sponsored guests are invited one at a time by the Office.
-      const domains = data.security?.sso.domains ?? ["ust.edu.ph"];
-      setRows(
-        raw.slice(1).map((r) => {
-          const row = { name: r[ci.name]?.trim() ?? "", email: (r[ci.email] ?? "").trim().toLowerCase(), title: ci.title >= 0 ? r[ci.title]?.trim() ?? "" : "", unit: r[ci.unit]?.trim() ?? "", role: r[ci.role]?.trim() ?? "" };
-          const unit = data.units.find((u) => [u.code.toLowerCase(), u.id, u.name.toLowerCase()].includes(row.unit.toLowerCase()));
-          const role = data.roles.find((x) => x.name.toLowerCase() === row.role.toLowerCase() || x.id === row.role.toLowerCase());
-          let problem: string | undefined;
-          if (!row.name) problem = "Name missing";
-          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(row.email)) problem = "Email looks wrong";
-          else if (seen.has(row.email)) problem = "Duplicate in this file";
-          else if (domains.length && !domains.includes(row.email.split("@")[1] ?? "")) problem = "Not a University email";
-          else if (known.has(row.email)) problem = "Already has an account";
-          else if (!unit) problem = `Unknown unit “${row.unit}”`;
-          else if (unit.status !== "Active") problem = `${unit.name} is archived`;
-          else if (!role) problem = `Unknown role “${row.role}”`;
-          else if (!role.grantable) problem = "Role above your access";
-          seen.add(row.email);
-          return { ...row, problem };
-        }),
-      );
-    } catch (e) {
-      setRows([]);
-      setError(e instanceof Error ? e.message : "The file could not be read.");
-    }
-  };
-
-  const ready = rows.filter((r) => !r.problem);
-  return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      wide
-      title="Import accounts"
-      sub="Invite many people at once from a CSV or Excel file."
-      footer={
-        <>
-          <button type="button" className="btn" onClick={() => download("hub-accounts-template.csv", TEMPLATE)}>
-            <Icon name="download" size={15} /> Template
-          </button>
-          <span className="adm-toolbar__spacer" />
-          <button type="button" className="btn" onClick={onClose}>
-            Close
-          </button>
-          <button
-            type="button"
-            className="btn btn--dark"
-            disabled={!ready.length || !!result}
-            onClick={async () => {
-              const r = await act({ type: "account.import", rows: ready.map(({ problem: _p, ...x }) => { void _p; return x; }), file });
-              if (r.data) setResult(r.data as typeof result);
-            }}
-          >
-            Invite {plural(ready.length, "person", "people")}
-          </button>
-        </>
-      }
-    >
-      <label className="adm-drop">
-        <Icon name="upload" size={22} />
-        <b>{file || "Choose a .csv or .xlsx file"}</b>
-        <span className="adm-muted small">Columns: name, email, title, unit, role</span>
-        <input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(e) => e.target.files?.[0] && void load(e.target.files[0])} />
-      </label>
-      {error && (
-        <p className="field__error" role="alert">
-          <Icon name="alert" size={14} /> {error}
-        </p>
-      )}
-      {result && (
-        <div className="adm-callout is-ok">
-          <Icon name="check-circle" size={18} />
-          <div>
-            <b>{plural(result.invited.length, "invitation")} sent.</b>
-            {result.skipped.length > 0 && (
-              <ul className="adm-list-tight">
-                {result.skipped.map((s) => (
-                  <li key={s.row}>
-                    Row {s.row}: {s.why}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-      {rows.length > 0 && (
-        <div className="adm-table-wrap">
-          <table className="adm-table adm-table--compact">
-            <thead>
-              <tr>
-                <th>Row</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Unit</th>
-                <th>Role</th>
-                <th>Check</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.slice(0, 200).map((r, i) => (
-                <tr key={i}>
-                  <td className="num adm-muted">{i + 2}</td>
-                  <td>{r.name}</td>
-                  <td className="adm-muted">{r.email}</td>
-                  <td>{r.unit}</td>
-                  <td>{r.role}</td>
-                  <td>{r.problem ? <Pill tone="danger">{r.problem}</Pill> : <Pill tone="ok">Ready</Pill>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       )}
     </Sheet>
   );

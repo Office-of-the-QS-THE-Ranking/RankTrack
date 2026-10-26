@@ -13,7 +13,7 @@ export async function AdministrationLayout({ base, home, children }: { base: str
   if (!viewer) redirect(`/signin?next=${base}`);
   if (!viewer.admin.length) redirect(home);
   return (
-    <AdminWorkspace initial={consoleData(viewer)} base={base}>
+    <AdminWorkspace initial={await consoleData(viewer)} base={base}>
       {children}
     </AdminWorkspace>
   );

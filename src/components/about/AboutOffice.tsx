@@ -22,8 +22,8 @@ const PHASES = [
   ["Phase 4", "Reports and public showcase", "Generate management reports and publish approved impact stories", false],
 ] as const;
 
-export function AboutOffice({ mode }: { mode: "internal" | "public" }) {
-  const privacy = hub().privacy;
+export async function AboutOffice({ mode }: { mode: "internal" | "public" }) {
+  const privacy = (await hub()).privacy;
   const internal = mode === "internal";
   return (
     <>

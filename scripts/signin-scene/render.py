@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 """
 Low-poly 3D renders for the sign-in scene (src/components/signin/SignInScene.tsx): the Main Building and
-the Benavides monument, modelled here from primitives and rendered flat-shaded twice, by night in the
-scene's gold light and by day in the sun. Nothing is traced from a photograph.
+the Benavides monument, modelled here from primitives and rendered flat-shaded by night in the scene's
+gold light. Nothing is traced from a photograph.
 
-    python3 -I scripts/signin-scene/render.py            # from the repo root; writes all four renders
-    python3 -I scripts/signin-scene/render.py --night    # only the night pair (or --day for the day pair)
+    python3 -I scripts/signin-scene/render.py            # from the repo root; writes both renders
     python3 -I scripts/signin-scene/render.py --preview  # quarter-size, for quick looks
 
-Writes public/images/main-building-3d.webp and benavides-3d.webp (night), main-building-3d-day.webp and
-benavides-3d-day.webp (day), and prints where the lamps, clock, cross and dome fall in the building's render:
-SceneLight shines them from TOWN_LIGHTS in sceneGeometry.ts, so paste the printed block there whenever the
-camera or the lamps move. Both times of day share the camera, so they share the block.
+Writes public/images/main-building-3d.webp and benavides-3d.webp, and prints where the lamps, clock and cross
+fall in the building's render: SceneLight shines them from TOWN_LIGHTS in sceneGeometry.ts, so paste the
+printed block there whenever the camera or the lamps move.
 
 The renderer is a small z-buffer rasteriser: every facet keeps one normal (flat shading) while the lamps fall
-off per pixel, emissive glass blooms, and the silhouette catches the glow behind it (light wrap). By day a
-depth map from the sun casts the shadows, and the glass and metals mirror the sky.
+off per pixel, emissive glass blooms, and the silhouette catches the glow behind it (light wrap).
 """
 import sys
 import numpy as np
@@ -55,29 +52,6 @@ MATS = {
     "inside": ((0.30, 0.19, 0.09), 0.0, 4, 0.04),
 }
 MAT_ID = {k: i for i, k in enumerate(MATS)}
-
-# by day the same model in the sun: a warm stone front with ivory trim, dark glass that mirrors the sky, the
-# gold and bronze bright; same keys and order as MATS
-DAY_MATS = {
-    "stone": ((0.47, 0.41, 0.3), 0.04, 6, 0.14),
-    "trim": ((0.6, 0.54, 0.42), 0.05, 8, 0.1),
-    "reveal": ((0.25, 0.2, 0.15), 0.0, 4, 0.04),
-    "glass": ((0.012, 0.016, 0.022), 0.9, 70, 0.0),
-    "iron": ((0.035, 0.03, 0.027), 0.3, 16, 0.05),
-    "bronze": ((0.22, 0.12, 0.045), 0.7, 48, 0.07),
-    "patina": ((0.07, 0.065, 0.045), 0.3, 14, 0.08),
-    "gold": ((0.9, 0.64, 0.22), 1.2, 44, 0.1),
-    "granite": ((0.17, 0.16, 0.15), 0.1, 10, 0.1),
-    "ground": ((0.33, 0.28, 0.22), 0.08, 9, 0.16),
-    "leaf": ((0.075, 0.1, 0.035), 0.05, 6, 0.22),
-    "lamp": ((0.6, 0.6, 0.56), 0.7, 40, 0.0),
-    "inside": ((0.2, 0.135, 0.075), 0.0, 4, 0.04),
-}
-# how much of the sky each surface mirrors head-on (it rises toward grazing angles); the metals tint it
-DAY_F0 = {"glass": 0.62, "gold": 0.7, "bronze": 0.1, "patina": 0.04, "iron": 0.06, "lamp": 0.12, "granite": 0.02}
-METALS = ("gold", "bronze", "patina")
-# what is left of each glow in the sun: a hint of the lit rooms behind the glass, the lamps out
-DAY_GLOW = {"glass": 0.05, "inside": 0.14, "reveal": 0.14}
 
 WARM = np.array([1.0, 0.66, 0.30])
 PALE = np.array([1.0, 0.84, 0.58])
@@ -564,13 +538,13 @@ def rasterize(A, cam):
     return idbuf, wbuf
 
 
-def shade(A, cam, idbuf, wbuf, rig, seed=7, mirror=False, mats=MATS):
+def shade(A, cam, idbuf, wbuf, rig, seed=7, mirror=False):
     rng = np.random.default_rng(seed)
     H, W = idbuf.shape
-    alb = np.array([mats[k][0] for k in MATS])[A["M"]]
-    ks = np.array([mats[k][1] for k in MATS])[A["M"]]
-    sh = np.array([mats[k][2] for k in MATS])[A["M"]]
-    jit = np.array([mats[k][3] for k in MATS])[A["M"]]
+    alb = np.array([MATS[k][0] for k in MATS])[A["M"]]
+    ks = np.array([MATS[k][1] for k in MATS])[A["M"]]
+    sh = np.array([MATS[k][2] for k in MATS])[A["M"]]
+    jit = np.array([MATS[k][3] for k in MATS])[A["M"]]
     scatter = rng.normal(0, 1, A["ng"])[A["G"]]
     alb = alb * np.clip(1 + jit * scatter, 0.4, 1.8)[:, None]
     out = np.zeros((H, W, 3), np.float32)
@@ -608,96 +582,21 @@ def lambert_blinn(P, n, Vv, ks, sh, Ld, col, att=1.0):
     return ndl[:, None] * col * a, (ks * sp)[:, None] * col * a
 
 
-class SunMap:
-    """A depth map of the occluders as the sun sees them (orthographic), for the day's cast shadows. `lit`
-    says how much of the sun reaches each point, filtered over a few texels so the shadows' edges are soft."""
-
-    def __init__(self, A, L, px_per_unit, keep=None, pad=1.0):
-        self.L = nrm(L)
-        self.R = nrm(np.cross([0.0, 1.0, 0.0], self.L))
-        self.U = np.cross(self.L, self.R)
-        V = A["V"] if keep is None else A["V"][keep]
-        P = V.reshape(-1, 3)
-        u, v, d = P @ self.R, P @ self.U, P @ self.L
-        self.u0, self.v0 = u.min() - pad, v.min() - pad
-        self.k = px_per_unit
-        self.w = int(np.ceil((u.max() + pad - self.u0) * self.k)) + 1
-        self.h = int(np.ceil((v.max() + pad - self.v0) * self.k)) + 1
-        S = np.stack([(u - self.u0) * self.k, (v - self.v0) * self.k], -1).reshape(-1, 3, 2)
-        D = d.reshape(-1, 3)
-        depth = np.full((self.h, self.w), -np.inf, np.float32)
-        for i in range(len(S)):
-            (x0, y0), (x1, y1), (x2, y2) = S[i]
-            area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
-            if abs(area) < 1e-9:
-                continue
-            mnx, mxx = max(int(np.floor(min(x0, x1, x2))), 0), min(int(np.ceil(max(x0, x1, x2))), self.w - 1)
-            mny, mxy = max(int(np.floor(min(y0, y1, y2))), 0), min(int(np.ceil(max(y0, y1, y2))), self.h - 1)
-            if mnx > mxx or mny > mxy:
-                continue
-            X = np.arange(mnx, mxx + 1, dtype=np.float32)[None, :] + 0.5
-            Y = np.arange(mny, mxy + 1, dtype=np.float32)[:, None] + 0.5
-            w0 = ((x1 - X) * (y2 - Y) - (x2 - X) * (y1 - Y)) / area
-            w1 = ((x2 - X) * (y0 - Y) - (x0 - X) * (y2 - Y)) / area
-            w2 = 1 - w0 - w1
-            inside = (w0 >= -1e-4) & (w1 >= -1e-4) & (w2 >= -1e-4)
-            if not inside.any():
-                continue
-            z = w0 * D[i, 0] + w1 * D[i, 1] + w2 * D[i, 2]
-            sub = depth[mny:mxy + 1, mnx:mxx + 1]
-            hit = inside & (z > sub)
-            sub[hit] = z[hit]
-        self.depth = depth
-        print("sun map:", self.w, "x", self.h)
-
-    def lit(self, P, n, soft=1.6):
-        # lift each point off its face a little toward the sun, so no face shadows itself
-        Q = P + n * 0.05 + self.L * 0.03
-        x = (Q @ self.R - self.u0) * self.k
-        y = (Q @ self.U - self.v0) * self.k
-        d = Q @ self.L
-        out = np.zeros(len(P), np.float32)
-        taps = [(0, 0), (soft, 0), (-soft, 0), (0, soft), (0, -soft), (soft, soft), (-soft, -soft), (soft, -soft), (-soft, soft)]
-        for dx, dy in taps:
-            xi = np.clip(np.round(x + dx).astype(int), 0, self.w - 1)
-            yi = np.clip(np.round(y + dy).astype(int), 0, self.h - 1)
-            inside = (x + dx >= 0) & (x + dx < self.w) & (y + dy >= 0) & (y + dy < self.h)
-            out += np.where(inside, self.depth[yi, xi] <= d, True)
-        return out / len(taps)
-
-
-def sky_env(D, sun, sun_c):
-    """The day sky as the glass and the metals see it: blue overhead, a pale warm haze along the horizon, the
-    plaza's warm stone below, and the sun."""
-    y = D[:, 1]
-    zen = np.array([0.05, 0.17, 0.5])
-    hor = np.array([0.42, 0.56, 0.72])
-    gnd = np.array([0.32, 0.28, 0.23])
-    up = smooth(0.0, 0.55, y)[:, None] ** 0.7
-    sky = hor + (zen - hor) * up
-    col = np.where((y >= 0)[:, None], sky, gnd + (hor - gnd) * smooth(-0.25, 0.0, y)[:, None])
-    disc = np.clip(D @ sun, 0, 1) ** 900
-    return col + disc[:, None] * sun_c * 6
-
-
 def aces(x):
     return np.clip((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0, 1)
 
 
 GRADE = np.array([[0.0, 0.012, 0.009, 0.006], [0.18, 0.13, 0.075, 0.025], [0.42, 0.42, 0.26, 0.07],
                   [0.7, 0.86, 0.6, 0.24], [1.0, 1.0, 0.95, 0.8]])
-# the day's grade: shadows a little cool, as under a blue sky, the sunlit stone warm
-DAY_GRADE = np.array([[0.0, 0.03, 0.035, 0.045], [0.2, 0.16, 0.16, 0.165], [0.5, 0.5, 0.47, 0.42],
-                      [0.8, 0.85, 0.79, 0.68], [1.0, 1.0, 0.98, 0.92]])
 
 
-def grade(rgb, k, ramp_at=GRADE):
+def grade(rgb, k):
     l = rgb @ [0.3, 0.55, 0.15]
-    ramp = np.stack([np.interp(l, ramp_at[:, 0], ramp_at[:, c]) for c in (1, 2, 3)], -1)
+    ramp = np.stack([np.interp(l, GRADE[:, 0], GRADE[:, c]) for c in (1, 2, 3)], -1)
     return rgb * (1 - k) + ramp * k
 
 
-def finish(hdr, cov, ss, exposure, glow_at, glow_r, wrap_col, wrap_k, bloom_k=1.0, grade_k=0.55, ramp=GRADE):
+def finish(hdr, cov, ss, exposure, glow_at, glow_r, wrap_col, wrap_k, bloom_k=1.0, grade_k=0.55):
     """Downsample, bloom the bright parts, tone-map, wrap the glow round the silhouette; RGBA in 0..1."""
     H, W = cov.shape
     h, w = H // ss, W // ss
@@ -714,8 +613,8 @@ def finish(hdr, cov, ss, exposure, glow_at, glow_r, wrap_col, wrap_k, bloom_k=1.
     g = np.exp(-(((xx / w - glow_at[0]) / glow_r[0]) ** 2 + ((yy / h - glow_at[1]) / glow_r[1]) ** 2))
     edge = np.clip(gaussian_filter(1 - alpha, w / 1400) * alpha * 2.2, 0, 1)
     col = col + (edge * g)[..., None] * np.asarray(wrap_col) * wrap_k
-    tm = grade(aces(col) ** (1 / 2.2), grade_k, ramp)
-    bl = grade(aces(bloom) ** (1 / 2.2), grade_k * 0.6, ramp)
+    tm = grade(aces(col) ** (1 / 2.2), grade_k)
+    bl = grade(aces(bloom) ** (1 / 2.2), grade_k * 0.6)
     prem = tm * alpha[..., None] + bl
     a = np.clip(alpha + (1 - alpha) * bl.max(-1), 0, 1)
     rgb = np.clip(prem / np.maximum(a, 1e-6)[..., None], 0, 1)
@@ -990,13 +889,14 @@ def main_building():
     gy = rng.normal(0, 0.035, len(gp))
     G3 = np.stack([gp[:, 0], gy, gp[:, 1]], 1)
     m.add(G3[tri], "ground", per_tri=True, out=[0, 1, 0], tag=1, tilt=0.03)
-    return m, dict(lamps=lamps, small=small, clock=tuple(clock), cross=cross, dome=(0.0, 32.3, tcz, 2.75, 2.35))
+    return m, dict(lamps=lamps, small=small, clock=tuple(clock), cross=cross)
 
 
 def building_rig(lamps, interior):
-    L_sun = nrm([0.8, 0.32, -0.5])
+    # the glow behind stands at the left, on the moon's side of the scene's sky
+    L_sun = nrm([-0.8, 0.32, -0.5])
     sun_c = np.array([1.0, 0.74, 0.42]) * 2.8
-    L_fill = nrm([-0.35, 0.3, 0.9])
+    L_fill = nrm([0.35, 0.3, 0.9])
     fill_c = np.array([0.026, 0.02, 0.015])
     lamp_c = np.array([1.0, 0.66, 0.3])
 
@@ -1033,46 +933,6 @@ def building_rig(lamps, interior):
     return rig
 
 
-# By day a morning sun, warm and some 24 degrees up, stands at the right and a little in front of the building,
-# as the sun stands at the upper right of the scene's sky: the front takes the light, the left-hand faces the
-# camera sees stand in shade, and each pilaster, hood and column throws a long shadow to the left. Sky light
-# fills the shadows blue from above, the plaza warm from below.
-SUN_DAY = nrm([0.774, 0.407, 0.484])
-SUN_DAY_C = np.array([1.0, 0.86, 0.62]) * 3.25
-SKY_DAY_C = np.array([0.15, 0.19, 0.31])
-BOUNCE_DAY_C = np.array([0.11, 0.085, 0.06])
-
-
-def day_rig(shadow, sun=SUN_DAY, sun_c=SUN_DAY_C, sky_c=SKY_DAY_C, bounce_c=BOUNCE_DAY_C):
-    f0 = np.array([DAY_F0.get(k, 0.0) for k in MATS])
-    metal = np.array([k in METALS for k in MATS])
-
-    def rig(P, n, Vv, t, alb, ks, sh, A):
-        m = A["M"][t]
-        up = n[:, 1:2]
-        amb = sky_c * (0.5 + 0.5 * up) + bounce_c * (0.5 - 0.5 * up)
-        d, s = lambert_blinn(P, n, Vv, ks, sh, np.broadcast_to(sun, P.shape), sun_c, shadow.lit(P, n))
-        # the sky mirrored in the glass and the metals, more of it toward grazing angles (Schlick)
-        nv = (n * Vv).sum(1)
-        F = f0[m] + (1 - f0[m]) * (1 - np.clip(nv, 0, 1)) ** 5 * (f0[m] > 0)
-        env = sky_env(2 * nv[:, None] * n - Vv, sun, sun_c)
-        is_metal = metal[m][:, None]
-        tint = np.where(is_metal, alb / np.maximum(alb.max(1, keepdims=True), 1e-3), 1.0)
-        base = np.where(is_metal, alb * 0.5, alb)
-        # a metal's highlights take its own colour, as bronze and gold do in the sun
-        return base * (amb + d) + s * tint + F[:, None] * env * tint
-
-    return rig
-
-
-def daylit(A):
-    """The model as the day finds it: the lamps out and only a hint left of the rooms lit behind the glass."""
-    out = dict(A)
-    glow = np.array([DAY_GLOW.get(k, 0.0) for k in MATS])
-    out["E"] = A["E"] * glow[A["M"]][:, None]
-    return out
-
-
 def without(A, gone):
     """The model without the facets marked in `gone`, every other facet as it was."""
     keep = ~gone
@@ -1093,7 +953,7 @@ def mirrored(A):
 BUILDING_CAM = dict(C=(-17.0, 1.6, 60.0), look=(0.0, 1.6, 0.0), fpx=1430, base=0.9)
 
 
-def render_building(ss, day=False):
+def render_building(ss):
     m, pts = main_building()
     A = m.arrays()
     hands = A["T"] == HANDS
@@ -1104,20 +964,14 @@ def render_building(ss, day=False):
     cam = Cam(C, look, W, H, BUILDING_CAM["fpx"] * k, W / 2, 0)
     sy = cam.project(np.array([[0, 0, 2.6]]))[0][0][1]
     cam.cy = BUILDING_CAM["base"] * H - sy
-    print("building:", len(A["V"]), "triangles at", W, "x", H, "by day" if day else "by night")
-    mats = DAY_MATS if day else MATS
-    if day:
-        A = daylit(A)
-        # everything but the plaza casts shadows (the plaza only takes them)
-        rig = day_rig(SunMap(A, SUN_DAY, 28 * k, keep=A["T"] != 1))
-    else:
-        rig = building_rig(pts["lamps"], [(0.0, 5.0, -2.5, 3.0)])
+    print("building:", len(A["V"]), "triangles at", W, "x", H)
+    rig = building_rig(pts["lamps"], [(0.0, 5.0, -2.5, 3.0)])
     idbuf, wbuf = rasterize(A, cam)
-    hdr = shade(A, cam, idbuf, wbuf, rig, mats=mats)
-    # the plaza: the building mirrored in it, broken up facet by facet; wet by night, polished by day
+    hdr = shade(A, cam, idbuf, wbuf, rig)
+    # the plaza: the building mirrored in it, wet, broken up facet by facet
     R = mirrored(A)
     rid, rw = rasterize(R, cam)
-    ref = shade(R, cam, rid, rw, rig, mirror=True, mats=mats)
+    ref = shade(R, cam, rid, rw, rig, mirror=True)
     ref = np.stack([gaussian_filter(ref[..., c], (5 * k, 1.4 * k)) for c in range(3)], -1)
     ground = idbuf >= 0
     ground[ground] = A["T"][idbuf[ground]] == 1
@@ -1132,20 +986,14 @@ def render_building(ss, day=False):
     z = 1.0 / wbuf[gy, gx]
     cos_t = np.clip(1.6 / np.maximum(z, 1e-3), 0, 1)
     fres = 0.04 + 0.96 * (1 - cos_t) ** 5
-    hdr[gy, gx] += ref[sy_, sx] * ((0.2 if day else 0.5) * fres * dim[gt])[:, None]
+    hdr[gy, gx] += ref[sy_, sx] * (0.5 * fres * dim[gt])[:, None]
     cov = (idbuf >= 0).astype(np.float32)
-    if day:
-        rgba = finish(hdr, cov, ss, exposure=0.62, glow_at=(0.85, 0.15), glow_r=(0.5, 0.4),
-                      wrap_col=(1.0, 0.96, 0.88), wrap_k=0.5, bloom_k=0.5, grade_k=0.3, ramp=DAY_GRADE)
-    else:
-        rgba = finish(hdr, cov, ss, exposure=1.0, glow_at=(0.66, 0.5), glow_r=(0.34, 0.26),
-                      wrap_col=(1.0, 0.74, 0.38), wrap_k=1.8)
-    # where SceneLight should shine; the dome's point is where it mirrors the day's sun toward the camera
+    rgba = finish(hdr, cov, ss, exposure=1.0, glow_at=(0.34, 0.5), glow_r=(0.34, 0.26),
+                  wrap_col=(1.0, 0.74, 0.38), wrap_k=1.8)
+    # where SceneLight should shine
     w1, h1 = W // ss, H // ss
     cam1 = Cam(C, look, w1, h1, cam.fpx / ss, cam.cx / ss, cam.cy / ss)
     frac = lambda p: [round(float(v), 3) for v in cam1.project(np.array([p]))[0][0] / [w1, h1]]
-    dx, dy, dz, dr, dh = pts["dome"]
-    half = nrm(SUN_DAY + nrm(np.asarray(C) - [dx, dy, dz]))
     print("TOWN_LIGHTS")
     print("  lamps:", [frac(p) for p in pts["lamps"]])
     print("  small:", [frac(p) for p in pts["small"]])
@@ -1154,8 +1002,7 @@ def render_building(ss, day=False):
     c0 = at(pts["clock"])
     rx = abs(at(np.asarray(pts["clock"]) + [CLOCK_R, 0, 0])[0] - c0[0])
     ry = abs(at(np.asarray(pts["clock"]) + [0, CLOCK_R, 0])[1] - c0[1])
-    print("  clock:", [round(float(v), 4) for v in c0], " cross:", frac(pts["cross"]),
-          " dome:", frac(np.array([dx, dy, dz]) + half * [dr, dh, dr]))
+    print("  clock:", [round(float(v), 4) for v in c0], " cross:", frac(pts["cross"]))
     print("  clockR:", [round(float(rx), 4), round(float(ry), 4)])
     return rgba
 
@@ -1177,11 +1024,12 @@ def monument():
 
 
 def monument_rig():
-    L_sun = nrm([0.72, 0.34, -0.6])
+    # lit from the left, as the building is, with the uplight before him at the right
+    L_sun = nrm([-0.72, 0.34, -0.6])
     sun_c = np.array([1.0, 0.74, 0.42]) * 3.4
-    L_fill = nrm([-0.6, 0.2, 0.75])
+    L_fill = nrm([0.6, 0.2, 0.75])
     fill_c = np.array([0.012, 0.01, 0.008])
-    up_p = np.array([-0.5, -0.7, 2.7])
+    up_p = np.array([0.5, -0.7, 2.7])
     up_c = np.array([1.0, 0.68, 0.32])
 
     def rig(P, n, Vv, t, alb, ks, sh, A):
@@ -1199,7 +1047,7 @@ def monument_rig():
     return rig
 
 
-def render_monument(ss, day=False):
+def render_monument(ss):
     m = monument()
     A = m.arrays()
     W, H = 1230 * ss // (2 if PREVIEW else 1), 1748 * ss // (2 if PREVIEW else 1)
@@ -1212,17 +1060,11 @@ def render_monument(ss, day=False):
     cam.fpx = k
     cam.cx = W * 0.5 - k * (mn[0] + mx[0]) / 2
     cam.cy = H * 0.995 - k * mx[1]
-    print("monument:", len(A["V"]), "triangles at", W, "x", H, "by day" if day else "by night")
+    print("monument:", len(A["V"]), "triangles at", W, "x", H)
     idbuf, wbuf = rasterize(A, cam)
     cov = (idbuf >= 0).astype(np.float32)
-    if day:
-        # the same sun as the building's: the friar throws his own shadows (the raised arm, the cappa's folds)
-        rig = day_rig(SunMap(A, SUN_DAY, 900 * W / 2460))
-        hdr = shade(A, cam, idbuf, wbuf, rig, mats=DAY_MATS)
-        return finish(hdr, cov, ss, exposure=0.62, glow_at=(1.2, 0.1), glow_r=(0.9, 0.6),
-                      wrap_col=(1.0, 0.96, 0.88), wrap_k=0.45, bloom_k=0.4, grade_k=0.3, ramp=DAY_GRADE)
     hdr = shade(A, cam, idbuf, wbuf, monument_rig())
-    return finish(hdr, cov, ss, exposure=0.85, glow_at=(1.25, 0.22), glow_r=(0.8, 0.5),
+    return finish(hdr, cov, ss, exposure=0.85, glow_at=(-0.25, 0.22), glow_r=(0.8, 0.5),
                   wrap_col=(1.0, 0.74, 0.38), wrap_k=1.4, bloom_k=0.6)
 
 
@@ -1230,8 +1072,5 @@ if __name__ == "__main__":
     ss = 1 if PREVIEW else 2
     suffix = "-preview" if PREVIEW else ""
     out = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else f"{ROOT}/public/images"
-    times = [t for t in ("night", "day") if f"--{t}" in sys.argv] or ["night", "day"]
-    for t in times:
-        tag = "-day" if t == "day" else ""
-        save(render_building(ss, day=t == "day"), f"{out}/main-building-3d{tag}{suffix}.webp")
-        save(render_monument(ss, day=t == "day"), f"{out}/benavides-3d{tag}{suffix}.webp")
+    save(render_building(ss), f"{out}/main-building-3d{suffix}.webp")
+    save(render_monument(ss), f"{out}/benavides-3d{suffix}.webp")

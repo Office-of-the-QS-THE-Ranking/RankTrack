@@ -15,7 +15,7 @@ import { getViewer } from "./session";
 export async function portalContext() {
   const viewer = await getViewer();
   if (!viewer) redirect("/signin?next=/portal");
-  const h = hub();
+  const h = await hub();
   const state = h.state;
   const org = state.units.find((u) => u.id === viewer.portal.unitId);
   const unit: HubUnit = h.unit(viewer.portal.unitId) ?? {
@@ -31,6 +31,7 @@ export async function portalContext() {
     assistance: false,
     code: org?.code ?? viewer.portal.unitId.toUpperCase(),
     status: org?.status ?? "Active",
+    emails: org?.emails ?? [],
     programs: [],
   };
   const reach = recordReach(state.units, unit.slug);

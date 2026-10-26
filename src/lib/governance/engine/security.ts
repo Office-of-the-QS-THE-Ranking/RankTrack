@@ -3,10 +3,11 @@
  * requests, alerts, keys and incidents. These settings support the University's policies and the Data
  * Privacy Act of 2012; no single setting makes the Hub compliant on its own.
  */
+import { ROLE, roleOf } from "../catalog";
 import type { Command, CommandResult } from "../commands";
 import { addDays } from "../derive";
 import type { SecurityAlert } from "../types";
-import { accountById, actorFor, can, clean, cleanText, deny, invalid, isDay, isEmail, log, nextId, ok, roleById, type Ctx } from "./core";
+import { accountById, actorFor, can, clean, cleanText, deny, invalid, isDay, isEmail, log, nextId, ok, type Ctx } from "./core";
 import { revokeSessions } from "./mutations";
 
 const POLICY = { type: "Policy", id: "security", label: "Privacy and security policy" };
@@ -30,7 +31,7 @@ export function setPolicy(ctx: Ctx, cmd: PolicyCmd): CommandResult {
       if (!["Everyone", "Privileged roles", "Off"].includes(v.mode)) return invalid("Choose who needs a second factor.");
       if (v.mode === "Off" && !can(ctx, "security", "manage")) return deny(ctx, "security.policy", "Security", POLICY, "Turning off two-step verification needs security management rights.");
       if (v.mode !== "Off" && !v.methods.length) return invalid("Allow at least one second-factor method.");
-      if (v.roles.some((r) => !roleById(ctx, r))) return invalid("One of the roles no longer exists.");
+      if (v.roles.some((r) => !roleOf(r))) return invalid("One of the roles no longer exists.");
       summary = `Two-step verification: ${v.mode}${v.mode === "Privileged roles" ? ` (${v.roles.length} roles)` : ""}`;
       sec.mfa = { mode: v.mode, roles: [...new Set(v.roles)], methods: v.methods };
       break;
@@ -103,8 +104,7 @@ export function startReview(ctx: Ctx, name: string, population: "privileged" | "
     .filter((a) => {
       if (population === "all") return true;
       if (population === "external") return !!a.external;
-      const t = actorFor(ctx.state, a, ctx.now);
-      return t.tier >= 45 || !!a.external || a.assignments.some((x) => x.expires);
+      return actorFor(ctx.state, a, ctx.now).grants.some((g) => g.roleId === ROLE.admin) || !!a.external || a.assignments.some((x) => x.expires);
     })
     .map((a) => a.id);
   const id = `AR-${nextId(ctx, "review", "", 3)}`;
@@ -191,7 +191,7 @@ export function rotateKey(ctx: Ctx, id: string): CommandResult {
   const k = ctx.state.security.keys.find((x) => x.id === id);
   if (!k) return invalid("That key no longer exists.");
   const target = { type: "Key", id: k.id, label: k.name };
-  if (!can(ctx, "security", "manage") || !ctx.actor.technical) return deny(ctx, "key.rotate", "Security", target, "Only technical administrators with security management rights can rotate keys.");
+  if (!can(ctx, "security", "manage")) return deny(ctx, "key.rotate", "Security", target, "Only University Administrators can rotate keys.");
   k.rotated = ctx.day;
   log(ctx, "key.rotate", "Security", target, "Success", `${k.algorithm} · next rotation ${addDays(ctx.day, k.rotationDays)}`);
   return ok(`${k.name} rotated.`);

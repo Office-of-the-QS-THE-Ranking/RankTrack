@@ -8,8 +8,8 @@ export const metadata = {
   description: "The people and units behind UST's results, recognised for evidence quality, outcomes and collaboration.",
 };
 
-export default function PublicRecognition() {
+export default async function PublicRecognition() {
   // System Configuration can switch this public section off.
-  if (!siteData().features.recognition) notFound();
+  if (!(await siteData()).features.recognition) notFound();
   return <RecognitionPage />;
 }

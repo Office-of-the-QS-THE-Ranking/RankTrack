@@ -1,0 +1,135 @@
+/*
+ * Site cursors: black with a white outline, drawn in scripts/cursors (run
+ * `node scripts/cursors/build.mjs` after changing them). Every stylesheet
+ * uses these variables instead of the cursor keywords. Browsers pick the
+ * sharpest form they understand; each value ends in the native keyword in
+ * case the image can't load. The click pulse frames are in cursor-frames.css.
+ */
+:root {
+  --cursor-default: url("/cursors/arrow.png") 3 3, default;
+  --cursor-pointer: url("/cursors/pointer.png") 3 3, pointer;
+  --cursor-gold: url("/cursors/gold.png") 3 3, pointer;
+  --cursor-text: url("/cursors/text.png") 13 13, text;
+  --cursor-not-allowed: url("/cursors/not-allowed.png") 3 3, not-allowed;
+}
+
+@supports (cursor: -webkit-image-set(url("/cursors/arrow.png") 1x) 3 3, default) {
+  :root {
+    --cursor-default: -webkit-image-set(url("/cursors/arrow.png") 1x, url("/cursors/arrow@2x.png") 2x) 3 3, default;
+    --cursor-pointer: -webkit-image-set(url("/cursors/pointer.png") 1x, url("/cursors/pointer@2x.png") 2x) 3 3, pointer;
+    --cursor-gold: -webkit-image-set(url("/cursors/gold.png") 1x, url("/cursors/gold@2x.png") 2x) 3 3, pointer;
+    --cursor-text: -webkit-image-set(url("/cursors/text.png") 1x, url("/cursors/text@2x.png") 2x) 13 13, text;
+    --cursor-not-allowed: -webkit-image-set(url("/cursors/not-allowed.png") 1x, url("/cursors/not-allowed@2x.png") 2x) 3 3, not-allowed;
+  }
+}
+
+@supports (cursor: image-set(url("/cursors/arrow.png") 1x) 3 3, default) {
+  :root {
+    --cursor-default: image-set(url("/cursors/arrow.png") 1x, url("/cursors/arrow@2x.png") 2x) 3 3, default;
+    --cursor-pointer: image-set(url("/cursors/pointer.png") 1x, url("/cursors/pointer@2x.png") 2x) 3 3, pointer;
+    --cursor-gold: image-set(url("/cursors/gold.png") 1x, url("/cursors/gold@2x.png") 2x) 3 3, pointer;
+    --cursor-text: image-set(url("/cursors/text.png") 1x, url("/cursors/text@2x.png") 2x) 13 13, text;
+    --cursor-not-allowed: image-set(url("/cursors/not-allowed.png") 1x, url("/cursors/not-allowed@2x.png") 2x) 3 3, not-allowed;
+  }
+}
+
+/* Browsers give labels and a few controls a native cursor of their own; claim them back. */
+html,
+label,
+select,
+option,
+optgroup,
+legend {
+  cursor: var(--cursor-default);
+}
+
+a[href],
+area[href],
+button,
+summary,
+label:has(> input[type="checkbox"], > input[type="radio"]),
+input:is([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="range"], [type="color"], [type="file"]),
+[role="button"],
+[role="tab"],
+[role="option"],
+[role="menuitem"],
+[role="menuitemcheckbox"],
+[role="menuitemradio"],
+[role="switch"],
+[role="checkbox"],
+[role="radio"],
+[role="link"] {
+  cursor: var(--cursor-pointer);
+}
+
+textarea,
+input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="image"]),
+[contenteditable]:not([contenteditable="false"]) {
+  cursor: var(--cursor-text);
+}
+
+/* The browser's own buttons inside fields */
+input::-webkit-search-cancel-button,
+input::-webkit-credentials-auto-fill-button,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-caps-lock-indicator {
+  cursor: var(--cursor-pointer);
+}
+
+:disabled,
+[aria-disabled="true"] {
+  cursor: var(--cursor-not-allowed);
+}
+
+/* Tooltip at the cursor tail, in place of the browser's title bubble (CursorFx). */
+.cursor-tip {
+  position: fixed;
+  inset: 0 auto auto 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  max-width: min(280px, calc(100vw - 16px));
+  width: max-content;
+  height: auto;
+  margin: 0;
+  padding: 6px 10px 6px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: #1d1d1f;
+  color: #f5f5f7;
+  font: 500 12px/1.35 var(--font-sans);
+  letter-spacing: 0.01em;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2147483647;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.1),
+    0 10px 24px -10px rgb(0 0 0 / 0.5),
+    0 2px 6px rgb(0 0 0 / 0.18);
+  opacity: 0;
+  scale: 0.94;
+  transform-origin: top left;
+  transition:
+    opacity 140ms ease,
+    scale 200ms var(--ease-out, ease-out);
+}
+.cursor-tip::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--gold-500);
+  box-shadow: 0 0 0 2px rgb(242 183 5 / 0.18);
+}
+.cursor-tip.is-on {
+  opacity: 1;
+  scale: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor-tip {
+    transition: opacity 100ms ease;
+    scale: 1;
+  }
+}

@@ -1,4 +1,7 @@
-import type { Action, BodyKey, Classification, ModuleKey, PermissionSet, Role, Template } from "./types";
+import type { Action, BodyKey, Classification, ModuleKey, PermissionSet, Role, RoleId } from "./types";
+
+/** Contact addresses a unit's profile may list. */
+export const UNIT_EMAILS = 6;
 
 export const ACTIONS: { key: Action; label: string; hint: string }[] = [
   { key: "view", label: "View", hint: "Open and read" },
@@ -23,6 +26,7 @@ export const MODULES: ModuleInfo[] = [
   { key: "dashboard", label: "Executive dashboard", group: "Workspaces", actions: ["view", "export"] },
   { key: "rankings", label: "Rankings and indicators", group: "Workspaces", actions: ["view", "edit", "export", "manage"] },
   { key: "units", label: "Unit participation", group: "Workspaces", actions: ["view", "export"] },
+  { key: "posts", label: "Impact and Innovation posts", group: "Workspaces", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "reports", label: "Reports", group: "Workspaces", actions: ["view", "create", "export"] },
   { key: "knowledge", label: "Knowledge Center", group: "Workspaces", actions: ["view", "edit"] },
   { key: "evidence", label: "Evidence submissions", group: "Contributions", actions: ["view", "create", "edit", "delete", "submit", "approve", "export"] },
@@ -70,195 +74,58 @@ export const CLASSIFICATIONS: { key: Classification; note: string }[] = [
   { key: "Restricted", note: "Highest sensitivity. Never exported from the Hub; shared only through the ranking bodies’ own portals." },
 ];
 
-const ALL = (actions: Action[] = ["view", "create", "edit", "delete", "submit", "approve", "export", "manage"]): PermissionSet =>
-  Object.fromEntries(MODULES.map((m) => [m.key, m.actions.filter((a) => actions.includes(a))])) as PermissionSet;
+const ALL = (): PermissionSet => Object.fromEntries(MODULES.map((m) => [m.key, [...m.actions]])) as PermissionSet;
 
-const T0 = "2025-06-02T01:00:00.000Z";
+/** Filing contributions is the units' own work: administrators review and approve, never submit for a unit. */
+const CONTRIBUTING: Partial<Record<ModuleKey, Action[]>> = {
+  evidence: ["create", "edit", "delete", "submit"],
+  data: ["create", "edit", "delete", "submit"],
+  stories: ["create", "edit", "submit"],
+};
+const OVERSIGHT = (): PermissionSet =>
+  Object.fromEntries(Object.entries(ALL()).map(([k, acts]) => [k, acts.filter((a) => !CONTRIBUTING[k as ModuleKey]?.includes(a))])) as PermissionSet;
 
-/** The roles from the governance proposal. A role decides what; the assignment's scope decides where. */
-export const SYSTEM_ROLES: Role[] = [
+export const ROLE = { admin: "university-admin", coordinator: "coordinator", external: "external" } as const satisfies Record<string, RoleId>;
+
+/** The Hub's roles. A role decides what; the assignment's scope decides where. */
+export const ROLES: Role[] = [
   {
-    id: "super-admin",
-    name: "Super Administrator",
-    description: "Full platform administration.",
-    system: true,
-    tier: 100,
-    permissions: ALL(),
-    scopeKind: "university",
-    technical: true,
-    createdAt: T0,
-  },
-  {
-    id: "system-admin",
-    name: "System Administrator",
-    description: "Accounts, configuration, and system maintenance.",
-    system: true,
-    tier: 90,
-    permissions: {
-      dashboard: ["view"],
-      knowledge: ["view"],
-      accounts: ["view", "create", "edit", "delete", "manage"],
-      roles: ["view", "create", "edit", "delete", "manage"],
-      directory: ["view", "create", "edit", "manage"],
-      governance: ["view"],
-      security: ["view", "edit", "manage"],
-      audit: ["view", "export"],
-      workflows: ["view", "approve", "manage"],
-      config: ["view", "edit", "manage"],
-      backup: ["view", "manage"],
-    },
-    scopeKind: "university",
-    technical: true,
-    createdAt: T0,
-  },
-  {
-    id: "university-admin",
+    id: ROLE.admin,
     name: "University Administrator",
-    description: "University-wide data oversight.",
-    system: true,
-    tier: 80,
-    permissions: {
-      dashboard: ["view", "export"],
-      rankings: ["view", "edit", "export", "manage"],
-      units: ["view", "export"],
-      reports: ["view", "create", "export"],
-      knowledge: ["view", "edit"],
-      evidence: ["view", "edit", "approve", "export"],
-      data: ["view", "edit", "approve", "export"],
-      stories: ["view", "edit", "approve", "export"],
-      accounts: ["view"],
-      roles: ["view"],
-      directory: ["view", "create", "edit"],
-      governance: ["view", "edit", "export", "manage"],
-      audit: ["view"],
-      workflows: ["view", "approve"],
-      config: ["view"],
-      backup: ["view"],
-    },
+    description: "Runs the Hub: accounts, configuration, data oversight and approvals across the University.",
+    tier: 3,
+    permissions: OVERSIGHT(),
     scopeKind: "university",
-    createdAt: T0,
   },
   {
-    id: "unit-admin",
-    name: "College/Faculty Administrator",
-    description: "Manage assigned academic unit.",
-    system: true,
-    tier: 60,
-    inherits: "contributor",
+    id: ROLE.coordinator,
+    name: "College/Faculty Coordinator",
+    description: "Gathers and submits evidence, data and stories for their college or faculty.",
+    tier: 2,
     permissions: {
       units: ["view"],
       reports: ["view", "export"],
-      evidence: ["delete"],
-      data: ["delete"],
-      stories: ["edit", "submit"],
-      accounts: ["view", "create", "edit"],
-      roles: ["view"],
-      directory: ["view", "edit"],
-      workflows: ["view"],
-    },
-    scopeKind: "unit",
-    createdAt: T0,
-  },
-  {
-    id: "program-coordinator",
-    name: "Department/Program Coordinator",
-    description: "Manage assigned program data.",
-    system: true,
-    tier: 50,
-    inherits: "contributor",
-    permissions: {
-      units: ["view"],
-      reports: ["view"],
-      stories: ["submit"],
-    },
-    scopeKind: "unit",
-    createdAt: T0,
-  },
-  {
-    id: "contributor",
-    name: "Data Contributor",
-    description: "Upload and edit permitted data.",
-    system: true,
-    tier: 40,
-    permissions: {
       knowledge: ["view"],
-      evidence: ["view", "create", "edit", "submit"],
-      data: ["view", "create", "edit", "submit"],
-      stories: ["view", "create"],
+      evidence: ["view", "create", "edit", "delete", "submit"],
+      data: ["view", "create", "edit", "delete", "submit"],
+      stories: ["view", "create", "edit", "submit"],
     },
     scopeKind: "unit",
-    createdAt: T0,
   },
   {
-    id: "reviewer",
-    name: "Data Reviewer/Approver",
-    description: "Verify and approve submissions.",
-    system: true,
-    tier: 55,
-    permissions: {
-      dashboard: ["view"],
-      rankings: ["view"],
-      units: ["view"],
-      reports: ["view", "export"],
-      knowledge: ["view"],
-      evidence: ["view", "edit", "approve", "export"],
-      data: ["view", "approve"],
-      stories: ["view", "approve"],
-      workflows: ["view", "approve"],
-    },
-    scopeKind: "university",
-    createdAt: T0,
-  },
-  {
-    id: "auditor",
-    name: "Auditor",
-    description: "Read-only access to logs and records.",
-    system: true,
-    tier: 45,
-    permissions: {
-      ...ALL(["view"]),
-      audit: ["view", "export"],
-    },
-    scopeKind: "university",
-    createdAt: T0,
-  },
-  {
-    id: "external",
+    id: ROLE.external,
     name: "External Collaborator",
-    description: "Restricted, temporary access to approved resources.",
-    system: true,
-    tier: 10,
+    description: "Temporary, read-only access to approved resources.",
+    tier: 1,
     permissions: {
       knowledge: ["view"],
       reports: ["view"],
     },
     scopeKind: "custom",
-    createdAt: T0,
   },
 ];
 
-export const TEMPLATES: Template[] = [
-  { id: "tpl-read", name: "Read-only", description: "View every workspace module, change nothing.", permissions: ALL(["view"]) },
-  {
-    id: "tpl-unit",
-    name: "Unit contributor",
-    description: "Submit evidence and data for one unit.",
-    permissions: { knowledge: ["view"], evidence: ["view", "create", "edit", "submit"], data: ["view", "create", "edit", "submit"], stories: ["view", "create"] },
-  },
-  {
-    id: "tpl-review",
-    name: "Ranking body reviewer",
-    description: "Validate submissions for the ranking bodies in scope.",
-    permissions: { dashboard: ["view"], rankings: ["view"], evidence: ["view", "edit", "approve"], data: ["view", "approve"], stories: ["view", "approve"], knowledge: ["view"] },
-  },
-  {
-    id: "tpl-steward",
-    name: "Data steward",
-    description: "Own datasets: quality rules, versions, the dictionary.",
-    permissions: { dashboard: ["view"], governance: ["view", "edit"], evidence: ["view"], data: ["view", "edit"], knowledge: ["view", "edit"] },
-  },
-  { id: "tpl-blank", name: "Blank", description: "Start with no permissions.", permissions: {} },
-];
+export const roleOf = (id: string) => ROLES.find((r) => r.id === id);
 
 export const STATUS_TONE: Record<string, "ok" | "review" | "revise" | "missing" | "danger"> = {
   Active: "ok",
@@ -270,6 +137,11 @@ export const STATUS_TONE: Record<string, "ok" | "review" | "revise" | "missing" 
   Approved: "ok",
   Rejected: "danger",
   Cancelled: "missing",
+  // the Submission Tracker's standings (request-tracker.ts)
+  "Under review": "review",
+  "Signed in": "ok",
+  "Not approved": "danger",
+  Withdrawn: "missing",
   Public: "ok",
   Internal: "review",
   Confidential: "revise",
@@ -292,6 +164,8 @@ export const STATUS_TONE: Record<string, "ok" | "review" | "revise" | "missing" 
   Complete: "ok",
   Draft: "missing",
   "In review": "review",
+  Published: "ok",
+  Unpublished: "revise",
   Fulfilled: "ok",
   Declined: "danger",
   Reported: "revise",

@@ -10,7 +10,7 @@ const fmt = (iso: string) => new Date(iso.length === 10 ? `${iso}T00:00:00Z` : i
 /** An external collaborator's workspace: only the resources the Office approved, for as long as approved. */
 export async function SharedResources() {
   const viewer = (await getViewer())!;
-  const h = hub();
+  const h = await hub();
   const state = h.state;
   const scoped = new Set(viewer.grants.flatMap((g) => (g.datasets === "all" ? [] : g.datasets)));
   const granted = new Map(viewer.dataGrants.map((g) => [g.datasetId, g]));

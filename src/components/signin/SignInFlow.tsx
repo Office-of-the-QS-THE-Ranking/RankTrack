@@ -1,19 +1,16 @@
 "use client";
 
 /*
- * Sign-in: University Google Workspace (startGoogleSignIn), then a second factor where the security policy
- * asks for one. Until Google is connected, the portal demo (DemoSignIn) opens in its own modal, apart from
- * this flow; the Hub applies the real checks either way: account status, allowed domains, active roles,
- * two-step verification and the lockout policy.
+ * Sign-in: the University's Google Workspace (startGoogleSignIn), through Supabase Auth. Google answers at
+ * /auth/callback, where the Hub applies its own checks (account status, allowed domains, active roles) and
+ * sends anyone it turns away back here with the reason.
  */
-import Link from "next/link";
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { requestAccess, signOut, startGoogleSignIn } from "@/app/actions/session";
-import { DemoSignIn, Head, type ChooserAccount } from "@/components/signin/DemoSignIn";
+import { useEffect, useState, useTransition } from "react";
+import { startGoogleSignIn } from "@/app/actions/session";
 import { Icon } from "@/components/ui/Icon";
 import { toast, type ToastTone } from "@/components/ui/toast";
-
-export type { ChooserAccount };
+import { EMPTY_DRAFT, RequestAccessForm } from "./RequestAccessForm";
+import { SubmissionTracker } from "./SubmissionTracker";
 
 /** Why the last session ended (?ended=…), told once as a toast. */
 const ENDED: Record<string, [string, ToastTone]> = {
@@ -25,7 +22,26 @@ const ENDED: Record<string, [string, ToastTone]> = {
   "no-access": ["No workspace yet. Ask your unit coordinator for a role.", "info"],
 };
 
-type Step = "start" | "request";
+/** Why sign-in was turned away (?error=…, from /auth/callback), told once as a toast. */
+const REFUSED: Record<string, [string, ToastTone]> = {
+  "not-registered": ["That Google account has no Hub account. Request access below.", "error"],
+  suspended: ["This account is suspended. Ask the Office to review it.", "error"],
+  deactivated: ["This account is deactivated.", "error"],
+  domain: ["Sign in with your UST Google account.", "error"],
+  guests: ["Guest sign-in is switched off.", "error"],
+  "no-role": ["This account has no active role. Its access may have expired.", "error"],
+  cancelled: ["Sign-in was cancelled.", "info"],
+  google: ["Google sign-in didn’t complete. Try again.", "error"],
+};
+
+type Step = "start" | "request" | "track";
+
+/** Each step's heading: an ivory line over a gold one. */
+const HEADINGS: Record<Step, [string, string]> = {
+  start: ["Global Rankings", "and Impact Portal"],
+  request: ["Request", "Access"],
+  track: ["Submission", "Tracker"],
+};
 
 /** Google's "G", on the Workspace button. */
 function GoogleMark() {
@@ -39,39 +55,56 @@ function GoogleMark() {
   );
 }
 
+/** The active step keeps the sidebar's ivory and gold serif heading. */
+function FlowHeading({ step = "start" }: { step?: Step }) {
+  const [first, second] = HEADINGS[step];
+  return (
+    <h1 className="signin__display">
+      <span className="signin__row">
+        <span>{first}</span>
+      </span>{" "}
+      <span className="signin__row signin__row--gold">
+        <span>{second}</span>
+      </span>
+    </h1>
+  );
+}
+
 export function SignInFlow({
-  accounts,
   next,
   ended,
-  units,
-  current,
+  error,
+  track,
 }: {
-  accounts: ChooserAccount[];
   next?: string;
   ended?: string;
-  units: { id: string; name: string }[];
-  current: { name: string; role: string; workspaces: string[] } | null;
+  error?: string;
+  /** A reference code from a receipt's tracker link (?track=…): the page opens on the tracker. */
+  track?: string;
 }) {
-  const [step, setStep] = useState<Step>("start");
-  const [q, setQ] = useState("");
+  const [step, setStep] = useState<Step>(track ? "track" : "start");
+  // once the viewer has moved between steps, each new step enters at once rather than after the page's entrance
+  const [moved, setMoved] = useState(false);
   const [pending, start] = useTransition();
-  const [req, setReq] = useState({ name: "", email: "", unitId: "", title: "", justification: "" });
-  const [sent, setSent] = useState("");
+  const [draft, setDraft] = useState(EMPTY_DRAFT);
+  // the request to look up when the tracker opens: from a receipt, or from its link
+  const [tracking, setTracking] = useState({ reference: track ?? "", email: "" });
 
-  const go = (to: Step) => setStep(to);
+  const go = (to: Step) => {
+    setMoved(true);
+    setStep(to);
+  };
 
   // Say it once, then drop it from the address so a reload doesn't repeat it.
   useEffect(() => {
-    const why = ended && ENDED[ended];
+    const why = (ended && ENDED[ended]) || (error && (REFUSED[error] ?? REFUSED.google));
     if (!why) return;
     toast(...why);
     const url = new URL(location.href);
     url.searchParams.delete("ended");
+    url.searchParams.delete("error");
     history.replaceState(history.state, "", url);
-  }, [ended]);
-
-  const [demo, setDemo] = useState(false);
-  const closeDemo = useCallback(() => setDemo(false), []);
+  }, [ended, error]);
 
   const google = () => {
     start(async () => {
@@ -80,166 +113,75 @@ export function SignInFlow({
     });
   };
 
-  if (current && step === "start") {
-    return (
-      <div className="si" data-step="signed-in">
-        <div className="si__intro">
-          <h1 className="signin__title">Welcome back</h1>
-          <p className="si__sub">
-            {current.name} · {current.role}
-          </p>
-        </div>
-        <div className="signin__choices">
-          {current.workspaces.includes("office") && (
-            <Link href="/admin" className="signin__choice signin__choice--dark">
-              <span className="signin__icon">
-                <Icon name="dashboard" />
-              </span>
-              <span>
-                <b>Office workspace</b>
-                <span>Dashboards, rankings and reports</span>
-              </span>
-              <Icon name="arrow" />
-            </Link>
-          )}
-          {current.workspaces.includes("portal") && (
-            <Link href="/portal" className="signin__choice signin__choice--gold">
-              <span className="signin__icon">
-                <Icon name="contribute" />
-              </span>
-              <span>
-                <b>Contributor workspace</b>
-                <span>Requirements and submissions</span>
-              </span>
-              <Icon name="arrow" />
-            </Link>
-          )}
-        </div>
-        <form action={signOut} className="si__foot">
-          <span>Not you?</span>
-          <button type="submit" className="si__link">
-            <Icon name="swap" size={15} /> Use another account
-          </button>
-        </form>
-      </div>
-    );
-  }
-
   // keyed by step, so each step enters afresh
   return (
-    <div className="si" data-step={step} key={step}>
+    <>
+      {step !== "start" ? (
+        <div className="si__heading">
+          <button
+            type="button"
+            className="si__back si__back--seam"
+            aria-label="Back to sign in"
+            title=""
+            onClick={() => go("start")}
+            autoFocus
+          >
+            <Icon name="arrow-left" size={18} />
+          </button>
+          <FlowHeading step={step} />
+        </div>
+      ) : <FlowHeading step={step} />}
+    <div className="si" data-step={step} data-moved={moved || undefined} key={step}>
       {step === "start" && (
         <>
-          <div className="si__intro">
-            <h1 className="signin__title">Sign in</h1>
-            <p className="si__sub">Use your UST Google account.</p>
-          </div>
-          <button type="button" className="si__google" onClick={google} disabled={pending} aria-busy={pending}>
-            <span className="si__google-mark">
-              <GoogleMark />
-            </span>
-            Log in with Google
-            {pending && <span className="si__spin" aria-hidden="true" />}
-          </button>
-          <p className="si__or" aria-hidden="true">
-            or
-          </p>
-          <button type="button" className="si__alt" onClick={() => setDemo(true)}>
-            <Icon name="play" size={15} /> Open the portal demo
-          </button>
-          <DemoSignIn open={demo} onClose={closeDemo} accounts={accounts} next={next} />
-          <div className="si__foot">
-            <span>New to the Hub?</span>
-            <button type="button" className="si__link" onClick={() => go("request")}>
-              Request access <Icon name="arrow" size={14} />
+          <div className="si__actions">
+            <button type="button" className="si__google" onClick={google} disabled={pending} aria-busy={pending}>
+              <span className="si__google-mark">
+                <GoogleMark />
+              </span>
+              Sign in via Institution Account
+              {pending && <span className="si__spin" aria-hidden="true" />}
+            </button>
+            <button type="button" className="si__alt" onClick={() => go("request")}>
+              <span className="si__alt-mark" aria-hidden="true">
+                <Icon name="key" size={17} />
+              </span>
+              Request access
+              <span className="si__alt-go" aria-hidden="true">
+                <Icon name="arrow" size={14} strokeWidth={1.8} />
+              </span>
             </button>
           </div>
+          <p className="si__note">
+            <Icon name="lock" size={14} />
+            No separate password. Google signs you in.
+          </p>
+          <p className="si__note si__note--track">
+            <Icon name="clock" size={14} />
+            <span>
+              Already submitted your request?{" "}
+              <button type="button" className="si__link si__link--inline" onClick={() => go("track")}>
+                Track your status here
+              </button>
+            </span>
+          </p>
         </>
       )}
 
       {step === "request" && (
-        <>
-          <Head
-            title="Request access"
-            back="Back to sign in"
-            onBack={() => {
-              go("start");
-              setSent("");
-            }}
-          />
-          {sent ? (
-            <div className="si__done" role="status">
-              <span className="si__done-mark" aria-hidden="true">
-                <Icon name="check" size={22} />
-              </span>
-              <p>{sent}</p>
-            </div>
-          ) : (
-            <form
-              className="si__form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                start(async () => {
-                  const r = await requestAccess(req);
-                  if (r.ok) setSent(r.message);
-                  else toast(r.message, "error");
-                });
-              }}
-            >
-              <p className="si__sub">An administrator reviews each request.</p>
-              <div className="si__pair">
-                <label className="field">
-                  <span className="field__label">Full name</span>
-                  <input className="input" value={req.name} onChange={(e) => setReq({ ...req, name: e.target.value })} autoComplete="name" required />
-                </label>
-                <label className="field">
-                  <span className="field__label">
-                    Position <em>Optional</em>
-                  </span>
-                  <input className="input" value={req.title} onChange={(e) => setReq({ ...req, title: e.target.value })} autoComplete="organization-title" />
-                </label>
-              </div>
-              <label className="field">
-                <span className="field__label">UST email</span>
-                <input
-                  className="input"
-                  type="email"
-                  value={req.email}
-                  onChange={(e) => setReq({ ...req, email: e.target.value })}
-                  placeholder="name@ust.edu.ph"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">Unit</span>
-                <select className="select" value={req.unitId} onChange={(e) => setReq({ ...req, unitId: e.target.value })} required>
-                  <option value="">Choose your unit</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="field__label">Reason</span>
-                <textarea
-                  className="textarea"
-                  rows={3}
-                  value={req.justification}
-                  onChange={(e) => setReq({ ...req, justification: e.target.value })}
-                  placeholder="What do you need access for?"
-                  required
-                />
-              </label>
-              <button type="submit" className="si__primary" disabled={pending}>
-                <Icon name="send" size={16} /> {pending ? "Sending…" : "Send request"}
-              </button>
-            </form>
-          )}
-        </>
+        <RequestAccessForm
+          draft={draft}
+          onDraft={setDraft}
+          onTrack={(reference, email) => {
+            setTracking({ reference, email });
+            go("track");
+          }}
+          onSignIn={() => go("start")}
+        />
       )}
+
+      {step === "track" && <SubmissionTracker reference={tracking.reference} email={tracking.email} onSignIn={() => go("start")} />}
     </div>
+    </>
   );
 }

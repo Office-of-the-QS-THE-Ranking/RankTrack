@@ -18,7 +18,7 @@ export default async function PortalLayout({ children }: { children: React.React
   }
   if (!viewer.workspaces.includes("portal")) redirect(viewer.workspaces.includes("office") ? "/admin" : "/signin?ended=no-access");
   return (
-    <Shell variant="unit" viewer={viewer} hub={clientHub(viewer, "unit")}>
+    <Shell variant="unit" viewer={viewer} hub={await clientHub(viewer, "unit")}>
       {children}
     </Shell>
   );

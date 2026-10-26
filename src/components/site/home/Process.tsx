@@ -29,9 +29,11 @@ export function Process() {
               <div className="w-stage__body">
                 <h3 className="w-stage__name">{s.name}</h3>
                 <p className="w-stage__text">{s.text}</p>
-                <p className="w-stage__count">
-                  <b className="w-figure">{s.count}</b> {s.countLabel} this cycle
-                </p>
+                {s.count > 0 && (
+                  <p className="w-stage__count">
+                    <b className="w-figure">{s.count}</b> {s.countLabel} this cycle
+                  </p>
+                )}
                 <span className="w-stage__pic">
                   <Image src={s.photo.src} alt="" fill sizes="(max-width: 900px) 40vw, 22vw" style={{ objectPosition: s.photo.pos }} />
                 </span>

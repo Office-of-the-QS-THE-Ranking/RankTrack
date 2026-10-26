@@ -11,7 +11,7 @@ import { evidenceById } from "../records";
 import type { EvidenceRecord } from "../types";
 import { can, clean, cleanText, deny, invalid, log, nextId, notify, ok, unitById, type Ctx } from "./core";
 import { publishStory } from "./mutations";
-import { openRequest, workflowOn } from "./requests";
+import { needsApproval, openRequest, workflowOn } from "./requests";
 import { raiseAlert } from "./security";
 
 export const EVIDENCE_TYPES = [
@@ -203,7 +203,7 @@ export function proposeStory(ctx: Ctx, cmd: Extract<Command, { type: "story.prop
   ctx.state.records.stories[slug] = "In review";
   log(ctx, "story.propose", "Data", { type: "Story", id: slug, label: clean(i.title) }, "Success", `${id} · ${unit.name}`);
   let requestId: string | undefined;
-  if (workflowOn(ctx, "publication")) {
+  if (needsApproval(ctx, "publication")) {
     const req = openRequest(ctx, "publication", { kind: "publication", target: "story", id: slug, title: clean(i.title) }, `Publish story: ${clean(i.title)}`, `Proposed by ${ctx.actor.name} for ${unit.name}.`);
     requestId = req.id;
   }
@@ -218,7 +218,7 @@ export function setStoryState(ctx: Ctx, slug: string, state: "Published" | "With
     log(ctx, "story.withdraw", "Approval", target, "Success", "Removed from the public website");
     return ok(`“${title}” is no longer on the public website.`);
   }
-  if (workflowOn(ctx, "publication") && !ctx.actor.superAdmin) {
+  if (needsApproval(ctx, "publication")) {
     const req = openRequest(ctx, "publication", { kind: "publication", target: "story", id: slug, title }, `Publish story: ${title}`, `Republication requested by ${ctx.actor.name}.`);
     return ok(`Publication needs two approvals: ${req.id} opened.`, { requestId: req.id });
   }
@@ -284,9 +284,9 @@ export function exportReport(ctx: Ctx, report: string, cycle: string, rows: numb
 export function publishReport(ctx: Ctx, report: string, cycle: string, justification: string): CommandResult {
   const title = `${report}, cycle ${cycle}`;
   if (!can(ctx, "reports", "create")) return deny(ctx, "report.publish", "Approval", { type: "Report", id: report, label: title }, "Your role cannot request report publication.");
-  if (!workflowOn(ctx, "publication")) {
+  if (!needsApproval(ctx, "publication")) {
     ctx.state.records.publishedReports.unshift({ id: `RPT-${nextId(ctx, "report", "", 3)}`, title, at: ctx.iso, by: ctx.actor.id });
-    log(ctx, "report.publish", "Approval", { type: "Report", id: report, label: title }, "Success", "Publication workflow is off: released directly");
+    log(ctx, "report.publish", "Approval", { type: "Report", id: report, label: title }, "Success", workflowOn(ctx, "publication") ? "Too few other administrators to approve: released directly" : "Publication workflow is off: released directly");
     return ok(`${title} released.`);
   }
   if (cleanText(justification).length < 10) return invalid("Say who the report is for; approvers read this first.");

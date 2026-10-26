@@ -7,15 +7,17 @@ import { storyList } from "../records";
 import * as accounts from "./accounts";
 import * as backup from "./backup";
 import { configure } from "./config";
-import { log, ok, roleById, SYSTEM, type Ctx } from "./core";
+import { roleOf } from "../catalog";
+import { log, ok, SYSTEM, type Ctx } from "./core";
 import * as data from "./data";
 import * as directory from "./directory";
+import * as posts from "./posts";
 import * as records from "./records";
 import * as requests from "./requests";
 import * as security from "./security";
 
 export { actorFor, makeCtx, SYSTEM, GUEST, type Actor, type Ctx, type AuditDraft, type Effect } from "./core";
-export { decisionBlock } from "./requests";
+export { decisionBlock, needsApproval } from "./requests";
 export { raiseAlert } from "./security";
 
 /** Who sees a notification addressed to `to`. */
@@ -37,7 +39,7 @@ export function housekeeping(ctx: Ctx) {
     if (gone.length) {
       a.assignments = a.assignments.filter((x) => !isExpired(x, ctx.day));
       for (const g of gone)
-        log(ctx, "assignment.expire", "Access", { type: "Account", id: a.id, label: a.name }, "Success", `${roleById(ctx, g.roleId)?.name ?? g.roleId} ended on ${g.expires}`, SYSTEM);
+        log(ctx, "assignment.expire", "Access", { type: "Account", id: a.id, label: a.name }, "Success", `${roleOf(g.roleId)?.name ?? g.roleId} ended on ${g.expires}`, SYSTEM);
     }
     const grants = (a.dataGrants ?? []).filter((g) => g.until <= ctx.day);
     if (grants.length) {
@@ -61,8 +63,6 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
   switch (cmd.type) {
     case "account.invite":
       return accounts.invite(ctx, cmd.input);
-    case "account.import":
-      return accounts.importRows(ctx, cmd.rows, cmd.file);
     case "account.update":
       return accounts.update(ctx, cmd.id, cmd);
     case "account.status":
@@ -81,17 +81,13 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return accounts.addRole(ctx, cmd.accountId, cmd.roleId, cmd.scope, cmd.expires, cmd.note);
     case "assignment.remove":
       return accounts.removeRole(ctx, cmd.accountId, cmd.assignmentId);
-    case "role.create":
-      return accounts.createRole(ctx, cmd);
-    case "role.update":
-      return accounts.updateRole(ctx, cmd.id, cmd);
-    case "role.delete":
-      return accounts.deleteRole(ctx, cmd.id);
 
     case "unit.create":
       return directory.createUnitCmd(ctx, cmd);
     case "unit.update":
       return directory.updateUnit(ctx, cmd.id, cmd);
+    case "unit.coordinator":
+      return directory.changeCoordinator(ctx, cmd.id, cmd.accountId, cmd.operation);
     case "unit.move":
       return directory.moveUnit(ctx, cmd.id, cmd.parentId);
     case "unit.archive":
@@ -149,9 +145,11 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
     case "request.create":
       return requests.create(ctx, cmd.workflowId, cmd.payload, cmd.justification, cmd.title);
     case "request.decide":
-      return requests.decide(ctx, cmd.id, cmd.decision, cmd.note);
+      return requests.decide(ctx, cmd.id, cmd.decision, cmd.note, cmd.unitId);
     case "request.cancel":
       return requests.cancel(ctx, cmd.id);
+    case "request.review":
+      return requests.review(ctx, cmd.id);
     case "workflow.update":
       return requests.updateWorkflow(ctx, cmd.id, cmd);
 
@@ -180,8 +178,6 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return backup.schedule(ctx, cmd);
     case "backup.request":
       return backup.requestDestructive(ctx, cmd.operation, cmd.pointId, cmd.justification);
-    case "backup.reset":
-      return backup.resetDemo(ctx);
 
     case "evidence.submit":
       return records.submitEvidence(ctx, cmd);
@@ -196,9 +192,17 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
     case "story.propose":
       return records.proposeStory(ctx, cmd);
     case "story.state": {
+      const post = ctx.state.records.posts.find((p) => p.slug === cmd.slug);
+      if (post) return posts.setPostStatus(ctx, post.id, cmd.state === "Published" ? "Published" : "Unpublished");
       const title = storyList(ctx.state).find((s) => s.slug === cmd.slug)?.title ?? cmd.slug;
       return records.setStoryState(ctx, cmd.slug, cmd.state, title);
     }
+    case "post.save":
+      return posts.savePost(ctx, cmd);
+    case "post.status":
+      return posts.setPostStatus(ctx, cmd.id, cmd.status);
+    case "post.delete":
+      return posts.deletePost(ctx, cmd.id);
     case "innovation.propose":
       return records.proposeInnovation(ctx, cmd.unitSlug, cmd.name, cmd.category);
     case "assistance.request":

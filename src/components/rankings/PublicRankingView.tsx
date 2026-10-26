@@ -99,12 +99,14 @@ export function PublicRankingView({ ranking: r }: { ranking: Ranking }) {
 
       <div className="grid cols-2">
         <Card title="Highlights" sub="What the latest result reflects" icon="spark">
-          <ul className="bullets">
-            {r.strengths.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ul>
-          <p className="small text-2 mt-4">
+          {r.strengths.length > 0 && (
+            <ul className="bullets">
+              {r.strengths.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          )}
+          <p className={r.strengths.length ? "small text-2 mt-4" : "small text-2"}>
             <b style={{ fontWeight: 600 }}>Focus for the next cycle:</b> {r.message.charAt(0).toLowerCase() + r.message.slice(1)}.
           </p>
         </Card>

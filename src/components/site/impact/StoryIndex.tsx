@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { IMPACT_THEMES, SDG_COLORS, SDG_NAMES, inkOn, type ImpactTheme, type Story } from "@/lib/data";
+
+import { Tabs, TabPanel } from "@/components/ui/interactive";
 
 type Theme = "All" | ImpactTheme;
 
@@ -14,7 +16,6 @@ type Theme = "All" | ImpactTheme;
 export function StoryIndex({ stories: PUBLISHED_STORIES }: { stories: Story[] }) {
   const [theme, setTheme] = useState<Theme>("All");
   const [shownSlug, setShownSlug] = useState<string | null>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const options = useMemo(
     () =>
@@ -28,40 +29,26 @@ export function StoryIndex({ stories: PUBLISHED_STORIES }: { stories: Story[] })
   const shown = theme === "All" ? PUBLISHED_STORIES : PUBLISHED_STORIES.filter((s) => s.themes.includes(theme));
   const current = shown.find((s) => s.slug === shownSlug) ?? shown[0];
 
-  const onKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
-    const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-    if (!dir) return;
-    e.preventDefault();
-    const n = (i + dir + options.length) % options.length;
-    setTheme(options[n].value);
-    tabRefs.current[n]?.focus();
-  };
+  if (!PUBLISHED_STORIES.length)
+    return (
+      <p className="w-lead" data-reveal>
+        No stories are published yet. Each appears here once it passes the Office&rsquo;s publication review.
+      </p>
+    );
 
   return (
     <div className="w-stories">
-      <div className="w-themes" role="tablist" aria-label="Themes" data-reveal>
-        {options.map((o, i) => (
-          <button
-            key={o.value}
-            ref={(el) => {
-              tabRefs.current[i] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`theme-${i}`}
-            aria-selected={theme === o.value}
-            aria-controls="story-panel"
-            tabIndex={theme === o.value ? 0 : -1}
-            className="w-theme"
-            onClick={() => setTheme(o.value)}
-            onKeyDown={(e) => onKey(e, i)}
-          >
-            {o.label} <span className="w-theme__n">{o.count}</span>
-          </button>
-        ))}
+      <div className="w-themes" data-reveal>
+        <Tabs
+          tabs={options.map((option) => ({ key: option.value, label: option.label, count: option.count }))}
+          value={theme}
+          onChange={setTheme}
+          label="Themes"
+          idBase="story-themes"
+        />
       </div>
 
-      <div className="w-index" id="story-panel" role="tabpanel" aria-labelledby={`theme-${options.findIndex((o) => o.value === theme)}`}>
+      <TabPanel idBase="story-themes" index={options.findIndex((option) => option.value === theme)} className="w-index">
         <ul className="w-index__list">
           {shown.map((s, i) => (
             <li key={s.slug} data-reveal style={{ ["--d" as string]: `${Math.min(i, 3) * 70}ms` }}>
@@ -79,7 +66,7 @@ export function StoryIndex({ stories: PUBLISHED_STORIES }: { stories: Story[] })
                   {s.unit}. {s.kind}, {s.year}.
                 </span>
                 <span className="w-index__fig">
-                  <b className="w-figure">{s.outcomeFigure}</b> {s.outcomeLabel}
+                  {s.outcomeFigure && <b className="w-figure">{s.outcomeFigure}</b>} {s.outcomeLabel}
                 </span>
                 <span className="w-index__sdgs" aria-label={`SDGs ${s.sdgs.join(", ")}`}>
                   {s.sdgs.map((n) => (
@@ -103,7 +90,7 @@ export function StoryIndex({ stories: PUBLISHED_STORIES }: { stories: Story[] })
             ))}
           </div>
         </div>
-      </div>
+      </TabPanel>
     </div>
   );
 }

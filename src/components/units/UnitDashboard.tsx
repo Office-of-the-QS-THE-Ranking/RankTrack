@@ -38,7 +38,8 @@ export function UnitDashboard({
   /** The rankings System Configuration tracks. */
   rankings: Ranking[];
   requirements: Requirement[];
-  canSubmit: boolean;
+  /** The contributor workspace only: whether this unit's own coordinator may file evidence. */
+  canSubmit?: boolean;
   /** The "evidence reuse insights" experiment. */
   insights?: boolean;
   scopeNote?: string;
@@ -52,7 +53,7 @@ export function UnitDashboard({
   const reqs = requirements.filter((r) => rankings.some((x) => x.slug === r.ranking));
   const done = reqs.length ? reqs.filter((r) => r.status === "Validated").length : unit.completed;
   const total = reqs.length || unit.assigned;
-  const pct = Math.round((done / total) * 100);
+  const pct = total ? Math.round((done / total) * 100) : 0;
   const open = reqs.filter((r) => r.status !== "Validated").sort((a, b) => a.due.localeCompare(b.due));
   const actions = ACTIONS.filter((a) => a.unit === unit.name);
   const owned = RANKINGS.flatMap((r) => r.indicators.filter((i) => i.owner === unit.name).map((i) => ({ r, i })));
@@ -63,6 +64,7 @@ export function UnitDashboard({
     a.deadline.localeCompare(b.deadline),
   );
   const impactItems = accepted.filter((e) => e.mappedTo.some((m) => m.startsWith("THE Impact"))).length;
+  const impact = RANKINGS.find((r) => r.slug === "the-impact" && r.current);
 
   return (
     <>
@@ -71,16 +73,16 @@ export function UnitDashboard({
         lede={
           portal
             ? "Here is what your evidence is doing for UST, and what needs attention next."
-            : `${unit.kind} · ${unit.code} · coordinated by ${unit.coordinator} · serves ${unit.rankingsServed} rankings`
+            : `${unit.kind} · ${unit.code} · ${unit.coordinatorId ? `coordinated by ${unit.coordinator}` : "no coordinator yet"} · serves ${unit.rankingsServed} rankings`
         }
         actions={
           <>
             <Link href={portal ? "/portal/assistance" : `mailto:rankings.office@ust.edu.ph?subject=${encodeURIComponent(unit.name)}`} className="btn">
               <Icon name="help" size={18} /> {portal ? "Request assistance" : "Contact coordinator"}
             </Link>
-            {canSubmit && unit.status === "Active" && (
-              <Link href={portal ? "/portal/submit" : `/portal/act?unit=${unit.slug}&next=/portal/submit`} className="btn btn--primary">
-                <Icon name="upload" size={18} /> {portal ? "Submit evidence" : "Submit on its behalf"}
+            {portal && canSubmit && unit.status === "Active" && (
+              <Link href="/portal/submit" className="btn btn--primary">
+                <Icon name="upload" size={18} /> Submit evidence
               </Link>
             )}
           </>
@@ -167,13 +169,17 @@ export function UnitDashboard({
               {portal && ". Thank you to everyone who documented them."}
             </p>
           </div>
-          <div className="helped__fig">
-            <span>THE Impact Ratings</span>
-            <b>401–600</b>
-            <span className="row" style={{ ["--gap" as string]: "6px" } as CSSProperties}>
-              <Icon name="arrow-up" size={16} strokeWidth={2.2} /> up from 601–800
-            </span>
-          </div>
+          {impact && (
+            <div className="helped__fig">
+              <span>{impact.name}</span>
+              <b>{impact.current}</b>
+              {impact.previous && impact.direction === "up" && (
+                <span className="row" style={{ ["--gap" as string]: "6px" } as CSSProperties}>
+                  <Icon name="arrow-up" size={16} strokeWidth={2.2} /> up from {impact.previous}
+                </span>
+              )}
+            </div>
+          )}
         </section>
       )}
 
@@ -220,7 +226,7 @@ export function UnitDashboard({
             </ul>
           ) : (
             <Empty icon="check-circle" title="Nothing open">
-              {unit.validated} of {unit.assigned} requirements are validated. The remainder are with reviewers.
+              {unit.assigned > 0 && <>{unit.validated} of {unit.assigned} requirements are validated. The remainder are with reviewers.</>}
             </Empty>
           )}
         </Card>

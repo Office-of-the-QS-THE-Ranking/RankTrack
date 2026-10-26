@@ -6,17 +6,16 @@ import "server-only";
  * policy takes effect on the person's very next request.
  */
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { cache } from "react";
-import { UNITS as PARTICIPATION } from "@/lib/data";
-import { ADMIN_MODULES } from "../catalog";
+import { ADMIN_MODULES, roleOf } from "../catalog";
 import { flagOn, portalScope, workspacesOf } from "../derive";
-import { activeAssignments, canWith, grantsFor, initials, mergedPermissions, scopeLabel, today } from "../rbac";
+import { activeAssignments, canWith, grantsFor, initials, mergedPermissions, scopeLabel, today, topGrant } from "../rbac";
 import type { Account, GovernanceState, Session } from "../types";
 import type { Viewer } from "../viewer";
 import { readState, touch } from "./store";
 
 export const SESSION_COOKIE = "hub_session";
-export const ACTING_COOKIE = "hub_unit";
 
 export type SessionProblem = "ended" | "expired" | "suspended" | "reauth";
 
@@ -33,19 +32,14 @@ export function checkSession(state: GovernanceState, id: string, now = new Date(
   return { session, account };
 }
 
-const PARTICIPATING = PARTICIPATION.map((u) => u.slug);
-
-export function buildViewer(state: GovernanceState, account: Account, session: Session, acting?: string, now = new Date()): Viewer {
+export function buildViewer(state: GovernanceState, account: Account, session: Session, now = new Date()): Viewer {
   const day = today(now);
-  const grants = grantsFor(account, state.roles, state.units, day);
-  const top = [...grants].sort((a, b) => b.tier - a.tier)[0];
+  const grants = grantsFor(account, state.units, day);
   const unitName = (id: string) => state.units.find((u) => u.id === id)?.name ?? id;
   const portal = portalScope(account, grants, state.units);
-  const canSwitch = portal.reach === "all";
-  const activeParticipating = PARTICIPATING.filter((id) => state.units.find((u) => u.id === id)?.status === "Active");
-  const portalUnit = canSwitch ? (acting && activeParticipating.includes(acting) ? acting : activeParticipating[0] ?? portal.unitId) : portal.unitId;
+  const portalUnit = portal.unitId;
   // A coordinator scoped below their faculty works on the faculty's page but files against their own unit.
-  const narrow = !canSwitch && portal.reach !== "all" && !portal.reach.includes(portalUnit) ? grants.find((g) => g.scopeUnits !== "all")?.scopeUnits : undefined;
+  const narrow = portal.reach !== "all" && !portal.reach.includes(portalUnit) ? grants.find((g) => g.scopeUnits !== "all")?.scopeUnits : undefined;
   const programId = narrow && narrow !== "all" ? narrow[0] : undefined;
   return {
     id: account.id,
@@ -53,28 +47,27 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
     email: account.email,
     title: account.title,
     initials: initials(account.name),
+    avatar: account.avatar,
     external: !!account.external,
     unitId: account.unitId,
     unitName: unitName(account.unitId),
-    roles: activeAssignments(account, day).map((a) => {
-      const role = state.roles.find((r) => r.id === a.roleId);
-      return { id: a.roleId, name: role?.name ?? a.roleId, scope: scopeLabel(a.scope, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))), expires: a.expires, system: !!role?.system };
-    }),
-    roleName: top?.roleName ?? "No role",
+    roles: activeAssignments(account, day).map((a) => ({
+      id: a.roleId,
+      name: roleOf(a.roleId)?.name ?? a.roleId,
+      scope: scopeLabel(a.scope, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))),
+      expires: a.expires,
+    })),
+    roleName: topGrant(grants)?.roleName ?? "No role",
     grants,
     perms: mergedPermissions(grants),
-    tier: top?.tier ?? 0,
-    technical: grants.some((g) => state.roles.find((r) => r.id === g.roleId)?.technical),
-    superAdmin: grants.some((g) => g.roleId === "super-admin"),
     workspaces: workspacesOf(grants),
     portal: {
       unitId: portalUnit,
       unitName: unitName(portalUnit),
       programId,
       programName: programId ? unitName(programId) : undefined,
-      canSwitch,
-      units: canSwitch ? activeParticipating.map((id) => ({ id, name: unitName(id) })).sort((a, b) => a.name.localeCompare(b.name)) : [],
     },
+    // The Administration console opens on the sections the viewer may see; only University Administrators have any.
     admin: ADMIN_MODULES.filter((m) => canWith(grants, m, "view")),
     flags: state.config.flags.filter((f) => flagOn(state, f.id, account)).map((f) => f.id),
     features: Object.fromEntries(state.config.features.map((f) => [f.id, f.enabled])),
@@ -89,21 +82,21 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   const id = jar.get(SESSION_COOKIE)?.value;
   if (!id) return null;
   const now = new Date();
-  const state = readState();
+  const state = await readState();
   const check = checkSession(state, id, now);
   if ("problem" in check) return null;
-  touch(id, now.toISOString());
-  return buildViewer(state, check.account, check.session, jar.get(ACTING_COOKIE)?.value, now);
+  after(() => touch(id, now.toISOString()));
+  return buildViewer(state, check.account, check.session, now);
 });
 
 /** Why the current cookie no longer works, for the sign-in page. */
 export const getSessionProblem = cache(async (): Promise<SessionProblem | null> => {
   const id = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!id) return null;
-  const check = checkSession(readState(), id);
+  const check = checkSession(await readState(), id);
   return "problem" in check ? check.problem : null;
 });
 
 export async function getAccount(viewer: Viewer) {
-  return readState().accounts.find((a) => a.id === viewer.id) ?? null;
+  return (await readState()).accounts.find((a) => a.id === viewer.id) ?? null;
 }

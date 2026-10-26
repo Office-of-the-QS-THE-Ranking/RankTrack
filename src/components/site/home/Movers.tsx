@@ -193,6 +193,52 @@ function Block({ r, i }: { r: Ranking; i: number }) {
 }
 
 /**
+ * The section before any public result has risen: the same night and claim line, a note in place of the
+ * stage, and the public results as unlit arches. No figure is shown that the ranking bodies have not published.
+ */
+function MoversPending({ rankings }: { rankings: Ranking[] }) {
+  return (
+    <section className="w-asc w-on-dark" id="ascent" aria-labelledby="movers-title">
+      <div className="w-asc__intro w-wrap">
+        <Stars sky="field" />
+        <h2 id="movers-title" className="w-asc__title">
+          <span className="w-asc__lineup" style={{ "--l": 0 } as CSSProperties}>
+            <span data-text="This year's results">This year&rsquo;s results</span>
+          </span>{" "}
+          <span className="w-asc__lineup" style={{ "--l": 1 } as CSSProperties}>
+            <span data-text="appear here">appear here</span>
+          </span>
+        </h2>
+        <div className="w-asc__aside">
+          <p className="w-asc__lead">
+            Once the {LATEST_EDITION} editions are published and recorded by the Office, the results that rose climb here,
+            each figure as the ranking body published it.
+          </p>
+          {rankings.length > 0 && (
+            <div className="w-asc__tally">
+              <ul className="w-asc__arches">
+                {rankings.map((r, k) => (
+                  <li key={r.slug} style={{ "--k": k } as CSSProperties}>
+                    <Link href={`/rankings/${r.slug}`} className="w-asc__arch">
+                      <span className="w-asc__arch-tip">
+                        <b>{r.short}</b> {r.current || "No result yet"}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="w-asc__key" aria-hidden="true">
+                <span>The {word(rankings.length)} {rankings.length === 1 ? "ranking" : "rankings"} the Office follows</span>
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
  * "Up in four rankings this year": the four results that rose in the latest editions, as a climb. The room
  * stays the hero's night. An intro sets the claim beside a tally of the eight results, four of them lit.
  * Then, on a wide screen with motion allowed, the stage holds still while the visitor scrolls (AscentMotion):
@@ -202,10 +248,10 @@ function Block({ r, i }: { r: Ranking; i: number }) {
  * and jumps to any of the four. Everywhere else (phones, reduced motion, no script) the four stand as
  * blocks, each with its own small chart drawn to the same scale. Every figure is the published one.
  */
-export function Movers() {
-  // Only results shown on the public website take part; the section steps aside if none of the movers is public.
-  const { rankings: RANKINGS, movers: MOVERS } = siteData();
-  if (!MOVERS.length) return null;
+export async function Movers() {
+  // Only results shown on the public website take part; until one of them has risen, the night holds a placeholder.
+  const { rankings: RANKINGS, movers: MOVERS } = await siteData();
+  if (!MOVERS.length) return <MoversPending rankings={RANKINGS} />;
   const claim = `Up in ${word(MOVERS.length)} ${MOVERS.length === 1 ? "ranking" : "rankings"}`;
   const others = RANKINGS.filter((r) => !MOVERS.includes(r));
   const stage: ChartSeries[] = MOVERS.map((r) => ({ slug: r.slug, short: r.short, figure: shown(r), history: r.history }));

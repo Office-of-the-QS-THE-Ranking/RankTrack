@@ -733,7 +733,7 @@ html:has(.w-arch) {
   color: var(--on-dark);
   font-size: var(--step-body);
   font-weight: 600;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   user-select: none;
   transition:
     background-color var(--t-hover) ease,
@@ -903,7 +903,7 @@ html:has(.w-arch) {
   display: flex;
   align-items: flex-end;
   padding: 24px 0 28px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .w-stage__tab span {
   display: flex;
@@ -1478,7 +1478,7 @@ html:has(.w-arch) {
   padding: 8px 18px;
   background: var(--gold-soft);
   border-radius: 14px;
-  cursor: text;
+  cursor: var(--cursor-text);
 }
 .w-field:focus-within {
   outline: 2px solid var(--black);
@@ -1490,7 +1490,7 @@ html:has(.w-arch) {
   line-height: 1.2;
 }
 .w-field input,
-.w-field select {
+.w-field__select {
   width: 100%;
   padding: 0;
   border: 0;
@@ -1501,11 +1501,18 @@ html:has(.w-arch) {
   line-height: 1.4;
   outline: none;
 }
-.w-field select {
-  appearance: none;
-  background-image: none;
-  text-overflow: ellipsis;
-  cursor: pointer;
+.w-field__select {
+  cursor: var(--cursor-pointer);
+}
+.w-field__select:focus {
+  outline: none;
+}
+/* Its list opens on paper, the chosen practice in the coupon's gold. */
+.w-coupon {
+  --pick-bg: var(--paper);
+  --pick-fg: var(--black);
+  --pick-chosen: var(--gold-soft);
+  --pick-accent-ink: var(--black);
 }
 .w-coupon__submit {
   min-height: 56px;
@@ -1517,7 +1524,7 @@ html:has(.w-arch) {
   font-family: var(--font-text);
   font-size: var(--step-body);
   font-weight: 600;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition:
     transform var(--t-press) var(--ease-out),
     background-color var(--t-hover) ease;

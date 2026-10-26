@@ -3,15 +3,33 @@
  * last step approves. Separation of duties: the requester never approves, and each step needs a
  * different approver.
  */
+import { GUEST_DAYS } from "../access-requests";
+import { ROLE, roleOf } from "../catalog";
 import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
-import { grantCheck, has } from "../rbac";
+import { canWith, grantCheck, grantsFor, has } from "../rbac";
 import type { ApprovalRequest, RequestPayload, WorkflowKey } from "../types";
-import { accountById, can, cleanText, deny, invalid, log, nextId, notify, ok, roleById, unitById, type Actor, type Ctx } from "./core";
+import { accountById, can, cleanText, deny, invalid, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
 import { addAssignment, addDataGrant, createAccount, createUnit, publishStory } from "./mutations";
+import { validUnitEmblem } from "../unit-emblems";
 
 export function workflowOn(ctx: Ctx, id: WorkflowKey) {
   return ctx.state.workflows.find((w) => w.id === id)?.enabled ?? false;
+}
+
+/**
+ * Whether a change the actor makes must wait for approval: the workflow is on and enough other people
+ * can decide every step. With too few administrators to share the steps, the change applies directly
+ * instead of waiting for approvers who don't exist, unless developer settings turned that shortcut off.
+ */
+export function needsApproval(ctx: Ctx, id: WorkflowKey) {
+  const wf = ctx.state.workflows.find((w) => w.id === id);
+  if (!wf?.enabled) return false;
+  if (!ctx.shortcut) return true;
+  const approvers = ctx.state.accounts.filter(
+    (a) => a.status === "Active" && (!wf.separation || a.id !== ctx.actor.id) && canWith(grantsFor(a, ctx.state.units, ctx.day), "workflows", "approve"),
+  );
+  return approvers.length >= wf.steps.length;
 }
 
 export function openRequest(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayload, title: string, justification: string): ApprovalRequest {
@@ -44,34 +62,38 @@ export function decisionBlock(ctx: Ctx, req: ApprovalRequest, actor: Actor = ctx
   if (!step) return "The request has no open step.";
   if (wf.separation && req.requesterId === actor.id) return "You opened this request, so someone else must decide it.";
   if (req.decisions.some((d) => d.by === actor.id && d.decision === "Approved")) return "You approved an earlier step; another approver must take this one.";
-  if (!actor.superAdmin) {
-    if (!actor.grants.some((g) => has(g.perms, "workflows", "approve"))) return "Your role cannot approve requests.";
-    if (!actor.grants.some((g) => step.approverRoles.includes(g.roleId))) return `This step needs: ${step.approverRoles.map((r) => roleById(ctx, r)?.name ?? r).join(" or ")}.`;
-  }
-  if (req.workflowId === "destructive" && !actor.technical) return "Only a technical administrator can approve a destructive operation.";
+  if (!actor.grants.some((g) => has(g.perms, "workflows", "approve"))) return "Only University Administrators can approve requests.";
   return null;
 }
 
-/** Make the requested change. Returns an error message if it can no longer be applied. */
-function apply(ctx: Ctx, req: ApprovalRequest): string | null {
+/**
+ * Make the requested change. Returns an error message if it can no longer be applied. `unitId` is the unit
+ * the approver chose, for an account request that came without one.
+ */
+function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
   const p = req.payload;
   switch (p.kind) {
     case "account-access": {
       if (ctx.state.accounts.some((a) => a.email.toLowerCase() === p.email.toLowerCase())) return `${p.email} already has an account.`;
-      if (unitById(ctx, p.unitId)?.status !== "Active") return "The requested unit is no longer active.";
-      const acc = createAccount(ctx, { name: p.name, email: p.email, title: p.title, unitId: p.unitId, roleId: p.roleId }, `Approved request ${req.id}`);
-      log(ctx, "account.invite", "Account", { type: "Account", id: acc.id, label: acc.name }, "Success", `Through ${req.id} · ${roleById(ctx, p.roleId)?.name}`);
+      const unit = p.unitId || unitId || "";
+      if (!unit) return "Choose the unit this account belongs to.";
+      if (unitById(ctx, unit)?.status !== "Active") return "The requested unit is no longer active.";
+      if (p.external && !ctx.state.security.sso.allowGuests) return "Guest sign-in is switched off in Privacy and Security. Turn it on to approve accounts from outside the University.";
+      const expires = p.external ? addDays(ctx.day, GUEST_DAYS) : undefined;
+      // the request keeps the unit it was approved for
+      p.unitId = unit;
+      const acc = createAccount(ctx, { name: p.name, email: p.email, title: p.title, unitId: unit, roleId: p.roleId, external: p.external, expires }, `Approved request ${req.id}`);
+      log(ctx, "account.invite", "Account", { type: "Account", id: acc.id, label: acc.name }, "Success", `Through ${req.id} · ${roleOf(p.roleId)?.name}${expires ? ` · until ${expires}` : ""}`);
       return null;
     }
     case "privilege-escalation": {
       const acc = accountById(ctx, p.accountId);
-      const role = roleById(ctx, p.roleId);
+      const role = roleOf(p.roleId);
       if (!acc || !role) return "The account or role no longer exists.";
       if (acc.status !== "Active" && acc.status !== "Pending Invitation") return `${acc.name} is ${acc.status.toLowerCase()}.`;
-      if (!ctx.actor.superAdmin) {
-        const check = grantCheck(ctx.actor.grants, role, ctx.state.roles, p.scope, ctx.state.units);
-        if (!check.ok) return check.reason;
-      }
+      if (acc.external && role.id !== ROLE.external) return "External collaborators can only hold the External Collaborator role.";
+      const check = grantCheck(ctx.actor.grants, role, p.scope, ctx.state.units);
+      if (!check.ok) return check.reason;
       const a = addAssignment(ctx, acc, role.id, p.scope, p.expires, `Approved request ${req.id}`);
       log(ctx, "assignment.add", "Access", { type: "Account", id: acc.id, label: acc.name }, "Success", `${role.name}${a.expires ? ` until ${a.expires}` : ""} · through ${req.id}`);
       return null;
@@ -80,7 +102,10 @@ function apply(ctx: Ctx, req: ApprovalRequest): string | null {
       const parent = unitById(ctx, p.parentId);
       if (!parent || parent.status !== "Active") return "The parent unit is no longer active.";
       if (ctx.state.units.some((u) => u.code.toUpperCase() === p.code.toUpperCase())) return `Code ${p.code} is already taken.`;
-      const u = createUnit(ctx, { name: p.name, code: p.code, kind: p.kind2, parentId: p.parentId });
+      if (p.emblem !== undefined && !validUnitEmblem(p.emblem)) return "Upload the logo again.";
+      const emails = readUnitEmails(p.emails);
+      if (typeof emails === "string") return emails;
+      const u = createUnit(ctx, { name: p.name, code: p.code, kind: p.kind2, parentId: p.parentId, emails, ...(p.emblem && { emblem: p.emblem }) });
       log(ctx, "unit.create", "Directory", { type: "Unit", id: u.id, label: u.name }, "Success", `Under ${parent.name} · through ${req.id}`);
       return null;
     }
@@ -116,7 +141,7 @@ function apply(ctx: Ctx, req: ApprovalRequest): string | null {
   }
 }
 
-export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", note?: string): CommandResult {
+export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", note?: string, unitId?: string): CommandResult {
   const req = ctx.state.requests.find((r) => r.id === id);
   if (!req) return invalid("That request no longer exists.");
   const res = { type: "Request", id: req.id, label: req.title };
@@ -129,6 +154,7 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
     req.decisions.push({ step: req.step, by: ctx.actor.id, at: ctx.iso, decision, note: text });
     req.status = "Rejected";
     req.completedAt = ctx.iso;
+    returnPost(ctx, req);
     log(ctx, "request.reject", "Approval", res, "Success", text);
     notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "rejected", approver: ctx.actor.name }, "/admin/administration/workflows");
     return ok("Request rejected.");
@@ -140,7 +166,7 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
     log(ctx, "request.approve", "Approval", res, "Success", `Step ${req.step} of ${wf.steps.length}; next: ${wf.steps[req.step].name}`);
     return ok(`Approved. Next: ${wf.steps[req.step].name}.`);
   }
-  const problem = apply(ctx, req);
+  const problem = apply(ctx, req, unitId);
   if (problem) return invalid(`Could not apply ${req.id}: ${problem}`);
   req.decisions.push({ step: req.step, by: ctx.actor.id, at: ctx.iso, decision, note: text });
   req.status = "Approved";
@@ -151,6 +177,19 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
   return ok("Approved and applied.");
 }
 
+/** An approver takes the request up; the requester's tracker moves from the queue to under review. */
+export function review(ctx: Ctx, id: string): CommandResult {
+  const req = ctx.state.requests.find((r) => r.id === id);
+  if (!req) return invalid("That request no longer exists.");
+  if (req.reviewing) return ok("Already under review.");
+  const res = { type: "Request", id: req.id, label: req.title };
+  const block = decisionBlock(ctx, req);
+  if (block) return deny(ctx, "request.review", "Approval", res, block);
+  req.reviewing = { by: ctx.actor.id, at: ctx.iso };
+  log(ctx, "request.review", "Approval", res, "Success", "Marked under review");
+  return ok("Marked under review.");
+}
+
 export function cancel(ctx: Ctx, id: string): CommandResult {
   const req = ctx.state.requests.find((r) => r.id === id);
   if (!req) return invalid("That request no longer exists.");
@@ -159,8 +198,17 @@ export function cancel(ctx: Ctx, id: string): CommandResult {
   if (req.requesterId !== ctx.actor.id && !can(ctx, "workflows", "manage")) return deny(ctx, "request.cancel", "Approval", res, "Only the requester or a workflow manager can withdraw a request.");
   req.status = "Cancelled";
   req.completedAt = ctx.iso;
+  returnPost(ctx, req);
   log(ctx, "request.cancel", "Approval", res);
   return ok("Request withdrawn.");
+}
+
+/** A post waiting on a publication request goes back to where it was when the request closes unapproved. */
+function returnPost(ctx: Ctx, req: ApprovalRequest) {
+  const p = req.payload;
+  if (p.kind !== "publication" || p.target !== "story") return;
+  const post = ctx.state.records.posts.find((x) => x.slug === p.id);
+  if (post?.status === "In review") post.status = post.publishedAt ? "Unpublished" : "Draft";
 }
 
 /** A request opened directly (from the console or a workspace), validated by kind. */
@@ -171,11 +219,13 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
   if (payload.kind !== workflowId) return invalid("The request does not match its workflow.");
   if (cleanText(justification).length < 10) return invalid("Give a justification of at least a sentence; approvers read it first.");
   let label = title ?? wf.name;
+  let unitEmails: string[] | undefined;
   switch (payload.kind) {
     case "privilege-escalation": {
       const acc = accountById(ctx, payload.accountId);
-      const role = roleById(ctx, payload.roleId);
+      const role = roleOf(payload.roleId);
       if (!acc || !role) return invalid("Choose an account and a role.");
+      if (acc.external && role.id !== ROLE.external) return invalid("External collaborators can only hold the External Collaborator role.");
       if (acc.id !== ctx.actor.id && !can(ctx, "accounts", "edit", { unitId: acc.unitId }))
         return deny(ctx, "request.create", "Approval", { type: "Account", id: acc.id, label: acc.name }, "You can only request roles for yourself or accounts you administer.");
       label = title ?? `${role.name} for ${acc.name}`;
@@ -194,12 +244,16 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
     }
     case "account-access": {
       if (ctx.state.accounts.some((a) => a.email.toLowerCase() === payload.email.toLowerCase())) return invalid(`${payload.email} already has an account.`);
-      if (["super-admin", "system-admin"].includes(payload.roleId)) return invalid("Request administrator roles as “A role for someone”.");
+      if (payload.roleId !== (payload.external ? ROLE.external : ROLE.coordinator)) return invalid("Request a University Administrator role as “A role for someone”.");
       label = title ?? `Account for ${payload.name}`;
       break;
     }
     case "org-unit": {
       if (!can(ctx, "directory", "create", { unitId: payload.parentId })) return deny(ctx, "request.create", "Approval", { type: "Unit", id: payload.parentId, label: payload.name }, "You cannot add units here.");
+      if (payload.emblem !== undefined && !validUnitEmblem(payload.emblem)) return invalid("Upload the logo again.");
+      const emails = readUnitEmails(payload.emails);
+      if (typeof emails === "string") return invalid(emails);
+      unitEmails = emails;
       label = title ?? `New unit: ${payload.name}`;
       break;
     }
@@ -208,24 +262,25 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       label = title ?? `Publish ${payload.target}: ${payload.title}`;
       break;
     case "destructive":
-      if (!ctx.actor.technical || !can(ctx, "backup", "manage")) return invalid("Only technical administrators can request destructive backup operations.");
+      if (!can(ctx, "backup", "manage")) return invalid("Only University Administrators can request destructive backup operations.");
       break;
   }
-  const req = openRequest(ctx, workflowId, payload, label, justification);
+  const normalizedPayload = payload.kind === "org-unit" ? { ...payload, emails: unitEmails } : payload;
+  const req = openRequest(ctx, workflowId, normalizedPayload, label, justification);
   return ok("Sent for approval.", { requestId: req.id });
 }
 
 export function updateWorkflow(
   ctx: Ctx,
   id: WorkflowKey,
-  patch: { enabled?: boolean; slaDays?: number; separation?: boolean; steps?: { name: string; approverRoles: string[] }[] },
+  patch: { enabled?: boolean; slaDays?: number; separation?: boolean; steps?: { name: string }[] },
 ): CommandResult {
   const wf = ctx.state.workflows.find((w) => w.id === id);
   if (!wf) return invalid("Unknown workflow.");
   const res = { type: "Workflow", id: wf.id, label: wf.name };
   if (!can(ctx, "workflows", "manage")) return deny(ctx, "workflow.update", "Configuration", res, "Your role cannot change approval workflows.");
   if (id === "destructive" && (patch.enabled === false || patch.separation === false))
-    return invalid("Destructive backup operations always need a second technical administrator.");
+    return invalid("Destructive backup operations always need a second University Administrator.");
   const changes: string[] = [];
   if (patch.enabled !== undefined && patch.enabled !== wf.enabled) {
     wf.enabled = patch.enabled;
@@ -243,11 +298,8 @@ export function updateWorkflow(
   }
   if (patch.steps) {
     if (!patch.steps.length) return invalid("A workflow needs at least one approval step.");
-    for (const s of patch.steps) {
-      if (!s.name.trim()) return invalid("Name every step.");
-      if (!s.approverRoles.length || s.approverRoles.some((r) => !roleById(ctx, r))) return invalid(`Choose at least one approver role for “${s.name}”.`);
-    }
-    wf.steps = patch.steps.map((s) => ({ name: s.name.trim(), approverRoles: s.approverRoles }));
+    if (patch.steps.some((s) => !s.name.trim())) return invalid("Name every step.");
+    wf.steps = patch.steps.map((s) => ({ name: s.name.trim() }));
     changes.push(`${wf.steps.length} approval ${wf.steps.length === 1 ? "step" : "steps"}`);
   }
   if (!changes.length) return ok("No changes.");

@@ -1,0 +1,659 @@
+/*
+ * The Hub's own pickers (components/ui/pickers.tsx): Select, DateField, NumberField.
+ * Triggers keep the field classes they replace (.select, .input), so every existing size and surface
+ * rule still applies; these rules only add what a <button> lacks. Popovers read --pick-* from the
+ * surface they open on, with the house tokens as the default: gold marks the chosen value, a quiet
+ * well marks the one under the pointer or keys.
+ */
+
+/* ---------- Triggers ---------- */
+.pick-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: inherit;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  cursor: var(--cursor-pointer);
+}
+.pick-trigger__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.select.pick-trigger:has(> .pick-select__chevron) {
+  background-image: none;
+  padding-right: 12px;
+}
+.pick-select__chevron {
+  flex: none;
+  color: var(--pick-muted, var(--text-3));
+  transition: transform 180ms ease-out;
+}
+.pick-trigger[aria-expanded="true"] > .pick-select__chevron {
+  transform: rotate(180deg);
+}
+.pick-trigger[data-invalid] > .pick-select__chevron {
+  visibility: hidden;
+}
+.cycle-picker {
+  --pick-bg: var(--surface);
+  --pick-fg: var(--text);
+  --pick-muted: var(--text-3);
+  --pick-hover: var(--surface-3);
+  --pick-chosen: var(--surface-2);
+  --pick-accent-ink: var(--text);
+  --pick-focus: var(--text-3);
+  --pick-line: var(--border-strong);
+}
+.cycle-picker .cycle-picker__trigger {
+  height: 36px;
+  gap: 10px;
+  padding: 0 12px 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 3px 8px rgb(0 0 0 / 0.04);
+  font-size: 13px;
+  font-weight: 400;
+}
+.cycle-picker .cycle-picker__trigger:is(:focus, :focus-visible, [aria-expanded="true"]) {
+  border-color: var(--border-strong);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--border-strong), 0 3px 8px rgb(0 0 0 / 0.04);
+}
+.cycle-picker .pick__opt[aria-selected="true"] {
+  background: var(--pick-chosen);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pick-select__chevron {
+    transition: none;
+  }
+}
+.pick-trigger[data-placeholder] .pick-trigger__label {
+  color: var(--pick-placeholder, var(--text-3));
+}
+.pick-trigger:disabled {
+  cursor: var(--cursor-not-allowed);
+}
+.pick-trigger[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--gold-200);
+}
+.pick-date__icon {
+  flex: none;
+  margin-right: -2px;
+  color: var(--pick-muted, var(--text-3));
+}
+.pick-trigger[aria-expanded="true"] .pick-date__icon {
+  color: var(--pick-accent-ink, var(--gold-700));
+}
+/* The hidden field that carries the value for forms and `required`; it sits just under the trigger. */
+input.pick-proxy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Popover ---------- */
+.pick {
+  --pick-inset: 6px;
+  position: fixed;
+  inset: auto;
+  z-index: var(--z-toast);
+  margin: 0;
+  padding: var(--pick-inset);
+  border: 0;
+  border-radius: 14px;
+  max-width: calc(100vw - 16px);
+  max-height: min(var(--pick-cap, 320px), var(--pick-room, 320px));
+  overflow: hidden;
+  background: var(--pick-bg, var(--surface));
+  color: var(--pick-fg, var(--text));
+  box-shadow: var(--pick-shadow, 0 0 0 1px rgb(var(--hair) / 0.08), 0 4px 10px rgb(0 0 0 / 0.05), 0 22px 48px -18px rgb(0 0 0 / 0.3));
+  font-family: inherit;
+  font-size: var(--fs-14);
+  line-height: 1.35;
+  text-align: left;
+  text-shadow: none;
+  animation: pick-in 180ms var(--ease-out) both;
+}
+/* Scroll inside the padded shell so native tracks and thumbs clear its rounded corners. */
+.pick__scroll {
+  max-height: calc(min(var(--pick-cap, 320px), var(--pick-room, 320px)) - 2 * var(--pick-inset));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  border-radius: max(0px, calc(14px - var(--pick-inset)));
+  scrollbar-width: thin;
+  scrollbar-color: var(--pick-line, rgb(var(--hair) / 0.18)) transparent;
+}
+.pick[data-side="top"] {
+  animation-name: pick-in-up;
+}
+@keyframes pick-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+@keyframes pick-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pick {
+    animation: none;
+  }
+}
+
+/* List */
+.pick--list {
+  min-width: 180px;
+}
+.pick__opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  cursor: var(--cursor-pointer);
+  user-select: none;
+}
+.pick__opt-label {
+  flex: 1;
+  min-width: 0;
+}
+.pick__opt.is-active {
+  background: var(--pick-hover, var(--surface-3));
+}
+.pick__opt[aria-selected="true"] {
+  font-weight: 600;
+}
+.pick__opt[aria-selected="true"]:not(.is-active) {
+  background: var(--pick-chosen, var(--gold-wash));
+}
+.pick__tick {
+  flex: none;
+  color: var(--pick-accent-ink, var(--gold-700));
+}
+.pick__opt[aria-disabled="true"] {
+  color: var(--pick-muted, var(--text-3));
+  cursor: var(--cursor-default);
+}
+.pick__group + .pick__group,
+.pick__opt + .pick__group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--pick-line, var(--border));
+}
+.pick__group-label,
+.pick__empty {
+  padding: 8px 10px 4px;
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pick-muted, var(--text-3));
+}
+.pick__empty {
+  padding-bottom: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+@media (pointer: coarse) {
+  .pick__opt {
+    min-height: 44px;
+    font-size: var(--fs-16);
+  }
+}
+
+/* Calendar */
+.pick--cal {
+  --pick-cap: 420px;
+  --pick-inset: 10px;
+  width: 296px;
+}
+.pick-cal__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.pick-cal__title {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  cursor: var(--cursor-pointer);
+}
+.pick-cal__title:disabled {
+  cursor: var(--cursor-default);
+}
+.pick-cal__title svg {
+  color: var(--pick-muted, var(--text-3));
+}
+.pick-cal__nav {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: inherit;
+  cursor: var(--cursor-pointer);
+}
+.pick-cal__nav:disabled {
+  opacity: 0.3;
+  cursor: var(--cursor-default);
+}
+@media (hover: hover) {
+  .pick-cal__title:not(:disabled):hover,
+  .pick-cal__nav:not(:disabled):hover,
+  .pick-cal__day:not(:disabled):not([aria-pressed="true"]):hover,
+  .pick-cal__tile:not(:disabled):not([aria-pressed="true"]):hover,
+  .pick-cal__link:not(:disabled):hover {
+    background: var(--pick-hover, var(--surface-3));
+  }
+}
+.pick-cal__row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.pick-cal__week abbr {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  font-size: var(--fs-11);
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--pick-muted, var(--text-3));
+}
+.pick-cal__day,
+.pick-cal__tile {
+  width: 100%;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t-fast) ease;
+}
+.pick-cal__day {
+  aspect-ratio: 1;
+  max-height: 38px;
+}
+.pick-cal__day.is-outside {
+  color: var(--pick-muted, var(--text-3));
+}
+.pick-cal__day[aria-current="date"] {
+  box-shadow: inset 0 0 0 1.5px var(--pick-accent, var(--gold-500));
+  font-weight: 650;
+}
+.pick-cal__day[aria-pressed="true"],
+.pick-cal__tile[aria-pressed="true"] {
+  background: var(--pick-accent, var(--gold-500));
+  color: var(--pick-on-accent, var(--on-gold));
+  font-weight: 700;
+  box-shadow: none;
+}
+.pick-cal__day:disabled,
+.pick-cal__tile:disabled {
+  opacity: 0.3;
+  cursor: var(--cursor-default);
+}
+.pick-cal__day:focus-visible,
+.pick-cal__tile:focus-visible,
+.pick-cal__nav:focus-visible,
+.pick-cal__title:focus-visible,
+.pick-cal__link:focus-visible {
+  outline: 2px solid var(--pick-focus, var(--focus));
+  outline-offset: 1px;
+}
+.pick-cal__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px 0;
+}
+.pick-cal__tile {
+  height: 52px;
+  font-weight: 550;
+}
+.pick-cal__foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--pick-line, var(--border));
+}
+.pick-cal__link {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--pick-accent-ink, var(--gold-800));
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  cursor: var(--cursor-pointer);
+}
+.pick-cal__link:disabled {
+  opacity: 0.4;
+  cursor: var(--cursor-default);
+}
+
+/* ---------- NumberField ---------- */
+.pick-num {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+.pick-num:focus-within {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--gold-200);
+}
+.pick-num__field {
+  flex: 1;
+  order: 2;
+  min-width: 2.5em;
+  height: 100%;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.pick-num__field:focus {
+  outline: none;
+}
+.pick-num__field::-webkit-inner-spin-button,
+.pick-num__field::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.pick-num__step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  order: 3;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--pick-muted, var(--text-3));
+  cursor: var(--cursor-pointer);
+}
+.pick-num__step--down {
+  order: 1;
+}
+.pick-num__step:disabled {
+  opacity: 0.35;
+  cursor: var(--cursor-default);
+}
+@media (hover: hover) {
+  .pick-num__step:not(:disabled):hover {
+    background: var(--pick-hover, var(--surface-3));
+    color: var(--text);
+  }
+}
+.pick-num[data-disabled] {
+  background-color: var(--surface-3);
+  color: var(--text-3);
+}
+
+/* ---------- Surfaces ---------- */
+
+/* Administration console */
+.adm {
+  --pick-bg: var(--adm-bg);
+  --pick-fg: var(--adm-text);
+  --pick-muted: var(--adm-muted);
+  --pick-hover: var(--adm-hover);
+  --pick-line: var(--adm-line);
+  --pick-edge: var(--adm-line);
+}
+.adm .pick-num[data-disabled] {
+  background-color: var(--adm-well);
+  color: var(--adm-muted);
+}
+
+/* Dark workspaces: the chosen row lifts in gold rather than cream. */
+:root[data-theme="dark"] {
+  --pick-chosen: rgb(242 183 5 / 0.12);
+  --pick-accent-ink: var(--gold-700);
+}
+
+/* Sign-in glass: the same dark panel as the affiliation list. */
+.signin {
+  --pick-bg: linear-gradient(180deg, #1c1813, #100e0b);
+  --pick-fg: rgb(var(--label) / 0.86);
+  --pick-muted: rgb(var(--label) / 0.42);
+  --pick-placeholder: rgb(var(--label) / 0.36);
+  --pick-hover: rgb(243 210 122 / 0.08);
+  --pick-chosen: rgb(243 210 122 / 0.11);
+  --pick-line: rgb(var(--veil) / 0.1);
+  --pick-edge: rgb(var(--veil) / 0.17);
+  --pick-accent: #f0cf7a;
+  --pick-accent-ink: #f3d27a;
+  --pick-on-accent: #17130c;
+  --pick-focus: #f0cf7a;
+  --pick-shadow: inset 0 0 0 1px rgb(var(--veil) / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.06), 0 26px 50px -18px rgb(0 0 0 / 0.85);
+}
+.signin .pick {
+  border-radius: var(--si-r);
+}
+.signin .pick-trigger[aria-expanded="true"] {
+  border-color: rgb(240 200 100 / 0.75);
+  background-color: rgb(8 7 6 / 0.48);
+  box-shadow: 0 0 0 3px rgb(252 191 21 / 0.12);
+}
+.signin .pick-date__icon {
+  color: rgb(var(--label) / 0.55);
+}
+
+/* Developer settings panel */
+.dev-access {
+  --pick-bg: #1b1a18;
+  --pick-fg: #f4f1ea;
+  --pick-muted: rgba(244, 241, 234, 0.55);
+  --pick-hover: rgba(255, 255, 255, 0.07);
+  --pick-chosen: rgba(233, 196, 106, 0.12);
+  --pick-line: rgba(255, 255, 255, 0.12);
+  --pick-edge: rgba(255, 255, 255, 0.12);
+  --pick-accent: #e9c46a;
+  --pick-accent-ink: #e9c46a;
+  --pick-on-accent: #1b1a18;
+}
+.dev-access .pick {
+  font-size: 13px;
+}
+.dev-access__field .dev-access__select {
+  padding-right: 28px;
+  background: #121110 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23bdb7ab' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center;
+}
+
+/* ---------- Field validation (components/ui/validation.tsx) ---------- */
+/* The warning replaces the right-hand adornment until the field is activated again. */
+.select[data-invalid] {
+  background-image: none;
+}
+.pick-trigger[data-invalid] > .pick-date__icon {
+  display: none;
+}
+.si__combo-box:has(> input[data-invalid]) > :is(.si__combo-clear, .si__combo-tag),
+.si__birthday:has(> input[data-invalid]) > .si__birthday-calendar,
+.pick-num:has([data-invalid]) > .pick-num__step,
+.input-group:has([data-invalid]) > :is(button, svg:last-child) {
+  visibility: hidden;
+}
+/* A field that failed a check keeps a red edge until it passes. */
+:is(.input, .select, .textarea, .input-group, .pick-num)[data-invalid],
+:is(.input-group, .pick-num):has([data-invalid]) {
+  border-color: var(--danger);
+}
+:is(.input, .select, .textarea)[data-invalid]:focus,
+.pick-trigger[data-invalid][aria-expanded="true"],
+:is(.input-group, .pick-num):has([data-invalid]:focus) {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+.choice:has([data-invalid]) {
+  border-color: var(--danger);
+}
+.w-field:has([data-invalid]) {
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
+.signin :is(.input, .select, .textarea)[data-invalid] {
+  border-color: rgb(255 128 112 / 0.7);
+}
+.signin :is(.input, .select, .textarea)[data-invalid]:focus {
+  border-color: rgb(255 128 112 / 0.9);
+  box-shadow: 0 0 0 3px rgb(255 110 90 / 0.16);
+}
+
+/* A short shake when a field first fails, and again on each failed submit. */
+[data-shake],
+.fieldwarn__sign {
+  animation: field-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes field-shake {
+  15%,
+  85% {
+    translate: -1px 0;
+  }
+  30%,
+  70% {
+    translate: 3px 0;
+  }
+  45% {
+    translate: -4px 0;
+  }
+  58% {
+    translate: 4px 0;
+  }
+}
+
+/* The warning sign at the field's right end; its message shows in a tooltip while the pointer is on it. */
+.fieldwarn {
+  position: fixed;
+  inset: auto;
+  z-index: var(--z-toast);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: none;
+  color: var(--pick-warn, var(--danger));
+}
+.fieldwarn__sign {
+  display: block;
+  width: 18px;
+  height: 18px;
+  cursor: var(--cursor-default);
+}
+.fieldwarn__sign svg {
+  display: block;
+}
+.fieldwarn__tip {
+  position: absolute;
+  right: -12px;
+  bottom: calc(100% + 12px);
+  width: max-content;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--pick-bg, var(--surface));
+  color: var(--pick-fg, var(--text));
+  box-shadow: var(--pick-shadow, 0 0 0 1px rgb(var(--hair) / 0.08), 0 4px 10px rgb(0 0 0 / 0.05), 0 22px 48px -18px rgb(0 0 0 / 0.3));
+  font-size: var(--fs-13);
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  text-shadow: none;
+  pointer-events: none;
+  /* Hidden but still read with the field (aria-describedby). */
+  clip-path: inset(50%);
+  opacity: 0;
+}
+.fieldwarn__tip::after {
+  content: "";
+  position: absolute;
+  right: 15px;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  background: inherit;
+  border-right: 1px solid var(--pick-edge, rgb(var(--hair) / 0.1));
+  border-bottom: 1px solid var(--pick-edge, rgb(var(--hair) / 0.1));
+  border-radius: 0 0 2px 0;
+  transform: rotate(45deg);
+}
+.fieldwarn[data-tip] .fieldwarn__tip {
+  clip-path: none;
+  opacity: 1;
+  animation: pick-in-up 160ms var(--ease-out) both;
+}
+.fieldwarn[data-tip="below"] .fieldwarn__tip {
+  top: calc(100% + 12px);
+  bottom: auto;
+  animation-name: pick-in;
+}
+.fieldwarn[data-tip="below"] .fieldwarn__tip::after {
+  top: -6px;
+  bottom: auto;
+  border: 0;
+  border-top: 1px solid var(--pick-edge, rgb(var(--hair) / 0.1));
+  border-left: 1px solid var(--pick-edge, rgb(var(--hair) / 0.1));
+  border-radius: 2px 0 0 0;
+}
+.signin {
+  --pick-warn: #ff8a75;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-shake],
+  .fieldwarn__sign,
+  .fieldwarn[data-tip] .fieldwarn__tip {
+    animation: none;
+  }
+}

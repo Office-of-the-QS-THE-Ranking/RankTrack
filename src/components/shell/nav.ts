@@ -49,7 +49,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
         { href: "/admin/rankings", label: "Rankings", icon: "rankings", rankingsBase: "/admin/rankings", need: ["rankings", "view"] },
         { href: "/admin/contribute", label: "Contribute", icon: "contribute", count: "review", need: ["evidence", "view"] },
         { href: "/admin/units", label: "Units", icon: "units", need: ["units", "view"] },
-        { href: "/admin/impact", label: "Impact and Innovation", icon: "impact", need: ["stories", "view"] },
+        { href: "/admin/impact", label: "Impact and Innovation", icon: "impact", need: ["posts", "view"] },
         { href: "/admin/recognition", label: "Recognition", icon: "recognition", feature: "recognition-internal" },
         { href: "/admin/knowledge", label: "Knowledge Center", icon: "knowledge", need: ["knowledge", "view"] },
         { href: "/admin/reports", label: "Reports", icon: "reports", need: ["reports", "view"], feature: "reports" },

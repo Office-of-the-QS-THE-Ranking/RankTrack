@@ -4,12 +4,14 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import credits from "@/lib/credits.json";
-import { AS_OF_LABEL, FAMILY } from "@/lib/data";
+import { FAMILY, formatAsOf } from "@/lib/data";
 import type { HubData } from "@/lib/governance/hub-types";
 import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
-import { actFor, signOut } from "@/app/actions/session";
+import { signOut } from "@/app/actions/session";
+import { Face } from "@/components/ui/Face";
 import { Icon } from "@/components/ui/Icon";
 import { InlineScript } from "@/components/site/InlineScript";
 import { HubProvider, useGovern } from "@/components/hub/HubProvider";
@@ -19,14 +21,18 @@ import { SearchPalette } from "./SearchPalette";
 import { NavIcon } from "./NavIcon";
 import { HeaderBreadcrumbs } from "./HeaderBreadcrumbs";
 import { SECTIONS as ADMIN_SECTIONS, sectionHref } from "@/components/admin/sections";
+import { Select } from "@/components/ui/pickers";
 
 type Theme = "light" | "dark";
 const THEME_KEY = "hub-theme";
 // Applies the saved (or system) appearance before the first paint, so dark mode never flashes light.
 const THEME_BOOT = `try{var t=localStorage.getItem("${THEME_KEY}");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}`;
+const WIPE_MS = 620;
+const FADE_MS = 500;
 
 function useTheme() {
   const [theme, setTheme] = useState<Theme>("light");
+  const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     const root = document.documentElement;
     let saved: string | null = null;
@@ -39,18 +45,49 @@ function useTheme() {
     setTheme(initial);
     // The public site has its own fixed appearance: drop the attribute when the workspace closes.
     return () => {
+      clearTimeout(fadeTimer.current);
+      root.classList.remove("theme-wipe", "theme-fade");
       delete root.dataset.theme;
     };
   }, []);
-  const toggle = () =>
-    setTheme((t) => {
-      const next: Theme = t === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = next;
+  // The new appearance spreads out from the button as a circle. Reduced motion gets the browser's
+  // plain cross-fade; browsers without View Transitions ease the colours over instead.
+  const toggle = (from?: HTMLElement | null) => {
+    const root = document.documentElement;
+    const apply = (cls?: string) => {
+      const next: Theme = root.dataset.theme === "dark" ? "light" : "dark";
+      if (cls) root.classList.add(cls);
+      root.dataset.theme = next;
       try {
         localStorage.setItem(THEME_KEY, next);
       } catch {}
-      return next;
-    });
+      flushSync(() => setTheme(next));
+    };
+    if (typeof document.startViewTransition !== "function") {
+      clearTimeout(fadeTimer.current);
+      apply("theme-fade");
+      fadeTimer.current = setTimeout(() => root.classList.remove("theme-fade"), FADE_MS);
+      return;
+    }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.startViewTransition(() => apply());
+      return;
+    }
+    const r = from?.getBoundingClientRect();
+    const x = r ? r.left + r.width / 2 : innerWidth / 2;
+    const y = r ? r.top + r.height / 2 : 0;
+    const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    const wipe = document.startViewTransition(() => apply("theme-wipe"));
+    wipe.ready
+      .then(() =>
+        root.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${reach}px at ${x}px ${y}px)`] },
+          { duration: WIPE_MS, easing: "cubic-bezier(0.32, 0.72, 0, 1)", pseudoElement: "::view-transition-new(root)" },
+        ),
+      )
+      .catch(() => {});
+    wipe.finished.finally(() => root.classList.remove("theme-wipe"));
+  };
   return [theme, toggle] as const;
 }
 
@@ -192,36 +229,6 @@ function AdminDeepLink({ base }: { base: string }) {
   return null;
 }
 
-/** The contributor workspace's unit, for people who may act for any unit. */
-function ActingFor({ viewer }: { viewer: Viewer }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  if (!viewer.portal.canSwitch) return null;
-  return (
-    <label className="top__acting">
-      <span className="top__acting-label">Acting for</span>
-      <select
-        className="select select--sm"
-        value={viewer.portal.unitId}
-        disabled={pending}
-        onChange={(e) => {
-          const id = e.target.value;
-          start(async () => {
-            await actFor(id);
-            router.refresh();
-          });
-        }}
-      >
-        {viewer.portal.units.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 export function Shell({ variant, viewer = null, hub = null, children }: { variant: Variant; viewer?: Viewer | null; hub?: HubData | null; children: ReactNode }) {
   return (
     <HubProvider viewer={viewer} hub={hub} variant={variant}>
@@ -237,6 +244,11 @@ type Drill = "rankings" | "admin" | null;
 function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; viewer: Viewer | null; hub: HubData | null; children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
+  // The tab just clicked shows as current at once, while its page is still on the way; once the
+  // address changes (or the reader goes elsewhere) the real pathname takes over again.
+  const [going, setGoing] = useState<{ href: string; from: string } | null>(null);
+  const at = going?.from === pathname ? going.href : pathname;
+  const goTo = (href: string) => () => setGoing({ href, from: pathname });
   const [menu, setMenu] = useState(false);
   // The last row that opened a set of sub-tabs, so focus returns to it.
   const [opened, setOpened] = useState<Exclude<Drill, null>>("rankings");
@@ -393,7 +405,6 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
           className="side__edge"
           aria-hidden="true"
           tabIndex={-1}
-          title={rail ? "Expand sidebar" : "Collapse sidebar"}
           onClick={toggleRail}
         />
         <div className="side__head">
@@ -402,7 +413,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
             className="side__brand"
             aria-label={rail ? `Rankings and Impact Hub, ${viewLabel}` : undefined}
           >
-            <Image className="seal" src="/brand/ust-seal.png" alt="" width={48} height={48} priority />
+            <Image className="seal seal--light" src="/brand/ust-seal.png" alt="" width={48} height={48} priority />
+            <Image className="seal seal--dark" src="/brand/ust-seal-reverse.png" alt="" width={48} height={48} priority />
             <span className="side__brandtext">
               <span className="side__name">Rankings and Impact Hub</span>
               <span className="side__view">{viewLabel}</span>
@@ -413,7 +425,6 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
             className="side__toggle"
             aria-expanded={!rail}
             aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
-            data-tip={rail ? "Expand sidebar" : "Collapse sidebar"}
             onClick={toggleRail}
           >
             <Icon name={rail ? "chevron" : "chevron-left"} size={16} strokeWidth={2} />
@@ -440,7 +451,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                   {g.label && <p className="side__label">{g.label}</p>}
                   <ul className="side__nav">
                     {g.items.filter((item) => item !== aboutLink).map((item) => {
-                      const active = isActive(pathname, item.href, item.exact);
+                      const active = isActive(at, item.href, item.exact);
                       const count = item.count ? counts[item.count] : 0;
                       return (
                         <li key={item.href}>
@@ -458,7 +469,10 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                                   setOpened(to);
                                   openDrill(to);
                                   // Administration has a page: open its overview with the sections.
-                                  if (item.admin && !onAdmin) router.push(item.href);
+                                  if (item.admin && !onAdmin) {
+                                    goTo(item.href)();
+                                    router.push(item.href);
+                                  }
                                 }}
                               >
                                 <NavIcon name={item.icon} active={active} />
@@ -471,6 +485,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                                 className={`side__link${active ? " is-active" : ""}`}
                                 aria-current={pathname === item.href ? "page" : undefined}
                                 data-tip={item.label}
+                                onNavigate={goTo(item.href)}
                               >
                                 <NavIcon name={item.icon} active={active} />
                                 <span className="truncate side__text">{item.label}</span>
@@ -513,13 +528,14 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                     {entry.items.length > 1 ? <p className="side__label">{entry.group}</p> : <hr className="side__sep" />}
                     <ul className="side__nav">
                       {entry.items.map((c) => {
-                        const active = isActive(pathname, c.href);
+                        const active = isActive(at, c.href);
                         return (
                           <li key={c.href}>
                             <Link
                               href={c.href}
                               className={`side__link side__link--sub${active ? " is-active" : ""}`}
-                              aria-current={active ? "page" : undefined}
+                              aria-current={isActive(pathname, c.href) ? "page" : undefined}
+                              onNavigate={goTo(c.href)}
                             >
                               <span className="side__dot" aria-hidden="true">
                                 <i style={{ background: FAMILY[c.family].band } as CSSProperties} />
@@ -549,10 +565,16 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                 <ul className="side__nav">
                   {adminSections.map((sec) => {
                     const href = sectionHref(adminItem.href, sec.key);
-                    const active = pathname === href;
+                    const active = at === href;
                     return (
                       <li key={sec.key}>
-                        <Link href={href} className={`side__link${active ? " is-active" : ""}`} aria-current={active ? "page" : undefined} data-tip={sec.title}>
+                        <Link
+                          href={href}
+                          className={`side__link${active ? " is-active" : ""}`}
+                          aria-current={pathname === href ? "page" : undefined}
+                          data-tip={sec.title}
+                          onNavigate={goTo(href)}
+                        >
                           <NavIcon name={sec.icon} active={active} />
                           <span className="truncate side__text">{sec.title}</span>
                         </Link>
@@ -568,17 +590,17 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         <div className="side__foot">
           <div className="side__mobile">
             {variant !== "public" && cycles.length > 0 && (
-              <label className="field">
+              <label className="field cycle-picker">
                 <span className="side__label" style={{ padding: "0 0 4px" }}>
                   Reporting cycle
                 </span>
-                <select className="select select--sm side__select" value={cycle} onChange={(e) => setCycle(e.target.value)}>
+                <Select className="select select--sm side__select cycle-picker__trigger" value={cycle} onChange={setCycle}>
                   {cycles.map((c) => (
                     <option key={c.id} value={c.id}>
                       Cycle {c.id}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
           </div>
@@ -595,12 +617,13 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
             <nav className="side__bottom" aria-label="More">
               <Link
                 href={aboutLink.href}
-                className={`side__link${isActive(pathname, aboutLink.href) ? " is-active" : ""}`}
+                className={`side__link${isActive(at, aboutLink.href) ? " is-active" : ""}`}
                 aria-current={pathname === aboutLink.href ? "page" : undefined}
                 aria-label={aboutLink.label}
                 data-tip={aboutLink.label}
+                onNavigate={goTo(aboutLink.href)}
               >
-                <NavIcon name={aboutLink.icon} active={isActive(pathname, aboutLink.href)} />
+                <NavIcon name={aboutLink.icon} active={isActive(at, aboutLink.href)} />
                 <span className="truncate side__text">{aboutLink.label}</span>
               </Link>
             </nav>
@@ -610,14 +633,14 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         <Glide
           className="side__glide"
           selector=".side__pane.is-current .side__link.is-active, .side__bottom .side__link.is-active"
-          route={`${pathname}|${drill}`}
+          route={`${at}|${drill}`}
           layout={`${rail}${menu}${nav.length}`}
         />
         {viewer && (
           <div className="side__profile" role="region" aria-label="Profile" ref={meRef}>
             <button type="button" className="side__profile-button" data-tip={viewer.name} aria-controls="sidebar-account" aria-expanded={me} aria-haspopup="true" onClick={() => setMe((v) => !v)} aria-label={`Account: ${viewer.name}`}>
               <span className="avatar" aria-hidden="true">
-                {viewer.initials}
+                <Face src={viewer.avatar}>{viewer.initials}</Face>
               </span>
               <span className="side__profile-info">
                 <b>{viewer.name}</b>
@@ -629,7 +652,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
               <div id="sidebar-account" className="pop side__profile-pop" role="region" aria-label="Account">
                 <div className="pop__who">
                   <span className="avatar" aria-hidden="true">
-                    {viewer.initials}
+                    <Face src={viewer.avatar}>{viewer.initials}</Face>
                   </span>
                   <span>
                     <b>{viewer.name}</b>
@@ -705,18 +728,17 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
 
           <span className="top__spacer" />
 
-          {variant === "unit" && viewer && <ActingFor viewer={viewer} />}
 
           {variant !== "public" && cycles.length > 0 && (
-            <label className="top__cycle top__cycle-wide">
+            <label className="top__cycle top__cycle-wide cycle-picker">
               <span className="sr-only">Reporting cycle</span>
-              <select className="select" value={cycle} onChange={(e) => setCycle(e.target.value)}>
+              <Select className="select cycle-picker__trigger" value={cycle} onChange={setCycle}>
                 {cycles.map((c) => (
                   <option key={c.id} value={c.id}>
                     Cycle {c.id}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
 
@@ -774,9 +796,9 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
               aria-pressed={theme === "dark"}
               aria-label="Dark appearance"
               data-tip={theme === "dark" ? "Switch to light" : "Switch to dark"}
-              onClick={toggleTheme}
+              onClick={(e) => toggleTheme(e.currentTarget)}
             >
-              <Icon name={theme === "dark" ? "sun" : "moon"} size={19} />
+              <Icon key={theme} name={theme === "dark" ? "sun" : "moon"} size={19} />
             </button>
           )}
 
@@ -791,7 +813,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
           {children}
         </main>
 
-        <Footer variant={variant} />
+        {variant === "public" && <Footer variant={variant} asOf={hub?.site.asOf} />}
       </div>
 
       <SearchPalette variant={variant} open={search} onClose={closeSearch} />
@@ -807,13 +829,14 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
 
 type Credit = { title: string; creator: string; license: string; page: string };
 
-function Footer({ variant }: { variant: Variant }) {
+function Footer({ variant, asOf }: { variant: Variant; asOf?: string }) {
   const about = variant === "office" ? "/admin/about" : "/about";
   return (
     <footer className="foot">
       <div className="foot__in">
         <div className="foot__brand">
-          <Image className="seal" src="/brand/ust-seal.png" alt="" width={48} height={48} />
+          <Image className="seal seal--light" src="/brand/ust-seal.png" alt="" width={48} height={48} />
+          <Image className="seal seal--dark" src="/brand/ust-seal-reverse.png" alt="" width={48} height={48} />
           <div>
             <b>Office of QS/THE Rankings</b>
             <p>University of Santo Tomas, España Boulevard, Sampaloc, Manila 1008</p>
@@ -830,8 +853,12 @@ function Footer({ variant }: { variant: Variant }) {
         </nav>
         <div className="foot__legal">
           <span>
-            Last dashboard update <span className="num">{AS_OF_LABEL}</span> · Results belong to the ranking bodies and are reported as
-            published.
+            {asOf && (
+              <>
+                Last dashboard update <span className="num">{formatAsOf(asOf)}</span> ·{" "}
+              </>
+            )}
+            Results belong to the ranking bodies and are reported as published.
           </span>
           <span>© 2026 University of Santo Tomas</span>
           {variant === "public" && (
@@ -846,7 +873,6 @@ function Footer({ variant }: { variant: Variant }) {
               </ul>
             </details>
           )}
-          {variant !== "public" && <span>Prototype: figures beyond the published results are sample data.</span>}
         </div>
       </div>
     </footer>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Select } from "@/components/ui/pickers";
 
 const OFFICE = "rankings.office@ust.edu.ph";
 
@@ -66,13 +67,13 @@ export function AdaptCoupon({
           </label>
           <label className="w-field">
             <span className="w-field__label">Practice</span>
-            <select name="practice" value={chosen} onChange={(e) => setChosen(e.target.value)}>
+            <Select className="w-field__select" name="practice" value={chosen} onChange={setChosen}>
               {PUBLISHED_STORIES.map((s) => (
                 <option key={s.slug} value={s.slug}>
                   {s.title}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <button type="submit" className="w-coupon__submit">
             Write to the Office

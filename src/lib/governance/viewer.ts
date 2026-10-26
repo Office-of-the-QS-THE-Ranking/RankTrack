@@ -3,7 +3,7 @@
  * passed to client components; the server still re-checks every change it is asked to make.
  */
 import { canWith, type Grant, type Target } from "./rbac";
-import type { Action, DataGrant, ModuleKey, PermissionSet } from "./types";
+import type { Action, DataGrant, ModuleKey, PermissionSet, RoleId } from "./types";
 
 export type Workspace = "office" | "portal";
 
@@ -13,20 +13,19 @@ export interface Viewer {
   email: string;
   title: string;
   initials: string;
+  /** Google profile photo, when they have one. */
+  avatar?: string;
   external: boolean;
   unitId: string;
   unitName: string;
-  roles: { id: string; name: string; scope: string; expires?: string; system: boolean }[];
+  roles: { id: RoleId; name: string; scope: string; expires?: string }[];
   /** The highest role, for labels. */
   roleName: string;
   grants: Grant[];
   perms: PermissionSet;
-  tier: number;
-  technical: boolean;
-  superAdmin: boolean;
   workspaces: Workspace[];
-  /** The unit the contributor workspace shows, and whether the viewer may switch it. */
-  portal: { unitId: string; unitName: string; programId?: string; programName?: string; canSwitch: boolean; units: { id: string; name: string }[] };
+  /** The unit the contributor workspace shows. */
+  portal: { unitId: string; unitName: string; programId?: string; programName?: string };
   /** Administration sections this viewer may open. */
   admin: ModuleKey[];
   flags: string[];
@@ -35,7 +34,7 @@ export interface Viewer {
   session: { id: string; startedAt: string; idleMinutes: number; warnMinutes: number; absoluteHours: number; mfa: boolean };
 }
 
-export const viewerCan = (v: Viewer | null | undefined, m: ModuleKey, a: Action, t: Target = {}) => !!v && (v.superAdmin || canWith(v.grants, m, a, t));
+export const viewerCan = (v: Viewer | null | undefined, m: ModuleKey, a: Action, t: Target = {}) => !!v && canWith(v.grants, m, a, t);
 
 export const flag = (v: Viewer | null | undefined, id: string) => !!v?.flags.includes(id);
 

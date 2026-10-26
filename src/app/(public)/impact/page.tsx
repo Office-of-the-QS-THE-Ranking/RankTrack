@@ -8,8 +8,8 @@ export const metadata = {
   description: "Thomasian practices with measurable outcomes, the people they served, and guidance for institutions that want to adapt them.",
 };
 
-export default function PublicImpact() {
+export default async function PublicImpact() {
   // System Configuration can switch this public section off.
-  if (!siteData().features.impact) notFound();
+  if (!(await siteData()).features.impact) notFound();
   return <ImpactIndex />;
 }

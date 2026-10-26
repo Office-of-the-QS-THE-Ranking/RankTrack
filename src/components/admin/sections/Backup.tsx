@@ -5,6 +5,7 @@ import type { RecoveryPoint } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { Block, Disclosure, EmptyNote, Field, Hint, Pill, ReadOnly, RowMenu, Stat, StatusPill, Switch, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
+import { NumberField } from "@/components/ui/pickers";
 
 /** The next Manila 02:00 for the daily full backup, and the next top of the hour for incrementals. */
 function nextRuns(nowIso: string) {
@@ -26,7 +27,7 @@ export function Backup() {
   const act = useAct();
   const b = data.backup!;
   const v = data.viewer;
-  const tech = viewerCan(v, "backup", "manage") && v.technical;
+  const canRun = viewerCan(v, "backup", "manage");
   const h = data.health.backup;
   const runs = nextRuns(data.now);
   const lastTest = b.tests[0];
@@ -39,8 +40,8 @@ export function Backup() {
       title: operation === "restore" ? `Restore from ${p.id}?` : `Delete ${p.id}?`,
       body:
         operation === "restore"
-          ? `Changes since ${fmtDate(p.at, true)} are rolled back. The audit log and sign-ins are kept. A second technical administrator must approve first.`
-          : "It's removed once a second technical administrator approves.",
+          ? `Changes since ${fmtDate(p.at, true)} are rolled back. The audit log and sign-ins are kept. A second University Administrator must approve first.`
+          : "It's removed once a second University Administrator approves.",
       confirm: "Request approval",
       tone: "danger",
       input: { label: "Reason", required: true, multiline: true, placeholder: "What this recovers from" },
@@ -56,7 +57,7 @@ export function Backup() {
         <Stat label="Last restore test" icon="refresh" value={lastTest ? lastTest.result : "None"} sub={lastTest ? fmtDate(lastTest.at) : "Run one monthly"} tone={lastTest?.result === "Passed" ? "ok" : "danger"} />
       </div>
 
-      {!tech && <ReadOnly>View only. Technical administrators run backups and restores.</ReadOnly>}
+      {!canRun && <ReadOnly>View only. University Administrators run backups and restores.</ReadOnly>}
 
       {pending.length > 0 && (
         <p className="adm-note">
@@ -70,11 +71,11 @@ export function Backup() {
       <Block
         title={
           <>
-            Recovery points <Hint text="Restoring or deleting a point always needs a second technical administrator's approval." />
+            Recovery points <Hint text="Restoring or deleting a point always needs a second University Administrator's approval." />
           </>
         }
         actions={
-          tech && (
+          canRun && (
             <button type="button" className="btn btn--sm btn--dark" onClick={() => void act({ type: "backup.run" })}>
               <Icon name="hard-drive" size={15} /> Back up now
             </button>
@@ -117,7 +118,7 @@ export function Backup() {
                       <StatusPill value={p.status} />
                     </td>
                     <td className="r">
-                      {tech && (
+                      {canRun && (
                         <RowMenu
                           label={`Actions for ${p.id}`}
                           items={[
@@ -141,17 +142,17 @@ export function Backup() {
         </p>
         <div className="adm-form-grid">
           <Field label="Keep daily points (days)">
-            <input className="input num" type="number" min={7} max={365} disabled={!tech} value={s.retentionDays} onChange={(e) => setS({ ...s, retentionDays: Number(e.target.value) })} />
+            <NumberField className="input num" min={7} max={365} disabled={!canRun} value={s.retentionDays} onChange={(v) => setS({ ...s, retentionDays: v })} />
           </Field>
           <Field label="Keep monthly copies (months)">
-            <input className="input num" type="number" min={1} max={120} disabled={!tech} value={s.monthlyMonths} onChange={(e) => setS({ ...s, monthlyMonths: Number(e.target.value) })} />
+            <NumberField className="input num" min={1} max={120} disabled={!canRun} value={s.monthlyMonths} onChange={(v) => setS({ ...s, monthlyMonths: v })} />
           </Field>
         </div>
         <div className="adm-switchrow">
           <span>
             <b>Off-site copy</b>
           </span>
-          <Switch checked={s.offsite} disabled={!tech} label="Off-site copy" onChange={(x) => setS({ ...s, offsite: x })} />
+          <Switch checked={s.offsite} disabled={!canRun} label="Off-site copy" onChange={(x) => setS({ ...s, offsite: x })} />
         </div>
         {JSON.stringify(s) !== JSON.stringify(b.schedule) && (
           <div className="adm-actions">
@@ -202,23 +203,6 @@ export function Backup() {
           ))}
         </div>
       </Disclosure>
-
-      {v.superAdmin && (
-        <Disclosure title="Prototype">
-          <div className="adm-actionrow">
-            <button
-              type="button"
-              className="btn btn--sm btn--danger"
-              onClick={async () => {
-                const ok = await confirm({ title: "Reset the sample data?", body: "Every change is undone except the audit log.", confirm: "Reset", tone: "danger" });
-                if (ok !== null) await act({ type: "backup.reset" });
-              }}
-            >
-              <Icon name="undo" size={15} /> Reset sample data
-            </button>
-          </div>
-        </Disclosure>
-      )}
     </div>
   );
 }

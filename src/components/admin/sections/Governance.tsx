@@ -8,6 +8,8 @@ import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { UnitSelect } from "../parts";
 import { Block, Disclosure, EmptyNote, Field, Hint, KV, Pill, ReadOnly, SearchField, Sheet, StatusPill, Switch, Tabs, fmtAgo, fmtDate, plural, useAct, useConsole } from "../ui";
+import { NumberField, Select } from "@/components/ui/pickers";
+import { useSkipChecks } from "@/lib/dev-checks";
 
 type Tab = "Datasets" | "Quality" | "Dictionary";
 
@@ -24,9 +26,9 @@ export function Governance() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { key: "Datasets", label: <>Datasets <span className="adm-tabs__count">{data.datasets?.length ?? 0}</span></> },
-          { key: "Quality", label: <>Quality {issues > 0 && <span className="adm-tabs__count is-alert">{issues}</span>}</> },
-          { key: "Dictionary", label: <>Dictionary <span className="adm-tabs__count">{data.terms?.length ?? 0}</span></> },
+          { key: "Datasets", label: "Datasets", count: data.datasets?.length ?? 0 },
+          { key: "Quality", label: "Quality", count: issues || undefined, countTone: "alert" },
+          { key: "Dictionary", label: "Dictionary", count: data.terms?.length ?? 0 },
         ]}
       />
       {tab === "Datasets" && <Datasets />}
@@ -51,14 +53,14 @@ function Datasets() {
     <>
       <div className="adm-toolbar">
         <SearchField value={q} onChange={setQ} placeholder="Search datasets" label="Search datasets" />
-        <select className="select select--sm" value={cls} onChange={(e) => setCls(e.target.value as typeof cls)} aria-label="Filter by classification">
+        <Select className="select select--sm" value={cls} onChange={(v) => setCls(v as typeof cls)} aria-label="Filter by classification">
           <option value="">All classifications</option>
           {CLASSIFICATIONS.map((c) => (
             <option key={c.key} value={c.key}>
               {c.key}
             </option>
           ))}
-        </select>
+        </Select>
         <Hint text={LEVELS} label="Classification levels" />
         <span className="adm-toolbar__spacer" />
         {viewerCan(data.viewer, "governance", "manage") && (
@@ -130,6 +132,7 @@ function Datasets() {
 }
 
 function DatasetSheet({ d, onClose }: { d: DatasetRow | null; onClose: () => void }) {
+  const skip = useSkipChecks();
   const { data } = useConsole();
   const act = useAct();
   const [f, setF] = useState({ classification: "Public" as Classification, stewardId: "", ownerUnitId: "", years: 1, then: "Archive" as "Archive" | "Review" | "Dispose", exportPolicy: "Allowed" as ExportPolicy, justification: "" });
@@ -186,28 +189,28 @@ function DatasetSheet({ d, onClose }: { d: DatasetRow | null; onClose: () => voi
               }
               hint={d.locked ? `Locked: ${d.locked}` : undefined}
             >
-              <select className="select" value={f.classification} disabled={!d.canClassify} onChange={(e) => setF({ ...f, classification: e.target.value as Classification })}>
+              <Select className="select" value={f.classification} disabled={!d.canClassify} onChange={(v) => setF({ ...f, classification: v as Classification })}>
                 {CLASSIFICATIONS.map((c) => (
                   <option key={c.key} value={c.key} disabled={c.key === "Public" && d.personal}>
                     {c.key}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Export">
-              <select className="select" value={f.exportPolicy} onChange={(e) => setF({ ...f, exportPolicy: e.target.value as ExportPolicy })}>
+              <Select className="select" value={f.exportPolicy} onChange={(v) => setF({ ...f, exportPolicy: v as ExportPolicy })}>
                 {(["Allowed", "Approval required", "Blocked"] as ExportPolicy[]).map((p) => (
                   <option key={p} value={p} disabled={(f.classification === "Restricted" && p !== "Blocked") || (f.classification === "Confidential" && p === "Allowed")}>
                     {p}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Owner">
               <UnitSelect label="Owner unit" value={f.ownerUnitId} onChange={(id) => setF({ ...f, ownerUnitId: id })} filter={(u) => u.status === "Active"} />
             </Field>
             <Field label="Steward">
-              <select className="select" value={f.stewardId} onChange={(e) => setF({ ...f, stewardId: e.target.value })}>
+              <Select className="select" value={f.stewardId} onChange={(v) => setF({ ...f, stewardId: v })}>
                 {data.people
                   .filter((p) => p.status === "Active")
                   .map((p) => (
@@ -215,20 +218,20 @@ function DatasetSheet({ d, onClose }: { d: DatasetRow | null; onClose: () => voi
                       {p.name}
                     </option>
                   ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Keep for">
               <span className="adm-inline">
-                <input className="input num" type="number" min={1} max={50} value={f.years} onChange={(e) => setF({ ...f, years: Number(e.target.value) })} aria-label="Years to keep" />
+                <NumberField className="input num" min={1} max={50} value={f.years} onChange={(v) => setF({ ...f, years: v })} aria-label="Years to keep" />
                 <span className="adm-muted">years</span>
               </span>
             </Field>
             <Field label="Then">
-              <select className="select" value={f.then} onChange={(e) => setF({ ...f, then: e.target.value as typeof f.then })}>
+              <Select className="select" value={f.then} onChange={(v) => setF({ ...f, then: v as typeof f.then })}>
                 <option>Archive</option>
                 <option>Review</option>
                 <option>Dispose</option>
-              </select>
+              </Select>
             </Field>
           </div>
           <KV rows={facts} />
@@ -259,7 +262,7 @@ function DatasetSheet({ d, onClose }: { d: DatasetRow | null; onClose: () => voi
             <button
               type="button"
               className="btn btn--sm"
-              disabled={note.trim().length < 5}
+              disabled={!skip && note.trim().length < 5}
               onClick={async () => {
                 const r = await act({ type: "dataset.version", id: d.id, note });
                 if (r.ok) setNote("");
@@ -489,22 +492,22 @@ function TermSheet({ t, onClose }: { t: TermRow | null; onClose: () => void }) {
           <input className="input" value={f.unitOfMeasure} disabled={!can} onChange={(e) => setF({ ...f, unitOfMeasure: e.target.value })} />
         </Field>
         <Field label="Dataset">
-          <select className="select" value={f.datasetId} disabled={!can} onChange={(e) => setF({ ...f, datasetId: e.target.value })}>
+          <Select className="select" value={f.datasetId} disabled={!can} onChange={(v) => setF({ ...f, datasetId: v })}>
             {data.catalog.datasets.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Steward">
-          <select className="select" value={f.stewardId} disabled={!can} onChange={(e) => setF({ ...f, stewardId: e.target.value })}>
+          <Select className="select" value={f.stewardId} disabled={!can} onChange={(v) => setF({ ...f, stewardId: v })}>
             {data.people.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
       <p className="adm-count">Updated {fmtDate(t.updatedAt)}</p>

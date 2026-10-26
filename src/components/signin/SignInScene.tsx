@@ -1,13 +1,10 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
 // imported rather than referenced by path: the URL then carries the file's hash, so a re-render is never served stale
-import benavidesDay from "../../../public/images/benavides-3d-day.webp";
 import benavides from "../../../public/images/benavides-3d.webp";
-import buildingDay from "../../../public/images/main-building-3d-day.webp";
 import building from "../../../public/images/main-building-3d.webp";
 import { FACET_BOX, GOLD_FACETS, SILVER_FACETS, TOWN_LIGHTS, type Facets } from "./sceneGeometry";
 import { SceneMotion } from "./SceneMotion";
-import type { Sky } from "./sky";
 
 /** A band's cut facets: darker and lighter shades over its own gradient, and the facets that catch the light. */
 function Cut({ facets }: { facets: Facets }) {
@@ -28,7 +25,7 @@ function Cut({ facets }: { facets: Facets }) {
 
 /**
  * The clock's hands over the face of the building's render, which leaves them out: SceneMotion turns them to the
- * viewer's own time and, when the sky turns, whirls them through twelve hours. A circle of 100 in its box is the
+ * viewer's own time. A circle of 100 in its box is the
  * face, stretched to the face as the camera sees it.
  */
 function Clock() {
@@ -45,31 +42,20 @@ function Clock() {
 }
 
 /**
- * The scene behind the sign-in, after the Office's own title slide, by night or by day (sky.ts; .signin's
- * data-sky picks). By night a faceted black-and-gold sky lit by a crescent moon and the campus below, with a few
- * gold stars; by day a pale faceted sky lit by the sun, with low-poly clouds and now and then a few birds. Either
- * way it is cut by bands of gold and silver, a gold hairline with halftone dots either side, and the Main
- * Building with the Benavides monument before it, low-poly renders of each time of day. Only the renders of the
- * sky the server chose load at once; the others wait until the sky turns, which it does as a time-lapse (the
- * orbs set and rise, a glow of dawn or dusk swells and fades, the clock whirls). Every layer is drawn here and
- * still without script; SceneMotion lights the canvases, gives the layers depth and runs the clock, and
- * signin.css (scene) choreographs the entrance, the light that keeps moving and the time-lapse. Decorative
- * throughout: the page says everything in text.
+ * The scene behind the sign-in, after the Office's own title slide: a faceted black-and-gold night sky lit by a
+ * crescent moon and the campus below, with a few gold stars, cut by bands of gold and silver, a gold hairline
+ * with halftone dots either side, and the Main Building with the Benavides monument before it, low-poly renders
+ * lit for the night. Every layer is drawn here and still without script; SceneMotion lights the canvases, gives
+ * the layers depth and runs the clock, and signin.css (scene) choreographs the entrance and the light that keeps
+ * moving. Decorative throughout: the page says everything in text.
  */
-export function SignInScene({ sky }: { sky: Sky }) {
-  // the renders of the other sky stay lazy (and hidden) until it comes
-  const town = (time: Sky) => (time === sky ? { preload: true } : { loading: "lazy" as const });
-  const statue = (time: Sky) => ({ loading: time === sky ? ("eager" as const) : ("lazy" as const) });
+export function SignInScene() {
   return (
     <div className="sx" aria-hidden="true">
-      {/* the faceted sky with its stars or its clouds and birds, lit by SceneLight */}
+      {/* the faceted sky with its stars, lit by SceneLight */}
       <canvas className="sx__sky" />
-      {/* the glow of dawn or dusk along the horizon, only while the sky turns */}
-      <div className="sx__dusk" />
-      {/* by night a slim crescent in champagne, its dark side faintly lit by earthshine; it lights the facets */}
+      {/* a slim crescent in champagne, its dark side faintly lit by earthshine; it lights the facets */}
       <div className="sx__moon" />
-      {/* by day the sun, white-hot in a wide warm bloom; it lights the facets */}
-      <div className="sx__sun" />
       <div className="sx__horizon" />
 
       {/* the bands, right to left on the page (signin.css mirrors them): dots, hairline, dark band with dots, gold, a cut of black, silver, a gold edge */}
@@ -93,19 +79,17 @@ export function SignInScene({ sky }: { sky: Sky }) {
         <i className="sx__band sx__edge" />
       </div>
 
-      {/* the building, a low-poly model rendered by scripts/signin-scene/render.py by night and by day; its lights shine on the canvas */}
+      {/* the building, a low-poly model rendered by scripts/signin-scene/render.py; its lights shine on the canvas */}
       <div className="sx__town">
         <div className="sx__pan">
-          <Image src={building} className="sx__art sx__art--night" alt="" fill {...town("night")} sizes="(max-width: 860px) 190vw, (min-aspect-ratio: 27/16) 73vw, 122vh" />
-          <Image src={buildingDay} className="sx__art sx__art--day" alt="" fill {...town("day")} sizes="(max-width: 860px) 190vw, (min-aspect-ratio: 27/16) 73vw, 122vh" />
+          <Image src={building} className="sx__art" alt="" fill preload sizes="(max-width: 860px) 190vw, (min-aspect-ratio: 27/16) 73vw, 122vh" />
           <canvas className="sx__lights" />
           <Clock />
         </div>
       </div>
       {/* the monument, modelled and rendered with the building, stands before it */}
       <div className="sx__monument">
-        <Image src={benavides} className="sx__art sx__art--night" alt="" fill {...statue("night")} sizes="(max-width: 860px) 46vw, (min-aspect-ratio: 27/16) 21vw, 35vh" />
-        <Image src={benavidesDay} className="sx__art sx__art--day" alt="" fill {...statue("day")} sizes="(max-width: 860px) 46vw, (min-aspect-ratio: 27/16) 21vw, 35vh" />
+        <Image src={benavides} className="sx__art" alt="" fill loading="eager" sizes="(max-width: 860px) 46vw, (min-aspect-ratio: 27/16) 21vw, 35vh" />
       </div>
 
       <i className="sx__rail" />

@@ -14,6 +14,7 @@ import {
   type FamilyKey,
   type Indicator,
 } from "@/lib/data";
+import { GlowingEffect } from "./GlowingEffect";
 import { Icon, type IconName } from "./Icon";
 
 export type AnyStatus = EvidenceStatus | "Not started";
@@ -86,6 +87,7 @@ export function Card({
   bodyClass,
   headingLevel = 2,
   label,
+  glow,
 }: {
   title?: ReactNode;
   sub?: ReactNode;
@@ -99,10 +101,13 @@ export function Card({
   bodyClass?: string;
   headingLevel?: 2 | 3;
   label?: string;
+  /** Light the rim toward the pointer, as the dashboard's tiles do. */
+  glow?: boolean;
 }) {
   const H = headingLevel === 3 ? "h3" : "h2";
   return (
     <section className={cx("card", tone && `card--${tone}`, className)} id={id} aria-label={!title ? label : undefined}>
+      {glow && <GlowingEffect />}
       {(title || actions) && (
         <header className="card__head">
           <div className="card__titles">
@@ -315,6 +320,7 @@ const DIR: Record<Dir, { icon: IconName; word: string }> = {
   down: { icon: "arrow-down", word: "Declined" },
   steady: { icon: "arrow", word: "Held" },
   new: { icon: "flag", word: "Baseline" },
+  none: { icon: "minus", word: "No result yet" },
 };
 
 export function Direction({ dir, short }: { dir: Dir; short?: boolean }) {
@@ -332,11 +338,12 @@ const TREND_ICON: Record<Indicator["trend"], IconName> = {
   Stable: "minus",
   Declining: "trend-down",
   Critical: "alert",
+  "No data": "minus",
 };
 
 export function Trend({ trend }: { trend: Indicator["trend"] }) {
   return (
-    <span className={cx("trend", `trend--${trend.toLowerCase()}`)}>
+    <span className={cx("trend", `trend--${trend.toLowerCase().replace(" ", "-")}`)}>
       <Icon name={TREND_ICON[trend]} size={14} strokeWidth={2} />
       {trend}
     </span>

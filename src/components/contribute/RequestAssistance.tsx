@@ -6,6 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
+import { Select } from "@/components/ui/pickers";
+import { skipChecks } from "@/lib/dev-checks";
 
 const TOPICS = [
   ["Understanding a requirement", "What a ranking is asking for"],
@@ -64,7 +66,7 @@ export function RequestAssistance() {
         onSubmit={async (e) => {
           e.preventDefault();
           setTried(true);
-          if (!topic || message.trim().length < 10) return;
+          if ((!topic || message.trim().length < 10) && !skipChecks()) return;
           const detail = [requirement && `Requirement ${requirement}`, ranking && `Ranking ${ranking}`, `Reply by ${contact.toLowerCase()}`].filter(Boolean).join(" · ");
           const r = await run({ type: "assistance.request", unitSlug: viewer?.portal.unitId ?? "", topic, urgent, message: `${message.trim()}\n\n${detail}` });
           if (!r.ok) toast(r.message, "error");
@@ -97,25 +99,25 @@ export function RequestAssistance() {
                 <span className="field__label">
                   Related requirement <em>(optional)</em>
                 </span>
-                <select className="select" value={requirement} onChange={(e) => setRequirement(e.target.value)}>
+                <Select className="select" value={requirement} onChange={setRequirement}>
                   <option value="">None</option>
                   {(hub?.requirements ?? []).filter((r) => r.status !== "Validated").map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.title}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label className="field">
                 <span className="field__label">
                   Related ranking <em>(optional)</em>
                 </span>
-                <select className="select" value={ranking} onChange={(e) => setRanking(e.target.value)}>
+                <Select className="select" value={ranking} onChange={setRanking}>
                   <option value="">None</option>
                   {RANKINGS.map((r) => (
                     <option key={r.slug}>{r.short}</option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
             <label className="field">

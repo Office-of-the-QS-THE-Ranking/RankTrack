@@ -256,7 +256,7 @@ html:has(.w-sheet[open]) {
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition:
     transform var(--t-press) var(--ease-out),
     background-color var(--t-hover) ease,
@@ -749,7 +749,7 @@ html:has(.w-sheet[open]) {
   line-height: 1;
   letter-spacing: 0.006em;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: color 200ms ease;
 }
 .w-tab.is-on,
@@ -788,7 +788,7 @@ html:has(.w-sheet[open]) {
   font-size: 14.5px;
   line-height: 1;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition:
     background-color 200ms ease,
     color 200ms ease,
@@ -1350,7 +1350,7 @@ html:has(.w-sheet[open]) {
   border-radius: 50%;
   background: var(--pill);
   color: #fff;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition:
     background-color 200ms ease,
     color 200ms ease,
@@ -1383,7 +1383,7 @@ html:has(.w-sheet[open]) {
   letter-spacing: -0.015em;
   text-decoration: none;
   list-style: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   -webkit-tap-highlight-color: transparent;
 }
 .w-sheet__row::-webkit-details-marker {
@@ -1479,7 +1479,7 @@ html:has(.w-sheet[open]) {
   font-size: 16px;
   font-weight: 500;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: background-color 200ms ease;
 }
 .w-sheet__actions .w-btn {
@@ -2065,7 +2065,7 @@ html:has(.site .palette[open]) {
   text-decoration: underline;
   text-decoration-color: rgb(255 255 255 / 0.3);
   text-underline-offset: 0.2em;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   list-style: none;
 }
 .w-footer__credits summary::-webkit-details-marker {

@@ -11,18 +11,17 @@ import type {
   Classification,
   Dataset,
   OrgUnit,
-  PermissionSet,
   Role,
   SecurityPolicy,
   SystemConfig,
-  Template,
   TermMeta,
   Workflow,
+  WorkflowKey,
+  WorkflowStep,
 } from "./types";
 import type { Viewer } from "./viewer";
 
 export interface AccountRow extends Account {
-  tier: number;
   inactive: boolean;
   idleDays: number;
   sessions: number;
@@ -34,9 +33,7 @@ export interface AccountRow extends Account {
 }
 
 export interface RoleRow extends Role {
-  effective: PermissionSet;
   members: number;
-  canEdit: boolean;
   /** The viewer could assign this role (it sits inside their own permissions). */
   grantable: boolean;
 }
@@ -61,7 +58,7 @@ export interface RequestRow extends ApprovalRequest {
   requesterName: string;
   workflowName: string;
   stepName: string;
-  steps: { name: string; approverRoles: string[] }[];
+  steps: WorkflowStep[];
   canDecide: boolean;
   blocked?: string;
   overdue: boolean;
@@ -93,7 +90,6 @@ export interface Attention {
 export interface Health {
   accounts: { active: number; pending: number; suspended: number; deactivated: number; inactive: number; external: number; temporary: number };
   sessions: number;
-  roles: { system: number; custom: number };
   units: { active: number; archived: number; participating: number };
   datasets: Record<Classification, number>;
   alertsOpen: number;
@@ -118,7 +114,6 @@ export interface ConsoleData {
   health: Health;
   accounts?: AccountRow[];
   roles: RoleRow[];
-  templates: Template[];
   units: UnitRow[];
   datasets?: DatasetRow[];
   rules?: RuleResult[];
@@ -127,6 +122,8 @@ export interface ConsoleData {
   security?: SecurityPolicy;
   audit?: { events: AuditEvent[]; total: number };
   workflows: Workflow[];
+  /** Workflows that the viewer's own changes wait on: switched on, with enough other administrators to decide them. */
+  approvals: WorkflowKey[];
   requests: RequestRow[];
   config?: SystemConfig & { rankingMeta: { slug: string; name: string; short: string; family: string; body: string }[] };
   backup?: BackupState;

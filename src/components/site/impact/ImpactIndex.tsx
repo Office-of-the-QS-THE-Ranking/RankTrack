@@ -8,9 +8,9 @@ import { AdaptCoupon } from "../home/AdaptCoupon";
 import { StoryIndex } from "./StoryIndex";
 
 /** Impact and innovation: the published Thomasian practices, filtered by theme. */
-export function ImpactIndex() {
+export async function ImpactIndex() {
   // Published stories only: the publication workflow, the stories dataset's classification and the library switch decide.
-  const { stories: PUBLISHED_STORIES, rankings: RANKINGS } = siteData();
+  const { stories: PUBLISHED_STORIES, rankings: RANKINGS } = await siteData();
   const sdgs = new Set(PUBLISHED_STORIES.flatMap((s) => s.sdgs));
   const rankings = new Set(PUBLISHED_STORIES.flatMap((s) => s.rankings));
   const replicable = PUBLISHED_STORIES.filter((s) => s.themes.includes("Replicable Practices")).length;

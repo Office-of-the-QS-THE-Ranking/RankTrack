@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 
-export function UnitDetailsModal({ children }: { children: ReactNode }) {
+/**
+ * A unit's profile over the directory, which keeps its scroll position and blurs behind it. The dialog
+ * fills the viewport so the close button can sit just outside the box; a click on the blur closes it too.
+ */
+export function UnitDetailsModal({ labelledBy, children }: { labelledBy: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
+  // Only a press that starts and ends on the blur closes: a text selection dragged out of the box doesn't.
+  const pressedOutside = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -28,23 +33,24 @@ export function UnitDetailsModal({ children }: { children: ReactNode }) {
     <dialog
       ref={ref}
       className="unit-modal"
-      aria-labelledby={titleId}
-      onCancel={(event) => { event.preventDefault(); router.back(); }}
+      aria-labelledby={labelledBy}
+      onCancel={(event) => {
+        event.preventDefault();
+        router.back();
+      }}
+      onPointerDown={(event) => {
+        pressedOutside.current = event.target === event.currentTarget;
+      }}
       onClick={(event) => {
-        if (event.target !== event.currentTarget) return;
-        const bounds = event.currentTarget.getBoundingClientRect();
-        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
-          router.back();
-        }
+        if (event.target === event.currentTarget && pressedOutside.current) router.back();
       }}
     >
-      <header className="unit-modal__head">
-        <h2 id={titleId}>Unit details</h2>
-        <button type="button" className="btn btn--ghost btn--icon" aria-label="Close unit details" onClick={() => router.back()} autoFocus>
-          <Icon name="close" />
+      <div className="unit-modal__frame">
+        <button type="button" className="unit-modal__close" aria-label="Close" onClick={() => router.back()} autoFocus>
+          <Icon name="close" size={18} strokeWidth={2} />
         </button>
-      </header>
-      <div className="unit-modal__body">{children}</div>
+        <div className="unit-modal__panel">{children}</div>
+      </div>
     </dialog>
   );
 }

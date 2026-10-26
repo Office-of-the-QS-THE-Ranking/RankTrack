@@ -16,77 +16,18 @@ import {
   type EvidenceItem,
   type Ranking,
   type Requirement,
-  type UnitKind,
 } from "@/lib/data";
 import { datasetPublic, featureOn, rankingActive, rankingPublic } from "../derive";
 import { canWith } from "../rbac";
 import { evidenceList, storyList } from "../records";
-import type { HubData, HubUnit } from "../hub-types";
-import type { GovernanceState, OrgKind } from "../types";
+import type { HubData } from "../hub-types";
+import type { GovernanceState } from "../types";
+import { buildUnits } from "../unit-participation";
+import type { UnitEmblem } from "../unit-emblems";
+import { emblemCatalogue } from "./emblems";
 import type { Viewer } from "../viewer";
 import { noticeVisible } from "../engine";
 import { readState } from "./store";
-
-const KIND: Partial<Record<OrgKind, UnitKind>> = {
-  Faculty: "Faculty or college",
-  College: "Faculty or college",
-  Institute: "Faculty or college",
-  "Research Centre": "Research centre",
-  Office: "Office",
-};
-
-function buildUnits(state: GovernanceState): HubUnit[] {
-  const name = (id: string) => state.units.find((u) => u.id === id)?.name ?? id;
-  const participating = new Set(PARTICIPATION.map((u) => u.slug));
-  const programsOf = (id: string) =>
-    state.units
-      .filter((u) => u.parentId === id || state.units.find((p) => p.id === u.parentId)?.parentId === id)
-      .filter((u) => u.kind === "Department" || u.kind === "Program")
-      .map((u) => ({ id: u.id, name: u.name, status: u.status }));
-  // Participating units, plus academic units added through the directory since (with no submissions yet).
-  const added = state.units.filter((u) => !participating.has(u.id) && u.history[0]?.change === "Created" && ["Faculty", "College", "Institute", "Research Centre"].includes(u.kind));
-  const base = PARTICIPATION.map((p) => ({ p, o: state.units.find((u) => u.id === p.slug) }));
-  return [
-    ...base.map(({ p, o }) => {
-      const coord = o?.adminIds.map((id) => state.accounts.find((a) => a.id === id)).find((a) => a && a.status !== "Deactivated");
-      return {
-        ...p,
-        name: o?.name ?? p.name,
-        kind: (o && KIND[o.kind]) ?? p.kind,
-        coordinator: coord?.name ?? "No coordinator assigned",
-        coordinatorId: coord?.id,
-        code: o?.code ?? p.slug.toUpperCase(),
-        status: o?.status ?? "Active",
-        archivedReason: o?.archivedReason,
-        mergedInto: o?.mergedInto,
-        mergedIntoName: o?.mergedInto ? name(o.mergedInto) : undefined,
-        programs: programsOf(p.slug),
-      };
-    }),
-    ...added.map((o) => {
-      const coord = o.adminIds.map((id) => state.accounts.find((a) => a.id === id)).find((a) => a && a.status !== "Deactivated");
-      return {
-        slug: o.id,
-        name: o.name,
-        kind: KIND[o.kind] ?? "Faculty or college",
-        coordinator: coord?.name ?? "No coordinator assigned",
-        coordinatorId: coord?.id,
-        assigned: 0,
-        completed: 0,
-        validated: 0,
-        revisions: 0,
-        rankingsServed: 0,
-        assistance: false,
-        code: o.code,
-        status: o.status,
-        archivedReason: o.archivedReason,
-        mergedInto: o.mergedInto,
-        mergedIntoName: o.mergedInto ? name(o.mergedInto) : undefined,
-        programs: programsOf(o.id),
-      };
-    }),
-  ];
-}
 
 /** The unit an evidence record is credited to, by its current directory name; archived units say so. */
 function unitLabel(state: GovernanceState, slug: string, programId?: string) {
@@ -118,11 +59,11 @@ function buildRequirements(state: GovernanceState, evidence: EvidenceItem[], uni
   });
 }
 
-function build(state: GovernanceState) {
+function build(state: GovernanceState, emblems: Record<string, UnitEmblem>) {
   const evidence: EvidenceItem[] = evidenceList(state).map((e) => ({ ...e, unit: unitLabel(state, e.unitSlug, e.programId) }));
   const stories = storyList(state);
   const storiesPublic = featureOn(state, "public-impact") && datasetPublic(state, "DS-STORIES");
-  const units = buildUnits(state);
+  const units = buildUnits(state, evidence, emblems);
   const rankings = RANKINGS.filter((r) => rankingActive(state, r.slug)).map((r) => withDeadline(state, r));
   const publicRankings = RANKINGS.filter((r) => rankingPublic(state, r.slug)).map((r) => withDeadline(state, r));
   const current = state.config.cycles.find((c) => c.status === "Current")?.id ?? state.config.cycles[0]?.id ?? "";
@@ -159,14 +100,17 @@ function build(state: GovernanceState) {
 export type Hub = ReturnType<typeof build>;
 
 /** Governed data for this request. */
-export const hub = cache((): Hub => build(readState()));
+export const hub = cache(async (): Promise<Hub> => {
+  const [state, emblems] = await Promise.all([readState(), emblemCatalogue()]);
+  return build(state, emblems);
+});
 
 /** What a workspace's client components receive, filtered to what the viewer may reach. */
-export function clientHub(viewer: Viewer, variant: "office" | "unit"): HubData {
-  const h = hub();
+export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Promise<HubData> {
+  const h = await hub();
   const state = h.state;
   const reachable = (e: EvidenceItem) =>
-    viewer.superAdmin || canWith(viewer.grants, "evidence", "view", { unitId: (e as EvidenceItem & { programId?: string }).programId ?? e.unitSlug });
+    canWith(viewer.grants, "evidence", "view", { unitId: (e as EvidenceItem & { programId?: string }).programId ?? e.unitSlug });
   const evidence =
     variant === "office"
       ? h.evidence.filter(reachable)
@@ -176,7 +120,8 @@ export function clientHub(viewer: Viewer, variant: "office" | "unit"): HubData {
           return viewer.portal.programId ? program === viewer.portal.programId || !program : reachable(e);
         });
   const unitName = viewer.portal.unitName;
-  const stories = variant === "office" ? h.stories : h.stories.filter((s) => s.state === "Published" || s.unit.startsWith(unitName));
+  // A post's full text and pictures stay on the server: the workspaces list stories, and the post manager reads its own data.
+  const stories = (variant === "office" ? h.stories : h.stories.filter((s) => s.state === "Published" || s.unit.startsWith(unitName))).map(({ post: _post, ...s }) => s);
   return {
     activeSlugs: h.rankings.map((r) => r.slug),
     publicSlugs: h.publicRankings.map((r) => r.slug),

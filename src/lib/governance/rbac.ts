@@ -3,22 +3,12 @@
  * uses them to decide what to show). A role decides what a user can do; the scope of each assignment
  * decides which records they can reach.
  */
-import { MODULES } from "./catalog";
-import type {
-  Account,
-  Action,
-  Assignment,
-  BodyKey,
-  ModuleKey,
-  OrgUnit,
-  PermissionSet,
-  Role,
-  Scope,
-} from "./types";
+import { MODULES, roleOf } from "./catalog";
+import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Role, RoleId, Scope } from "./types";
 
 export const today = (now = new Date()) => now.toISOString().slice(0, 10);
 
-/* ---------- Roles ---------- */
+/* ---------- Permissions ---------- */
 
 const valid = (m: ModuleKey, a: Action) => MODULES.find((x) => x.key === m)?.actions.includes(a) ?? false;
 
@@ -35,15 +25,6 @@ export function union(...sets: PermissionSet[]): PermissionSet {
   return normalize(out);
 }
 
-export function subtract(set: PermissionSet, minus: PermissionSet = {}): PermissionSet {
-  const out: PermissionSet = {};
-  for (const [m, acts] of Object.entries(set) as [ModuleKey, Action[]][]) {
-    const left = acts.filter((a) => !(minus[m] ?? []).includes(a));
-    if (left.length) out[m] = left;
-  }
-  return out;
-}
-
 /** Keep module and action order stable so permission sets compare and render predictably. */
 export function normalize(set: PermissionSet): PermissionSet {
   const out: PermissionSet = {};
@@ -54,48 +35,9 @@ export function normalize(set: PermissionSet): PermissionSet {
   return out;
 }
 
-/** A role's permissions after inheritance and exceptions. */
-export function rolePermissions(roleId: string, roles: Role[], seen: Set<string> = new Set()): PermissionSet {
-  const role = roles.find((r) => r.id === roleId);
-  if (!role || seen.has(roleId)) return {};
-  seen.add(roleId);
-  const inherited = role.inherits ? rolePermissions(role.inherits, roles, seen) : {};
-  return subtract(union(inherited, role.permissions), role.exceptions);
-}
-
-/** Which actions on a module come from the parent role, which are added, which are taken away. */
-export function permissionOrigin(role: Role, roles: Role[], m: ModuleKey, a: Action): "inherited" | "granted" | "excepted" | "none" {
-  const inherited = role.inherits ? rolePermissions(role.inherits, roles) : {};
-  if ((role.exceptions?.[m] ?? []).includes(a) && (inherited[m] ?? []).includes(a)) return "excepted";
-  if ((inherited[m] ?? []).includes(a)) return "inherited";
-  if ((role.permissions[m] ?? []).includes(a)) return "granted";
-  return "none";
-}
+export const rolePermissions = (roleId: string): PermissionSet => roleOf(roleId)?.permissions ?? {};
 
 export const has = (set: PermissionSet, m: ModuleKey, a: Action) => (set[m] ?? []).includes(a);
-
-export const countPermissions = (set: PermissionSet) => Object.values(set).reduce((n, a) => n + (a?.length ?? 0), 0);
-
-/**
- * Where a custom role sits: at the tier of its most privileged permission, that is, the lowest built-in
- * role granting it. Custom roles always stay below the Super Administrator.
- */
-export function impliedTier(set: PermissionSet, roles: Role[]): number {
-  const builtIn = roles.filter((r) => r.system).map((r) => ({ tier: r.tier, perms: rolePermissions(r.id, roles) }));
-  let tier = 1;
-  for (const [m, acts] of Object.entries(set) as [ModuleKey, Action[] | undefined][]) {
-    for (const a of acts ?? []) {
-      const t = Math.min(...builtIn.filter((r) => has(r.perms, m, a)).map((r) => r.tier));
-      if (Number.isFinite(t)) tier = Math.max(tier, t);
-    }
-  }
-  return Math.min(tier, 99);
-}
-
-/** Every permission in `inner` is also in `outer`. */
-export function within(inner: PermissionSet, outer: PermissionSet): boolean {
-  return (Object.entries(inner) as [ModuleKey, Action[]][]).every(([m, acts]) => acts.every((a) => has(outer, m, a)));
-}
 
 /** Permissions in `inner` that `outer` does not hold. */
 export function beyond(inner: PermissionSet, outer: PermissionSet): { module: ModuleKey; action: Action }[] {
@@ -169,7 +111,7 @@ export interface Target {
 /** An assignment flattened for checking: its role's permissions and its scope with unit trees expanded. */
 export interface Grant {
   assignmentId: string;
-  roleId: string;
+  roleId: RoleId;
   roleName: string;
   perms: PermissionSet;
   units: "all" | string[];
@@ -181,9 +123,9 @@ export interface Grant {
   tier: number;
 }
 
-export function grantsFor(account: Account, roles: Role[], units: OrgUnit[], day: string): Grant[] {
+export function grantsFor(account: Account, units: OrgUnit[], day: string): Grant[] {
   return activeAssignments(account, day).flatMap((a) => {
-    const role = roles.find((r) => r.id === a.roleId);
+    const role = roleOf(a.roleId);
     if (!role) return [];
     const reach = a.scope.units === "all" ? "all" : [...new Set(a.scope.units.flatMap((id) => descendants(units, id)))];
     return [
@@ -191,7 +133,7 @@ export function grantsFor(account: Account, roles: Role[], units: OrgUnit[], day
         assignmentId: a.id,
         roleId: role.id,
         roleName: role.name,
-        perms: rolePermissions(role.id, roles),
+        perms: role.permissions,
         units: reach,
         scopeUnits: a.scope.units,
         bodies: a.scope.rankingBodies,
@@ -227,24 +169,19 @@ export function reach(grants: Grant[], m: ModuleKey, a: Action): "all" | string[
   return [...new Set(hits.flatMap((g) => g.units as string[]))];
 }
 
-export const topTier = (grants: Grant[]) => grants.reduce((n, g) => Math.max(n, g.tier), 0);
+/** The highest-ranked role among the grants, for labels. */
+export const topGrant = (grants: Grant[]) => grants.reduce<Grant | undefined>((top, g) => (!top || g.tier > top.tier ? g : top), undefined);
+
+export const topTier = (grants: Grant[]) => topGrant(grants)?.tier ?? 0;
 
 /**
- * Nobody can grant more than they hold: the role's permissions must sit inside the actor's own, its
- * tier must not exceed the actor's, and the scope must sit inside what the actor administers.
+ * Nobody can grant more than they hold: the role's permissions must sit inside the actor's own, and the
+ * scope must sit inside what the actor administers.
  */
-export function grantCheck(
-  actor: Grant[],
-  role: Role,
-  roles: Role[],
-  scope: Scope,
-  units: OrgUnit[],
-): { ok: true } | { ok: false; reason: string } {
-  const perms = rolePermissions(role.id, roles);
-  const extra = beyond(perms, mergedPermissions(actor));
+export function grantCheck(actor: Grant[], role: Role, scope: Scope, units: OrgUnit[]): { ok: true } | { ok: false; reason: string } {
+  const extra = beyond(role.permissions, mergedPermissions(actor));
   if (extra.length)
     return { ok: false, reason: `You can't assign ${role.name}: it includes permissions you don't hold (${extra.slice(0, 3).map((e) => `${e.module} ${e.action}`).join(", ")}${extra.length > 3 ? "…" : ""}).` };
-  if (role.tier > topTier(actor)) return { ok: false, reason: `${role.name} sits above your own role.` };
   const admin = reach(actor, "accounts", "edit");
   if (admin !== "all") {
     if (scope.units === "all") return { ok: false, reason: "You can only assign roles within the units you administer." };

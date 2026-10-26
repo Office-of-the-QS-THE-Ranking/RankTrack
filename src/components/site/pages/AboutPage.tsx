@@ -29,8 +29,8 @@ const GOVERNANCE = [
 ];
 
 /** About the Office of the QS/THE Rankings. */
-export function AboutPage() {
-  const { privacy } = siteData();
+export async function AboutPage() {
+  const { privacy } = await siteData();
   return (
     <>
       <PageHero

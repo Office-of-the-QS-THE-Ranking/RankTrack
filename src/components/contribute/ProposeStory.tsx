@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Card, Notice, Pattern, SdgList } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
+import { skipChecks } from "@/lib/dev-checks";
 
 type Fields = {
   title: string;
@@ -113,7 +114,7 @@ export function ProposeStory() {
         onSubmit={async (e) => {
           e.preventDefault();
           setTried(true);
-          if (missing.length || !consent) return;
+          if ((missing.length || !consent) && !skipChecks()) return;
           const r = await run({
             type: "story.propose",
             unitSlug: viewer?.portal.unitId ?? "",

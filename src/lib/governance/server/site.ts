@@ -11,11 +11,14 @@ import { BODIES, COUNTS, MOVERS, PHOTOS } from "@/lib/site";
 import type { HubData } from "../hub-types";
 import { hub } from "./hub";
 
-export const siteData = cache(() => {
-  const h = hub();
+export const siteData = cache(async () => {
+  const h = await hub();
   const rankings = h.publicRankings;
   // Stories published through the workflow may arrive without photographs: they borrow the campus courtyard.
-  const stories = h.publishedStories.map((s) => (s.images.length ? s : { ...s, images: [PHOTOS.courtyard.src], outcomeFigure: s.outcomeFigure || "—", outcomeLabel: s.outcomeLabel || s.outcome }));
+  // A post has no outcome figure; its subtitle stands where the figure's label would.
+  const stories = h.publishedStories.map((s) =>
+    s.images.length ? s : { ...s, images: [PHOTOS.courtyard.src], ...(s.post ? {} : { outcomeFigure: s.outcomeFigure || "—", outcomeLabel: s.outcomeLabel || s.outcome }) },
+  );
   const pub = (slug: string) => rankings.find((r) => r.slug === slug);
   return {
     rankings,
@@ -24,7 +27,8 @@ export const siteData = cache(() => {
     bodies: BODIES.map((b) => ({ ...b, rankings: b.rankings.flatMap((r) => (pub(r.slug) ? [pub(r.slug)!] : [])) })).filter((b) => b.rankings.length),
     movers: MOVERS.flatMap((r) => (pub(r.slug) ? [pub(r.slug)!] : [])),
     counts: COUNTS.map((c) => ({ ...c, rankings: c.rankings.filter((r) => !!pub(r.slug)) })),
-    boardUnits: [...h.activeUnits].sort((a, b) => b.rankingsServed - a.rankingsServed || b.validated - a.validated).slice(0, 10),
+    boardUnits: h.activeUnits.filter((u) => u.rankingsServed > 0).sort((a, b) => b.rankingsServed - a.rankingsServed || b.validated - a.validated).slice(0, 10),
+    unitsEngaged: h.activeUnits.filter((u) => u.completed > 0).length,
     units: h.activeUnits,
     stories,
     story: (slug: string) => stories.find((s) => s.slug === slug),
@@ -32,15 +36,16 @@ export const siteData = cache(() => {
     features: { impact: h.feature("public-impact"), recognition: h.feature("public-recognition"), knowledge: h.feature("public-knowledge") },
     privacy: h.privacy,
     notice: h.site.noticeOn ? h.site.notice : "",
+    asOf: h.site.asOf,
   };
 });
 
-export type SiteData = ReturnType<typeof siteData>;
+export type SiteData = Awaited<ReturnType<typeof siteData>>;
 
 /** The public search index's data: public rankings, published stories, active units and the dictionary. */
-export function publicHub(): HubData {
-  const h = hub();
-  const site = siteData();
+export async function publicHub(): Promise<HubData> {
+  const h = await hub();
+  const site = await siteData();
   return {
     activeSlugs: site.rankings.map((r) => r.slug),
     publicSlugs: site.rankings.map((r) => r.slug),
@@ -48,7 +53,7 @@ export function publicHub(): HubData {
     bodies: h.state.config.bodies.map((b) => ({ key: b.key, name: b.name, short: b.short, enabled: b.enabled })),
     units: site.units,
     evidence: [],
-    stories: site.stories,
+    stories: site.stories.map(({ post: _post, ...s }) => s),
     dictionary: site.dictionary,
     cycles: [],
     currentCycle: h.currentCycle,

@@ -9,12 +9,16 @@ import type { Command, CommandResult } from "../commands";
 import { actorFor, execute, GUEST, housekeeping, makeCtx, SYSTEM, type Actor, type Ctx } from "../engine";
 import { log, nextId } from "../engine/core";
 import { addDays } from "../derive";
+import { mediaPath } from "../posts";
+import { emblemPath } from "../unit-emblems";
 import type { GovernanceState } from "../types";
-import { deletePointFile, restoreInto, seal, seedInto, transact, verifyChain, verifyPoint, writePoint } from "./store";
+import { adminShortcut } from "./dev-access";
+import { mediaInUse } from "./media";
+import { deleteMediaLater, deletePoint, restoreInto, seal, transact, verifyChain, verifyPoint, writePoint } from "./store";
 
 type Body = (ctx: Ctx) => CommandResult;
 
-function effects(ctx: Ctx, result: CommandResult): CommandResult {
+async function effects(ctx: Ctx, result: CommandResult): Promise<CommandResult> {
   let out = result;
   for (const fx of ctx.effects) {
     const s = ctx.state;
@@ -31,7 +35,7 @@ function effects(ctx: Ctx, result: CommandResult): CommandResult {
       case "verify-point": {
         const test = s.backup.tests.find((t) => t.id === fx.testId);
         const point = s.backup.points.find((p) => p.id === fx.pointId);
-        const r = verifyPoint(fx.pointId);
+        const r = await verifyPoint(fx.pointId);
         if (test) {
           test.result = r.ok ? "Passed" : "Failed";
           test.notes = r.ok
@@ -43,7 +47,7 @@ function effects(ctx: Ctx, result: CommandResult): CommandResult {
         break;
       }
       case "restore": {
-        const r = restoreInto(s, fx.pointId);
+        const r = await restoreInto(s, fx.pointId);
         if (!r.ok) return { ok: false, message: `Restore failed: ${r.reason}` };
         log(ctx, "backup.restore", "Backup", { type: "Recovery point", id: fx.pointId, label: "Restore" }, "Success", "Governance store restored; audit trail and sessions carried on");
         out = { ...out, message: `The Hub was restored from ${fx.pointId}.` };
@@ -51,8 +55,15 @@ function effects(ctx: Ctx, result: CommandResult): CommandResult {
       }
       case "delete-point": {
         s.backup.points = s.backup.points.filter((p) => p.id !== fx.pointId);
-        deletePointFile(fx.pointId);
-        log(ctx, "backup.delete", "Backup", { type: "Recovery point", id: fx.pointId, label: "Recovery point" }, "Success", "Deleted after a second technical approval");
+        deletePoint(fx.pointId);
+        log(ctx, "backup.delete", "Backup", { type: "Recovery point", id: fx.pointId, label: "Recovery point" }, "Success", "Deleted after a second administrator approved");
+        break;
+      }
+      case "delete-media": {
+        // Only uploads, and only those no post or unit still shows.
+        const used = mediaInUse(s);
+        const paths = fx.srcs.filter((src) => !used.has(src)).flatMap((src) => mediaPath(src) ?? emblemPath(src) ?? []);
+        if (paths.length) deleteMediaLater(paths);
         break;
       }
       case "verify-audit": {
@@ -64,9 +75,6 @@ function effects(ctx: Ctx, result: CommandResult): CommandResult {
         };
         break;
       }
-      case "reset":
-        seedInto(s);
-        break;
     }
   }
   return out;
@@ -104,15 +112,26 @@ function scheduledBackup(state: GovernanceState, now: Date) {
   seal(state, ctx.drafts);
 }
 
-function commitWith(draft: GovernanceState, current: GovernanceState, actorOf: (s: GovernanceState) => Actor, body: Body) {
+/** Recovery points past their retention leave the catalogue and the database. */
+function expirePoints(ctx: Ctx) {
+  const s = ctx.state;
+  for (const p of s.backup.points.filter((x) => x.expiresAt < ctx.day)) {
+    deletePoint(p.id);
+    log(ctx, "backup.expire", "Backup", { type: "Recovery point", id: p.id, label: `${p.kind} backup` }, "Success", "Removed at the end of its retention period");
+  }
+  s.backup.points = s.backup.points.filter((x) => x.expiresAt >= ctx.day);
+}
+
+async function commitWith(draft: GovernanceState, current: GovernanceState, actorOf: (s: GovernanceState) => Actor, body: Body) {
   const now = new Date();
   const hk = makeCtx(draft, SYSTEM, now);
   housekeeping(hk);
+  expirePoints(hk);
   seal(draft, hk.drafts);
   const checkpoint = structuredClone(draft);
-  const ctx = makeCtx(draft, actorOf(draft), now);
+  const ctx = makeCtx(draft, actorOf(draft), now, await adminShortcut());
   let result = body(ctx);
-  if (result.ok) result = effects(ctx, result);
+  if (result.ok) result = await effects(ctx, result);
   if (result.ok) {
     seal(draft, ctx.drafts);
     if (ctx.drafts.some((d) => d.category !== "Session" && d.category !== "Backup")) scheduledBackup(draft, now);

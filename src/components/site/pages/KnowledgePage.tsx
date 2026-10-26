@@ -67,8 +67,8 @@ const POLICIES = [
 ];
 
 /** Knowledge and methodology center: how each ranking works, in plain language. */
-export function KnowledgePage() {
-  const { rankings: RANKINGS, dictionary } = siteData();
+export async function KnowledgePage() {
+  const { rankings: RANKINGS, dictionary } = await siteData();
   return (
     <>
       <PageHero
