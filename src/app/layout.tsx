@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Newsreader } from "next/font/google";
 import { connection } from "next/server";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DevAccess } from "@/components/dev/DevAccess";
 import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
 import { CursorFx } from "@/components/ui/CursorFx";
@@ -83,6 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Toaster />
         <FieldErrors />
         <CursorFx />
+        <SpeedInsights />
         {process.env.NODE_ENV === "development" && process.env.HUB_DEV_ACCESS === "on" && <DevAccess />}
       </body>
     </html>
