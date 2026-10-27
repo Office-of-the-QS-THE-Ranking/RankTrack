@@ -4,7 +4,9 @@
  */
 import { roleOf } from "../catalog";
 import { roleScope } from "../rbac";
-import type { Account, AccountProfile, Assignment, DataGrant, OrgKind, OrgUnit, PostRecord, RoleId, Scope } from "../types";
+import { documentPublicPath, publicationsPath, storyPath } from "@/lib/publications";
+import { DOC_NOUN } from "../documents";
+import type { Account, AccountProfile, Assignment, DataGrant, DocumentRecord, OrgKind, OrgUnit, PostRecord, RoleId, Scope } from "../types";
 import { log, nextId, notify, unitById, type Ctx } from "./core";
 
 export function defaultScope(roleId: RoleId, unitId: string): Scope {
@@ -83,15 +85,23 @@ export function publishStory(ctx: Ctx, slug: string, title: string, unitSlug?: s
   const post = ctx.state.records.posts.find((p) => p.slug === slug);
   if (post) return publishPost(ctx, post);
   ctx.state.records.stories[slug] = "Published";
-  log(ctx, "story.publish", "Approval", { type: "Story", id: slug, label: title }, "Success", "Now on the public Impact and Innovation page");
-  if (unitSlug) notify(ctx, `unit:${unitSlug}`, "tpl-published", { title }, "/impact");
+  log(ctx, "story.publish", "Approval", { type: "Story", id: slug, label: title }, "Success", "Now on the public Stories & News page");
+  if (unitSlug) notify(ctx, `unit:${unitSlug}`, "tpl-published", { title }, publicationsPath("stories"));
 }
 
 export function publishPost(ctx: Ctx, post: PostRecord) {
   post.status = "Published";
   post.publishedAt ??= ctx.iso;
-  log(ctx, "post.publish", "Approval", { type: "Post", id: post.id, label: post.title }, "Success", "Now on the public Impact and Innovation page");
-  if (post.unitSlug) notify(ctx, `unit:${post.unitSlug}`, "tpl-published", { title: post.title }, `/impact/${post.slug}`);
+  log(ctx, "post.publish", "Approval", { type: "Post", id: post.id, label: post.title }, "Success", "Now on the public Stories & News page");
+  if (post.unitSlug) notify(ctx, `unit:${post.unitSlug}`, "tpl-published", { title: post.title }, storyPath(post.slug));
+}
+
+export function publishDocument(ctx: Ctx, doc: DocumentRecord) {
+  doc.status = "Published";
+  doc.publishedAt ??= ctx.iso;
+  const page = doc.kind === "article" ? "Research Articles" : "Reports & Insights";
+  log(ctx, "document.publish", "Approval", { type: "Document", id: doc.id, label: doc.title }, "Success", `Now on the public ${page} page`);
+  if (doc.unitSlug) notify(ctx, `unit:${doc.unitSlug}`, "tpl-published", { title: doc.title, kind: DOC_NOUN[doc.kind].one }, documentPublicPath(doc.kind, doc.slug));
 }
 
 export function addDataGrant(ctx: Ctx, account: Account, grant: DataGrant) {

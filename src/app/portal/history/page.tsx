@@ -4,7 +4,7 @@ import { evidenceLevels } from "@/lib/reference";
 import { reference } from "@/lib/governance/server/reference";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, PageHeader, SdgList, Status } from "@/components/ui/primitives";
-import { StageTrack } from "@/components/contribute/StageTrack";
+import { StageTrack } from "@/components/contributions/StageTrack";
 import { Gate } from "@/components/hub/Gate";
 import { portalContext } from "@/lib/governance/server/portal";
 

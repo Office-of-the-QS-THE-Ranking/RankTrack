@@ -10,7 +10,7 @@ const previousDay = (day: string, ago: number) => new Date(Date.parse(`${day}T12
 
 /** Match the public website's visibility checks, including legacy stories and unit proposals. */
 export function canCountPostView(state: GovernanceState, slug: string): boolean {
-  return featureOn(state, "public-impact") && datasetPublic(state, "DS-STORIES")
+  return featureOn(state, "public-publications") && datasetPublic(state, "DS-STORIES")
     && storyList(state).some((story) => story.slug === slug && story.state === "Published");
 }
 

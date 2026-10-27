@@ -333,7 +333,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
             <ul className="w-storyrows">
               {stories.map((s, i) => (
                 <li key={s.slug} data-reveal style={{ ["--d" as string]: `${i * 70}ms` }}>
-                  <Link href={`/impact/${s.slug}`} className="w-storyrow">
+                  <Link href={`/publications/stories/${s.slug}`} className="w-storyrow">
                     <span className="w-storyrow__pic">
                       <Image src={s.images[0]} alt="" fill sizes="120px" />
                     </span>

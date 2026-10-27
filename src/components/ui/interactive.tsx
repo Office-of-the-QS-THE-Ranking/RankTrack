@@ -119,39 +119,74 @@ export function Tabs<T extends string>({
   const items = tabs.map((tab): ContentTab<T> => typeof tab === "string" ? { key: tab, label: tab } : tab);
   const reduceMotion = useReducedMotion();
   const { refs, onKeyDown } = useRoving(items.length, (i) => onChange(items[i].key));
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState({ left: false, right: false });
+  const tabKeys = items.map((item) => item.key).join("\u0000");
+
+  useEffect(() => {
+    const list = scrollRef.current;
+    if (!list) return;
+    const measure = () => setOverflow({ left: list.scrollLeft > 1, right: list.scrollWidth - list.clientWidth - list.scrollLeft > 1 });
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    for (const child of list.children) observer.observe(child);
+    list.addEventListener("scroll", measure, { passive: true });
+    measure();
+    return () => { observer.disconnect(); list.removeEventListener("scroll", measure); };
+  }, [tabKeys, counts]);
+
+  useEffect(() => {
+    const list = scrollRef.current;
+    const selected = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !selected) return;
+    const inset = 42;
+    const left = selected.offsetLeft - inset;
+    const right = selected.offsetLeft + selected.offsetWidth + inset - list.clientWidth;
+    if (left < list.scrollLeft) list.scrollTo({ left: Math.max(0, left), behavior: reduceMotion ? "instant" : "smooth" });
+    else if (right > list.scrollLeft) list.scrollTo({ left: right, behavior: reduceMotion ? "instant" : "smooth" });
+  }, [value, tabKeys, reduceMotion]);
+
+  const scrollTabs = (direction: number) => {
+    const list = scrollRef.current;
+    if (list) list.scrollBy({ left: direction * Math.max(120, list.clientWidth * 0.7), behavior: reduceMotion ? "instant" : "smooth" });
+  };
   const strip = (
-    <div role="tablist" aria-label={label} className={cx("tabs", sliding && "tabs--sliding")}>
-      {items.map((t, i) => (
-        <button
-          key={t.key}
-          ref={(el) => {
-            refs.current[i] = el;
-          }}
-          type="button"
-          role="tab"
-          id={`${tabId}-tab-${i}`}
-          aria-controls={idBase ? `${idBase}-panel` : undefined}
-          aria-selected={value === t.key}
-          tabIndex={value === t.key ? 0 : -1}
-          className="tabs__tab"
-          onClick={() => onChange(t.key)}
-          onKeyDown={(e) => onKeyDown(e, i)}
-        >
-          {sliding && value === t.key && (
-            <motion.span
-              aria-hidden="true"
-              className="tabs__highlight"
-              layoutId={indicatorId}
-              initial={false}
-              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 450, damping: 38 }}
-            />
-          )}
-          {t.label}
-          {(t.count ?? counts?.[t.key]) !== undefined && (
-            <span className={cx("count", t.countTone === "alert" && "is-alert")}>{t.count ?? counts?.[t.key]}</span>
-          )}
-        </button>
-      ))}
+    <div className="tabs-shell">
+      <div ref={scrollRef} id={`${tabId}-list`} role="tablist" aria-label={label} className={cx("tabs", sliding && "tabs--sliding")}>
+        {items.map((t, i) => (
+          <button
+            key={t.key}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            type="button"
+            role="tab"
+            id={`${tabId}-tab-${i}`}
+            aria-controls={idBase ? `${idBase}-panel` : undefined}
+            aria-selected={value === t.key}
+            tabIndex={value === t.key ? 0 : -1}
+            className="tabs__tab"
+            onClick={() => onChange(t.key)}
+            onKeyDown={(e) => onKeyDown(e, i)}
+          >
+            {sliding && value === t.key && (
+              <motion.span
+                aria-hidden="true"
+                className="tabs__highlight"
+                layoutId={indicatorId}
+                initial={false}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 450, damping: 38 }}
+              />
+            )}
+            {t.label}
+            {(t.count ?? counts?.[t.key]) !== undefined && (
+              <span className={cx("count", t.countTone === "alert" && "is-alert")}>{t.count ?? counts?.[t.key]}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {overflow.left && <button type="button" className="tabs__scroll tabs__scroll--left" aria-label={`Scroll ${label.toLowerCase()} left`} aria-controls={`${tabId}-list`} onClick={() => scrollTabs(-1)}><Icon name="arrow-left" size={16} /></button>}
+      {overflow.right && <button type="button" className="tabs__scroll tabs__scroll--right" aria-label={`Scroll ${label.toLowerCase()} right`} aria-controls={`${tabId}-list`} onClick={() => scrollTabs(1)}><Icon name="arrow" size={16} /></button>}
     </div>
   );
   if (!search && !actions) return strip;

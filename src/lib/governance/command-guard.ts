@@ -11,7 +11,7 @@ const TYPES = [
   "backup.request", "backup.run", "backup.schedule", "backup.test",
   "config.body", "config.bodyAdd", "config.cycle", "config.cycleAdd", "config.dashboard", "config.feature", "config.flag", "config.period",
   "config.periodAdd", "config.ranking", "config.site", "config.template", "config.uploads", "config.year", "config.yearAdd",
-  "data.submit", "dataset.update", "dataset.version", "deadline.apply", "deadline.dismiss", "deadline.set", "dsr.create", "dsr.update", "duplicate.resolve",
+  "data.submit", "dataset.update", "dataset.version", "deadline.apply", "deadline.dismiss", "deadline.set", "document.delete", "document.save", "document.status", "dsr.create", "dsr.update", "duplicate.resolve",
   "evidence.map", "evidence.respond", "evidence.review", "evidence.submit",
   "incident.report", "incident.update", "innovation.propose", "key.rotate", "notice.read", "pia.save",
   "post.delete", "post.save", "post.status", "report.export", "report.publish",

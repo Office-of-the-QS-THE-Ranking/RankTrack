@@ -18,8 +18,8 @@ export async function StoryFolders() {
         </h2>
         <div className="w-folders__intro" data-reveal style={{ ["--d" as string]: "90ms" }}>
           <p className="w-lead">Each started with a problem on or near the campus and ended with a result someone measured.</p>
-          <Link href="/impact" className="w-link">
-            All impact stories
+          <Link href="/publications/stories" className="w-link">
+            All stories
           </Link>
         </div>
       </div>
@@ -58,7 +58,7 @@ export async function StoryFolders() {
                 <p className="w-folder__desc">
                   {s.challenge} {s.response}
                 </p>
-                <Link href={`/impact/${s.slug}`} className="w-btn w-btn--sm w-folder__btn">
+                <Link href={`/publications/stories/${s.slug}`} className="w-btn w-btn--sm w-folder__btn">
                   Read the story
                 </Link>
               </div>

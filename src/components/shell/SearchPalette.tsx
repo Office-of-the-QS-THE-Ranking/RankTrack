@@ -9,7 +9,8 @@ import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Stars } from "@/components/site/Stars";
-import { NAV, type Variant } from "./nav";
+import { NAV, publicationsSubnav, type Variant } from "./nav";
+import { officeStoryPath, storyPath } from "@/lib/publications";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import type { Views } from "@/lib/reference";
 
@@ -49,7 +50,11 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
   const pages: Entry[] = NAV[variant].flatMap((g) =>
     g.items
       .filter((i) => (!i.need || !viewer || viewerCan(viewer, i.need[0], i.need[1], target)) && (!i.feature || feature(viewer, i.feature)))
-      .map((i) => ({ group: "Pages", label: i.label, href: i.href, icon: i.icon })),
+      .flatMap((i): Entry[] => [
+        { group: "Pages", label: i.label, href: i.href, icon: i.icon },
+        // Publications' sections are pages of their own.
+        ...(i.publicationsBase ? publicationsSubnav(i.publicationsBase).map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })) : []),
+      ]),
   );
   const rankingBase = variant === "office" ? "/admin/rankings" : "/rankings";
   const rankings: Entry[] = RANKINGS.map((r) => ({
@@ -82,11 +87,11 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
     : [];
   const storyList = variant === "public" ? PUBLISHED_STORIES : STORIES;
   const stories: Entry[] = storyList.map((s) => ({
-    group: "Impact stories",
+    group: "Stories & News",
     label: s.title,
     sub: s.unit,
-    href: variant === "office" ? `/admin/impact#${s.slug}` : `/impact/${s.slug}`,
-    icon: "impact",
+    href: variant === "office" ? officeStoryPath(s.slug) : storyPath(s.slug),
+    icon: "newspaper",
   }));
   if (variant === "public") return [...pages, ...rankings, ...indicators, ...stories, ...terms];
 
@@ -98,7 +103,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
     group: "Evidence",
     label: e.title,
     sub: `${e.id} · ${e.status}`,
-    href: variant === "office" ? `/admin/contribute?item=${e.id}` : `/portal/history#${e.id}`,
+    href: variant === "office" ? `/admin/contributions?item=${e.id}` : `/portal/history#${e.id}`,
     icon: "evidence",
   }));
   return [...pages, ...rankings, ...indicators, ...units, ...evidence, ...(variant === "office" ? stories : []), ...terms];

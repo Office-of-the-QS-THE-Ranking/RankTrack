@@ -1,5 +1,5 @@
 /*
- * Impact and Innovation posts. The Office writes them in the composer; a unit's story proposal, or one of the
+ * Stories & News posts (Publications). The Office writes them in the composer; a unit's story proposal, or one of the
  * Hub's own stories, becomes a post the first time the Office edits it. Posting goes through the publication
  * workflow whenever enough other administrators can decide it. Every change is authorized and audited.
  */
@@ -144,9 +144,9 @@ export function savePost(ctx: Ctx, cmd: Extract<Command, { type: "post.save" }>)
   const existing = cmd.id ? r.posts.find((p) => p.id === cmd.id) : undefined;
   if (cmd.id && !existing) return invalid("That post no longer exists.");
   const target = existing ? res(existing) : { type: "Post", id: "new", label: clean(cmd.input?.title) || "Untitled post" };
-  if (!can(ctx, "posts", existing ? "edit" : "create")) return deny(ctx, existing ? "post.update" : "post.create", "Data", target, "Your role cannot write Impact and Innovation posts.");
+  if (!can(ctx, "posts", existing ? "edit" : "create")) return deny(ctx, existing ? "post.update" : "post.create", "Data", target, "Your role cannot write stories.");
   if (cmd.publish && !can(ctx, "posts", "approve")) return deny(ctx, "post.publish", "Approval", target, "Your role cannot publish posts.");
-  const checked = read(cmd.input, cmd.publish, ctx.ref.impactThemes);
+  const checked = read(cmd.input, cmd.publish, ctx.ref.storyThemes);
   if ("problem" in checked) return invalid(checked.problem);
   const f = checked.fields;
 

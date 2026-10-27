@@ -115,7 +115,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
         className="ov-acts"
         aside={
           open.length > shown.length && (
-            <Link href="/admin/contribute" className="btn btn--sm">
+            <Link href="/admin/contributions" className="btn btn--sm">
               View all
             </Link>
           )

@@ -105,8 +105,8 @@ export function PublicRankingHeader({ ranking: r }: { ranking: Ranking }) {
             <p className="rhead__msg">{r.publicNote}</p>
           </div>
           <div className="ph__actions">
-            <Link href="/impact" className="btn">
-              Related impact stories
+            <Link href="/publications/stories" className="btn">
+              Related stories
             </Link>
           </div>
         </div>

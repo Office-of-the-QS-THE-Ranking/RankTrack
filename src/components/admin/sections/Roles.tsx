@@ -14,7 +14,7 @@ import { scopeText } from "./Accounts";
 
 type Tab = "Roles" | "Temporary access";
 
-const GLYPH: Record<RoleId, IconName> = { administrator: "shield-check", coordinator: "contribute", student: "education", external: "globe" };
+const GLYPH: Record<RoleId, IconName> = { administrator: "shield-check", coordinator: "contributions", student: "education", external: "globe" };
 
 /** Where an assignment of the role reaches, in a few words. */
 const where = (r: RoleRow) =>

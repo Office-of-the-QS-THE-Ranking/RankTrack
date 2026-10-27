@@ -236,7 +236,7 @@ export async function AboutPage() {
               <a href={`mailto:${office.email}`} className="w-btn">
                 {office.email}
               </a>
-              <Link href="/impact#adapt" className="w-link">
+              <Link href="/publications/stories#adapt" className="w-link">
                 Adapt a practice
               </Link>
             </div>

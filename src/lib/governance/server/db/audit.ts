@@ -33,6 +33,25 @@ export async function latestAudit(limit: number): Promise<AuditEvent[]> {
   return (data as Row[]).map(auditEvent);
 }
 
+/** Original submission timestamps for already-authorized evidence IDs, without loading the full trail. */
+export async function evidenceSubmissionTimes(ids: string[]): Promise<Record<string, string>> {
+  const times: Record<string, string> = {};
+  const unique = [...new Set(ids)];
+  for (let batch = 0; batch < unique.length; batch += 100) {
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await adminDb().from("audit_events")
+        .select("resource_id, at")
+        .in("resource_id", unique.slice(batch, batch + 100))
+        .eq("resource_type", "Evidence").eq("action", "evidence.submit").eq("outcome", "Success")
+        .order("seq").range(from, from + PAGE - 1);
+      if (error) throw failed("reading evidence submission times", error);
+      for (const row of data) times[row.resource_id] ??= new Date(row.at).toISOString();
+      if (data.length < PAGE) break;
+    }
+  }
+  return times;
+}
+
 /** Entries by sequence number, in order. */
 export async function auditBySeq(seqs: number[]): Promise<AuditEvent[]> {
   const out: AuditEvent[] = [];

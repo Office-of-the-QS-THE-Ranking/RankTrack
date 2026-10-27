@@ -2,8 +2,11 @@
  * Files attached to evidence. The browser uploads each one straight to the R2 private bucket through a presigned
  * URL (app/actions/evidence.ts); the record keeps its name, its /media/evidence/… address and its size. They are
  * never public: /media serves one only to people who may see the record it belongs to, as a download. No server
- * code, so the submission wizard can import it.
+ * code, so the submission form can import it.
  */
+
+/** How long a submission's description may be: its words, and the editor's markup around them. */
+export const EVIDENCE_SUMMARY = { text: 4000, markup: 24_000 } as const;
 
 /** The upload types System Configuration can allow, by extension, with the Content-Type each is stored under. */
 export const EVIDENCE_MIME: Record<string, string> = {
@@ -41,3 +44,37 @@ export const cleanFileName = (name: string) =>
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim()
     .slice(-120);
+
+/** What each attached file is, so a reviewer finds the survey copies, photos and reports at a glance. */
+export const EVIDENCE_FILE_KINDS = ["Report", "Survey copy", "Photo", "Attendance", "Certificate", "Data", "Agreement", "Other"] as const;
+export type EvidenceFileKind = (typeof EVIDENCE_FILE_KINDS)[number];
+
+export const isFileKind = (k: unknown): k is EvidenceFileKind => typeof k === "string" && (EVIDENCE_FILE_KINDS as readonly string[]).includes(k);
+
+/** A first guess from the file's name and type, which the person can change before sending. */
+export function guessFileKind(name: string): EvidenceFileKind {
+  const n = name.toLowerCase();
+  if (/survey|questionnaire|evaluation|feedback/.test(n)) return "Survey copy";
+  if (/attendance|sign-?in|roster|registr/.test(n)) return "Attendance";
+  if (/certificat|award/.test(n)) return "Certificate";
+  if (/(^|[^a-z])(moa|mou)([^a-z]|$)|agreement|contract/.test(n)) return "Agreement";
+  const ext = fileExt(name);
+  if (["PNG", "JPG", "JPEG"].includes(ext)) return "Photo";
+  if (["XLSX", "XLS", "CSV"].includes(ext)) return "Data";
+  return "Report";
+}
+
+/** How much else a submission may carry besides its files. */
+export const EVIDENCE_LIMITS = {
+  background: 600,
+  verifiedBy: 160,
+  links: 10,
+  linkLabel: 80,
+  references: 20,
+  referenceTitle: 300,
+  referenceSource: 160,
+  url: 2000,
+} as const;
+
+/** A full public web address. */
+export const PUBLIC_URL = /^https?:\/\/[^\s.]+\.[^\s]+$/i;

@@ -1,12 +1,14 @@
 import "server-only";
 
 /*
- * Pictures for Impact and Innovation posts, and logos uploaded for units in the Directory. Every upload lands in
+ * Pictures for Stories & News posts, PDFs of research articles and reports, and logos uploaded for units in the
+ * Directory. Every upload lands in
  * the private R2 bucket (see src/lib/r2.ts): the browser sends each file straight there through a presigned
  * upload URL the server hands out, so pictures never pass through a Server Function. Whatever the public website
  * may show (pictures of published posts, logos units carry) is copied into the public bucket when a change makes
  * it public, re-encoded on the way so nothing but the picture itself (no camera or location metadata, no other
- * bytes) reaches the public bucket, and removed from there when it stops being public. /media/… serves a public
+ * bytes) reaches the public bucket (a PDF is copied as it is, once it reads as a PDF), and removed from there when
+ * it stops being public. /media/… serves a public
  * file from the public bucket, and an internal one only to people who manage posts or the Directory. Files
  * attached to evidence (folder evidence/) never become public.
  *
@@ -19,6 +21,7 @@ import { alert } from "@/lib/alerts";
 import { adminDb } from "@/lib/supabase/server";
 import { deleteObject, getObject, hasObject, listObjects, presignPut, putObject, type Bucket } from "@/lib/r2";
 import { datasetPublic, featureOn } from "../derive";
+import { documentPath } from "../documents";
 import { MEDIA_TYPES, mediaPath, postPictures } from "../posts";
 import { evidenceList } from "../records";
 import type { GovernanceState } from "../types";
@@ -29,8 +32,8 @@ const SWEEP_MS = 3_600_000;
 const UPLOAD_SECONDS = 2 * 3600;
 const DAY_MS = 86_400_000;
 
-type Folder = "posts" | "emblems" | "evidence";
-const FOLDERS: Folder[] = ["posts", "emblems", "evidence"];
+type Folder = "posts" | "emblems" | "evidence" | "documents";
+const FOLDERS: Folder[] = ["posts", "emblems", "evidence", "documents"];
 
 const g = globalThis as typeof globalThis & { __hubMedia?: { sweptAt: number; published: Set<string> } };
 /** `published`: keys this instance has seen in the public bucket, so serving them skips a lookup. */
@@ -80,10 +83,11 @@ export async function releaseMedia(paths: string[]) {
 /** A post's uploaded pictures. The Hub's own photographs (/media/site/…) are reference data and never synced or swept. */
 const uploadsOf = (p: Parameters<typeof postPictures>[0]) => postPictures(p).flatMap((m) => (mediaPath(m.src) ? [m.src] : []));
 
-/** Every picture a post in the store shows, and every unit's uploaded logo. */
+/** Every picture a post in the store shows, every document's PDF, and every unit's uploaded logo. */
 export const mediaInUse = (state: GovernanceState) =>
   new Set([
     ...state.records.posts.flatMap(uploadsOf),
+    ...state.records.documents.flatMap((d) => (d.file ? [d.file.src] : [])),
     ...state.units.flatMap((u) => (u.emblem ? [u.emblem.src] : [])),
     ...state.requests.flatMap((request) => request.status === "Pending" && request.payload.kind === "org-unit" && request.payload.emblem ? [request.payload.emblem.src] : []),
     ...evidenceList(state).flatMap((e) => (e.attachments ?? []).map((f) => f.src)),
@@ -92,14 +96,20 @@ export const mediaInUse = (state: GovernanceState) =>
 /** Unit logos are shown wherever the unit is, so every logo a unit carries is public. */
 export const publicEmblems = (state: GovernanceState) => new Set(state.units.flatMap((u) => (u.emblem ? [u.emblem.src] : [])));
 
-/** Pictures the public website shows: those of published posts, while the library is switched on and its dataset Public. */
+/** Pictures the public website shows: those of published posts, while Publications is switched on and the stories dataset Public. */
 export function publicMedia(state: GovernanceState) {
-  if (!featureOn(state, "public-impact") || !datasetPublic(state, "DS-STORIES")) return new Set<string>();
+  if (!featureOn(state, "public-publications") || !datasetPublic(state, "DS-STORIES")) return new Set<string>();
   return new Set(state.records.posts.filter((p) => p.status === "Published").flatMap(uploadsOf));
 }
 
+/** PDFs the public website offers: those of published articles and reports, while Publications is switched on. */
+export function publicDocuments(state: GovernanceState) {
+  if (!featureOn(state, "public-publications")) return new Set<string>();
+  return new Set(state.records.documents.flatMap((d) => (d.status === "Published" && d.file ? [d.file.src] : [])));
+}
+
 /** Everything the public website may show: the public bucket holds exactly these. */
-export const publicSrcs = (state: GovernanceState) => new Set([...publicMedia(state), ...publicEmblems(state)]);
+export const publicSrcs = (state: GovernanceState) => new Set([...publicMedia(state), ...publicDocuments(state), ...publicEmblems(state)]);
 
 /** Image formats sharp writes back in the same format, by file extension. */
 const ENCODE = { jpg: "jpeg", png: "png", webp: "webp", gif: "gif", avif: "avif" } as const;
@@ -109,6 +119,7 @@ const ENCODE = { jpg: "jpeg", png: "png", webp: "webp", gif: "gif", avif: "avif"
  * comments) dropped, and anything that isn't a decodable image refused.
  */
 async function publishImage(path: string) {
+  if (documentPath(`/media/${path}`)) return publishPdf(path);
   const ext = path.split(".").pop()?.toLowerCase() as keyof typeof ENCODE | undefined;
   const format = ext && ENCODE[ext];
   if (!format) throw new Error(`Media: ${path} is not a publishable picture`);
@@ -120,6 +131,15 @@ async function publishImage(path: string) {
     .toFormat(format, format === "jpeg" ? { quality: 86, mozjpeg: true } : {})
     .toBuffer();
   await putObject("public", path, new Uint8Array(out), `image/${format}`);
+}
+
+/** Copy a document's PDF into the public bucket unchanged, after checking it begins as a PDF does. */
+async function publishPdf(path: string) {
+  const file = await getObject("private", path);
+  if (!file) throw new Error(`Media: ${path} is missing from the private bucket`);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (new TextDecoder().decode(bytes.subarray(0, 5)) !== "%PDF-") throw new Error(`Media: ${path} is not a PDF`);
+  await putObject("public", path, bytes, "application/pdf");
 }
 
 /** Make sure a public file is in the public bucket, publishing it if a sync missed it. False when there is no such upload. */

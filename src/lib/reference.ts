@@ -106,7 +106,10 @@ export interface Reference {
   sdgNames: Record<number, string>;
   sdgColors: Record<number, string>;
   sdgIcons: Record<number, string>;
-  impactThemes: string[];
+  storyThemes: string[];
+  /** Kinds of research article (Journal article, Conference paper…) and of report (Annual report, Policy brief…). */
+  articleTypes: string[];
+  insightTypes: string[];
   wuriCategories: string[];
   reportTypes: { name: string; note: string }[];
   quadrantNotes: Record<string, string>;
@@ -241,7 +244,9 @@ export function views(ref: Reference) {
     sdgNames: ref.sdgNames,
     sdgColors: ref.sdgColors,
     sdgIcons: ref.sdgIcons,
-    impactThemes: ref.impactThemes,
+    storyThemes: ref.storyThemes,
+    articleTypes: ref.articleTypes,
+    insightTypes: ref.insightTypes,
     wuriCategories: ref.wuriCategories,
     reportTypes: ref.reportTypes,
     quadrantNotes: ref.quadrantNotes,

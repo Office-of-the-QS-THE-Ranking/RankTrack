@@ -274,12 +274,46 @@
   line-height: 1.45;
   color: rgb(235 235 245 / 0.72);
 }
+.ov-welcome__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
 .ov-welcome__btn {
   --btn-bg: #fff;
   --btn-fg: #1d1d1f;
   --btn-bg-h: #ececf0;
-  margin-top: 10px;
   font-weight: 600;
+}
+/* A standing beside the next step, in the gold of the cut */
+.ov-welcome__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 14px 0 11px;
+  border-radius: 999px;
+  background: rgb(252 191 21 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(252 191 21 / 0.42);
+  color: rgb(235 235 245 / 0.82);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--t) ease;
+}
+.ov-welcome__badge svg {
+  color: var(--gold-300);
+}
+.ov-welcome__badge b {
+  color: #fff;
+  font-weight: 700;
+}
+@media (hover: hover) {
+  .ov-welcome__badge:hover {
+    background: rgb(252 191 21 / 0.18);
+  }
 }
 /* The Main Building, lit for the night, rising out of the dark at the right */
 .ov-welcome__scene {

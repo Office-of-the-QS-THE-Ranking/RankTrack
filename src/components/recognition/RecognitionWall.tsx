@@ -21,7 +21,7 @@ const AWARD_ICON: [RegExp, IconName][] = [
   [/\bimprov/i, "trend-up"],
   [/\binnovat/i, "innovation"],
   [/\bstor/i, "quote"],
-  [/\bimpact/i, "impact"],
+  [/\bimpact/i, "spark"],
   [/\bevidence/i, "evidence"],
 ];
 const awardIcon = (award: string) => AWARD_ICON.find(([words]) => words.test(award))?.[1] ?? "recognition";
@@ -246,7 +246,7 @@ export async function RecognitionWall({ mode }: { mode: "internal" | "public" })
             <ul className="rw-stories">
               {innovation.map((s) => (
                 <li key={s.slug}>
-                  <Link href={internal ? `/admin/impact#${s.slug}` : `/impact/${s.slug}`} className="rw-story">
+                  <Link href={internal ? `/admin/publications/stories#${s.slug}` : `/publications/stories/${s.slug}`} className="rw-story">
                     <span className="rw-story__pic">
                       {s.images[0] ? <Image src={s.images[0]} alt="" fill sizes="52px" /> : <Icon name="innovation" size={18} />}
                     </span>

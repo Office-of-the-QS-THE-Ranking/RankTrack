@@ -3,13 +3,16 @@ import "server-only";
 /*
  * What the public website may show, decided by governance: rankings that are tracked, marked public and
  * whose results dataset is Public; stories that passed the publication workflow while the stories dataset
- * is Public and the library is switched on; active units from the directory; and the public sections
+ * is Public and Publications is switched on; published research articles and reports; active units from the
+ * directory; and the public sections
  * System Configuration has switched on.
  */
 import { cache } from "react";
+import { DEMO_ON, demo } from "@/lib/demo";
 import { calendarMonths, calendarOf } from "@/lib/calendar";
 import { bodies, counts, movers } from "@/lib/reference";
 import type { HubData } from "../hub-types";
+import { publishedDocuments } from "./documents";
 import { hub } from "./hub";
 
 export const siteData = cache(async () => {
@@ -24,6 +27,9 @@ export const siteData = cache(async () => {
   const pub = (slug: string) => rankings.find((r) => r.slug === slug);
   const calendar = calendarOf(rankings, h.state.config.calendar);
   const today = new Date().toISOString().slice(0, 10);
+  // Presentation data stands in only while nothing real is published (lib/demo.ts).
+  const published = publishedDocuments(h.state);
+  const documents = published.length || !DEMO_ON || !h.feature("public-publications") ? published : demo.documents;
   return {
     rankings,
     isPublic: (slug: string) => !!pub(slug),
@@ -36,8 +42,11 @@ export const siteData = cache(async () => {
     units: h.activeUnits,
     stories,
     story: (slug: string) => stories.find((s) => s.slug === slug),
+    /** Research articles and reports the Office published, newest first. */
+    articles: documents.filter((d) => d.kind === "article"),
+    reports: documents.filter((d) => d.kind === "report"),
     dictionary: h.dictionary,
-    features: { impact: h.feature("public-impact"), recognition: h.feature("public-recognition"), knowledge: h.feature("public-knowledge") },
+    features: { publications: h.feature("public-publications"), recognition: h.feature("public-recognition"), knowledge: h.feature("public-knowledge") },
     privacy: h.privacy,
     notice: h.site.noticeOn ? h.site.notice : "",
     asOf: h.site.asOf,

@@ -140,6 +140,15 @@ export function recheckField(trigger: HTMLElement | null) {
   });
 }
 
+/** The nearest box that scrolls the field, whose edges also bound its sign. */
+function scroller(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const { overflowY } = getComputedStyle(p);
+    if (overflowY === "auto" || overflowY === "scroll") return p;
+  }
+  return null;
+}
+
 const isControl = (t: EventTarget | null): t is Control => t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement;
 
 /* The surface's picker palette and type, so the sign and its tooltip match the field. */
@@ -162,13 +171,16 @@ function Sign({ entry }: { entry: Entry }) {
     // Follow the field through scrolling, resizing and layout shifts.
     let frame = 0;
     let last = "";
+    const pane = scroller(entry.target);
     const follow = () => {
       if (!entry.target.isConnected) return unmark(entry.el);
       const r = (entry.target.closest(".input-group, .pick-num") ?? entry.target).getBoundingClientRect();
-      const gone = r.width === 0 && r.height === 0;
       // Multi-line fields, and anything marked `data-multiline`, carry the sign by their first line.
       const top = entry.target instanceof HTMLTextAreaElement || entry.target.hasAttribute("data-multiline") ? r.top + 10 : r.top + r.height / 2 - SIGN / 2;
       const left = r.right - entry.inset - SIGN;
+      // A field out of sight (in a hidden tab, or scrolled out of its panel) hides its sign until it comes back.
+      const view = pane?.getBoundingClientRect();
+      const gone = (r.width === 0 && r.height === 0) || (!!view && (top + SIGN < view.top || top > view.bottom));
       const key = `${gone}|${left}|${top}`;
       if (key !== last) {
         last = key;

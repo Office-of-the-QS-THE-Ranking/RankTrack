@@ -6,9 +6,10 @@
 import type { Command, CommandResult } from "../commands";
 import { evidenceBodies, featureOn, mappingActive } from "../derive";
 import { descendants, has } from "../rbac";
-import { cleanFileName, evidenceMime, evidencePath } from "../evidence-files";
+import { EVIDENCE_LIMITS, EVIDENCE_SUMMARY, PUBLIC_URL, cleanFileName, evidenceMime, evidencePath, guessFileKind, isFileKind } from "../evidence-files";
+import { cleanRich, isRich, plainText } from "@/lib/rich-text";
 import { evidenceById, evidenceList, requirementUnit } from "../records";
-import type { EvidenceFile, EvidenceRecord } from "../types";
+import type { EvidenceFile, EvidenceLink, EvidenceRecord, EvidenceReference } from "../types";
 import { can, clean, cleanText, deny, invalid, log, nextId, notify, ok, unitById, type Ctx } from "./core";
 import { publishStory } from "./mutations";
 import { needsApproval, openRequest, workflowOn } from "./requests";
@@ -50,14 +51,49 @@ function attachments(ctx: Ctx, files: unknown, already = 0): EvidenceFile[] | st
   if (!Array.isArray(files)) return "Attach the files again.";
   if (files.length + already > up.maxFiles) return `Attach at most ${up.maxFiles} files.`;
   const out: EvidenceFile[] = [];
-  for (const f of files as { name?: unknown; sizeMB?: unknown; src?: unknown }[]) {
+  for (const f of files as { name?: unknown; sizeMB?: unknown; src?: unknown; kind?: unknown }[]) {
     const name = typeof f?.name === "string" ? cleanFileName(f.name) : "";
     if (!name || typeof f.src !== "string" || !evidencePath(f.src)) return "A file didn’t finish uploading. Remove it and attach it again.";
     if (!evidenceMime(name, up.types)) return `${name} is not an accepted file type (${up.types.join(", ")}).`;
     const sizeMB = typeof f.sizeMB === "number" && Number.isFinite(f.sizeMB) ? f.sizeMB : NaN;
     if (!(sizeMB >= 0) || sizeMB > up.maxFileMB) return `${name} is larger than ${up.maxFileMB} MB.`;
     if (out.some((x) => x.src === f.src) || evidenceList(ctx.state).some((e) => e.attachments?.some((x) => x.src === f.src))) return `${name} is already attached.`;
-    out.push({ name, src: f.src, bytes: Math.round(sizeMB * 1_048_576) });
+    out.push({ name, src: f.src, bytes: Math.round(sizeMB * 1_048_576), kind: isFileKind(f.kind) ? f.kind : guessFileKind(name) });
+  }
+  return out;
+}
+
+const publicUrl = (u: string) => u.length <= EVIDENCE_LIMITS.url && PUBLIC_URL.test(u);
+
+/** The public pages a submission points to, each a full address, once; an older client's single `url` joins them. */
+function linksOf(list: unknown, url: unknown): EvidenceLink[] | string {
+  if (list !== undefined && !Array.isArray(list)) return "Add the links again.";
+  const raw = [...((list as { url?: unknown; label?: unknown }[] | undefined) ?? []), ...(typeof url === "string" && url.trim() ? [{ url, label: "" }] : [])];
+  if (raw.length > EVIDENCE_LIMITS.links) return `Add at most ${EVIDENCE_LIMITS.links} links.`;
+  const out: EvidenceLink[] = [];
+  for (const l of raw) {
+    const u = typeof l?.url === "string" ? l.url.trim() : "";
+    if (!u) continue;
+    if (!publicUrl(u)) return "Enter each link in full, starting with https://";
+    if (!out.some((x) => x.url === u)) out.push({ url: u, label: clean(l.label, EVIDENCE_LIMITS.linkLabel) });
+  }
+  return out;
+}
+
+/** What the submission cites: each with a title, and a link only when it is a full address. Blank rows are dropped. */
+function referencesOf(list: unknown): EvidenceReference[] | string {
+  if (list === undefined) return [];
+  if (!Array.isArray(list)) return "Add the references again.";
+  if (list.length > EVIDENCE_LIMITS.references) return `Cite at most ${EVIDENCE_LIMITS.references} references.`;
+  const out: EvidenceReference[] = [];
+  for (const r of list as { title?: unknown; source?: unknown; url?: unknown }[]) {
+    const title = clean(r?.title, EVIDENCE_LIMITS.referenceTitle);
+    const source = clean(r?.source, EVIDENCE_LIMITS.referenceSource);
+    const url = typeof r?.url === "string" ? r.url.trim() : "";
+    if (!title && !source && !url) continue;
+    if (!title) return "Give each reference a title.";
+    if (url && !publicUrl(url)) return "Enter each reference link in full, starting with https://";
+    out.push({ title, source, url });
   }
   return out;
 }
@@ -76,14 +112,23 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
   const period = ctx.state.config.periods.find((p) => p.label === i.period);
   if (!period) return invalid("Choose a reporting period.");
   if (!period.accepting) return invalid(`${period.label} is closed to submissions.`);
+  // The description arrives as the editor's HTML, cleaned again here; older clients send plain text.
+  const raw = typeof i.summary === "string" ? i.summary.replace(/\r\n?/g, "\n") : "";
+  const summary = isRich(raw) ? cleanRich(raw) : cleanText(raw, EVIDENCE_SUMMARY.text);
+  if (summary.length > EVIDENCE_SUMMARY.markup) return invalid("The description has too much formatting to save. Clear some of it and try again.");
+  if (plainText(summary).length > EVIDENCE_SUMMARY.text) return invalid(`Shorten the description to ${EVIDENCE_SUMMARY.text.toLocaleString("en")} characters.`);
   if (!clean(i.result)) return invalid("Enter the measurable result.");
   if (!clean(i.beneficiaries)) return invalid("Say who benefited.");
   if (!i.sdgs.length || i.sdgs.some((n) => n < 1 || n > 17)) return invalid("Select at least one SDG.");
   const attached = attachments(ctx, i.files);
   if (typeof attached === "string") return invalid(attached);
-  const url = typeof i.url === "string" ? i.url.trim() : "";
-  if (url && !/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url)) return invalid("Enter a full public URL starting with https://");
-  if (!attached.length && !url) return invalid("Attach a file or give a public URL.");
+  const links = linksOf(i.links, i.url);
+  if (typeof links === "string") return invalid(links);
+  if (!attached.length && !links.length) return invalid("Attach a file or add a public link.");
+  const references = referencesOf(i.references);
+  if (typeof references === "string") return invalid(references);
+  const background = cleanText(i.background, EVIDENCE_LIMITS.background).replace(/\n{3,}/g, "\n\n");
+  const verifiedBy = clean(i.verifiedBy, EVIDENCE_LIMITS.verifiedBy);
   const mapped = [...new Set(i.mappedTo.filter((m) => mappingActive(ctx.state, m)))];
   if (!mapped.length) return invalid("Keep at least one ranking indicator.");
   const id = nextId(ctx, "evidence", "EV-", 4);
@@ -102,16 +147,20 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
     level: i.level,
     mappedTo: mapped,
     sdgs: [...new Set(i.sdgs)].sort((a, b) => a - b),
-    summary: cleanText(i.summary, 1200),
+    summary: plainText(summary).trim() ? summary : "",
     result: clean(i.result, 200),
     beneficiaries: clean(i.beneficiaries, 200),
-    files: [...attached.map((f) => f.name), ...(url ? [url] : [])],
+    files: [...attached.map((f) => f.name), ...links.map((l) => l.url)],
     ...(attached.length ? { attachments: attached } : {}),
+    ...(background ? { background } : {}),
+    ...(verifiedBy ? { verifiedBy } : {}),
+    ...(links.length ? { links } : {}),
+    ...(references.length ? { references } : {}),
     comments: [],
   };
   ctx.state.records.evidence[id] = rec;
   log(ctx, "evidence.submit", "Data", evRes(rec), "Success", `${unit.name}${place.programId ? ` · ${unitById(ctx, place.programId)?.name}` : ""} · ${mapped.length} indicators · ${rec.files.length} files`);
-  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: rec.title }, `/admin/contribute?item=${id}`);
+  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: rec.title }, `/admin/contributions?item=${id}`);
   return ok(`Received as ${id}.`, { data: id });
 }
 
@@ -177,7 +226,7 @@ export function respond(ctx: Ctx, id: string, text: string, file?: { name: strin
     comments: [...e.comments, { by: ctx.actor.name, role: unit?.name ?? e.unitSlug, date: ctx.day, text: f ? `${t}\n\nAttached: ${f}` : t }],
   };
   log(ctx, "evidence.resubmit", "Data", evRes(e), "Success", f ? `Corrected file ${f}` : "Reply without a new file");
-  notify(ctx, "office", "tpl-submitted", { unit: unit?.name ?? e.unitSlug, title: `${e.title} (resubmitted)` }, `/admin/contribute?item=${e.id}`);
+  notify(ctx, "office", "tpl-submitted", { unit: unit?.name ?? e.unitSlug, title: `${e.title} (resubmitted)` }, `/admin/contributions?item=${e.id}`);
   return ok("Resubmitted. The reviewer has been notified and the item is back in the queue.");
 }
 
@@ -193,7 +242,7 @@ export function submitValues(ctx: Ctx, unitSlug: string, values: { id: string; l
   if (!good.length) return invalid("Every value needs a number and its source document.");
   for (const v of good) ctx.state.records.values[v.id] = { value: v.value.trim(), source: clean(v.source, 200), status: "For review", by: ctx.actor.id, at: ctx.iso };
   log(ctx, "data.submit", "Data", target, "Success", good.map((v) => `${v.label}: ${v.value}`).join("; ").slice(0, 300));
-  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `${good.length} reporting-period ${good.length === 1 ? "value" : "values"}` }, "/admin/contribute");
+  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `${good.length} reporting-period ${good.length === 1 ? "value" : "values"}` }, "/admin/contributions");
   return ok(`${good.length} ${good.length === 1 ? "value" : "values"} sent for validation.`);
 }
 
@@ -256,7 +305,7 @@ export function proposeInnovation(ctx: Ctx, unitSlug: string, name: string, cate
   const id = nextId(ctx, "innovation", "IN-", 4);
   ctx.state.records.innovations.unshift({ id, name: clean(name, 160), unitSlug: unit.id, by: ctx.actor.id, at: ctx.iso, category: clean(category) });
   log(ctx, "innovation.propose", "Data", { type: "Innovation", id, label: clean(name) }, "Success", `${clean(category)} · ${unit.name}`);
-  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `innovation proposal “${clean(name)}”` }, "/admin/impact");
+  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `innovation proposal “${clean(name)}”` }, "/admin/publications/stories");
   return ok(`Innovation ${id} entered the pipeline.`, { data: id });
 }
 
@@ -265,8 +314,8 @@ export function requestAssistance(ctx: Ctx, unitSlug: string, topic: string, urg
   if (!unit) return invalid("Choose the unit.");
   if (!featureOn(ctx.state, "assistance")) return invalid("Assistance requests are switched off in System Configuration.");
   // Only people who contribute for the unit ask for help on its behalf.
-  const contributes = placement(ctx, unit.id, "evidence", "submit") || placement(ctx, unit.id, "data", "submit") || placement(ctx, unit.id, "stories", "create");
-  if (!contributes) return deny(ctx, "assistance.request", "Data", { type: "Assistance request", id: "new", label: clean(topic) || "Assistance" }, `You cannot ask for assistance on behalf of ${unit.name}.`);
+  const canContribute = placement(ctx, unit.id, "evidence", "submit") || placement(ctx, unit.id, "data", "submit") || placement(ctx, unit.id, "stories", "create");
+  if (!canContribute) return deny(ctx, "assistance.request", "Data", { type: "Assistance request", id: "new", label: clean(topic) || "Assistance" }, `You cannot ask for assistance on behalf of ${unit.name}.`);
   if (!clean(topic) || cleanText(message).length < 10) return invalid("Choose a topic and write at least a sentence.");
   const id = nextId(ctx, "assistance", "AR-", 4);
   ctx.state.records.assistance.unshift({ id, topic: clean(topic), unitSlug: unit.id, by: ctx.actor.id, at: ctx.iso, urgent });

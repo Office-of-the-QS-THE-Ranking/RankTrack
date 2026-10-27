@@ -878,10 +878,13 @@ export type Database = {
       evidence: {
         Row: {
           attachments: Json
+          background: string
           beneficiaries: string
+          citations: Json
           files: string[]
           id: string
           level: number
+          links: Json
           mapped_to: string[]
           ord: number
           period: string
@@ -897,13 +900,17 @@ export type Database = {
           title: string
           type: string
           unit_id: string
+          verified_by: string
         }
         Insert: {
           attachments?: Json
+          background?: string
           beneficiaries?: string
+          citations?: Json
           files?: string[]
           id: string
           level: number
+          links?: Json
           mapped_to?: string[]
           ord: number
           period: string
@@ -919,13 +926,17 @@ export type Database = {
           title: string
           type: string
           unit_id: string
+          verified_by?: string
         }
         Update: {
           attachments?: Json
+          background?: string
           beneficiaries?: string
+          citations?: Json
           files?: string[]
           id?: string
           level?: number
+          links?: Json
           mapped_to?: string[]
           ord?: number
           period?: string
@@ -941,6 +952,7 @@ export type Database = {
           title?: string
           type?: string
           unit_id?: string
+          verified_by?: string
         }
         Relationships: []
       }

@@ -18,7 +18,7 @@ import { Icon } from "@/components/ui/Icon";
 import { InlineScript } from "@/components/site/InlineScript";
 import { HubProvider, useGovern } from "@/components/hub/HubProvider";
 import { IdleGuard } from "@/components/hub/IdleGuard";
-import { NAV, isActive, publicPathFor, rankingSubnav, type NavGroup, type Variant } from "./nav";
+import { NAV, isActive, publicationsSubnav, publicPathFor, rankingSubnav, type NavGroup, type Variant } from "./nav";
 import { SearchPalette } from "./SearchPalette";
 import { NavIcon } from "./NavIcon";
 import { HeaderBreadcrumbs } from "./HeaderBreadcrumbs";
@@ -240,7 +240,10 @@ export function Shell({ variant, viewer = null, hub = null, children }: { varian
   );
 }
 
-type Drill = "rankings" | "admin" | null;
+type Drill = "rankings" | "publications" | "admin" | null;
+
+/** The set of tabs a group row opens. */
+const drillOf = (item: NavGroup["items"][number]): Exclude<Drill, null> => (item.admin ? "admin" : item.publicationsBase ? "publications" : "rankings");
 
 function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; viewer: Viewer | null; hub: HubData | null; children: ReactNode }) {
   const pathname = usePathname() ?? "/";
@@ -303,7 +306,6 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const counts = useMemo(
     () => ({
       review: hub?.evidence.filter((e) => e.status === "For review").length ?? 0,
-      requirements: hub?.requirements.filter((r) => r.status !== "Validated").length ?? 0,
       revisions: hub?.evidence.filter((e) => e.status === "Needs revision").length ?? 0,
     }),
     [hub],
@@ -313,13 +315,17 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const rankingsItem = nav.flatMap((g) => g.items).find((i) => i.rankingsBase);
   const subnav = useMemo(() => (rankingsItem?.rankingsBase ? rankingSubnav(ref, rankingsItem.rankingsBase, hub?.activeSlugs) : []), [ref, rankingsItem?.rankingsBase, hub?.activeSlugs]);
   const onRankings = !!rankingsItem?.rankingsBase && pathname.startsWith(rankingsItem.rankingsBase);
+  // Publications opens its three sections in the sidebar, as Rankings does its pages.
+  const publicationsItem = nav.flatMap((g) => g.items).find((i) => i.publicationsBase);
+  const pubnav = useMemo(() => (publicationsItem?.publicationsBase ? publicationsSubnav(publicationsItem.publicationsBase) : []), [publicationsItem?.publicationsBase]);
+  const onPublications = !!publicationsItem?.publicationsBase && isActive(pathname, publicationsItem.publicationsBase);
   // Administration is a tab for anyone who administers something; its sections replace the main tabs.
   const adminItem = nav.flatMap((g) => g.items).find((i) => i.admin);
   const adminSections = useMemo(() => ADMIN_SECTIONS.filter((sec) => !sec.module || !!viewer?.admin.includes(sec.module)), [viewer]);
   const onAdmin = !!adminItem && isActive(pathname, adminItem.href);
-  const here: Drill = onRankings ? "rankings" : onAdmin ? "admin" : null;
-  // Which tab set the sidebar shows: the main sections, or the ranking pages or Administration sections
-  // in their place. Rankings has no page of its own, so its row only switches sets.
+  const here: Drill = onRankings ? "rankings" : onPublications ? "publications" : onAdmin ? "admin" : null;
+  // Which tab set the sidebar shows: the main sections, or the ranking pages, the Publications sections or
+  // the Administration sections in their place. Rankings has no page of its own, so its row only switches sets.
   const [drill, setDrill] = useState<Drill>(here);
   const switched = useRef(false);
   const openDrill = (to: Exclude<Drill, null>) => {
@@ -460,22 +466,23 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                       return (
                         <li key={item.href}>
                           <div className="side__item">
-                            {item.rankingsBase || item.admin ? (
+                            {item.rankingsBase || item.publicationsBase || item.admin ? (
                               <button
                                 type="button"
                                 className={`side__link side__link--group${active ? " is-active" : ""}`}
-                                aria-expanded={drill === (item.admin ? "admin" : "rankings")}
-                                aria-controls={item.admin ? "nav-admin" : "nav-rankings"}
-                                data-opened={opened === (item.admin ? "admin" : "rankings") || undefined}
+                                aria-expanded={drill === drillOf(item)}
+                                aria-controls={`nav-${drillOf(item)}`}
+                                data-opened={opened === drillOf(item) || undefined}
                                 data-tip={item.label}
                                 onClick={() => {
-                                  const to = item.admin ? "admin" : "rankings";
+                                  const to = drillOf(item);
                                   setOpened(to);
                                   openDrill(to);
-                                  // Administration has a page: open its overview with the sections.
-                                  if (item.admin && !onAdmin) {
-                                    goTo(item.href)();
-                                    router.push(item.href);
+                                  // Administration opens its overview with the sections; Publications its first section.
+                                  const landing = item.admin ? (onAdmin ? null : item.href) : item.publicationsBase && !onPublications ? pubnav[0]?.href : null;
+                                  if (landing) {
+                                    goTo(landing)();
+                                    router.push(landing);
                                   }
                                 }}
                               >
@@ -552,6 +559,39 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                     </ul>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {publicationsItem?.publicationsBase && (
+              <div className={`side__pane side__pane--sub${drill === "publications" ? " is-current" : ""}`} id="nav-publications">
+                <div className="side__crumbs">
+                  <button type="button" className="side__back" onClick={closeDrill}>
+                    <Icon name="chevron-left" size={16} strokeWidth={2} />
+                    All sections
+                  </button>
+                  <span className="side__crumbsep" aria-hidden="true"><Icon name="chevron" size={14} /></span>
+                  <span className="side__crumb">{publicationsItem.label}</span>
+                </div>
+                <hr className="side__sep" />
+                <ul className="side__nav">
+                  {pubnav.map((c) => {
+                    const active = isActive(at, c.href);
+                    return (
+                      <li key={c.href}>
+                        <Link
+                          href={c.href}
+                          className={`side__link${active ? " is-active" : ""}`}
+                          aria-current={isActive(pathname, c.href) ? "page" : undefined}
+                          data-tip={c.label}
+                          onNavigate={goTo(c.href)}
+                        >
+                          <NavIcon name={c.icon} active={active} />
+                          <span className="truncate side__text">{c.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
 

@@ -4,7 +4,7 @@ import { useId, type CSSProperties, type ReactNode } from "react";
 import type { Indicator, RankPoint } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { cx } from "@/components/ui/primitives";
-import { QueueArt } from "@/components/contribute/QueueArt";
+import { QueueArt } from "@/components/contributions/QueueArt";
 
 /*
  * The ranking page's charts, drawn in the dashboard's vocabulary (ranking.css): the family colour for the

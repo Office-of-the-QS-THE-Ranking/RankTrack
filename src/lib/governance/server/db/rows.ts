@@ -15,8 +15,11 @@ import type {
   CalendarEntry,
   DeadlineFinding,
   DeadlineWatch,
+  DocumentRecord,
   EvidenceFile,
+  EvidenceLink,
   EvidenceRecord,
+  EvidenceReference,
   GovernanceState,
   OrgUnit,
   PostMedia,
@@ -90,6 +93,7 @@ export const TABLES = {
   calendar_entries: ["id"],
   deadline_findings: ["id"],
   deadline_watch: ["id"],
+  documents: ["id"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type TableName = keyof typeof TABLES;
@@ -515,6 +519,10 @@ function recordRows(r: Records, t: Tables) {
       beneficiaries: e.beneficiaries,
       files: e.files,
       attachments: e.attachments ?? [],
+      background: e.background ?? "",
+      verified_by: e.verifiedBy ?? "",
+      links: e.links ?? [],
+      citations: e.references ?? [],
     });
     e.comments.forEach((c, j) => t.evidence_comments.push({ evidence_id: e.id, ord: appendOrd(j), by: c.by, role: c.role, date: c.date, text: c.text }));
   });
@@ -541,6 +549,35 @@ function recordRows(r: Records, t: Tables) {
     if (p.thumbnail) t.post_media.push(mediaRow(p.id, "thumbnail", 0, p.thumbnail));
     p.photos.forEach((m, j) => t.post_media.push(mediaRow(p.id, "photo", appendOrd(j), m)));
   });
+  (r.documents ?? []).forEach((d, i, all) =>
+    t.documents.push({
+      id: d.id,
+      ord: prependOrd(i, all.length),
+      slug: d.slug,
+      kind: d.kind,
+      title: d.title,
+      authors: d.authors,
+      venue: d.venue,
+      type: d.type,
+      abstract: d.abstract,
+      issued: d.issued,
+      doi: nul(d.doi),
+      url: nul(d.url),
+      file_src: nul(d.file?.src),
+      file_name: nul(d.file?.name),
+      file_mb: nul(d.file?.sizeMB),
+      sdgs: d.sdgs,
+      keywords: d.keywords,
+      unit_id: nul(d.unitSlug),
+      featured: d.featured ?? false,
+      status: d.status,
+      created_by: d.createdBy,
+      created_at: d.createdAt,
+      updated_at: d.updatedAt,
+      updated_by: d.updatedBy,
+      published_at: nul(d.publishedAt),
+    }),
+  );
   for (const [slug, state] of Object.entries(r.stories)) t.story_states.push({ slug, state });
   r.proposals.forEach((p, i, all) =>
     t.story_proposals.push({
@@ -912,6 +949,10 @@ export function fromRows(t: Tables): Stored {
           beneficiaries: str(e.beneficiaries),
           files: strs(e.files),
           attachments: Array.isArray(e.attachments) && e.attachments.length ? (e.attachments as EvidenceFile[]) : undefined,
+          background: str(e.background) || undefined,
+          verifiedBy: str(e.verified_by) || undefined,
+          links: Array.isArray(e.links) && e.links.length ? (e.links as EvidenceLink[]) : undefined,
+          references: Array.isArray(e.citations) && e.citations.length ? (e.citations as EvidenceReference[]) : undefined,
           comments: commentsOf(str(e.id)).map((c) => ({ by: str(c.by), role: str(c.role), date: str(c.date), text: str(c.text) })),
         }),
       ]),
@@ -939,6 +980,33 @@ export function fromRows(t: Tables): Stored {
         publishedAt: isoOpt(x.published_at),
       });
     }),
+    // Read as empty until the documents migration reaches the database.
+    documents: sorted(t.documents ?? [], "prepend").map((x): DocumentRecord =>
+      tidy({
+        id: str(x.id),
+        slug: str(x.slug),
+        kind: x.kind as DocumentRecord["kind"],
+        title: str(x.title),
+        authors: strs(x.authors),
+        venue: str(x.venue),
+        type: str(x.type),
+        abstract: str(x.abstract),
+        issued: str(x.issued),
+        doi: opt(x.doi as string | null),
+        url: opt(x.url as string | null),
+        file: x.file_src ? { src: str(x.file_src), name: str(x.file_name), sizeMB: num(x.file_mb) } : undefined,
+        sdgs: ints(x.sdgs),
+        keywords: strs(x.keywords),
+        unitSlug: opt(x.unit_id as string | null),
+        featured: x.featured ? true : undefined,
+        status: x.status as DocumentRecord["status"],
+        createdBy: str(x.created_by),
+        createdAt: iso(x.created_at),
+        updatedAt: iso(x.updated_at),
+        updatedBy: str(x.updated_by),
+        publishedAt: isoOpt(x.published_at),
+      }),
+    ),
     postViewsStartedAt: iso(settings.post_views_since),
     stories: Object.fromEntries(t.story_states.map((x) => [str(x.slug), x.state as Records["stories"][string]])),
     proposals: sorted(t.story_proposals, "prepend").map((x) => ({

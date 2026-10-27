@@ -11,6 +11,8 @@ import type {
   CycleConfig,
   DeadlineFinding,
   DeadlineWatch,
+  DocumentFile,
+  DocumentKind,
   NotificationTemplate,
   PeriodConfig,
   PostMedia,
@@ -156,6 +158,52 @@ export interface PostAnalyticsData {
 }
 
 /** What the post manager needs: the rows, and what this viewer may do with them. */
+/** A research article or report as the public website and the Office's table show it: the unit by name, no account ids. */
+export interface DocumentView {
+  id: string;
+  slug: string;
+  kind: DocumentKind;
+  title: string;
+  authors: string[];
+  venue: string;
+  type: string;
+  abstract: string;
+  issued: string;
+  doi?: string;
+  url?: string;
+  file?: DocumentFile;
+  sdgs: number[];
+  keywords: string[];
+  unitSlug?: string;
+  unit?: string;
+  featured: boolean;
+  status: PostStatus;
+}
+
+/** One row of the Office's research article or report table. */
+export interface DocumentRow extends DocumentView {
+  updatedAt: string;
+  updatedBy: string;
+  publishedAt?: string;
+  /** A publication request waiting on it. */
+  requestId?: string;
+}
+
+/** The Office's table of research articles or of reports. */
+export interface DocumentDesk {
+  kind: DocumentKind;
+  rows: DocumentRow[];
+  can: { create: boolean; edit: boolean; delete: boolean; publish: boolean };
+  /** Publishing goes through the publication workflow for this viewer. */
+  needsApproval: boolean;
+  /** The public website shows published documents (Publications is switched on). */
+  live: boolean;
+  /** The kinds the form offers (reference list article-type or insight-type). */
+  types: string[];
+  /** Units a document can come from, Colleges/Faculties first. */
+  units: { id: string; name: string; group: string }[];
+}
+
 export interface PostDesk {
   rows: PostRow[];
   can: { create: boolean; edit: boolean; delete: boolean; publish: boolean };

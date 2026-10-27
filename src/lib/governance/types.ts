@@ -423,7 +423,7 @@ export type RequestPayload =
   | { kind: "privilege-escalation"; accountId: string; roleId: RoleId; scope: Scope; expires?: ISODate }
   | { kind: "org-unit"; name: string; code: string; kind2: OrgKind; parentId: string; emails?: string[]; emblem?: OrgUnit["emblem"] }
   | { kind: "data-access"; accountId: string; datasetId: string; access: "View" | "Export"; until: ISODate }
-  | { kind: "publication"; target: "story" | "report"; id: string; title: string }
+  | { kind: "publication"; target: "story" | "report" | "document"; id: string; title: string }
   | { kind: "destructive"; operation: "restore" | "delete"; snapshotId: string };
 
 export interface ApprovalRequest {
@@ -629,6 +629,14 @@ export interface EvidenceRecord {
   files: string[];
   /** Files uploaded to the private media bucket, served from /media/evidence/… to people who may see the record. */
   attachments?: EvidenceFile[];
+  /** Why the work was needed, in a few sentences. Absent on older records. */
+  background?: string;
+  /** How the result was checked: a survey, records, an audit. */
+  verifiedBy?: string;
+  /** Public pages that show the work. Their addresses are in `files` too, for older views. */
+  links?: EvidenceLink[];
+  /** Publications, news and documents the submission cites. */
+  references?: EvidenceReference[];
   comments: { by: string; role: string; date: ISODate; text: string }[];
 }
 
@@ -636,6 +644,21 @@ export interface EvidenceFile {
   name: string;
   src: string;
   bytes: number;
+  /** Report, Survey copy, Photo… (EVIDENCE_FILE_KINDS). Absent on older uploads. */
+  kind?: string;
+}
+
+export interface EvidenceLink {
+  url: string;
+  /** A short name for the page; the address stands in when empty. */
+  label: string;
+}
+
+export interface EvidenceReference {
+  title: string;
+  /** Authors, publisher or outlet, and year. */
+  source: string;
+  url: string;
 }
 
 export interface Notice {
@@ -661,7 +684,7 @@ export interface PostMedia {
 
 export type PostStatus = "Draft" | "In review" | "Published" | "Unpublished";
 
-/** A post in the Impact and Innovation library, written in the Office workspace's composer. */
+/** A post in Stories & News (Publications), written in the Office workspace's composer. */
 export interface PostRecord {
   id: string;
   slug: string;
@@ -690,11 +713,58 @@ export interface PostRecord {
   publishedAt?: ISOTime;
 }
 
+/** Publications beside the stories: research articles and reports. */
+export type DocumentKind = "article" | "report";
+
+/** A PDF attached to a research article or report. Uploads live in the private bucket under documents/. */
+export interface DocumentFile {
+  src: string;
+  name: string;
+  sizeMB: number;
+}
+
+/** A research article or a report in Publications, entered in the Office workspace. */
+export interface DocumentRecord {
+  id: string;
+  slug: string;
+  kind: DocumentKind;
+  title: string;
+  /** Article: the authors in byline order. Report: the people or office that wrote it. */
+  authors: string[];
+  /** Article: the journal or proceedings. Report: its series, or the office that issued it. */
+  venue: string;
+  /** One of the reference lists article-type or insight-type. */
+  type: string;
+  /** The abstract or summary, plain text; a blank line starts a paragraph. */
+  abstract: string;
+  /** The day it was published. */
+  issued: ISODate;
+  /** Without the https://doi.org/ prefix. */
+  doi?: string;
+  url?: string;
+  file?: DocumentFile;
+  sdgs: number[];
+  keywords: string[];
+  /** The unit it comes from. */
+  unitSlug?: string;
+  /** Leads its page on the public website. At most one per kind. */
+  featured?: boolean;
+  status: PostStatus;
+  createdBy: string;
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+  updatedBy: string;
+  /** When it first reached the public website. */
+  publishedAt?: ISOTime;
+}
+
 export interface Records {
   /** Changes to the sample evidence and every new submission, by id. */
   evidence: Record<string, EvidenceRecord>;
-  /** Impact and Innovation posts, newest first. */
+  /** Stories & News posts, newest first. */
   posts: PostRecord[];
+  /** Research articles and reports, newest first. */
+  documents: DocumentRecord[];
   /** When anonymous post view counting began (the counts are in hub_post_views). */
   postViewsStartedAt: ISOTime;
   /** Publication state of impact stories, by slug. "Deleted": one of the Hub's own stories that became a post. */

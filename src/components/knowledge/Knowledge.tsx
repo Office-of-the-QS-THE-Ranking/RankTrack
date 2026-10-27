@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PUBLISHED_STORIES as STATIC_STORIES } from "@/lib/data";
 import { useFeature, useHub, useRankings, useVariant } from "@/components/hub/HubProvider";
 import { useViews } from "@/components/reference/ReferenceProvider";
-import { QueueArt } from "@/components/contribute/QueueArt";
+import { QueueArt } from "@/components/contributions/QueueArt";
 import { Tile } from "@/components/dashboard/Tile";
 import { Icon } from "@/components/ui/Icon";
 import { TabPanel, Tabs } from "@/components/ui/interactive";
@@ -89,7 +89,7 @@ export function Knowledge() {
   }, [anchor, tab]);
 
   const rankingHref = (slug: string) => (inOffice ? `/admin/rankings/${slug}#methodology` : `/rankings/${slug}#measures`);
-  const storyHref = (slug: string) => (inOffice ? `/admin/impact#${slug}` : `/impact/${slug}`);
+  const storyHref = (slug: string) => (inOffice ? `/admin/publications/stories#${slug}` : `/publications/stories/${slug}`);
   const calendar = hub?.calendar;
   const { months, items: due, next, todayAt } = useMemo(() => cycle(calendar ?? [], families), [calendar, families]);
 

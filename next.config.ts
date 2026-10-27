@@ -14,6 +14,16 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      { source: "/admin/contribute", destination: "/admin/contributions", permanent: true },
+      // Impact and Innovation became Publications; its stories are Stories & News.
+      { source: "/impact/:slug*", destination: "/publications/stories/:slug*", permanent: true },
+      { source: "/admin/impact", destination: "/admin/publications/stories", permanent: true },
+      { source: "/publications", destination: "/publications/stories", permanent: false },
+      { source: "/admin/publications", destination: "/admin/publications/stories", permanent: false },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

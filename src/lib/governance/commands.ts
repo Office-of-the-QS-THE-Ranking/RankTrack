@@ -8,6 +8,8 @@ import type {
   BodyKey,
   Classification,
   CycleConfig,
+  DocumentFile,
+  DocumentKind,
   ExportPolicy,
   FeatureFlag,
   Incident,
@@ -47,6 +49,23 @@ export interface PostInput {
   thumbnail: PostMedia | null;
   body: string;
   photos: PostMedia[];
+}
+
+/** What the research article and report form sends. */
+export interface DocumentInput {
+  title: string;
+  authors: string[];
+  venue: string;
+  type: string;
+  abstract: string;
+  issued: string;
+  doi: string;
+  url: string;
+  file: DocumentFile | null;
+  sdgs: number[];
+  keywords: string[];
+  unitSlug: string;
+  featured: boolean;
 }
 
 export type Command =
@@ -138,14 +157,19 @@ export type Command =
         title: string;
         type: string;
         period: string;
+        background?: string;
         summary: string;
         result: string;
         beneficiaries: string;
+        verifiedBy?: string;
         level: 1 | 2 | 3 | 4 | 5;
         sdgs: number[];
         /** Uploaded through startEvidenceUploads; sizes are re-read from storage on the server. */
-        files: { name: string; sizeMB: number; src: string }[];
-        url: string;
+        files: { name: string; sizeMB: number; src: string; kind?: string }[];
+        /** One public page, from older clients; newer ones send `links`. */
+        url?: string;
+        links?: { url: string; label: string }[];
+        references?: { title: string; source: string; url: string }[];
         mappedTo: string[];
       };
     }
@@ -159,10 +183,14 @@ export type Command =
       input: { title: string; challenge: string; response: string; figure: string; figureLabel: string; beneficiaries: string; sdgs: number[]; rankings: string[]; evidence: string[] };
     }
   | { type: "story.state"; slug: string; state: "Published" | "Withdrawn" }
-  /* Impact and Innovation posts. `from` names a story or a unit's proposal the new post takes over. */
+  /* Stories & News posts. `from` names a story or a unit's proposal the new post takes over. */
   | { type: "post.save"; id?: string; from?: string; input: PostInput; publish: boolean }
   | { type: "post.status"; id: string; status: "Published" | "Unpublished" | "Draft" }
   | { type: "post.delete"; id: string }
+  /* Research articles and reports */
+  | { type: "document.save"; id?: string; kind: DocumentKind; input: DocumentInput; publish: boolean }
+  | { type: "document.status"; id: string; status: "Published" | "Unpublished" | "Draft" }
+  | { type: "document.delete"; id: string }
   | { type: "innovation.propose"; unitSlug: string; name: string; category: string }
   | { type: "assistance.request"; unitSlug: string; topic: string; urgent: boolean; message: string }
   | { type: "report.export"; report: string; cycle: string; rows: number; datasets: string[] }

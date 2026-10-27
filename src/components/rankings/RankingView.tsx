@@ -455,7 +455,7 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
                           <Icon name="evidence" size={18} />
                         </span>
                         <span className="rk-evi__main">
-                          <Link href={`/admin/contribute?item=${e.id}`} className="rk-evi__title">
+                          <Link href={`/admin/contributions?item=${e.id}`} className="rk-evi__title">
                             {e.title}
                           </Link>
                           <span className="rk-evi__meta">

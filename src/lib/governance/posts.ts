@@ -1,5 +1,5 @@
 /*
- * Impact and Innovation posts as both sides see them: the limits the composer and the server share, where
+ * Stories & News posts as both sides see them: the limits the composer and the server share, where
  * a post's pictures may come from, and the plain-text helpers that turn a post into excerpts and paragraphs.
  * No server code, so the composer can import it.
  */
@@ -76,6 +76,9 @@ export const paragraphs = (body: string) =>
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
+
+/** Minutes to read a text at about 220 words a minute, never less than one. */
+export const readingMinutes = (text: string) => Math.max(1, Math.round(plainText(text).split(/\s+/).filter(Boolean).length / 220));
 
 /** The opening of the body, cut at a word, for lists and previews. */
 export function excerpt(body: string, max = 220) {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { WURI_PLACEMENTS, inkOn, type Ranking } from "@/lib/data";
 import { Tile } from "@/components/dashboard/Tile";
-import { PipelineFlow } from "@/components/contribute/PipelineFlow";
+import { PipelineFlow } from "@/components/contributions/PipelineFlow";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Meter, Status, cx } from "@/components/ui/primitives";
 import { InfoTooltip } from "@/components/ui/interactive";

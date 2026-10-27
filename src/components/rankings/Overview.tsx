@@ -202,7 +202,7 @@ export function RankingsOverview({
                 {mapped.map((e) => (
                   <tr key={e.id}>
                     <td>
-                      <Link href={`/admin/contribute?item=${e.id}`} className="rowlink">
+                      <Link href={`/admin/contributions?item=${e.id}`} className="rowlink">
                         {e.title}
                       </Link>
                       <span className="table__sub">{e.unit}</span>

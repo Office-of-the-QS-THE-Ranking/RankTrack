@@ -3,7 +3,7 @@
  * overlaid with every change and new submission recorded through the Hub, and the posts written in the
  * Office's composer.
  */
-import { ENGINEERING_REQUIREMENTS, EVIDENCE, STORIES, type ImpactTheme, type Story } from "@/lib/data";
+import { ENGINEERING_REQUIREMENTS, EVIDENCE, STORIES, type StoryTheme, type Story } from "@/lib/data";
 import { excerpt, postPictures } from "./posts";
 import type { EvidenceRecord, GovernanceState, PostRecord } from "./types";
 
@@ -49,7 +49,7 @@ function proposalStory(p: GovernanceState["records"]["proposals"][number], state
 }
 
 /** The story kind a post's first theme suggests. */
-const KIND_OF: Partial<Record<ImpactTheme, Story["kind"]>> = {
+const KIND_OF: Partial<Record<StoryTheme, Story["kind"]>> = {
   "Thomasian Innovations": "Innovation",
   "Campus Sustainability": "Campus sustainability",
   "Research Impact": "Research",
@@ -64,7 +64,7 @@ export function postUnit(p: PostRecord, state: GovernanceState) {
 
 /** A post, shaped like a story so the libraries and the public website list it beside the others. */
 function postStory(p: PostRecord, state: GovernanceState): Story {
-  const themes = p.themes as ImpactTheme[];
+  const themes = p.themes as StoryTheme[];
   return {
     slug: p.slug,
     title: p.title,

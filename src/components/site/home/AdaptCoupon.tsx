@@ -36,7 +36,7 @@ export function AdaptCoupon({
       `Name: ${f.get("name")}`,
       `Institution: ${f.get("org")}`,
       `Email: ${f.get("email")}`,
-      story ? `Story: ${window.location.origin}/impact/${story.slug}` : "",
+      story ? `Story: ${window.location.origin}/publications/stories/${story.slug}` : "",
     ].join("\n");
     window.location.href = `mailto:${OFFICE}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };

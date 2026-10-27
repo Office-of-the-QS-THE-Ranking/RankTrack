@@ -59,7 +59,7 @@ function from4(s: Stored): Stored {
   return { ...s, schema: 5 };
 }
 
-/** Schema 6 adds Impact and Innovation posts. */
+/** Schema 6 adds posts (now Stories & News). */
 function from5(s: Stored): Stored {
   s.records.posts ??= [];
   s.records.counters.post ??= 0;
@@ -108,6 +108,9 @@ function from9(s: Stored): Stored {
  * schema 10 copy from before it (an older recovery point) gets its empty lists here.
  */
 function fill10(s: Stored): Stored {
+  // Research articles and reports joined schema 10 the same way.
+  s.records.documents ??= [];
+  s.records.counters.document ??= 0;
   s.config.calendar ??= [];
   s.config.findings ??= [];
   s.config.watch ??= [];

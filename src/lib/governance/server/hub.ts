@@ -7,6 +7,7 @@ import "server-only";
  * only receives what is classified Public and switched on.
  */
 import { cache } from "react";
+import { evidenceSubmissionTimes } from "./db/audit";
 import { ENGINEERING_REQUIREMENTS, type DictionaryEntry, type EvidenceItem, type Ranking, type Requirement } from "@/lib/data";
 import type { Reference } from "@/lib/reference";
 import { datasetPublic, featureOn, rankingActive, rankingPublic } from "../derive";
@@ -56,7 +57,7 @@ function buildRequirements(state: GovernanceState, evidence: EvidenceItem[], uni
 function build(state: GovernanceState, ref: Reference) {
   const evidence: EvidenceItem[] = evidenceList(state).map((e) => ({ ...e, unit: unitLabel(state, e.unitSlug, e.programId) }));
   const stories = storyList(state);
-  const storiesPublic = featureOn(state, "public-impact") && datasetPublic(state, "DS-STORIES");
+  const storiesPublic = featureOn(state, "public-publications") && datasetPublic(state, "DS-STORIES");
   const units = buildUnits(state, evidence, ref);
   const rankings = ref.rankings.filter((r) => rankingActive(state, ref, r.slug)).map((r) => withDeadline(state, r));
   const publicRankings = ref.rankings.filter((r) => rankingPublic(state, ref, r.slug)).map((r) => withDeadline(state, r));
@@ -141,6 +142,7 @@ export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Pro
           const program = (e as EvidenceItem & { programId?: string }).programId;
           return viewer.portal.programId ? program === viewer.portal.programId || !program : reachable(e);
         });
+  const submissionTimes = variant === "office" ? await evidenceSubmissionTimes(evidence.map((e) => e.id)) : {};
   const unitName = viewer.portal.unitName;
   // A post's full text and pictures stay on the server: the workspaces list stories, and the post manager reads its own data.
   const ownUnit = (label: string) => label === unitName || label.startsWith(`${unitName} · `);
@@ -158,7 +160,7 @@ export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Pro
     deadlineDesk: variant === "office" && canWith(viewer.grants, "config", "edit") ? deadlineDesk(state, h.ref) : null,
     bodies: state.config.bodies.map((b) => ({ key: b.key, name: b.name, short: b.short, enabled: b.enabled })),
     units: h.units,
-    evidence,
+    evidence: evidence.map((e) => ({ ...e, ...(submissionTimes[e.id] ? { submittedAt: submissionTimes[e.id] } : {}) })),
     stories,
     dictionary: h.dictionary,
     cycles: state.config.cycles,

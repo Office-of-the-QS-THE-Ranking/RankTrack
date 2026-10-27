@@ -59,3 +59,5 @@ export async function portalContext() {
       : undefined,
   };
 }
+
+export type PortalContext = Awaited<ReturnType<typeof portalContext>>;

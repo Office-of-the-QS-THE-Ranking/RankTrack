@@ -6,7 +6,7 @@ import type { UnitKind } from "@/lib/data";
 import type { HubUnit } from "@/lib/governance/hub-types";
 import { UNIT_CATEGORY_TABS as CATEGORIES } from "@/lib/unit-categories";
 import { Icon } from "@/components/ui/Icon";
-import { Card, Empty, Kpi, Meter, MeterRow } from "@/components/ui/primitives";
+import { Card, Empty, MeterRow } from "@/components/ui/primitives";
 import { Tabs, TabPanel } from "@/components/ui/interactive";
 import { SearchField } from "@/components/ui/search-field";
 import { ClickableTableRow } from "@/components/ui/ClickableTableRow";
@@ -26,7 +26,6 @@ const KINDS: Record<Category, { kind: UnitKind; title: string; icon: "education"
 /** The directory remains the source for all categories, including units without submissions. */
 export function UnitParticipation({ units }: { units: HubUnit[] }) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
-  const [showOverview, setShowOverview] = useState(true);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<typeof VIEWS[number]>("Submissions");
   const { kind, title, icon } = KINDS[category];
@@ -37,13 +36,8 @@ export function UnitParticipation({ units }: { units: HubUnit[] }) {
   const UNITS = categoryUnits.filter(matches).sort((a, b) => a.name.localeCompare(b.name));
   const leaderboard = buildUnitLeaderboard(categoryUnits);
   const standings = leaderboard.filter(({ unit }) => matches(unit));
-  const leader = leaderboard.find((row) => row.rank === 1);
   const archived = units.filter((unit) => unit.status === "Archived" && unit.kind === kind && matches(unit)).sort((a, b) => a.name.localeCompare(b.name));
   const counts = Object.fromEntries(CATEGORIES.map((label) => [label, active.filter((unit) => unit.kind === KINDS[label].kind).length]));
-  const assigned = categoryUnits.reduce((a, u) => a + u.assigned, 0);
-  const completed = categoryUnits.reduce((a, u) => a + u.completed, 0);
-  const validated = categoryUnits.reduce((a, u) => a + u.validated, 0);
-  const assistance = categoryUnits.filter((u) => u.assistance).length;
 
   return (
     <>
@@ -54,36 +48,9 @@ export function UnitParticipation({ units }: { units: HubUnit[] }) {
         label="Unit categories"
         idBase="unit-participation"
         counts={counts}
-        actions={
-          <button
-            type="button"
-            className="btn content-tabs__action content-tabs__action--icon content-tabs__action--toggle"
-            aria-label="Overview"
-            aria-pressed={showOverview}
-            aria-controls="unit-participation-overview"
-            onClick={() => setShowOverview((visible) => !visible)}
-          >
-            <Icon name={showOverview ? "eye" : "eye-closed"} size={16} />
-          </button>
-        }
         search={<SearchField value={query} onChange={setQuery} placeholder="Search units" label={`Search ${title.toLowerCase()} by name, code or coordinator`} examples={SEARCH_EXAMPLES} shortcuts />}
       />
       <TabPanel idBase="unit-participation" index={CATEGORIES.indexOf(category)} className="stack">
-        <div id="unit-participation-overview" className="grid cols-4 grid--stretch" style={showOverview ? undefined : { display: "none" }}>
-          {view === "Submissions" ? <>
-            <Kpi label="Requirements assigned" icon="clipboard" value={assigned} meta={`across ${categoryUnits.length} units`} />
-            <Kpi label="Completed" icon="check-circle" value={completed} meta={`${Math.round((completed / Math.max(1, assigned)) * 100)}% of assigned`}>
-              <Meter value={(completed / Math.max(1, assigned)) * 100} label="Completed share" />
-            </Kpi>
-            <Kpi tone="dark" label="Validated" icon="evidence" value={validated} meta="accepted by reviewers" />
-            <Kpi tone="gold" label="Asked for assistance" icon="help" value={assistance} meta="The Office follows up within two working days" />
-          </> : <>
-            <Kpi label="Ranked units" icon="units" value={leaderboard.filter((row) => row.rank !== null).length} meta={`of ${categoryUnits.length} active units`} />
-            <Kpi label="Validated evidence" icon="evidence" value={validated} meta="across this category" />
-            <Kpi tone="dark" label="Leading validated total" icon="recognition" value={leader?.unit.validated ?? "—"} meta={leader ? "highest total in this category" : "No validated evidence yet"} />
-            <Kpi tone="gold" label="Leader’s rankings served" icon="rankings" value={leader?.unit.rankingsServed ?? "—"} meta={leader ? "supported by validated evidence" : "Awaiting validated evidence"} />
-          </>}
-        </div>
         <Card
           title={title}
           icon={view === "Rankings" ? "recognition" : icon}

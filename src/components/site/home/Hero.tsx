@@ -108,8 +108,8 @@ export async function HomeHero() {
           <Link href="/rankings" className="w-btn w-btn--light w-arch__cta">
             {results ? `See the ${latestEdition} results` : "See the eight rankings"}
           </Link>
-          <Link href="/impact" className="w-link">
-            Read the impact stories
+          <Link href="/publications/stories" className="w-link">
+            Read the stories
           </Link>
         </div>
         <div className="w-arch__door">

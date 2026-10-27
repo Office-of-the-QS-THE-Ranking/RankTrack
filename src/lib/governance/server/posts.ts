@@ -113,7 +113,7 @@ export async function postDesk(viewer: Viewer): Promise<PostDesk> {
       publish: viewerCan(viewer, "posts", "approve"),
     },
     needsApproval: !!ctx && needsApproval(ctx, "publication"),
-    live: featureOn(state, "public-impact") && datasetPublic(state, "DS-STORIES"),
+    live: featureOn(state, "public-publications") && datasetPublic(state, "DS-STORIES"),
     me: { name: viewer.name, unit: viewer.unitName, avatar: viewer.avatar },
   };
 }

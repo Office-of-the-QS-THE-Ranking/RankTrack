@@ -13,6 +13,7 @@ import { can, deny, log, ok, SYSTEM, type Ctx } from "./core";
 import * as data from "./data";
 import * as deadlines from "./deadlines";
 import * as directory from "./directory";
+import * as documents from "./documents";
 import * as posts from "./posts";
 import * as records from "./records";
 import * as requests from "./requests";
@@ -226,6 +227,12 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return posts.setPostStatus(ctx, cmd.id, cmd.status);
     case "post.delete":
       return posts.deletePost(ctx, cmd.id);
+    case "document.save":
+      return documents.saveDocument(ctx, cmd);
+    case "document.status":
+      return documents.setDocumentStatus(ctx, cmd.id, cmd.status);
+    case "document.delete":
+      return documents.deleteDocument(ctx, cmd.id);
     case "innovation.propose":
       return records.proposeInnovation(ctx, cmd.unitSlug, cmd.name, cmd.category);
     case "assistance.request":

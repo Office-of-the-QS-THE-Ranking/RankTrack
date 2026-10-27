@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/ui/primitives";
 import { Gate } from "@/components/hub/Gate";
-import { RequestAssistance } from "@/components/contribute/RequestAssistance";
+import { RequestAssistance } from "@/components/contributions/RequestAssistance";
 
 export const metadata = { title: "Request assistance" };
 

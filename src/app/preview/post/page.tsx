@@ -4,8 +4,8 @@ import { siteData } from "@/lib/governance/server/site";
 import { siteFontVars } from "@/components/site/fonts";
 import { InlineScript } from "@/components/site/InlineScript";
 import { SiteMotion } from "@/components/site/SiteMotion";
-import { PostPreviewView } from "@/components/site/impact/PostPreviewView";
-import { PreviewStrip } from "@/components/site/impact/PreviewStrip";
+import { PostPreviewView } from "@/components/site/publications/PostPreviewView";
+import { PreviewStrip } from "@/components/site/publications/PreviewStrip";
 
 export const metadata: Metadata = { title: "Preview", robots: { index: false } };
 

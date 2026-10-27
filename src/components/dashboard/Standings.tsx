@@ -114,8 +114,9 @@ export function Standings({ id, standing }: { id: string; standing: Standing }) 
   const { category, rows, mine, ranked, nudge } = standing;
   const most = Math.max(1, ...rows.map((r) => r.unit.validated));
   const at = mine ? rows.indexOf(mine) : -1;
-  // The leaders, then the unit with the units just above and below it.
-  const keep = new Set(rows.slice(0, 3).flatMap((r, i) => (r.rank === null ? [] : [i])));
+  // The leaders, then the unit with the units just above and below it; five leaders when it is one of them.
+  const leaders = mine?.rank && at < 3 ? 5 : 3;
+  const keep = new Set(rows.slice(0, leaders).flatMap((r, i) => (r.rank === null ? [] : [i])));
   if (mine) {
     keep.add(at);
     if (mine.rank !== null && at > 0) keep.add(at - 1);

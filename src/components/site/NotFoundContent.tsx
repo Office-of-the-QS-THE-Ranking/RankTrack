@@ -9,7 +9,7 @@ export async function NotFoundContent() {
   const { photos } = await serverViews();
   const NEXT = [
     { href: "/rankings", title: "The eight rankings", text: "Where UST stands in each of them, exactly as the ranking bodies published it.", photo: photos.aerial },
-    { href: "/impact", title: "Impact stories", text: "Thomasian practices with a measured outcome, told so other universities can adapt them.", photo: photos["arch-aerial"] },
+    { href: "/publications/stories", title: "Publications", text: "Stories with a measured outcome, research by Thomasian authors, and the Office’s reports.", photo: photos["arch-aerial"] },
     { href: "/knowledge", title: "How the rankings work", text: "Every method in plain language, the shared indicators and the evidence standard.", photo: photos.library },
     { href: "/about", title: "About the Office", text: "Who keeps the University’s ranking record, how the data is governed and how to write in.", photo: photos.day },
   ];

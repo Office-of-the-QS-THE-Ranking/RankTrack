@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
+import { documentPath } from "@/lib/governance/documents";
 import { evidencePath } from "@/lib/governance/evidence-files";
 import { mediaPath } from "@/lib/governance/posts";
 import { evidenceList } from "@/lib/governance/records";
 import { emblemPath } from "@/lib/governance/unit-emblems";
-import { ensurePublished, publicEmblems, publicMedia } from "@/lib/governance/server/media";
+import { ensurePublished, publicDocuments, publicEmblems, publicMedia } from "@/lib/governance/server/media";
 import { publicUrl, streamObject, type Bucket } from "@/lib/r2";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
@@ -32,7 +33,8 @@ async function serve(bucket: Bucket, path: string, cache: string, download?: str
  * A file from the media buckets. A post's picture is open to anyone while a published post shows it; until then
  * (drafts, posts in review, unpublished ones, uploads not yet saved) only people who manage posts can see it. A
  * unit's logo is open to anyone once a unit carries it; before that, only to people who edit the Directory. A
- * file attached to evidence goes only to people who may see that record, as a download. The website's
+ * file attached to evidence goes only to people who may see that record, as a download; so does a document's PDF,
+ * to anyone once its article or report is published. The website's
  * photographs, SDG icons and the units' official arms are open to anyone. Public pictures come from the public
  * bucket: a redirect when it has a custom domain (publicUrl), otherwise streamed from here with headers that let
  * Vercel's CDN cache them; the rest are streamed from the private bucket.
@@ -56,6 +58,20 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
       if (file && viewerCan(viewer, "evidence", "view", { unitId: e.programId ?? e.unitSlug })) return serve("private", evidence, "private, no-store", file.name);
     }
     return missing();
+  }
+
+  const doc = documentPath(src);
+  if (doc) {
+    // A published article's or report's PDF is open to anyone, as a download; until then only to people who manage posts.
+    const state = await readState();
+    const record = state.records.documents.find((d) => d.file?.src === src);
+    if (!record?.file) return missing();
+    if (!publicDocuments(state).has(src)) {
+      if (!viewerCan(await getViewer(), "posts", "view")) return missing();
+      return serve("private", doc, "private, no-store", record.file.name);
+    }
+    if (!(await ensurePublished(doc).catch((e: unknown) => (console.error(e), false)))) return missing();
+    return serve("public", doc, "public, max-age=3600, s-maxage=3600, stale-while-revalidate=600", record.file.name);
   }
 
   const post = mediaPath(src);

@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/ui/primitives";
 import { Gate } from "@/components/hub/Gate";
-import { ProposeInnovation } from "@/components/contribute/ProposeInnovation";
+import { ProposeInnovation } from "@/components/contributions/ProposeInnovation";
 
 export const metadata = { title: "Propose an innovation" };
 

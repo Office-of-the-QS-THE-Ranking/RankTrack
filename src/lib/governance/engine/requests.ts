@@ -12,7 +12,7 @@ import { profileOf } from "../person-details";
 import { canWith, grantCheck, grantsFor, has } from "../rbac";
 import type { ApprovalRequest, RequestPayload, WorkflowKey } from "../types";
 import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
-import { addAssignment, addDataGrant, createAccount, createUnit, publishStory } from "./mutations";
+import { addAssignment, addDataGrant, createAccount, createUnit, publishDocument, publishStory } from "./mutations";
 import { validUnitEmblem } from "../unit-emblems";
 
 export function workflowOn(ctx: Ctx, id: WorkflowKey) {
@@ -125,6 +125,10 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
       if (p.target === "story") {
         const proposal = ctx.state.records.proposals.find((x) => x.slug === p.id);
         publishStory(ctx, p.id, p.title, proposal?.unitSlug ?? (p.id === "flood-resilience" ? "engineering" : undefined));
+      } else if (p.target === "document") {
+        const doc = ctx.state.records.documents.find((d) => d.id === p.id);
+        if (!doc) return "The document no longer exists.";
+        publishDocument(ctx, doc);
       } else {
         ctx.state.records.publishedReports.unshift({ id: p.id, title: p.title, at: ctx.iso, by: ctx.actor.id });
         log(ctx, "report.publish", "Approval", { type: "Report", id: p.id, label: p.title }, "Success", "Approved for release outside the Office");
@@ -207,12 +211,12 @@ export function cancel(ctx: Ctx, id: string): CommandResult {
   return ok("Request withdrawn.");
 }
 
-/** A post waiting on a publication request goes back to where it was when the request closes unapproved. */
+/** A post or document waiting on a publication request goes back to where it was when the request closes unapproved. */
 function returnPost(ctx: Ctx, req: ApprovalRequest) {
   const p = req.payload;
-  if (p.kind !== "publication" || p.target !== "story") return;
-  const post = ctx.state.records.posts.find((x) => x.slug === p.id);
-  if (post?.status === "In review") post.status = post.publishedAt ? "Unpublished" : "Draft";
+  if (p.kind !== "publication" || p.target === "report") return;
+  const item = p.target === "story" ? ctx.state.records.posts.find((x) => x.slug === p.id) : ctx.state.records.documents.find((x) => x.id === p.id);
+  if (item?.status === "In review") item.status = item.publishedAt ? "Unpublished" : "Draft";
 }
 
 /** A request opened directly (from the console or a workspace), validated by kind. */

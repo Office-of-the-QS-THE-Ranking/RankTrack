@@ -59,7 +59,7 @@ export function Submissions({ season }: { season: Season }) {
                 const merit = meritOf(e);
                 const counts = rankingsOf(e);
                 return (
-                  <ClickableTableRow key={e.id} href={`/admin/contribute?item=${e.id}`}>
+                  <ClickableTableRow key={e.id} href={`/admin/contributions?item=${e.id}`}>
                     <td>
                       <span className="up-sub__title">{e.title}</span>
                       <span className="table__sub">
@@ -78,7 +78,7 @@ export function Submissions({ season }: { season: Season }) {
                       {merit ? <span className="up-merit">+{merit}</span> : <span className="muted">—</span>}
                     </td>
                     <td className="r">
-                      <Link href={`/admin/contribute?item=${e.id}`} className="btn btn--ghost btn--sm btn--icon" aria-label={`Open ${e.id} in the review queue`}>
+                      <Link href={`/admin/contributions?item=${e.id}`} className="btn btn--ghost btn--sm btn--icon" aria-label={`Open ${e.id} in the review queue`}>
                         <Icon name="chevron" size={16} />
                       </Link>
                     </td>

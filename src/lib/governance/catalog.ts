@@ -26,7 +26,7 @@ export const MODULES: ModuleInfo[] = [
   { key: "dashboard", label: "Executive dashboard", group: "Workspaces", actions: ["view", "export"] },
   { key: "rankings", label: "Rankings and indicators", group: "Workspaces", actions: ["view", "edit", "export", "manage"] },
   { key: "units", label: "Unit participation", group: "Workspaces", actions: ["view", "export"] },
-  { key: "posts", label: "Impact and Innovation posts", group: "Workspaces", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "posts", label: "Publications", group: "Workspaces", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "reports", label: "Reports", group: "Workspaces", actions: ["view", "create", "export"] },
   { key: "knowledge", label: "Knowledge Center", group: "Workspaces", actions: ["view", "edit"] },
   { key: "evidence", label: "Evidence submissions", group: "Contributions", actions: ["view", "create", "edit", "delete", "submit", "approve", "export"] },

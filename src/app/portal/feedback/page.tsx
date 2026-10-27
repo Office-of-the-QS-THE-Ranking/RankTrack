@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/ui/primitives";
 import { Gate } from "@/components/hub/Gate";
-import { Feedback } from "@/components/contribute/Feedback";
+import { Feedback } from "@/components/contributions/Feedback";
 
 export const metadata = { title: "Validation comments" };
 

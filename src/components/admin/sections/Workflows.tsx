@@ -192,7 +192,7 @@ function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]
     case "data-access":
       return [["For", person(p.accountId)], ["Dataset", data.catalog.datasets.find((d) => d.id === p.datasetId)?.name ?? p.datasetId], ["Access", p.access], ["Until", fmtDate(p.until)]];
     case "publication":
-      return [["Publishes", p.target === "story" ? "Impact story, on the public website" : "Report, outside the Office"], ["Title", p.title]];
+      return [["Publishes", p.target === "story" ? "Story, on the public website" : p.target === "document" ? "Article or report, on the public website" : "Report, outside the Office"], ["Title", p.title]];
     case "destructive":
       return [["Operation", p.operation === "restore" ? "Restore from a recovery point" : "Delete a recovery point"], ["Recovery point", p.snapshotId]];
   }

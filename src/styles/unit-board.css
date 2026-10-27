@@ -1,0 +1,669 @@
+/*
+ * The coordinator's dashboard (/portal): the Office dashboard's tiles (overview.css) with the unit's own
+ * pieces. Gold is the unit: its place, its column in the field and its readiness. Ink is everyone else.
+ */
+
+.ud {
+  --ud-gold: linear-gradient(180deg, var(--gold-300), var(--gold-600));
+  --ud-nudge-bg: #1d1d1f;
+  --ud-nudge-fg: #fff;
+  --ud-nudge-num: var(--gold-300);
+}
+:root[data-theme="dark"] .ud {
+  --ud-nudge-bg: #f5f5f7;
+  --ud-nudge-fg: #1d1d1f;
+  --ud-nudge-num: #a87a00;
+}
+
+/* ---------- Head: the unit beside the title ---------- */
+.ud-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 30px;
+  margin-left: 6px;
+  padding: 0 12px 0 6px;
+  border-radius: 999px;
+  background: rgb(var(--glass) / 0.7);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--hair) / 0.07),
+    0 1px 2px rgb(0 0 0 / 0.04);
+  color: var(--text-2);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ud-unit__mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  font-size: 8px;
+  font-weight: 700;
+}
+.ud-unit__mark.unit-mark {
+  background: none;
+}
+
+/* ---------- Bento ---------- */
+/* Half-width tiles pair up past the full-width ones between them */
+.ud-bento {
+  grid-auto-flow: row dense;
+}
+@container content (min-width: 620px) {
+  .ud-bento > .ud-ready,
+  .ud-bento > .ov-next,
+  .ud-bento > .ud-hon,
+  .ud-bento > .ud-reach {
+    grid-column: span 6;
+  }
+}
+@container content (min-width: 960px) {
+  .ud-bento > .ud-stand {
+    grid-column: span 7;
+    grid-row: span 2;
+  }
+  .ud-bento > .ud-ready,
+  .ud-bento > .ov-next,
+  .ud-bento > .ud-hon,
+  .ud-bento > .ud-reach {
+    grid-column: span 5;
+  }
+  .ud-bento > .ud-todo,
+  .ud-bento > .ud-flow {
+    grid-column: span 7;
+  }
+}
+
+.ud-aside {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- Standings: place, nudge, the field, the ladder ---------- */
+.ud-stand .ov-tile__core {
+  background:
+    radial-gradient(60% 46% at 0% 0%, var(--gold-tint), transparent 72%),
+    radial-gradient(40% 40% at 100% 100%, rgb(var(--hair) / 0.025), transparent 70%),
+    var(--surface);
+}
+.ud-stand__icon {
+  color: var(--gold-600);
+}
+.ud-stand__top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+}
+
+.ud-place {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  width: 138px;
+  height: 128px;
+  margin: -6px 0 -4px -8px;
+}
+.ud-laurel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ud-laurel__stem {
+  fill: none;
+  stroke: var(--gold-500);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.ud-laurel__leaf {
+  fill: var(--gold-400);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ud-laurel__leaf:nth-child(odd) {
+  fill: var(--gold-600);
+}
+.ud-place.is-off .ud-laurel__stem {
+  stroke: rgb(var(--hair) / 0.2);
+}
+.ud-place.is-off .ud-laurel__leaf {
+  fill: rgb(var(--hair) / 0.1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ud-laurel__leaf {
+    animation: ud-leaf 520ms var(--ease-out) both;
+    animation-delay: calc(120ms + var(--i) * 55ms);
+  }
+}
+@keyframes ud-leaf {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+.ud-place__n {
+  position: relative;
+  font-size: 50px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ud-place__n small {
+  margin-right: 1px;
+  font-size: 0.46em;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: 0.82em;
+  color: var(--gold-700);
+}
+.ud-place.is-off .ud-place__n {
+  color: var(--text-3);
+}
+.ud-place__of {
+  position: relative;
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.ud-stand__lede {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+}
+.ud-nudge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 6px 16px 6px 12px;
+  border-radius: 999px;
+  background: var(--ud-nudge-bg);
+  color: var(--ud-nudge-fg);
+  font-size: 13.5px;
+  line-height: 1.25;
+  box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.5);
+}
+.ud-nudge > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ud-nudge b {
+  font-weight: 700;
+  color: var(--ud-nudge-num);
+}
+.ud-nudge > svg {
+  flex: none;
+  color: var(--ud-nudge-num);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ud-nudge > svg {
+    animation: ud-bob 2.4s var(--ease-out) 600ms infinite;
+  }
+  .ud-nudge.is-lead > svg {
+    animation: none;
+  }
+}
+@keyframes ud-bob {
+  0%,
+  60%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(-3px);
+  }
+}
+.ud-nudge__name {
+  font-weight: 600;
+}
+.ud-stand__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+}
+.ud-stand__stats dt {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.ud-stand__stats dd {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The field: a column per unit in place order, the unit's own in gold */
+.ud-sky {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 104px;
+  padding: 22px 2px 0;
+  border-bottom: 1px solid var(--border-strong);
+}
+.ud-sky i {
+  position: relative;
+  flex: 1;
+  max-width: 26px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.ud-sky b {
+  display: block;
+  width: 100%;
+  height: var(--v);
+  border-radius: 5px 5px 1px 1px;
+  background: rgb(var(--hair) / 0.1);
+  transform-origin: bottom;
+  transition: background-color var(--t) ease;
+}
+.ud-sky .is-top b {
+  background: linear-gradient(180deg, var(--n-500), var(--ink));
+}
+.ud-sky .is-off b {
+  background: rgb(var(--hair) / 0.06);
+}
+.ud-sky .is-you b {
+  background: var(--ud-gold);
+  box-shadow: 0 6px 16px -6px rgb(242 183 5 / 0.7);
+}
+@media (hover: hover) {
+  .ud-sky i:not(.is-you):hover b {
+    background: rgb(var(--hair) / 0.24);
+  }
+  .ud-sky .is-top:hover b {
+    background: var(--ink);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ud-sky b {
+    animation: ov-rise 900ms var(--ease-out) both;
+    animation-delay: calc(var(--i) * 24ms);
+  }
+}
+.ud-sky__you {
+  position: absolute;
+  bottom: calc(var(--v) + 6px);
+  left: 50%;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--gold-500);
+  color: #1d1d1f;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 6px -2px rgb(0 0 0 / 0.3);
+}
+.ud-sky.is-empty b {
+  background: none;
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.14);
+  height: 30%;
+}
+
+/* The ladder: leaders, then the unit between its neighbours */
+.ud-ladder {
+  display: grid;
+  gap: 2px;
+  margin: -4px -8px -8px;
+}
+.ud-rung {
+  display: grid;
+  grid-template-columns: 28px 30px minmax(0, 1fr) minmax(48px, 22%) 30px;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 12px;
+}
+.ud-rung.is-you {
+  background: linear-gradient(90deg, var(--gold-50), transparent 90%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-500) 32%, transparent);
+}
+.ud-rung__place {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Gold, silver and bronze for the first three places */
+.ud-rung[data-place] .ud-rung__place {
+  color: #1d1d1f;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 2px rgb(0 0 0 / 0.18),
+    0 2px 5px -2px rgb(0 0 0 / 0.35);
+}
+.ud-rung[data-place="1"] .ud-rung__place {
+  background: radial-gradient(circle at 35% 28%, #ffe9a3, #f2b705 55%, #b98a00);
+}
+.ud-rung[data-place="2"] .ud-rung__place {
+  background: radial-gradient(circle at 35% 28%, #ffffff, #c9ccd3 55%, #8e939c);
+}
+.ud-rung[data-place="3"] .ud-rung__place {
+  background: radial-gradient(circle at 35% 28%, #ffd9b8, #c98a56 55%, #8a5630);
+  color: #fff;
+}
+.ud-rung__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.ud-rung__mark.unit-mark {
+  background: none;
+}
+.ud-rung__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.ud-rung__name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ud-rung.is-you .ud-rung__name {
+  font-weight: 600;
+}
+.ud-you {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--gold-500);
+  color: #1d1d1f;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.ud-rung__bar {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(var(--hair) / 0.06);
+}
+.ud-rung__bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--v);
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--n-500), var(--ink));
+  transform-origin: left;
+}
+.ud-rung.is-you .ud-rung__bar i {
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-600));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ud-rung__bar i {
+    animation: ov-grow 900ms var(--ease-out) both;
+    animation-delay: calc(200ms + var(--i) * 60ms);
+  }
+}
+.ud-rung__n {
+  text-align: right;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ud-ladder__gap {
+  display: grid;
+  place-items: center;
+  height: 14px;
+}
+.ud-ladder__gap span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.22);
+  box-shadow:
+    -9px 0 0 rgb(var(--hair) / 0.22),
+    9px 0 0 rgb(var(--hair) / 0.22);
+}
+.ud-stand__none {
+  margin: auto 0;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* ---------- Submission-ready ---------- */
+.ud-big {
+  font-size: 64px;
+  letter-spacing: -0.05em;
+}
+.ud-big small {
+  font-size: 22px;
+  font-weight: 600;
+}
+.ud-ready .ov-meter {
+  height: 56px;
+  padding-top: 8px;
+}
+
+/* ---------- Next up: worked through ---------- */
+.ud-clear {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: auto 0;
+  padding: 4px 0 6px;
+}
+.ud-clear .cv-art {
+  width: 150px;
+  height: 105px;
+}
+.ud-clear p {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ---------- Honours: the season's dial on onyx ---------- */
+.ud-hon .ov-tile__core {
+  --tick-off: rgb(255 255 255 / 0.14);
+  color: #f5f5f7;
+  background:
+    radial-gradient(70% 90% at 100% 0%, rgb(247 207 94 / 0.16), transparent 65%),
+    radial-gradient(circle at 88% 18%, rgb(247 207 94 / 0.7) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 9%, rgb(247 207 94 / 0.45) 0 0.8px, transparent 1.4px),
+    linear-gradient(160deg, #17130b 0%, #0b0a07 55%, #050505 100%);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 16px 32px -22px rgb(0 0 0 / 0.6);
+}
+.ud-hon .ov-tile__title {
+  color: #fff;
+}
+.ud-hon .ud-aside {
+  background: rgb(255 255 255 / 0.08);
+  color: rgb(235 235 245 / 0.7);
+}
+.ud-hon__main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.ud-hon__text {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.ud-hon__name {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--gold-300);
+}
+.ud-hon__merit {
+  font-size: 13px;
+  color: rgb(235 235 245 / 0.64);
+}
+.ud-hon__merit b {
+  margin-right: 2px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.ud-hon__next {
+  font-size: 12.5px;
+  color: rgb(235 235 245 / 0.6);
+}
+.ud-hon__next b {
+  color: var(--gold-300);
+  font-weight: 700;
+}
+.ud-hon__medals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+.ud-hon__medals li {
+  display: grid;
+}
+@media (hover: hover) {
+  .ud-hon__medals .medal {
+    transition: transform 260ms var(--ease-out);
+  }
+  .ud-hon__medals li:hover .medal {
+    transform: translateY(-3px) rotate(-6deg);
+  }
+}
+
+/* ---------- Your submissions ---------- */
+.ud-flow .cv-flow {
+  margin-top: 4px;
+}
+
+/* ---------- Where it counts ---------- */
+.ud-reach .ov-bars__row {
+  color: var(--text-2);
+}
+.ud-reach .ov-bars__fill {
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
+}
+.ud-reach .empty {
+  margin: auto 0;
+}
+.ud-reach__more {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.ud-reach__more > div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.ud-reach__more dt {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.ud-reach__more dd {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.ud-reach__more dd b {
+  color: var(--text);
+}
+.ud-reach__helped {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ud-reach__helped svg {
+  color: var(--ok);
+}
+.ud-reach__helped span {
+  color: var(--text-3);
+}
+.ud-reach__owned {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- Narrow screens ---------- */
+@container content (max-width: 619px) {
+  .ud-unit {
+    margin-left: 0;
+  }
+  .ov__title-row:has(.ud-unit) {
+    flex-wrap: wrap;
+  }
+  .ud-big {
+    font-size: 52px;
+  }
+  .ud-rung {
+    grid-template-columns: 26px 28px minmax(0, 1fr) 28px;
+  }
+  .ud-rung__bar {
+    display: none;
+  }
+  .ud-sky {
+    gap: 3px;
+  }
+  .ud-hon__main {
+    gap: 14px;
+  }
+}

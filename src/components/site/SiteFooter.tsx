@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { formatAsOf } from "@/lib/data";
+import { publicationsPath } from "@/lib/publications";
 import { siteData, type SiteData } from "@/lib/governance/server/site";
 import { UNIVERSITY } from "./Lockup";
 import { Stars } from "./Stars";
@@ -17,7 +18,7 @@ const columns = (site: SiteData) => [
     label: "Explore",
     links: [
       { href: "/rankings", label: "All rankings" },
-      ...(site.features.impact ? [{ href: "/impact", label: "Impact and innovation" }] : []),
+      ...(site.features.publications ? [{ href: publicationsPath("stories"), label: "Publications" }] : []),
       ...(site.features.recognition ? [{ href: "/recognition", label: "Recognition" }] : []),
       ...(site.features.knowledge ? [{ href: "/knowledge", label: "Knowledge center" }] : []),
       { href: "/about", label: "About the Office" },

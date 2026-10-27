@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { NAV, type Variant } from "./nav";
 import { useViews } from "@/components/reference/ReferenceProvider";
+import { PUBLICATION_SECTIONS } from "@/lib/publications";
 
 export function HeaderBreadcrumbs({ variant }: { variant: Variant }) {
   const { rankings } = useViews();
@@ -16,9 +17,10 @@ export function HeaderBreadcrumbs({ variant }: { variant: Variant }) {
     const href = "/" + segments.slice(0, index + 1).join("/");
     const item = navItems.find((entry) => entry.href === href);
     const ranking = index > 1 && segments[1] === "rankings" ? rankings.find((entry) => entry.slug === segment) : undefined;
+    const section = index > 1 && segments[1] === "publications" ? PUBLICATION_SECTIONS.find((entry) => entry.key === segment) : undefined;
     return {
       href,
-      label: item?.label ?? ranking?.short ?? segment.replace(/-/g, " ").replace(/^./, (letter) => letter.toUpperCase()),
+      label: item?.label ?? ranking?.short ?? section?.label ?? segment.replace(/-/g, " ").replace(/^./, (letter) => letter.toUpperCase()),
     };
   });
 

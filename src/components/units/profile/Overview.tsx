@@ -5,7 +5,7 @@ import type { UnitProfileData } from "@/lib/governance/hub-types";
 import { ROMAN, metalOf, meritOf, rankingsOf, type AchievementState, type Season } from "@/lib/merit";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Due, Empty, Meter, RankingName, Ring, SdgList, Status } from "@/components/ui/primitives";
-import { StageTrack } from "@/components/contribute/StageTrack";
+import { StageTrack } from "@/components/contributions/StageTrack";
 import { CountUp, HonourDial, Medal } from "./Medal";
 import { ItemTitle, SectionTitle, useSectionLevel, type ProfileTab } from "./shared";
 
@@ -262,7 +262,7 @@ export function Overview({
                     <p>{e.comments[0].text}</p>
                   </div>
                 )}
-                <Link href={`/admin/contribute?item=${e.id}`} className="btn btn--dark">
+                <Link href={`/admin/contributions?item=${e.id}`} className="btn btn--dark">
                   <Icon name="comment" size={18} /> Open in the queue
                 </Link>
               </div>

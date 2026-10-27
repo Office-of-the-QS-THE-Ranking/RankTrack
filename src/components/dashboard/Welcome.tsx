@@ -81,7 +81,7 @@ export function OfficeWelcome({ h, viewer }: { h: Hub; viewer: Viewer | null }) 
       line={due ? `${work} ${due}` : work}
       action={
         review > 0
-          ? { href: "/admin/contribute", label: "Review submissions" }
+          ? { href: "/admin/contributions", label: "Review submissions" }
           : next && { href: `/admin/rankings/${next.slug}`, label: `Open ${next.short}` }
       }
     />

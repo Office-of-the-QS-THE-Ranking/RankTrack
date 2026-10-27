@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { checkCommand } from "@/lib/governance/command-guard";
 import type { Command, CommandResult } from "@/lib/governance/commands";
 import type { ConsoleData } from "@/lib/governance/console-types";
+import { DOC_LIMITS, documentPath } from "@/lib/governance/documents";
 import { log } from "@/lib/governance/engine/core";
 import { evidencePath } from "@/lib/governance/evidence-files";
 import { canWith } from "@/lib/governance/rbac";
@@ -26,10 +27,21 @@ const BUSY: CommandResult = { ok: false, message: "Too many changes in a short t
 const EXPORT_MAX = 10_000;
 
 /**
- * Files named by evidence.submit and evidence.respond must be uploads that exist, within the upload limit; their
- * sizes come from storage, not from what the browser said.
+ * Files named by evidence.submit, evidence.respond and document.save must be uploads that exist, within the upload
+ * limit; their sizes come from storage, not from what the browser said.
  */
 async function checkAttachments(cmd: Command): Promise<string | null> {
+  if (cmd.type === "document.save") {
+    const f = cmd.input?.file;
+    if (!f) return null;
+    const path = typeof f === "object" && typeof f.src === "string" ? documentPath(f.src) : null;
+    if (!path) return "The PDF didn’t finish uploading. Remove it and add it again.";
+    const stat = await statObject("private", path).catch(() => null);
+    if (!stat) return "The PDF didn’t finish uploading. Remove it and add it again.";
+    if (stat.size > DOC_LIMITS.fileMb * 1_048_576) return `The PDF is larger than ${DOC_LIMITS.fileMb} MB.`;
+    f.sizeMB = Math.round((stat.size / 1_048_576) * 10) / 10;
+    return null;
+  }
   const files =
     cmd.type === "evidence.submit" ? cmd.input?.files : cmd.type === "evidence.respond" && cmd.file && typeof cmd.file === "object" ? [cmd.file] : null;
   if (!files) return null;

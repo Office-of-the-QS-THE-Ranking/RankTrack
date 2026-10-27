@@ -1658,7 +1658,7 @@ a.matrix__col:hover {
   color: var(--ok);
 }
 
-/* ---------- Impact and Innovation ---------- */
+/* ---------- Publications: story library ---------- */
 .impact-summary {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);

@@ -4,7 +4,7 @@ import { PUBLISHED_STORIES, type Ranking } from "@/lib/data";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Card, Direction, Swatch, Trend } from "@/components/ui/primitives";
 import { ChartFrame, RankTrajectory, Sparkline, TrajectoryTable } from "@/components/charts/charts";
-import { StoryCard } from "@/components/impact/StoryCard";
+import { StoryCard } from "@/components/publications/StoryCard";
 import { PublicRankingHeader } from "./RankingHeader";
 import { AreaLegend, Quadrant, SdgBoard, WuriCategories } from "./SpecialDashboard";
 import { serverViews } from "@/lib/governance/server/views";
@@ -134,7 +134,7 @@ export async function PublicRankingView({ ranking: r }: { ranking: Ranking }) {
           </div>
           <div className="grid cols-3 grid--stretch">
             {stories.slice(0, 3).map((s) => (
-              <StoryCard key={s.slug} story={s} href={`/impact/${s.slug}`} />
+              <StoryCard key={s.slug} story={s} href={`/publications/stories/${s.slug}`} />
             ))}
           </div>
         </section>

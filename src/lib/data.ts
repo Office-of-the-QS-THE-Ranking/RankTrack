@@ -121,6 +121,8 @@ export interface EvidenceItem {
   type: string;
   period: string;
   submitted: string;
+  /** Exact initial submission time, recovered from the audit trail when available. */
+  submittedAt?: string;
   submittedBy: string;
   submittedById?: string;
   status: EvidenceStatus;
@@ -134,7 +136,11 @@ export interface EvidenceItem {
   beneficiaries: string;
   files: string[];
   /** Uploaded files, downloadable from /media/evidence/… by people who may see the record. */
-  attachments?: { name: string; src: string; bytes: number }[];
+  attachments?: { name: string; src: string; bytes: number; kind?: string }[];
+  background?: string;
+  verifiedBy?: string;
+  links?: { url: string; label: string }[];
+  references?: { title: string; source: string; url: string }[];
   comments: { by: string; role: string; date: string; text: string }[];
 }
 
@@ -160,7 +166,7 @@ export const ENGINEERING_REQUIREMENTS: Requirement[] = DEMO_ON ? demo.requiremen
    challenge → Thomasian response → implementation → measurable outcome → beneficiaries →
    SDG/ranking alignment → replication guidance. Only "Published" stories reach the public view. */
 /** One of the impact themes in Supabase (reference_lists "impact-theme"). */
-export type ImpactTheme = string;
+export type StoryTheme = string;
 
 export interface Story {
   slug: string;
@@ -169,7 +175,7 @@ export interface Story {
   kind: "SDG story" | "Innovation" | "Campus sustainability" | "Research" | "Partnership";
   state: "Published" | "In review" | "Draft";
   year: number;
-  themes: ImpactTheme[];
+  themes: StoryTheme[];
   sdgs: number[];
   rankings: string[];
   challenge: string;

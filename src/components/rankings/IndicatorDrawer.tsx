@@ -47,7 +47,7 @@ export function IndicatorDrawer({ ranking, indicator, onClose }: { ranking: Rank
                 <Icon name="research" size={18} /> Open diagnostic
               </Link>
             )}
-            <Link href="/admin/contribute" className="btn btn--dark">
+            <Link href="/admin/contributions" className="btn btn--dark">
               <Icon name="evidence" size={18} /> Review evidence
             </Link>
           </>
@@ -135,7 +135,7 @@ export function IndicatorDrawer({ ranking, indicator, onClose }: { ranking: Rank
               <ul className="list">
                 {evidence.map((e) => (
                   <li key={e.id}>
-                    <Link href={`/admin/contribute?item=${e.id}`} className="list__main">
+                    <Link href={`/admin/contributions?item=${e.id}`} className="list__main">
                       {e.title}
                     </Link>
                     <span className="list__aside">

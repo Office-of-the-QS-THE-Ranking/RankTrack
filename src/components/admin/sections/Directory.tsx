@@ -9,7 +9,7 @@ import type { OrgKind } from "@/lib/governance/types";
 import { EMBLEM_MAX_MB, EMBLEM_MAX_SIDE, EMBLEM_PICK_TYPES, EMBLEM_TYPES, emblemOf, officialEmblem } from "@/lib/governance/unit-emblems";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import { viewerCan } from "@/lib/governance/viewer";
-import { prepare, upload } from "@/components/impact/media";
+import { prepare, upload } from "@/components/publications/media";
 import { Icon } from "@/components/ui/Icon";
 import { toast } from "@/components/ui/toast";
 import { UnitMark } from "@/components/units/UnitMark";

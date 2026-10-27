@@ -6,6 +6,7 @@
  */
 import type { IconName } from "@/components/ui/Icon";
 import { RECOGNITION } from "@/lib/data";
+import { PUBLICATION_SECTIONS, PUBLICATIONS_LABEL, PUBLICATIONS_PATH, publicationsPath, storyPath } from "@/lib/publications";
 import { familyOf, type Photo, type Reference } from "@/lib/reference";
 
 export type MenuPreview = { title: string; text: string; photo: Photo };
@@ -114,17 +115,20 @@ export const allMenus = (ref: Reference): Menu[] => {
     },
   },
   {
-    href: "/impact",
-    label: "Impact",
-    title: "Impact",
-    description: "Explore the stories and evidence behind UST’s impact.",
-    cta: "Explore impact",
+    href: PUBLICATIONS_PATH,
+    label: PUBLICATIONS_LABEL,
+    title: PUBLICATIONS_LABEL,
+    description: "Stories, research and reports from across the University.",
+    cta: "Explore publications",
     photo: PHOTOS["arch-aerial"],
     groups: [
+      {
+        links: PUBLICATION_SECTIONS.map((s) => ({ label: s.label, href: publicationsPath(s.key), icon: s.icon, note: s.note })),
+      },
     ],
     strip: {
-      text: "Every story names the units behind it and the rankings its evidence counts in.",
-      link: { label: "All impact stories", href: "/impact#stories" },
+      text: "Everything here passed the Office’s publication review.",
+      link: { label: "Latest stories", href: publicationsPath("stories") },
     },
   },
   {
@@ -212,15 +216,15 @@ export const allMenus = (ref: Reference): Menu[] => {
 
 /**
  * The menus as governance allows them: links to rankings the public website does not show are dropped,
- * the impact panel lists only published stories, and sections switched off in System Configuration leave
+ * the Publications panel lists only published stories, and sections switched off in System Configuration leave
  * the header.
  */
 export function governedMenus(ref: Reference, opts: {
   publicSlugs: string[];
   stories: { slug: string; title: string; unit: string; outcome: string; images: string[] }[];
-  features: { impact: boolean; recognition: boolean; knowledge: boolean };
+  features: { publications: boolean; recognition: boolean; knowledge: boolean };
 }): Menu[] {
-  const off = new Set([!opts.features.impact && "/impact", !opts.features.recognition && "/recognition", !opts.features.knowledge && "/knowledge"].filter(Boolean));
+  const off = new Set([!opts.features.publications && PUBLICATIONS_PATH, !opts.features.recognition && "/recognition", !opts.features.knowledge && "/knowledge"].filter(Boolean));
   return allMenus(ref).filter((m) => !off.has(m.href)).map((m) => {
     if (m.href === "/rankings")
       return {
@@ -229,15 +233,16 @@ export function governedMenus(ref: Reference, opts: {
           .map((g) => ({ ...g, links: g.links.filter((l) => !l.href.startsWith("/rankings/") || opts.publicSlugs.includes(l.href.slice("/rankings/".length))) }))
           .filter((g) => g.links.length),
       };
-    if (m.href === "/impact")
+    if (m.href === PUBLICATIONS_PATH)
       return {
         ...m,
         groups: [
+          { label: "Sections", links: m.groups[0].links },
           {
             label: "Latest stories",
-            links: opts.stories.slice(0, 6).map((s) => ({
+            links: opts.stories.slice(0, 3).map((s) => ({
               label: s.title,
-              href: `/impact/${s.slug}`,
+              href: storyPath(s.slug),
               note: s.unit,
               preview: { title: s.title, text: s.outcome, photo: storyPhoto(ref, s.images[0]) },
             })),
