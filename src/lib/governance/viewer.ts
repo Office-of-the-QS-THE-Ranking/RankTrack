@@ -18,8 +18,9 @@ export interface Viewer {
   external: boolean;
   unitId: string;
   unitName: string;
-  roles: { id: RoleId; name: string; scope: string; expires?: string }[];
-  /** The highest role, for labels. */
+  /** Every role they hold; exactly one is active, and only its permissions are in `grants`. */
+  roles: { assignmentId: string; id: RoleId; name: string; scope: string; expires?: string; active: boolean }[];
+  /** The active role, for labels. */
   roleName: string;
   grants: Grant[];
   perms: PermissionSet;

@@ -12,7 +12,7 @@ import { domainAllowed, workspacesOf } from "../derive";
 import { raiseAlert } from "../engine";
 import { log, type Ctx } from "../engine/core";
 import { addAssignment, createAccount } from "../engine/mutations";
-import { activeAssignments, grantsFor, runsHub, today, topGrant, UNIVERSITY } from "../rbac";
+import { actingGrants, activeAssignments, grantsFor, runsHub, today, UNIVERSITY } from "../rbac";
 import type { Account, GovernanceState } from "../types";
 import { runSystem } from "./run";
 import { readState } from "./store";
@@ -34,9 +34,9 @@ export function deviceOf(ua: string) {
   return `${browser} on ${os}`;
 }
 
-/** Where someone lands: the page they asked for if their workspaces include it, else their own workspace. */
+/** Where someone lands: the page they asked for if their active role's workspaces include it, else that role's workspace. */
 export function landing(state: GovernanceState, a: Account, next?: string) {
-  const ws = workspacesOf(grantsFor(a, state.units, today()));
+  const ws = workspacesOf(actingGrants(a, state.units, today()));
   if (next?.startsWith("/admin") && ws.includes("office")) return next;
   if (next?.startsWith("/portal") && ws.includes("portal")) return next;
   return ws.includes("office") ? "/admin" : "/portal";
@@ -68,7 +68,8 @@ function bootstrapAdmin(ctx: Ctx, email: string, name: string) {
     existing.status = "Active";
     existing.statusReason = undefined;
     existing.statusChangedAt = ctx.iso;
-    if (!activeAssignments(existing, ctx.day).some(runsHub)) addAssignment(ctx, existing, ROLE.admin, UNIVERSITY);
+    // Active too, so the way back in lands in the Office workspace whatever role they had switched to.
+    existing.activeAssignment = (activeAssignments(existing, ctx.day).find(runsHub) ?? addAssignment(ctx, existing, ROLE.admin, UNIVERSITY)).id;
     log(ctx, "account.bootstrap", "Account", res(existing), "Success", "Administrator restored: no one ran the Hub");
     return;
   }
@@ -162,7 +163,7 @@ export async function completeSignIn(input: {
       a.statusChangedAt = ctx.iso;
       log(ctx, "account.activate", "Account", res(a), "Success", "Invitation accepted at first sign-in");
     }
-    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${input.device}${a.sessionPrefs?.stay ? " · stays signed in" : ""}`, { ...signingIn(a), role: topGrant(grants)?.roleName ?? "No role" });
+    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${input.device}${a.sessionPrefs?.stay ? " · stays signed in" : ""}`, { ...signingIn(a), role: actingGrants(a, s.units, ctx.day)[0]?.roleName ?? "No role" });
     if (!known && a.external) raiseAlert(ctx, "Suspicious sign-in", "Medium", `External partner ${a.name} signed in from a new device (${input.device}).`, a.id);
     return { ok: true, message: "Signed in" };
   });

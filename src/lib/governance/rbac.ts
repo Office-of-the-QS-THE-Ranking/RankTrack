@@ -188,6 +188,16 @@ export const topGrant = (grants: Grant[]) => grants.reduce<Grant | undefined>((t
 export const topTier = (grants: Grant[]) => topGrant(grants)?.tier ?? 0;
 
 /**
+ * What someone can do right now: one role at a time. The assignment they switched to, or their highest role until
+ * they choose one or once the chosen one ends. The roles they hold but aren't acting in grant nothing meanwhile.
+ */
+export function actingGrants(account: Account, units: OrgUnit[], day: string): Grant[] {
+  const held = grantsFor(account, units, day);
+  const acting = held.find((g) => g.assignmentId === account.activeAssignment) ?? topGrant(held);
+  return acting ? [acting] : [];
+}
+
+/**
  * Nobody can grant more than they hold: the role's permissions must sit inside the actor's own, and the
  * scope must sit inside what the actor administers. A role ranked below the one the actor administers accounts
  * with is the exception: Administrators make Coordinators (user, 2026-10-27), whose submission rights they

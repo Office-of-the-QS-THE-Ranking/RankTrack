@@ -150,8 +150,8 @@ export function Switch({ checked, onChange, label, disabled, describe }: { check
 
 export { SearchField } from "@/components/ui/search-field";
 
-export function Tabs<T extends string>({ tabs, value, onChange, label, search, actions }: { tabs: readonly (T | ContentTab<T>)[]; value: T; onChange: (t: T) => void; label: string; search?: ReactNode; actions?: ReactNode }) {
-  return <ContentTabs tabs={tabs} value={value} onChange={onChange} label={label} search={search} actions={actions} />;
+export function Tabs<T extends string>({ tabs, value, onChange, label, idBase, search, actions }: { tabs: readonly (T | ContentTab<T>)[]; value: T; onChange: (t: T) => void; label: string; idBase?: string; search?: ReactNode; actions?: ReactNode }) {
+  return <ContentTabs tabs={tabs} value={value} onChange={onChange} label={label} idBase={idBase} search={search} actions={actions} />;
 }
 
 export function Stat({ label, value, sub, tone, icon, onClick }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "ok" | "revise" | "danger" | "review"; icon?: IconName; onClick?: () => void }) {

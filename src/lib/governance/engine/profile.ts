@@ -2,6 +2,8 @@ import type { Ctx } from "./core";
 import { usedNote } from "../session-limits";
 import { invalid, log, ok } from "./core";
 import { validPrefKey } from "../notification-prefs";
+import { roleOf } from "../catalog";
+import { activeAssignments, actingGrants, scopeLabel } from "../rbac";
 
 /** Self-service changes never accept an account ID or access-related fields. */
 export function updateProfile(ctx: Ctx, input: unknown) {
@@ -78,4 +80,19 @@ export function endOwnSession(ctx: Ctx, id: string) {
   ctx.state.sessions = ctx.state.sessions.filter((x) => x !== s);
   log(ctx, "session.signout", "Session", { type: "Account", id: account.id, label: account.name }, "Success", `Signed out from another device · ${s.device}${usedNote(s.createdAt, s.lastSeen)}`);
   return ok(`Signed out of ${s.device || "that device"}.`);
+}
+
+/** Act in another of the person's own roles. Only one counts at a time, so this changes what they can do at once. */
+export function switchRole(ctx: Ctx, assignmentId: unknown) {
+  const account = ctx.actor.account;
+  if (!account || account.status !== "Active") return invalid("Your session has ended. Sign in again to continue.");
+  const to = activeAssignments(account, ctx.day).find((a) => a.id === assignmentId);
+  if (!to) return invalid("That role is no longer yours. Reload to see your current roles.");
+  const role = roleOf(to.roleId);
+  const label = `${role?.name ?? to.roleId} · ${scopeLabel(to.scope, ctx.state.units)}`;
+  if (actingGrants(account, ctx.state.units, ctx.day)[0]?.assignmentId === to.id) return ok(`You are already acting as ${label}.`);
+  const from = ctx.actor.role;
+  account.activeAssignment = to.id;
+  log(ctx, "role.switch", "Access", { type: "Account", id: account.id, label: account.name }, "Success", `${from} → ${label}`);
+  return ok(`You are now acting as ${label}.`);
 }

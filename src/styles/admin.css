@@ -2096,75 +2096,198 @@
 }
 
 /* ---------- Permission matrix ---------- */
+/* Marks are status, not checkboxes: a filled disc where an action is held, a hollow ring where it isn't,
+   nothing where the module has no such action. The pointer lights its row and column. */
 .adm-matrix-wrap {
-  overflow-x: auto;
+  --mx-bg: var(--adm-bg);
+  overflow: hidden;
   border: 1px solid var(--adm-line);
-  border-radius: 14px;
+  border-radius: 16px;
+  background: var(--mx-bg);
+}
+.adm-matrix-scroll {
+  overflow-x: auto;
 }
 .adm-matrix {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.adm-matrix col.is-hot {
+  background: var(--adm-well);
 }
 .adm-matrix th,
 .adm-matrix td {
-  padding: 5px 6px;
+  height: 42px;
+  padding: 0 4px;
   border-bottom: 1px solid var(--adm-line);
   text-align: center;
 }
 .adm-matrix thead th {
-  position: sticky;
-  top: 0;
-  background: var(--adm-bg);
+  position: relative;
+  height: auto;
+  padding: 12px 4px 10px;
   color: var(--adm-muted);
-  font-weight: 500;
   font-size: 11.5px;
+  font-weight: 500;
+  vertical-align: bottom;
+  transition: color 120ms ease;
+}
+.adm-matrix thead th.is-hot {
+  color: var(--adm-text);
+}
+.adm-matrix__act {
+  display: inline-grid;
+  justify-items: center;
+  gap: 5px;
+  min-width: 46px;
+}
+.adm-matrix thead th[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  z-index: 3;
+  width: max-content;
+  max-width: 200px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: rgb(29 29 31 / 0.96);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  box-shadow: var(--sh-md);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -3px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.adm-matrix thead th[data-tip]:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 350ms;
+}
+.adm-matrix thead th:first-child,
+.adm-matrix tbody th[scope="row"] {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding-left: 16px;
+  padding-right: 12px;
+  background-color: var(--mx-bg);
+  text-align: left;
 }
 .adm-matrix tbody th[scope="row"] {
-  padding-left: 12px;
-  text-align: left;
   font-weight: 500;
   white-space: nowrap;
+  transition: color 120ms ease;
 }
-.adm-matrix thead th:first-child {
-  text-align: left;
-  padding-left: 12px;
+.adm-matrix tbody tr:not(.adm-matrix__group):hover > * {
+  background-image: linear-gradient(var(--adm-well), var(--adm-well));
+}
+.adm-matrix tr.is-empty th[scope="row"] {
+  color: var(--adm-muted);
+  font-weight: 400;
+}
+.adm-matrix tbody tr:last-child > * {
+  border-bottom: 0;
 }
 .adm-matrix__group th {
-  padding: 9px 12px 5px;
-  background: var(--adm-well);
-  color: var(--adm-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  height: auto;
+  padding: 18px 16px 8px;
+  border-bottom: 0;
+  background: var(--mx-bg);
   text-align: left;
 }
-.adm-matrix__na {
-  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--adm-well) 5px 6px);
+.adm-matrix__group-in {
+  position: sticky;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.adm-matrix__group-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--adm-muted);
+}
+.adm-matrix__group-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--adm-muted);
+}
+.adm-matrix__group-count b {
+  font-weight: 600;
+  color: var(--adm-text);
+}
+.adm-matrix__fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--adm-well);
+  color: var(--adm-text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: var(--cursor-pointer);
+}
+.adm-matrix__fold:hover {
+  background: var(--adm-hover);
+  color: var(--adm-text);
+}
+.adm-matrix__fold svg {
+  transition: transform var(--t) var(--ease-out);
+}
+.adm-matrix__fold[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+/* A folded group: its header row stands alone */
+.adm-matrix__group:has(+ .adm-matrix__group) th,
+.adm-matrix tbody tr.adm-matrix__group:last-child th {
+  padding-bottom: 14px;
+}
+.adm-matrix__group:has(+ .adm-matrix__group) th {
+  border-bottom: 1px solid var(--adm-line);
 }
 .adm-matrix__cell span[role="img"] {
   display: inline-grid;
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
 }
 .adm-mark {
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
 }
 .adm-mark--none {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--adm-line-2);
+  width: 10px;
+  height: 10px;
+  box-shadow: inset 0 0 0 1.5px var(--adm-line-2);
 }
 .adm-mark--granted {
   background: var(--adm-ink);
   color: var(--adm-on-ink);
+}
+.adm-mark--wide {
+  background: color-mix(in srgb, var(--gold-500) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-600) 45%, transparent);
+  color: var(--gold-800);
+}
+:root[data-theme="dark"] .adm-mark--wide {
+  background: color-mix(in srgb, var(--gold-500) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-500) 50%, transparent);
+  color: var(--gold-400);
 }
 .adm-mark--removed {
   background: var(--danger-bg);
@@ -2177,16 +2300,30 @@
 .adm-matrix__legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 8px 18px;
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--adm-line);
   font-size: 12px;
   color: var(--adm-muted);
 }
-.adm-matrix__legend span {
+.adm-matrix__legend > span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+}
+.adm-matrix__legend .adm-mark:not(.adm-mark--none) {
+  width: 16px;
+  height: 16px;
+}
+.adm-matrix__legend .adm-mark svg {
+  width: 10px;
+  height: 10px;
+}
+.adm-matrix__legend .adm-mark--none {
+  width: 9px;
+  height: 9px;
+  margin-inline: 3.5px;
 }
 
 /* ---------- Governance, workflows, security ---------- */

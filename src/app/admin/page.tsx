@@ -8,7 +8,7 @@ import { InfoTooltip } from "@/components/ui/interactive";
 import { DashboardViewSwitch } from "@/components/dashboard/DashboardViewSwitch";
 import { DashboardViewPanel } from "@/components/dashboard/DashboardViewPanel";
 import { SubmissionsBoard } from "@/components/dashboard/SubmissionsBoard";
-import { Welcome } from "@/components/dashboard/Welcome";
+import { OfficeWelcome } from "@/components/dashboard/Welcome";
 import { RankingsOverview } from "@/components/rankings/Overview";
 
 export const metadata = {
@@ -43,7 +43,7 @@ export default async function ExecutiveDashboard({
         </div>
       </header>
 
-      <Welcome h={h} viewer={viewer} />
+      <OfficeWelcome h={h} viewer={viewer} />
 
       <DashboardViewPanel view={view}>
         {view === "rankings" ? (

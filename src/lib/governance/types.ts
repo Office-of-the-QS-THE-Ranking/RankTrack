@@ -92,6 +92,8 @@ export interface Account {
   unitId: string;
   status: AccountStatus;
   assignments: Assignment[];
+  /** The assignment they act in, one role at a time; absent, or ended, means their highest. */
+  activeAssignment?: string;
   createdAt: ISOTime;
   invitedAt?: ISOTime;
   lastLogin?: ISOTime;

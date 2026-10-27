@@ -11,7 +11,7 @@ import { after } from "next/server";
 import { cache } from "react";
 import { ADMIN_MODULES, roleOf } from "../catalog";
 import { flagOn, portalScope, workspacesOf } from "../derive";
-import { activeAssignments, canWith, grantsFor, initials, mergedPermissions, scopeLabel, today, topGrant } from "../rbac";
+import { actingGrants, activeAssignments, canWith, initials, mergedPermissions, scopeLabel, today } from "../rbac";
 import type { Account, GovernanceState, Session } from "../types";
 import { idleLimit, sessionExpired } from "../session-limits";
 import type { Viewer } from "../viewer";
@@ -76,7 +76,9 @@ export function checkSession(state: GovernanceState, id: string, now = new Date(
 
 export function buildViewer(state: GovernanceState, account: Account, session: Session, now = new Date()): Viewer {
   const day = today(now);
-  const grants = grantsFor(account, state.units, day);
+  // Everything below follows the role they are acting in; the others are only listed, to switch to.
+  const grants = actingGrants(account, state.units, day);
+  const acting = grants[0];
   const unitName = (id: string) => state.units.find((u) => u.id === id)?.name ?? id;
   const portal = portalScope(account, grants, state.units);
   const portalUnit = portal.unitId;
@@ -94,12 +96,14 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
     unitId: account.unitId,
     unitName: unitName(account.unitId),
     roles: activeAssignments(account, day).map((a) => ({
+      assignmentId: a.id,
       id: a.roleId,
       name: roleOf(a.roleId)?.name ?? a.roleId,
       scope: scopeLabel(a.scope, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))),
       expires: a.expires,
+      active: a.id === acting?.assignmentId,
     })),
-    roleName: topGrant(grants)?.roleName ?? "No role",
+    roleName: acting?.roleName ?? "No role",
     grants,
     perms: mergedPermissions(grants),
     workspaces: workspacesOf(grants),

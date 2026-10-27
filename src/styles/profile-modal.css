@@ -1117,3 +1117,24 @@ a.pfm__item-control {
 .pfm__heatmap-legend > span:first-child { margin-right: 3px; }
 .pfm__heatmap-legend > span:last-child { margin-left: 3px; }
 .pfm__activity-note { margin: 10px 0 0; color: var(--text-3); font-size: 10px; line-height: 1.5; }
+
+/* ---------- Roles & access: one active role, the others a switch away ---------- */
+.pfm__roles-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pfm__roles li {
+  min-height: 52px;
+}
+.pfm__roles li[data-active] {
+  background: rgb(var(--hair) / 0.05);
+  box-shadow: inset 0 0 0 1.5px var(--text);
+}
+.pfm__roles li[data-active] > svg {
+  color: var(--text);
+}
+.pfm__roles .pfm__tag {
+  flex: none;
+  margin-left: 0;
+}

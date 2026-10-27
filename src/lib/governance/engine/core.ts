@@ -6,7 +6,7 @@
 import type { Reference } from "@/lib/reference";
 import { SYSTEM_ACTOR } from "../seed";
 import { UNIT_EMAILS } from "../catalog";
-import { canWith, grantsFor, today, topGrant, type Grant, type Target } from "../rbac";
+import { actingGrants, canWith, today, topGrant, type Grant, type Target } from "../rbac";
 import type { CommandResult } from "../commands";
 import type { Account, Action, AuditCategory, AuditEvent, GovernanceState, ModuleKey, Notice } from "../types";
 
@@ -43,8 +43,9 @@ export interface Ctx {
   ref: Reference;
 }
 
+/** A person acts in their active role only, so commands are authorized by that role alone. */
 export function actorFor(state: GovernanceState, account: Account, now = new Date()): Actor {
-  const grants = grantsFor(account, state.units, today(now));
+  const grants = actingGrants(account, state.units, today(now));
   return { id: account.id, name: account.name, role: topGrant(grants)?.roleName ?? "No role", grants, account };
 }
 

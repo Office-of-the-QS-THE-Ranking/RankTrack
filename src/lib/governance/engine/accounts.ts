@@ -255,6 +255,7 @@ export function removeRole(ctx: Ctx, accountId: string, assignmentId: string): C
   const lastAdmin = runsHub(asg) && a.assignments.filter((x) => runsHub(x) && (!x.expires || x.expires > ctx.day)).length === 1;
   if (lastAdmin && a.status === "Active" && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1) return invalid("This is the last active University-wide Administrator.");
   a.assignments = a.assignments.filter((x) => x.id !== assignmentId);
+  if (a.activeAssignment === assignmentId) a.activeAssignment = undefined;
   log(ctx, "assignment.remove", "Access", res(a), "Success", `${role?.name ?? asg.roleId} · ${scopeLabel(asg.scope, ctx.state.units)}`);
   return ok(`${role?.name ?? "Role"} removed from ${a.name}.`);
 }

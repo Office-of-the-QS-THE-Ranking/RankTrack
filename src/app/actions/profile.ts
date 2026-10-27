@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { endOtherSessions, endOwnSession, updateNotificationPrefs, updateProfile, updateSessionPrefs } from "@/lib/governance/engine/profile";
+import { endOtherSessions, endOwnSession, switchRole, updateNotificationPrefs, updateProfile, updateSessionPrefs } from "@/lib/governance/engine/profile";
 import { allowAccount } from "@/lib/governance/server/limits";
 import { overviewActivity, overviewBadges, overviewStats, type ActivityDay, type Badge, type OverviewStats } from "@/lib/governance/account-overview";
 import { log } from "@/lib/governance/engine/core";
+import { landing } from "@/lib/governance/server/signin";
 import { auditOfActor, latestOfActor } from "@/lib/governance/server/db/audit";
 import { run, runSystem } from "@/lib/governance/server/run";
 import { usedNote } from "@/lib/governance/session-limits";
@@ -24,6 +25,24 @@ export async function saveProfile(input: { name: string; title: string }) {
   } catch (error) {
     console.error("Profile save failed", error);
     return { ok: false, message: "Your profile could not be saved. Try again in a moment." };
+  }
+}
+
+/** Roles & access: act in another of one's own roles. `dest` is that role's workspace. */
+export async function switchActiveRole(assignmentId: string): Promise<{ ok: boolean; message: string; dest?: string }> {
+  try {
+    const viewer = await getViewer();
+    if (!viewer) return { ok: false, message: "Your session has ended. Sign in again to continue." };
+    if (!(await allowAccount(viewer.id, "command"))) return { ok: false, message: "Too many changes in a short time. Wait a minute and try again." };
+    const result = await run(viewer.id, (ctx) => switchRole(ctx, assignmentId));
+    if (!result.ok) return result;
+    const state = await readState();
+    const account = state.accounts.find((a) => a.id === viewer.id);
+    revalidatePath("/", "layout");
+    return { ok: true, message: result.message, dest: account ? landing(state, account) : "/portal" };
+  } catch (error) {
+    console.error("Role switch failed", error);
+    return { ok: false, message: "Your role could not be switched. Try again in a moment." };
   }
 }
 

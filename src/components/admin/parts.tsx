@@ -4,12 +4,12 @@
  * Pieces shared by Account Management and Roles & Permissions: the unit picker, the scope editor and
  * the permission matrix.
  */
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ACTIONS, MODULES } from "@/lib/governance/catalog";
 import type { UnitRow } from "@/lib/governance/console-types";
 import { has, unitPath } from "@/lib/governance/rbac";
 import type { Action, BodyKey, ModuleKey, OrgUnit, PermissionSet, Scope } from "@/lib/governance/types";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Disclosure, Hint, plural, useConsole } from "./ui";
 import { Select } from "@/components/ui/pickers";
 
@@ -153,69 +153,116 @@ export function ScopeEditor({ value, onChange, allowUniversity, unitFilter }: { 
   );
 }
 
-export type CellState = "granted" | "none" | "added" | "removed";
+export type CellState = "granted" | "wide" | "none" | "added" | "removed";
 
-/** Modules down the side, actions across the top. A preview marks what a change adds and removes. */
-export function PermissionMatrix({ cell, caption }: { cell: (m: ModuleKey, a: Action) => CellState; caption: string }) {
+const ACTION_ICON: Record<Action, IconName> = { view: "eye", create: "plus", edit: "pen", delete: "trash", submit: "send", approve: "check-circle", export: "download", manage: "sliders" };
+
+const LEGEND: Record<CellState, string> = { granted: "Granted", wide: "University-wide only", none: "Not granted", added: "Adding", removed: "Removing" };
+
+/**
+ * Modules down the side, actions across the top; a blank cell is an action the module doesn't have. A preview
+ * marks what a change adds and removes; a role marks what only its University-wide holders get as `wide`.
+ * With `fold`, a group with nothing granted shows as one line until opened.
+ */
+export function PermissionMatrix({ cell, caption, labels, fold = false }: { cell: (m: ModuleKey, a: Action) => CellState; caption: string; labels?: Partial<Record<CellState, string>>; fold?: boolean }) {
+  const [hot, setHot] = useState<number | null>(null);
+  const [opened, setOpened] = useState<string[]>([]);
   const groups = [...new Set(MODULES.map((m) => m.group))];
-  const changes = MODULES.some((m) => m.actions.some((a) => ["added", "removed"].includes(cell(m.key, a))));
+  const states = new Set(MODULES.flatMap((m) => m.actions.map((a) => cell(m.key, a))));
+  const legend = { ...LEGEND, ...labels };
+  const held = (st: CellState) => st !== "none" && st !== "removed";
   return (
-    <div className="adm-matrix-wrap">
-      <table className="adm-matrix">
-        <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Module</th>
-            {ACTIONS.map((a) => (
-              <th key={a.key} scope="col" title={a.hint}>
-                {a.label}
-              </th>
+    <div className="adm-matrix-wrap" onPointerLeave={() => setHot(null)}>
+      <div className="adm-matrix-scroll">
+        <table
+          className="adm-matrix"
+          onPointerOver={(e) => {
+            const c = (e.target as Element).closest<HTMLTableCellElement>("td, th");
+            setHot(c && c.colSpan === 1 && c.cellIndex > 0 ? c.cellIndex : null);
+          }}
+        >
+          <caption className="sr-only">{caption}</caption>
+          <colgroup>
+            <col />
+            {ACTIONS.map((a, i) => (
+              <col key={a.key} className={hot === i + 1 ? "is-hot" : undefined} />
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <Fragment key={g}>
-              <tr className="adm-matrix__group">
-                <th colSpan={ACTIONS.length + 1} scope="colgroup">
-                  {g}
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Module</th>
+              {ACTIONS.map((a, i) => (
+                <th key={a.key} scope="col" className={hot === i + 1 ? "is-hot" : undefined} data-tip={a.hint}>
+                  <span className="adm-matrix__act">
+                    <Icon name={ACTION_ICON[a.key]} size={15} />
+                    {a.label}
+                  </span>
                 </th>
-              </tr>
-              {MODULES.filter((m) => m.group === g).map((m) => (
-                <tr key={m.key}>
-                  <th scope="row">{m.label}</th>
-                  {ACTIONS.map((a) => {
-                    if (!m.actions.includes(a.key)) return <td key={a.key} className="adm-matrix__na" aria-label="Not applicable" />;
-                    const st = cell(m.key, a.key);
-                    const label = `${m.label}: ${a.label} — ${st === "added" ? "added" : st === "removed" ? "removed" : st === "granted" ? "granted" : "not granted"}`;
-                    return (
-                      <td key={a.key} className={`adm-matrix__cell is-${st}`}>
-                        <span role="img" aria-label={label}>
-                          <CellMark st={st} />
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
               ))}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => {
+              const mods = MODULES.filter((m) => m.group === g);
+              const total = mods.reduce((n, m) => n + m.actions.length, 0);
+              const count = mods.reduce((n, m) => n + m.actions.filter((a) => held(cell(m.key, a))).length, 0);
+              const changed = mods.some((m) => m.actions.some((a) => cell(m.key, a) === "removed"));
+              const folded = fold && !count && !changed && !opened.includes(g);
+              return (
+                <Fragment key={g}>
+                  <tr className="adm-matrix__group">
+                    <th colSpan={ACTIONS.length + 1} scope="colgroup">
+                      <span className="adm-matrix__group-in">
+                        <span className="adm-matrix__group-name">{g}</span>
+                        <span className="adm-matrix__group-count num">
+                          <b>{count}</b> of {total}
+                        </span>
+                        {fold && !count && !changed && (
+                          <button type="button" className="adm-matrix__fold" aria-expanded={!folded} onClick={() => setOpened((o) => (folded ? [...o, g] : o.filter((x) => x !== g)))}>
+                            {folded ? `Show ${plural(mods.length, "module")}` : "Hide"}
+                            <Icon name="chevron-down" size={14} />
+                          </button>
+                        )}
+                      </span>
+                    </th>
+                  </tr>
+                  {!folded &&
+                    mods.map((m) => (
+                      <tr key={m.key} className={m.actions.some((a) => cell(m.key, a) !== "none") ? undefined : "is-empty"}>
+                        <th scope="row">{m.label}</th>
+                        {ACTIONS.map((a) => {
+                          if (!m.actions.includes(a.key)) return <td key={a.key} className="adm-matrix__na" aria-label="Not applicable" />;
+                          const st = cell(m.key, a.key);
+                          return (
+                            <td key={a.key} className={`adm-matrix__cell is-${st}`}>
+                              <span role="img" aria-label={`${m.label}: ${a.label} — ${legend[st].toLowerCase()}`}>
+                                <CellMark st={st} />
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       <p className="adm-matrix__legend" aria-hidden="true">
-        <span><CellMark st="granted" /> Granted</span>
-        {changes && (
-          <>
-            <span><CellMark st="added" /> Adding</span>
-            <span><CellMark st="removed" /> Removing</span>
-          </>
-        )}
+        {(["granted", "wide", "added", "removed", "none"] as const)
+          .filter((st) => st === "granted" || states.has(st))
+          .map((st) => (
+            <span key={st}>
+              <CellMark st={st} /> {legend[st]}
+            </span>
+          ))}
       </p>
     </div>
   );
 }
 
-function CellMark({ st }: { st: CellState }) {
+export function CellMark({ st }: { st: CellState }) {
   if (st === "none") return <span className="adm-mark adm-mark--none" />;
   if (st === "removed") return <span className="adm-mark adm-mark--removed"><Icon name="minus" size={12} strokeWidth={2.6} /></span>;
   return (

@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearCookiesAndSignOut, exportMyData, loadDevices, loadLogs, loadOverview, loadPrivacy, saveNotificationPrefs, saveProfile, saveSessionPrefs, signOutDevice, signOutOtherDevices, type DeviceRow, type LogRow, type PrivacyInfo } from "@/app/actions/profile";
+import { clearCookiesAndSignOut, exportMyData, loadDevices, loadLogs, loadOverview, loadPrivacy, saveNotificationPrefs, saveProfile, saveSessionPrefs, signOutDevice, switchActiveRole, signOutOtherDevices, type DeviceRow, type LogRow, type PrivacyInfo } from "@/app/actions/profile";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { ActivityDay, Badge, OverviewStats } from "@/lib/governance/account-overview";
 import { idleChoices } from "@/lib/governance/session-limits";
@@ -275,26 +275,62 @@ function EditProfile({ viewer, onDiscard }: { viewer: Viewer; onDiscard: () => v
   );
 }
 
+/** "Coordinator · College of Information and Computing Sciences": the active role and what it covers. */
+const roleLine = (viewer: Viewer) => `${viewer.roleName} · ${viewer.roles.find((r) => r.active)?.scope ?? viewer.unitName}`;
+
+/** Roles & access: one role is active at a time; the others are a switch away. */
 function Access({ viewer }: { viewer: Viewer }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const several = viewer.roles.length > 1;
+
+  const switchTo = async (assignmentId: string) => {
+    if (busy) return;
+    setBusy(assignmentId);
+    const r = await switchActiveRole(assignmentId);
+    toast(r.message, r.ok ? "ok" : "error");
+    const here = window.location.pathname;
+    // The new role may not open this workspace: go to its own, which closes this window with the old one.
+    if (r.ok && r.dest && here !== r.dest && !here.startsWith(`${r.dest}/`)) router.push(r.dest);
+    else router.refresh();
+    setBusy(null);
+  };
+
   return (
     <div className="pfm__panel">
       <Banner viewer={viewer}>
         <b className="pfm__who">{viewer.name}</b>
-        <p className="pfm__note">{viewer.roleName} · {viewer.unitName}</p>
+        <p className="pfm__note">{roleLine(viewer)}</p>
       </Banner>
-      <h3 className="pfm__label">Your roles</h3>
-      <ul className="pfm__rows">
+      <div className="pfm__roles-head">
+        <h3 className="pfm__label">Your roles</h3>
+        <InfoTooltip label="About your roles">
+          {several ? "One role is active at a time. The Hub shows and allows only what the active role covers. " : ""}Ask the Office to change your roles or unit.
+        </InfoTooltip>
+      </div>
+      <ul className="pfm__rows pfm__roles">
         {viewer.roles.map((r) => (
-          <li key={r.id + r.scope}>
+          <li key={r.assignmentId} data-active={(several && r.active) || undefined}>
             <Icon name="key" size={16} />
             <span>
               <b>{r.name}</b>
               <span>{r.scope}</span>
             </span>
             {r.expires && <em>Until {DATE_FMT.format(new Date(r.expires + "T00:00:00Z"))}</em>}
-            <InfoTooltip label={`About your ${r.name} role`}>
-              Ask the Office to change your roles or unit.
-            </InfoTooltip>
+            {several &&
+              (r.active ? (
+                <span className="pfm__tag pfm__tag--ok">Active</span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--sm pfm__item-control"
+                  disabled={busy !== null}
+                  aria-label={`Switch to ${r.name}, ${r.scope}`}
+                  onClick={() => void switchTo(r.assignmentId)}
+                >
+                  {busy === r.assignmentId ? "Switching…" : "Switch"}
+                </button>
+              ))}
           </li>
         ))}
       </ul>
@@ -489,7 +525,7 @@ function Overview({ viewer }: { viewer: Viewer }) {
       <Banner viewer={viewer}>
         <b className="pfm__who">{viewer.name}</b>
         <p className="pfm__note">
-          {viewer.roleName} · {viewer.unitName}
+          {roleLine(viewer)}
           {data && <> · Member since {DATE_FMT.format(new Date(data.memberSince))}</>}
         </p>
       </Banner>
@@ -804,6 +840,7 @@ const ACTIONS: Record<string, string> = {
   "session.signout-others": "Signed out of other devices",
   "notify.preferences": "Changed notification settings",
   "profile.update": "Updated profile",
+  "role.switch": "Switched role",
   "evidence.submit": "Submitted evidence",
   "evidence.resubmit": "Replied to a review",
   "evidence.accept": "Accepted evidence",
@@ -823,7 +860,7 @@ const ACTIONS: Record<string, string> = {
   "request.review": "Started a review",
 };
 const actionText = (code: string) => ACTIONS[code] ?? code.replace(/[._-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-const LOG_ICON: Record<string, IconName> = { session: "lock-keyhole", profile: "user", evidence: "evidence", data: "data", post: "pen", story: "pen", report: "reports", request: "workflow" };
+const LOG_ICON: Record<string, IconName> = { session: "lock-keyhole", profile: "user", role: "key", evidence: "evidence", data: "data", post: "pen", story: "pen", report: "reports", request: "workflow" };
 
 /** Logs: this person's latest entries in the audit trail, grouped by day. */
 function Logs() {
