@@ -2,317 +2,226 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PUBLISHED_STORIES as STATIC_STORIES } from "@/lib/data";
-import { useHub, useRankings } from "@/components/hub/HubProvider";
-import { Icon } from "@/components/ui/Icon";
-import { Card, Empty, Swatch } from "@/components/ui/primitives";
+import { useFeature, useHub, useRankings, useVariant } from "@/components/hub/HubProvider";
 import { useViews } from "@/components/reference/ReferenceProvider";
+import { QueueArt } from "@/components/contribute/QueueArt";
+import { Tile } from "@/components/dashboard/Tile";
+import { Icon } from "@/components/ui/Icon";
+import { TabPanel, Tabs } from "@/components/ui/interactive";
+import { SearchField } from "@/components/ui/search-field";
+import { CHECKS, EXAMPLES, FAQ, POLICIES, TEMPLATES, TRAINING } from "./content";
+import { CycleCalendar, NextDeadline, cycle } from "./Deadlines";
+import { Dictionary } from "./Dictionary";
+import { Evidence } from "./Evidence";
+import { Methodologies } from "./Methodologies";
+import { Resources } from "./Resources";
 
-const FAQ = [
-  ["Can one document count for several rankings?", "Yes. Submit it once; the Office maps it to every indicator it supports and credits your unit each time."],
-  ["What makes evidence acceptable?", "It names the reporting period, the measurable result, who benefited and how that was verified, and links to an approved document."],
-  ["Why was my submission returned?", "Most returns are for the wrong reporting period, a missing approval date or a link that needs a login."],
-  ["Who confirms official figures?", "The data owner for each indicator. The Office checks consistency but does not change official values."],
-  ["When will I know where my evidence counts?", "As soon as a reviewer accepts it. Your dashboard lists every ranking and indicator it supports."],
+type Tab = "dictionary" | "rankings" | "evidence" | "resources" | "faq";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "dictionary", label: "Dictionary" },
+  { key: "rankings", label: "Methodologies" },
+  { key: "evidence", label: "Evidence" },
+  { key: "resources", label: "Resources" },
+  { key: "faq", label: "FAQ" },
 ];
 
-const STANDARDS = [
-  "States the reporting period the ranking asks for",
-  "Gives a measurable result, not only an activity",
-  "Names beneficiaries and how change was verified",
-  "Links to an approved, dated document",
-  "Uses a public URL where the ranking requires one",
-];
+/** Where the older section anchors (#faq, #templates …) now live. */
+const ANCHOR: Record<string, Tab> = {
+  dictionary: "dictionary",
+  methodologies: "rankings",
+  standards: "evidence",
+  templates: "resources",
+  training: "resources",
+  practices: "resources",
+  policies: "resources",
+  faq: "faq",
+};
 
-const EXAMPLES: [string, string][] = [
-  ["Clinic records showing blood-pressure control rose from 41% to 63% among 1,150 patients", "A list of clinic dates with photographs"],
-  ["Metered water reuse for January–December 2025 with a metering certificate", "An estimate of water saved, with no meter data"],
-  ["An approved policy with its approval date and a public URL", "A draft policy shared through a link that needs a login"],
-];
+const EXAMPLE_TERMS = ["citations", "water", "employer", "beneficiaries"];
 
-const TEMPLATES = [
-  { name: "Evidence submission template", file: "evidence-submission-template.csv", cols: ["Title", "Reporting period", "Measurable result", "Unit of measure", "Beneficiaries", "Number of beneficiaries", "SDGs", "Evidence files or URL", "Rankings"] },
-  { name: "Impact story template", file: "impact-story-template.csv", cols: ["Challenge", "Thomasian response", "Implementation", "Measurable outcome", "Beneficiaries", "SDGs", "Rankings", "Replication guidance", "Lessons for other institutions"] },
-  { name: "Reporting-period data template", file: "reporting-data-template.csv", cols: ["Indicator", "Ranking", "Reporting period", "Value", "Unit", "Source document", "Data owner"] },
-];
+const has = (term: string, ...texts: string[]) => !term || texts.some((t) => t.toLowerCase().includes(term));
 
-const POLICIES = [
-  ["UST Aquinas Framework", "Institutional framework for research, teaching and community engagement"],
-  ["Social Transformation Framework", "How Thomasian programmes measure change in the communities they serve"],
-  ["Sustainability policy", "Campus operations, procurement and climate commitments"],
-  ["Data governance for ranking evidence", "Ownership, validation and retention of submitted evidence"],
-  ["Lifelong learning access policy", "Public access to short courses and the library"],
-];
-
-const TRAINING = [
-  ["Orientation: evidence that counts", "Recorded · 42 min"],
-  ["Orientation: public URLs and policies", "Recorded · 18 min"],
-  ["Writing outcome evidence, not activity reports", "Workshop · 90 min"],
-  ["Mapping one record to several rankings", "Guide · 6 pages"],
-];
-
-function downloadTemplate(file: string, cols: string[]) {
-  const url = URL.createObjectURL(new Blob([cols.map((c) => `"${c}"`).join(",") + "\n"], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = file;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-const SECTIONS = [
-  ["dictionary", "Indicator dictionary"],
-  ["methodologies", "Ranking methodologies"],
-  ["standards", "Evidence standards"],
-  ["calendar", "Submission calendar"],
-  ["templates", "Templates and forms"],
-  ["training", "Training materials"],
-  ["faq", "Frequently asked questions"],
-  ["practices", "Good practices"],
-  ["policies", "Policies and frameworks"],
-] as const;
-
-export function Knowledge({ mode }: { mode: "internal" | "public" }) {
-  const { calendar, dictionary, office } = useViews();
-  const internal = mode === "internal";
-  // Definitions come from the governed data dictionary; rankings and stories from configuration and publication.
+/**
+ * The Knowledge and Methodology Center: the cycle's deadlines over five tabs, the indicator dictionary,
+ * methodologies, evidence standards, resources and questions, all filtered by one search.
+ */
+export function Knowledge() {
+  const { dictionary, evidenceLevels, families, office } = useViews();
   const hub = useHub();
+  const inOffice = useVariant() === "office";
+  const assistance = useFeature("assistance");
   const DICTIONARY = hub?.dictionary ?? dictionary;
   const RANKINGS = useRankings();
-  const PUBLISHED_STORIES = hub ? hub.stories.filter((s) => s.state === "Published") : STATIC_STORIES;
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
+  const [tab, setTab] = useState<Tab>("dictionary");
+  const [pick, setPick] = useState<string | null>(params.get("q"));
+  const [anchor, setAnchor] = useState<string | null>(null);
+
   useEffect(() => {
     const next = params.get("q");
-    if (next !== null) setQ(next);
+    if (next === null) return;
+    setQ(next);
+    setPick(next);
+    setTab("dictionary");
   }, [params]);
+
+  // A link to a section opens its tab and brings the section into view.
+  useEffect(() => {
+    const open = () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      const to = ANCHOR[id];
+      if (!to) return;
+      setTab(to);
+      setAnchor(id);
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
+  useEffect(() => {
+    if (!anchor) return;
+    document.getElementById(anchor)?.scrollIntoView({ block: "start" });
+    setAnchor(null);
+  }, [anchor, tab]);
+
+  const rankingHref = (slug: string) => (inOffice ? `/admin/rankings/${slug}#methodology` : `/rankings/${slug}#measures`);
+  const storyHref = (slug: string) => (inOffice ? `/admin/impact#${slug}` : `/impact/${slug}`);
+  const calendar = hub?.calendar;
+  const { months, items: due, next, todayAt } = useMemo(() => cycle(calendar ?? [], families), [calendar, families]);
+
   const term = q.trim().toLowerCase();
-  const hits = DICTIONARY.filter(
-    (d) =>
-      !term ||
-      d.term.toLowerCase().includes(term) ||
-      d.definition.toLowerCase().includes(term) ||
-      d.links.some((l) => (l.ranking + " " + l.indicator).toLowerCase().includes(term)),
-  );
-  const rankingBase = internal ? "/admin/rankings" : "/rankings";
+  const terms = DICTIONARY.filter((d) => has(term, d.term, d.definition, ...d.links.map((l) => `${l.ranking} ${l.indicator}`)));
+  const rankings = RANKINGS.filter((r) => has(term, r.short, r.name, r.measures, families[r.family]?.name ?? "", ...r.indicators.map((i) => i.name)));
+  const checks = CHECKS.filter((c) => has(term, c.title, c.text));
+  const examples = EXAMPLES.filter((e) => has(term, e.topic, e.good, e.bad));
+  const steps = evidenceLevels.some((s) => has(term, s)) ? evidenceLevels : [];
+  const templates = TEMPLATES.filter((t) => has(term, t.name, ...t.cols));
+  const training = TRAINING.filter((t) => has(term, t.title, t.kind));
+  const policies = POLICIES.filter(([n, d]) => has(term, n, d));
+  const stories = (hub ? hub.stories.filter((s) => s.state === "Published") : STATIC_STORIES).filter((s) => s.themes.includes("Replicable Practices"));
+  const practices = stories.filter((s) => has(term, s.title, s.replication, s.outcomeLabel));
+  const faq = FAQ.filter(([qq, a]) => has(term, qq, a));
+
+  const found: Record<Tab, number> = {
+    dictionary: terms.length,
+    rankings: rankings.length,
+    evidence: checks.length + examples.length + (term && steps.length ? 1 : 0),
+    resources: templates.length + training.length + policies.length + practices.length,
+    faq: faq.length,
+  };
+  const selected = terms.find((t) => t.term.toLowerCase() === (pick ?? "").toLowerCase()) ?? terms.find((t) => t.term.toLowerCase() === term) ?? terms[0];
+  const index = TABS.findIndex((t) => t.key === tab);
 
   return (
-    <>
-      <nav aria-label="Knowledge Center sections" className="pills">
-        {SECTIONS.map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="pill">
-            {label}
-          </a>
-        ))}
-      </nav>
-
-      <Card title="Indicator dictionary" sub="Search one term and see every ranking it touches" icon="search" id="dictionary">
-        <label className="input-group input-group--lg">
-          <Icon name="search" />
-          <span className="sr-only">Search the indicator dictionary</span>
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Try “citations”, “water” or “employer”" autoComplete="off" />
-          {q && (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setQ("")}>
-              Clear
-            </button>
-          )}
-        </label>
-        <p className="small muted" style={{ margin: "12px 0" }} aria-live="polite">
-          {hits.length} {hits.length === 1 ? "entry" : "entries"}
-          {term && ` for “${q.trim()}”`}
-        </p>
-        {hits.length ? (
-          <ul className="dict">
-            {hits.map((d) => (
-              <li key={d.term} className="dict__item">
-                <h3>{d.term}</h3>
-                <p>{d.definition}</p>
-                <ul className="dict__links">
-                  {d.links.map((l) => {
-                    const r = RANKINGS.find((x) => x.short === l.ranking);
-                    return (
-                      <li key={l.ranking + l.indicator}>
-                        {r && <Swatch family={r.family} />}
-                        <b>{l.ranking}</b>
-                        <span>{l.indicator}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty title={`No entries for “${q.trim()}”`}>Check the spelling, or try a broader term such as “research” or “students”.</Empty>
-        )}
-      </Card>
-
-      <Card title="Ranking methodologies" sub="What each framework measures, in plain language" icon="knowledge" id="methodologies" bodyClass="card__body--flush">
-        <div className="table-wrap">
-          <table className="table table--hover table--stack">
-            <thead>
-              <tr>
-                <th>Ranking</th>
-                <th>What it measures</th>
-                <th>Reporting period</th>
-                <th>
-                  <span className="sr-only">Open</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {RANKINGS.map((r) => (
-                <tr key={r.slug}>
-                  <td>
-                    <span className="row nowrap table__primary" style={{ ["--gap" as string]: "8px" } as CSSProperties}>
-                      <Swatch family={r.family} />
-                      {r.short}
-                    </span>
-                  </td>
-                  <td data-label="Measures" className="text-2">
-                    {r.measures}
-                  </td>
-                  <td data-label="Period" className="small text-2">
-                    {r.reportingPeriod}
-                  </td>
-                  <td className="r">
-                    <Link href={`${rankingBase}/${r.slug}${internal ? "#methodology" : "#measures"}`} className="link small nowrap">
-                      Methodology <Icon name="arrow" size={14} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <div className="grid cols-2" id="standards">
-        <Card title="Evidence standards" sub="What reviewers check before an item counts" icon="evidence" tone="dark">
-          <ol className="standards">
-            {STANDARDS.map((s, i) => (
-              <li key={s}>
-                <span>{i + 1}</span>
-                {s}
-              </li>
-            ))}
-          </ol>
-        </Card>
-        <Card title="Examples of acceptable evidence" icon="check-circle">
-          <ul className="examples">
-            {EXAMPLES.map(([good, bad]) => (
-              <li key={good}>
-                <p className="examples__good">
-                  <Icon name="check" size={15} strokeWidth={2.2} /> {good}
-                </p>
-                <p className="examples__bad">
-                  <Icon name="close" size={15} strokeWidth={2.2} /> {bad}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
+    <div className="kc">
+      <div className="kc-bento">
+        <NextDeadline next={next} after={next ? due.slice(due.indexOf(next) + 1).slice(0, 2) : []} />
+        <CycleCalendar months={months} next={next} todayAt={todayAt} />
       </div>
 
-      <Card title="Submission calendar" sub="When each ranking body collects data this cycle" icon="calendar" id="calendar">
-        <ol className="calrow">
-          {calendar.map((c) => (
-            <li key={c.month}>
-              <b>{c.month}</b>
-              {c.items.map((i) => (
-                <span key={i}>{i}</span>
-              ))}
-            </li>
-          ))}
-        </ol>
-      </Card>
+      <Tabs
+        tabs={TABS.map((t) => ({ ...t, count: term && found[t.key] ? found[t.key] : undefined }))}
+        value={tab}
+        onChange={setTab}
+        label="Knowledge Center"
+        idBase="kc"
+        search={
+          <SearchField
+            value={q}
+            onChange={(v) => {
+              setQ(v);
+              setPick(null);
+            }}
+            placeholder="Search the Knowledge Center"
+            label="Search the Knowledge Center"
+            examples={tab === "dictionary" ? EXAMPLE_TERMS : undefined}
+            shortcuts
+          />
+        }
+      />
 
-      <div className="grid cols-2">
-        <Card title="Templates and forms" sub={internal ? "Download, complete and attach to your submission" : "Available to contributing units"} icon="download" id="templates">
-          <ul className="list">
-            {TEMPLATES.map((t) => (
-              <li key={t.name}>
-                <span className="list__main">{t.name}</span>
-                <span className="list__aside">
-                  {internal ? (
-                    <button type="button" className="btn btn--sm" onClick={() => downloadTemplate(t.file, t.cols)}>
-                      <Icon name="download" size={16} /> CSV
-                    </button>
+      <TabPanel idBase="kc" index={index} className="kc-panel">
+        <div key={tab} className="kc-view">
+          {found[tab] === 0 ? (
+            <NoMatch query={term ? q.trim() : ""} found={found} onOpen={setTab} />
+          ) : tab === "dictionary" ? (
+            selected && <Dictionary terms={terms} selected={selected} onSelect={setPick} rankings={RANKINGS} families={families} rankingHref={rankingHref} />
+          ) : tab === "rankings" ? (
+            <Methodologies rankings={rankings} families={families} href={rankingHref} />
+          ) : tab === "evidence" ? (
+            <Evidence checks={checks} examples={examples} steps={steps} />
+          ) : tab === "resources" ? (
+            <Resources templates={templates} training={training} policies={policies} practices={term && !practices.length ? null : practices} email={office.email} storyHref={storyHref} />
+          ) : (
+            <div className="kc-faq-grid">
+              <Tile id="faq" title="Questions" className="kc-faq-tile">
+                <div className="kc-faq">
+                  {faq.map(([qq, a]) => (
+                    <details key={qq}>
+                      <summary>
+                        <span>{qq}</span>
+                        <Icon name="plus" size={16} strokeWidth={2.2} />
+                      </summary>
+                      <p>{a}</p>
+                    </details>
+                  ))}
+                </div>
+              </Tile>
+              {!inOffice && (
+                <Tile id="kc-ask-h" className="kc-ask">
+                  <span className="kc-ask__art" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <h2 id="kc-ask-h" className="kc-ask__title">
+                    Still stuck?
+                  </h2>
+                  {assistance ? (
+                    <Link href="/portal/assistance" className="btn btn--primary">
+                      Ask the Office
+                    </Link>
                   ) : (
-                    <Link href="/signin" className="btn btn--sm">
-                      <Icon name="lock" size={16} /> Sign in
-                    </Link>
+                    <a href={`mailto:${office.email}`} className="btn btn--primary">
+                      <Icon name="mail" size={16} /> Email the Office
+                    </a>
                   )}
-                </span>
-                <span className="list__sub">{t.cols.length} fields</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-        <Card title="Training materials and recorded orientations" icon="education" id="training">
-          <ul className="list">
-            {TRAINING.map(([n, t]) => (
-              <li key={n}>
-                <span className="list__main">{n}</span>
-                <span className="list__aside">
-                  <a className="btn btn--sm" href={`mailto:${office.email}?subject=${encodeURIComponent(`Access: ${n}`)}`}>
-                    Request access
-                  </a>
-                </span>
-                <span className="list__sub">{t}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+                </Tile>
+              )}
+            </div>
+          )}
+        </div>
+      </TabPanel>
+    </div>
+  );
+}
 
-      <div className="grid cols-2">
-        <Card title="Frequently asked questions" icon="help" id="faq">
-          <div className="faq">
-            {FAQ.map(([qq, a]) => (
-              <details key={qq}>
-                <summary>
-                  {qq}
-                  <Icon name="chevron-down" size={16} />
-                </summary>
-                <p>{a}</p>
-              </details>
+/** No results here: the search illustration, and the tabs that do hold matches. */
+function NoMatch({ query, found, onOpen }: { query: string; found: Record<Tab, number>; onOpen: (t: Tab) => void }) {
+  const elsewhere = TABS.filter((t) => found[t.key] > 0);
+  return (
+    <Tile id="kc-none-h" className="kc-none">
+      <div className="kc-none__body">
+        <QueueArt kind={query ? "search" : "start"} />
+        <h2 id="kc-none-h" className="kc-none__title">
+          {query ? "No matches" : "Nothing here yet"}
+        </h2>
+        {query && <p className="kc-none__sub">Nothing here matches “{query}”.</p>}
+        {query && elsewhere.length > 0 && (
+          <div className="kc-none__also">
+            {elsewhere.map((t) => (
+              <button key={t.key} type="button" className="kc-chip" onClick={() => onOpen(t.key)}>
+                {t.label}
+                <span className="count">{found[t.key]}</span>
+              </button>
             ))}
           </div>
-        </Card>
-        <Card title="Good practices" sub="Published stories with replication guidance" icon="spark" id="practices">
-          <ul className="list">
-            {PUBLISHED_STORIES.filter((s) => s.themes.includes("Replicable Practices")).map((s) => (
-              <li key={s.slug}>
-                <Link href={internal ? `/admin/impact#${s.slug}` : `/impact/${s.slug}`} className="list__main">
-                  {s.title}
-                </Link>
-                <span className="list__sub">{s.replication || s.outcomeLabel}</span>
-              </li>
-            ))}
-                    </ul>
-        </Card>
+        )}
       </div>
-
-      <Card title="Policies and frameworks" sub="Approved for public access" icon="governance" id="policies">
-        <ul className="policies">
-          {POLICIES.map(([n, d]) => (
-            <li key={n}>
-              <span className="policies__icon">
-                <Icon name="reports" size={16} />
-              </span>
-              <span>
-                <b>{n}</b>
-                <span>{d}</span>
-              </span>
-              <a className="btn btn--sm" href={`mailto:${office.email}?subject=${encodeURIComponent(`Copy requested: ${n}`)}`}>
-                Request a copy
-              </a>
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </>
+    </Tile>
   );
 }

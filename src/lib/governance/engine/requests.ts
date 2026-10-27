@@ -8,6 +8,7 @@ import { ROLE, roleOf } from "../catalog";
 import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
 import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
+import { profileOf } from "../person-details";
 import { canWith, grantCheck, grantsFor, has } from "../rbac";
 import type { ApprovalRequest, RequestPayload, WorkflowKey } from "../types";
 import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
@@ -83,7 +84,9 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
       const expires = p.external ? addDays(ctx.day, GUEST_DAYS) : undefined;
       // the request keeps the unit it was approved for
       p.unitId = unit;
-      const acc = createAccount(ctx, { name: p.name, email: p.email, title: p.title, unitId: unit, roleId: p.roleId, external: p.external, expires }, `Approved request ${req.id}`);
+      // the account keeps who they are; the birthday and website stay with the request, which housekeeping clears
+      const profile = p.applicant && profileOf({ ...p.applicant, website: undefined });
+      const acc = createAccount(ctx, { name: p.name, email: p.email, title: p.title, unitId: unit, roleId: p.roleId, external: p.external, expires, profile }, `Approved request ${req.id}`);
       log(ctx, "account.invite", "Account", { type: "Account", id: acc.id, label: acc.name }, "Success", `Through ${req.id} · ${roleOf(p.roleId)?.name}${expires ? ` · until ${expires}` : ""}`);
       return null;
     }

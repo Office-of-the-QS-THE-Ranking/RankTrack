@@ -1219,8 +1219,7 @@ body:has(> .nf) {
 .rhead__pattern,
 .nf__card > .pattern,
 .contact > .pattern,
-.office__text > .pattern,
-.achieve__pattern {
+.office__text > .pattern {
   display: none;
 }
 .dash-head__facts {
@@ -1420,12 +1419,9 @@ body:has(> .nf) {
 .mini-stats > div,
 .flow__step,
 .timeline__item,
-.dict__item,
-.calrow li,
 .phases li,
 .gov li,
 .gm-cats li,
-.policies li,
 .evidence-note,
 .filelist li {
   border: 0;
@@ -1451,7 +1447,6 @@ body:has(> .nf) {
   transition: background-color var(--t) ease, box-shadow var(--t) ease, transform 240ms var(--ease-out);
 }
 .timeline li:first-child .timeline__item,
-.calrow li:first-child,
 .phases li.is-now {
   background: var(--gold-wash-grad);
   border: 0;
@@ -1618,55 +1613,7 @@ body:has(> .nf) {
   letter-spacing: -0.045em;
 }
 
-/* ---------- Recognition ---------- */
-.achieve__tile,
-.award {
-  border: 0;
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-xs);
-}
-.achieve__tile--gold {
-  background: var(--gold-wash-grad);
-}
-.achieve__tile--dark {
-  background: #111113;
-}
-.achieve__v {
-  font-family: var(--font-display);
-}
-.award__icon,
-.policies__icon {
-  border-radius: 50%;
-  border: 0;
-  background: var(--gold-cream);
-  color: #7a5900;
-}
-.rank-list__n,
-.standards li span {
-  border-radius: 50%;
-}
-
-/* ---------- Queue, reports, wizard ---------- */
-.queue__item {
-  border: 0;
-  border-radius: 14px;
-}
-.queue__item[aria-current="true"] {
-  background: var(--gold-wash);
-  border: 0;
-  box-shadow: inset 0 0 0 1px rgb(214 160 0 / 0.22);
-}
-@media (hover: hover) {
-  .queue__item:hover:not([aria-current="true"]) {
-    background: var(--n-50);
-    border-color: transparent;
-  }
-}
-.review-card .card__title {
-  font-weight: 400;
-  font-size: 26px;
-  letter-spacing: -0.02em;
-}
+/* ---------- Reports, wizard ---------- */
 .report-menu button {
   border-radius: 12px;
 }
@@ -1925,15 +1872,6 @@ body:has(> .nf) {
   .helped__text {
     padding: 28px 24px;
   }
-}
-
-/* Two-row filter grids keep a rounded rectangle rather than a capsule. */
-.queue-filter {
-  border-radius: 16px;
-  gap: 2px;
-}
-.queue-filter .seg__opt {
-  border-radius: 13px;
 }
 
 /* ---------- Sidebar header and collapse toggle ---------- */
@@ -2392,7 +2330,7 @@ html:has(.app) {
   background: rgb(242 183 5 / 0.16);
   color: var(--gold-800);
 }
-:root[data-theme="dark"] :is(.helped__fig, .achieve__tile--gold, .journey__icon--gold, .fact__icon--gold, .chip--gold, .btn--primary) {
+:root[data-theme="dark"] :is(.helped__fig, .journey__icon--gold, .fact__icon--gold, .chip--gold, .btn--primary) {
   --ink: #1d1d1f;
   --text: #1d1d1f;
   --text-2: #424245;

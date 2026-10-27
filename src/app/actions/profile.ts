@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { endOtherSessions, endOwnSession, updateNotificationPrefs, updateProfile, updateSessionPrefs } from "@/lib/governance/engine/profile";
 import { allowAccount } from "@/lib/governance/server/limits";
-import { overviewBadges, overviewStats, type Badge, type OverviewStats } from "@/lib/governance/account-overview";
+import { overviewActivity, overviewBadges, overviewStats, type ActivityDay, type Badge, type OverviewStats } from "@/lib/governance/account-overview";
 import { log } from "@/lib/governance/engine/core";
 import { auditOfActor, latestOfActor } from "@/lib/governance/server/db/audit";
 import { run, runSystem } from "@/lib/governance/server/run";
@@ -96,14 +96,14 @@ export async function clearCookiesAndSignOut() {
 }
 
 /** Overview: this person's activity and badges, counted from the audit trail. */
-export async function loadOverview(): Promise<{ ok: true; stats: OverviewStats; badges: Badge[]; memberSince: string; lastLogin?: string } | { ok: false; message: string }> {
+export async function loadOverview(): Promise<{ ok: true; stats: OverviewStats; badges: Badge[]; activity: ActivityDay[]; memberSince: string; lastLogin?: string } | { ok: false; message: string }> {
   try {
     const viewer = await getViewer();
     if (!viewer) return { ok: false, message: "Your session has ended. Sign in again to continue." };
     const [events, state] = await Promise.all([auditOfActor(viewer.id), readState()]);
     const account = state.accounts.find((a) => a.id === viewer.id);
     const stats = overviewStats(events);
-    return { ok: true, stats, badges: overviewBadges(stats), memberSince: account?.createdAt ?? viewer.session.startedAt, lastLogin: account?.lastLogin };
+    return { ok: true, stats, badges: overviewBadges(stats), activity: overviewActivity(events), memberSince: account?.createdAt ?? viewer.session.startedAt, lastLogin: account?.lastLogin };
   } catch (error) {
     console.error("Overview failed", error);
     return { ok: false, message: "Your overview could not be loaded. Try again in a moment." };

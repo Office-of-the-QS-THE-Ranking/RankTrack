@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { EVIDENCE, type EvidenceItem, type Indicator, type Ranking } from "@/lib/data";
 import { useHub } from "@/components/hub/HubProvider";
+import { useViews } from "@/components/reference/ReferenceProvider";
 import { Drawer } from "@/components/ui/interactive";
 import { Icon } from "@/components/ui/Icon";
 import { Meter, Status, Trend } from "@/components/ui/primitives";
@@ -25,6 +26,7 @@ export function linkedEvidence(ranking: Ranking, ind: Indicator, pool: EvidenceI
 export function IndicatorDrawer({ ranking, indicator, onClose }: { ranking: Ranking; indicator: Indicator | null; onClose: () => void }) {
   const ind = indicator;
   const hub = useHub();
+  const { latestEdition } = useViews();
   const owner = ind ? hub?.units.find((u) => u.name === ind.owner) : undefined;
   const evidence = ind ? linkedEvidence(ranking, ind, hub?.evidence) : [];
   const share = ind && ind.current !== null && ind.target ? Math.round((ind.current / ind.target) * 100) : null;
@@ -115,7 +117,7 @@ export function IndicatorDrawer({ ranking, indicator, onClose }: { ranking: Rank
                   {ind.history.map((h, k) =>
                     h > 0 ? (
                       <li key={k}>
-                        <span className="muted">{2023 + k}</span>
+                        <span className="muted">{latestEdition - ind.history.length + 1 + k}</span>
                         <b className="num">{h}</b>
                       </li>
                     ) : null,

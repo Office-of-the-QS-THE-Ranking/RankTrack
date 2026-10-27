@@ -11,6 +11,7 @@ import { configure } from "./config";
 import { roleOf } from "../catalog";
 import { can, deny, log, ok, SYSTEM, type Ctx } from "./core";
 import * as data from "./data";
+import * as deadlines from "./deadlines";
 import * as directory from "./directory";
 import * as posts from "./posts";
 import * as records from "./records";
@@ -184,6 +185,13 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
     case "config.flag":
     case "config.site":
       return configure(ctx, cmd);
+
+    case "deadline.set":
+      return deadlines.setDeadlines(ctx, cmd);
+    case "deadline.apply":
+      return deadlines.applyFinding(ctx, cmd.id);
+    case "deadline.dismiss":
+      return deadlines.dismissFinding(ctx, cmd.id);
 
     case "backup.run":
       return backup.runBackup(ctx);

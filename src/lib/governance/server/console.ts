@@ -220,10 +220,12 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
       ? {
           ...state.config,
           rankingMeta: ref.rankings.map((r) => ({ slug: r.slug, name: r.name, short: r.short, family: r.family, body: ref.families[r.family]?.body ?? r.family })),
+          deadlineSources: ref.deadlineSources.map((d) => ({ id: d.id, name: d.name, page: d.page, kind: d.kind, slugs: [...new Set(d.rules.flatMap((x) => x.slugs))] })),
         }
       : undefined,
     backup: viewer.admin.includes("backup") ? state.backup : undefined,
     people: state.accounts.filter((a) => a.status !== "Deactivated").map((a) => ({ id: a.id, name: a.name, unitId: a.unitId, status: a.status })),
+    signIn: { domains: state.security.sso.domains, allowGuests: state.security.sso.allowGuests },
     catalog: {
       cycles: state.config.cycles.map((c) => c.id),
       datasets: state.datasets.map((d) => ({ id: d.id, name: d.name, classification: d.classification })),

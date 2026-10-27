@@ -104,6 +104,28 @@ function from9(s: Stored): Stored {
 }
 
 /**
+ * The deadline check joined schema 10 without a new number, so builds before it keep reading the store: a
+ * schema 10 copy from before it (an older recovery point) gets its empty lists here.
+ */
+function fill10(s: Stored): Stored {
+  s.config.calendar ??= [];
+  s.config.findings ??= [];
+  s.config.watch ??= [];
+  if (!s.config.templates.some((t) => t.id === "tpl-deadline-found")) {
+    s.config.templates.push({
+      id: "tpl-deadline-found",
+      name: "New date found",
+      event: "The deadline check reads a date that differs from the Hub's",
+      channel: "In-app",
+      subject: "New date for {ranking}",
+      body: "{ranking}: {label} {date} on {source}. Apply it or dismiss it on the ranking's page.",
+      enabled: true,
+    });
+  }
+  return s;
+}
+
+/**
  * The model at the current schema, or null when it comes from a schema this build can't upgrade.
  * `directory`: the University directory (unit_directory), which schema 7 imports.
  */
@@ -115,5 +137,6 @@ export function migrate<T extends { schema: number }>(doc: T, directory: Directo
   if (s.schema === 7) s = from7(s);
   if (s.schema === 8) s = from8(s);
   if (s.schema === 9) s = from9(s);
+  if (s.schema === 10) s = fill10(s);
   return s.schema === SCHEMA ? (s as unknown as T) : null;
 }

@@ -50,6 +50,27 @@ const COUNTS: Record<string, keyof Pick<OverviewStats, "reviews" | "submissions"
 /** Manila day of an instant, for counting active days. */
 const day = (iso: string) => new Date(Date.parse(iso) + 8 * 3_600_000).toISOString().slice(0, 10);
 
+export interface ActivityDay {
+  date: string;
+  count: number;
+}
+
+/** A rolling year of recorded actions, grouped by Manila calendar day. */
+export function overviewActivity(events: { at: string; action: string }[], now = new Date()): ActivityDay[] {
+  const today = day(now.toISOString());
+  const end = Date.parse(`${today}T00:00:00Z`);
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    if (event.action === "session.timeout") continue;
+    const date = day(event.at);
+    counts.set(date, (counts.get(date) ?? 0) + 1);
+  }
+  return Array.from({ length: 365 }, (_, index) => {
+    const date = new Date(end - (364 - index) * 86_400_000).toISOString().slice(0, 10);
+    return { date, count: counts.get(date) ?? 0 };
+  });
+}
+
 export function overviewStats(events: { at: string; action: string; detail: string | null }[]): OverviewStats {
   const s: OverviewStats = { reviews: 0, submissions: 0, published: 0, proposals: 0, decisions: 0, signIns: 0, daysActive: 0, avgMinutes: null, totalMinutes: 0 };
   const days = new Set<string>();

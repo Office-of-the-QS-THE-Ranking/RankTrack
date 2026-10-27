@@ -56,6 +56,28 @@ export function verifyMessage(result: string) {
 /** Whether an email is on one of the University's sign-in domains. */
 export const universityEmail = (email: string, domains: string[]) => domains.map((d) => d.toLowerCase()).includes(email.trim().toLowerCase().split("@")[1] ?? "");
 
+/** Who is answering: the person themselves (Request access), or an administrator for them (the invite drawer). */
+export type Voice = "self" | "other";
+
+/**
+ * The email's field message for the affiliation chosen: a UST address for the University, any other for an
+ * External partner. Empty while either is blank, or when they agree.
+ */
+export function emailProblem(email: string, affiliation: string, domains: string[], voice: Voice): string {
+  if (!email.trim() || !affiliation.trim()) return "";
+  const your = voice === "self" ? "your" : "their";
+  const ust = universityEmail(email, domains);
+  if (isThomasian(affiliation)) return ust ? "" : `Enter ${your} UST email, ending in ${domains.map((d) => `@${d}`).join(" or ")}.`;
+  return ust ? `That is a UST email. Choose University of Santo Tomas as ${your} affiliation.` : "";
+}
+
+/** A new role with the section and unit it can keep: a Student has only College/Faculty, and a unit chosen in another section goes. */
+export function withRole(roleId: string, section: string, unitId: string) {
+  const sections = sectionsFor(roleId);
+  const next = sections.length === 1 ? sections[0] : sections.includes(section as Section) ? section : "";
+  return { roleId, section: next, unitId: next === section ? unitId : "" };
+}
+
 /** A unit a Thomasian can name, indented under its parent. */
 export type RequestUnit = { id: string; name: string; depth: number };
 

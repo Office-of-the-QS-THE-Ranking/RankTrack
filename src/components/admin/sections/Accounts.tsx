@@ -2,16 +2,16 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ROLE } from "@/lib/governance/catalog";
-import { invitationUnitMatchesRole, unitSection } from "@/lib/governance/invitation";
 import { accountFilterOptions, matchesAccountFilter, matchesAccessRequestFilter } from "@/lib/governance/account-filters";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { AccountRow, RequestRow } from "@/lib/governance/console-types";
 import { trackStatus } from "@/lib/governance/request-tracker";
-import { UNIVERSITY, has, permissionsAt, rolePermissions, roleScope, union, unitScope } from "@/lib/governance/rbac";
+import { UNIVERSITY, has, rolePermissions, roleScope, union, unitScope } from "@/lib/governance/rbac";
 import type { RoleId, Scope } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { PermissionMatrix, ScopeEditor, UnitSelect, diffCell, parentPath } from "../parts";
+import { InviteSheet } from "./InviteSheet";
 import { RequestSheet } from "./Workflows";
 import {
   Avatar,
@@ -446,6 +446,7 @@ function AccountSheet({ account: a, onClose }: { account: AccountRow | null; onC
           <>
             <KV
               rows={[
+                ...profileRows(a),
                 ["Position", a.title || "—"],
                 ["Unit", unit ? <span>{unit.name}{parentPath(data.units, unit.id) && <small className="adm-muted block">{parentPath(data.units, unit.id)}</small>}</span> : a.unitId],
                 ["Signs in with", a.identity === "Google Workspace" ? "University Google account" : "Guest account"],
@@ -504,6 +505,17 @@ function AccountSheet({ account: a, onClose }: { account: AccountRow | null; onC
         ))}
     </Sheet>
   );
+}
+
+/** What the invitation or the approved request said about them; a website is only ever shown as text. */
+function profileRows(a: AccountRow): [string, string][] {
+  const p = a.profile;
+  if (!p) return [];
+  return [
+    ...(p.salutation ? [["Salutation", p.salutation] as [string, string]] : []),
+    ["Affiliation", `${p.affiliation}${p.organization ? ` · ${p.organization}` : ""}${p.listed ? "" : " (Others)"}`],
+    ...(p.website ? [["Organization website", p.website] as [string, string]] : []),
+  ];
 }
 
 function EditDetails({ a, onDone }: { a: AccountRow; onDone: () => void }) {
@@ -719,150 +731,4 @@ export function scopeText(s: Scope, data: ReturnType<typeof useConsole>["data"])
   if (s.years !== "all") parts.push(`cycle ${s.years.join(", ")}`);
   if (s.datasets !== "all") parts.push(s.datasets.map((d) => data.catalog.datasets.find((x) => x.id === d)?.name ?? d).join(", ") || "no datasets");
   return parts.join(" · ");
-}
-
-/* ---------- Invite ---------- */
-
-function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
-  const formId = useId();
-  const { data } = useConsole();
-  const act = useAct();
-  const v = data.viewer;
-  const [f, setF] = useState({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", section: "", expires: "", external: false });
-  const [custom, setCustom] = useState(false);
-  const [scope, setScope] = useState<Scope>(UNIVERSITY);
-  const universityAdmin = v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "edit"));
-  useEffect(() => {
-    if (open) {
-      setF({ lastName: "", firstName: "", middleName: "", email: "", unitId: "", roleId: "", section: "", expires: "", external: false });
-      setCustom(false);
-    }
-  }, [open]);
-  const role = data.roles.find((r) => r.id === f.roleId);
-  const ready = f.lastName.trim() && f.firstName.trim() && /@/.test(f.email) && f.unitId && f.roleId && (!f.external || f.expires);
-  const effectiveRole = f.external ? ROLE.external : f.roleId;
-  // Administrators and Coordinators work in a University Office or a College/Faculty; Students only in a College/Faculty; guests under an office
-  const asksSection = effectiveRole === ROLE.admin || effectiveRole === ROLE.coordinator;
-  const section = asksSection ? f.section : effectiveRole === ROLE.student ? "academic" : effectiveRole ? "offices" : "";
-  const unitOptions = data.units
-    .filter((unit) => unit.status === "Active" && unitSection(unit) === section && invitationUnitMatchesRole(unit, effectiveRole) && viewerCan(v, "accounts", "create", { unitId: unit.id }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const defaultScope = role && f.unitId ? roleScope(role.id, f.unitId) : null;
-  const changeRole = (roleId: string, external = f.external) => {
-    const unit = data.units.find((candidate) => candidate.id === f.unitId);
-    const keep = unit && invitationUnitMatchesRole(unit, roleId) && (roleId === ROLE.admin || roleId === ROLE.coordinator ? true : unitSection(unit) === (roleId === ROLE.student ? "academic" : "offices"));
-    setF({ ...f, roleId, external, section: keep && unit ? (unitSection(unit) ?? "") : "", unitId: keep && unit ? unit.id : "" });
-    setCustom(false);
-    setScope(UNIVERSITY);
-  };
-  return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      title="Invite someone"
-      sub="They join the first time they sign in."
-      footer={
-        <>
-          <button type="button" className="btn" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form={formId}
-            className="btn btn--dark"
-            disabled={!ready}
-          >
-            <Icon name="send" size={15} /> Send invitation
-          </button>
-        </>
-      }
-    >
-      <form id={formId} className="adm-form-grid adm-invite" onSubmit={async (event) => {
-        event.preventDefault();
-        const name = [f.firstName, f.middleName, f.lastName].map((part) => part.trim()).filter(Boolean).join(" ");
-        const r = await act({ type: "account.invite", input: { name, email: f.email, title: "", unitId: f.unitId, roleId: effectiveRole as RoleId, expires: f.expires || undefined, external: f.external, scope: custom ? scope : undefined } });
-        if (r.ok) { onClose(); if (typeof r.data === "string") onCreated(r.data); }
-      }}>
-        <Field label="Last name">
-          <input className="input" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} autoComplete="family-name" required maxLength={60} />
-        </Field>
-        <Field label="First Name">
-          <input className="input" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} autoComplete="given-name" required maxLength={60} />
-        </Field>
-        <Field label="Middle Name (optional)">
-          <input className="input" value={f.middleName} onChange={(e) => setF({ ...f, middleName: e.target.value })} autoComplete="additional-name" maxLength={60} />
-        </Field>
-        <Field label="Email">
-          <input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder={f.external ? "name@partner.org" : "name@ust.edu.ph"} autoComplete="email" required maxLength={254} title="" />
-        </Field>
-        <Field label="Role">
-          <Select className="select" value={effectiveRole} disabled={f.external} onChange={(value) => changeRole(value)} required>
-            <option value="">Choose a role</option>
-            {data.roles.map((r) => (
-              <option key={r.id} value={r.id} disabled={!r.grantable || (r.id === ROLE.external && !f.external)}>
-                {r.name}
-                {!r.grantable ? " (above your access)" : r.id === ROLE.external && !f.external ? " (guests only)" : ""}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        {asksSection && (
-          <Field label="Office or College">
-            <Select className="select" value={f.section} onChange={(value) => { setF({ ...f, section: value, unitId: "" }); setCustom(false); }} required aria-label="University Office or College/Faculty">
-              <option value="">Choose</option>
-              <option value="offices">University Office</option>
-              <option value="academic">College/Faculty</option>
-            </Select>
-          </Field>
-        )}
-        <Field label="Unit">
-          <Select className="select" value={f.unitId} onChange={(unitId) => { setF({ ...f, unitId }); setCustom(false); }} disabled={!section} required aria-label="Unit">
-            <option value="">{!effectiveRole ? "Choose a role first" : !section ? "Choose an office or college first" : section === "academic" ? "Choose a College/Faculty" : "Choose a University Office"}</option>
-            {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
-          </Select>
-        </Field>
-        <Field label={f.external ? "Access ends" : "Access ends (optional)"}>
-          <DateField className="input" min={data.day} value={f.expires} onChange={(v) => setF({ ...f, expires: v })} required={f.external} />
-        </Field>
-      </form>
-      {viewerCan(v, "accounts", "manage") && (
-        <label className="choice">
-          <input type="checkbox" checked={f.external} onChange={(e) => changeRole(e.target.checked ? ROLE.external : "", e.target.checked)} />
-          Guest from outside the University
-        </label>
-      )}
-      {role &&
-        (custom ? (
-          <Block
-            title="Access scope"
-            actions={
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setCustom(false)}>
-                Use default
-              </button>
-            }
-          >
-            <ScopeEditor value={scope} onChange={setScope} allowUniversity={universityAdmin} unitFilter={(u) => u.status === "Active" && viewerCan(v, "accounts", "edit", { unitId: u.id })} />
-          </Block>
-        ) : (
-          <p className="adm-note">
-            Access scope: {defaultScope?.units === "all" ? "University-wide" : "their unit"}.{" "}
-            <button
-              type="button"
-              className="link"
-              onClick={() => {
-                setCustom(true);
-                setScope(defaultScope?.units === "all" && universityAdmin ? UNIVERSITY : f.unitId ? unitScope(f.unitId) : UNIVERSITY);
-              }}
-            >
-              Change
-            </button>
-          </p>
-        ))}
-      {role && (
-        <Disclosure title={`What ${role.name} can do`}>
-          <PermissionMatrix caption={`${role.name} permissions`} cell={diffCell({}, permissionsAt(role, custom ? scope : (defaultScope ?? { units: [] })))} />
-        </Disclosure>
-      )}
-    </Sheet>
-  );
 }

@@ -29,8 +29,9 @@ import {
   sectionsFor,
   isThomasian,
   universityEmail,
+  emailProblem,
+  withRole,
   type RequestUnit,
-  type Section,
   displayRequestBirthday,
   formatRequestBirthday,
   listedAffiliation,
@@ -158,7 +159,6 @@ export function RequestAccessForm({
   const set = (patch: Partial<AccessDraft>) => onDraft({ ...d, ...patch });
   const thomasian = isThomasian(d.affiliation);
   const website = !thomasian && asksWebsite(d.affiliation) && !listedAffiliation(d.affiliation);
-  const ustDomains = domains.map((x) => `@${x}`).join(" or ");
   const email = d.email.trim().toLowerCase();
   const ust = universityEmail(email, domains);
   // the units of the chosen section: University Offices, or Faculty/Colleges
@@ -166,16 +166,7 @@ export function RequestAccessForm({
   const unitLabel = d.section === "offices" ? "Office" : "College/Faculty";
   const verified = ust && d.verified === email;
   // the email must match the affiliation: a UST address for the University, any other for an external partner
-  const emailProblem = (value: string) =>
-    !value.trim() || !d.affiliation.trim()
-      ? ""
-      : thomasian
-        ? universityEmail(value, domains)
-          ? ""
-          : `Enter your UST email, ending in ${ustDomains}.`
-        : universityEmail(value, domains)
-          ? "That is a UST email. Choose University of Santo Tomas as your affiliation."
-          : "";
+  const emailIssue = (value: string) => emailProblem(value, d.affiliation, domains, "self");
 
   // Like sign-in, verifying leaves for Google; the answers wait in this tab and come back with the result (SignInFlow).
   const [leaving, setLeaving] = useState(false);
@@ -456,10 +447,7 @@ export function RequestAccessForm({
                     name="roleId"
                     value={d.roleId}
                     // a Student has only College/Faculty; a unit chosen in another section goes
-                    onChange={(roleId) => {
-                      const section = sectionsFor(roleId).length === 1 ? sectionsFor(roleId)[0] : sectionsFor(roleId).includes(d.section as Section) ? d.section : "";
-                      set({ roleId, section, unitId: section === d.section ? d.unitId : "" });
-                    }}
+                    onChange={(roleId) => set(withRole(roleId, d.section, d.unitId))}
                     placeholder="Choose"
                     aria-label="Role"
                     required
@@ -562,12 +550,12 @@ export function RequestAccessForm({
                   title=""
                   value={d.email}
                   onChange={(e) => {
-                    e.target.setCustomValidity(emailProblem(e.target.value));
+                    e.target.setCustomValidity(emailIssue(e.target.value));
                     set({ email: e.target.value });
                   }}
                   ref={(input) => {
                     // changing the affiliation rechecks the address already typed
-                    input?.setCustomValidity(emailProblem(input.value));
+                    input?.setCustomValidity(emailIssue(input.value));
                   }}
                   aria-describedby={verified ? "si-email-verified" : undefined}
                   placeholder={thomasian ? `name@${domains[0] ?? "ust.edu.ph"}` : "name@institution.org"}

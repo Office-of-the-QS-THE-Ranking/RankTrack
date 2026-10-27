@@ -8,11 +8,9 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SPECIFY, SPECIFY_LABEL, SALUTATIONS, OTHER_SALUTATION, NO_SALUTATION, THOMASIAN_AFFILIATION, SECTIONS, UST_ROLES, sectionsFor, isThomasian, listedAffiliation, validRequestText, asksWebsite, cleanWebsite, salutationText } from "@/lib/governance/access-requests";
 import { ROLE } from "@/lib/governance/catalog";
-import { domainAllowed } from "@/lib/governance/derive";
-import { requestUnits } from "@/lib/governance/directory";
 import { clean, isDay, isEmail, log } from "@/lib/governance/engine/core";
+import { personTitle, placePerson, readPerson } from "@/lib/governance/person-details";
 import { openRequest } from "@/lib/governance/engine/requests";
 import { allow, clientKey } from "@/lib/governance/server/limits";
 import { run, runSystem } from "@/lib/governance/server/run";
@@ -102,33 +100,13 @@ export async function requestAccess(input: {
   unitId?: string;
   agreed: boolean;
 }): Promise<{ ok: boolean; message: string; reference?: string; at?: string }> {
-  const lastName = clean(input.lastName, 60).normalize("NFC").toUpperCase();
-  const firstName = clean(input.firstName, 60).normalize("NFC").toUpperCase();
-  const middleName = clean(input.middleName, 60).normalize("NFC").toUpperCase();
-  const email = clean(input.email).toLowerCase();
-  const thomasian = isThomasian(clean(input.affiliation, 160));
-  const answer = thomasian ? THOMASIAN_AFFILIATION : clean(input.affiliation, 160).normalize("NFC").toUpperCase();
-  if (!lastName || !validRequestText(lastName)) return { ok: false, message: "Enter your last name." };
-  if (!firstName || !validRequestText(firstName)) return { ok: false, message: "Enter your first name." };
-  if (middleName && !validRequestText(middleName)) return { ok: false, message: "Check your middle name." };
-  const salutation = input.salutation === OTHER_SALUTATION ? salutationText(String(input.otherSalutation ?? "")).trim() : input.salutation;
-  if (input.salutation !== NO_SALUTATION && !(SALUTATIONS.includes(salutation) || (input.salutation === OTHER_SALUTATION && /\p{L}/u.test(salutation))))
-    return { ok: false, message: "Choose a salutation, or Prefer not to specify." };
+  // the names, salutation, affiliation and email follow the same rules as an invitation (person-details.ts)
+  const person = readPerson(input, "self");
+  if (typeof person === "string") return { ok: false, message: person };
+  const { email, thomasian, profile } = person;
   const today = new Date().toISOString().slice(0, 10);
   const youngest = `${Number(today.slice(0, 4)) - 15}${today.slice(4)}`;
   if (!isDay(input.birthday) || input.birthday < "1900-01-01" || input.birthday > youngest) return { ok: false, message: "Check your birthday." };
-  if (!isEmail(email)) return { ok: false, message: thomasian ? "Enter your UST email address." : "Enter your institution email address." };
-  const role = thomasian ? UST_ROLES.find((r) => r.id === input.roleId) : undefined;
-  if (thomasian && !role) return { ok: false, message: "Choose your role: Administrator, Coordinator or Student." };
-  const section = role ? sectionsFor(role.id).find((x) => x === input.section) : undefined;
-  if (role && !section) return { ok: false, message: role.id === ROLE.student ? "Students choose a College/Faculty." : "Choose University Office or College/Faculty." };
-  if (!thomasian && !validRequestText(answer, true)) return { ok: false, message: "Enter an affiliation using letters, spaces, hyphens, em dashes, slashes or parentheses only." };
-  const listed = thomasian ? undefined : listedAffiliation(answer);
-  const organization = listed === SPECIFY ? clean(input.organization, 160).normalize("NFC").toUpperCase() : "";
-  if (listed === SPECIFY && !validRequestText(organization)) return { ok: false, message: "Name your accreditation organization." };
-  const affiliation = listed === SPECIFY ? SPECIFY_LABEL : (listed ?? answer);
-  const website = !thomasian && asksWebsite(answer) ? cleanWebsite(input.website ?? "") : "";
-  if (!thomasian && asksWebsite(answer) && input.website?.trim() && !website) return { ok: false, message: "Enter the website as a full address starting with https://." };
   if (input.agreed !== true) return { ok: false, message: "Accept the declarations to send your request." };
   // Anyone can send a request, so cap how many one network, and everyone together, can send, before anything
   // below can say whether an address already has an account. If the counter is unreachable, nothing is sent.
@@ -136,17 +114,13 @@ export async function requestAccess(input: {
   if (!(await allow(`access:${client}`, 3600, ACCESS.perClientHour, true, false))) return { ok: false, message: "Too many requests were sent from your network. Try again in an hour." };
   if (!(await allow("access:all", 3600, ACCESS.allHour, true, false))) return { ok: false, message: "The Hub is receiving many requests right now. Try again in an hour." };
   const state = await readState();
-  const university = domainAllowed(state, email);
-  if (thomasian && !university) return { ok: false, message: `Use your UST email (${state.security.sso.domains.map((d) => `@${d}`).join(" or ")}).` };
-  if (!thomasian && university) return { ok: false, message: "That is a UST email. Choose University of Santo Tomas as your affiliation." };
+  // the email must match the affiliation, and a Thomasian's unit must be one of the chosen section's
+  const placed = placePerson(person, { domains: state.security.sso.domains, units: state.units, voice: "self" });
+  if (typeof placed === "string") return { ok: false, message: placed };
+  const { unit } = placed;
   // a UST email counts only once this browser has signed in to Google with it (/auth/verify-email)
   if (thomasian && (await verifiedEmail()) !== email) return { ok: false, message: "Verify your UST email with Google, then submit again." };
-  // the unit must be one of the chosen section's: a University Office, or a College/Faculty
-  const sectionLabel = SECTIONS.find((x) => x.key === section)?.label;
-  const allowed = sectionLabel ? (requestUnits(state.units).find((g) => g.label === sectionLabel)?.units ?? []) : [];
-  const unit = role && allowed.some((u) => u.id === input.unitId) ? state.units.find((u) => u.id === input.unitId) : undefined;
-  if (role && !unit) return { ok: false, message: section === "offices" ? "Choose your office." : "Choose your college or faculty." };
-  const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+  const { name } = person;
   const external = !thomasian;
   // guests are sponsored by the Office; Thomasians go to the unit the approver confirms
   const office = state.units.find((u) => u.id === "rankings-office" && u.status === "Active");
@@ -167,24 +141,17 @@ export async function requestAccess(input: {
         name,
         email,
         unitId: external && office ? office.id : "",
-        roleId: role?.id ?? ROLE.external,
-        title: role?.name ?? (organization || affiliation),
+        roleId: person.roleId ?? ROLE.external,
+        title: personTitle(person),
         applicant: {
           ...(thomasian ? { thomasian: true, unitId: unit!.id } : {}),
-          lastName,
-          firstName,
-          ...(middleName ? { middleName } : {}),
-          ...(input.salutation !== NO_SALUTATION ? { salutation } : {}),
+          ...profile,
           birthday: input.birthday,
-          affiliation,
-          listed: thomasian || !!listed,
-          ...(organization ? { organization } : {}),
-          ...(website ? { website } : {}),
           agreedAt: ctx.iso,
         },
         ...(external ? { external: true } : {}),
       },
-      `Account for ${name}, ${unit?.name ?? (organization || affiliation)}`,
+      `Account for ${name}, ${unit?.name ?? (profile.organization || profile.affiliation)}`,
       "",
     );
     return { ok: true, message: req.id };

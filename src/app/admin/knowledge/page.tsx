@@ -9,12 +9,9 @@ export const metadata = { title: "Knowledge Center" };
 export default function KnowledgePage() {
   return (
     <Gate path="/admin/knowledge" title="Knowledge Center">
-      <PageHeader
-        title="Knowledge and Methodology Center"
-        lede="Search one indicator and see every ranking it touches. Methodologies, evidence standards, calendars, templates and training sit beside it."
-      />
+      <PageHeader title="Knowledge Center" />
       <Suspense>
-        <Knowledge mode="internal" />
+        <Knowledge />
       </Suspense>
     </Gate>
   );

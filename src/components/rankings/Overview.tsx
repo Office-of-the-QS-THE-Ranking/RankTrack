@@ -8,6 +8,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Card, Direction, MeterRow, PageHeader, Status, Swatch } from "@/components/ui/primitives";
 import { DimensionMatrix } from "./DimensionMatrix";
 import { useViews } from "@/components/reference/ReferenceProvider";
+import { useHub } from "@/components/hub/HubProvider";
+import { calendarMonths } from "@/lib/calendar";
 
 /** Rankings landing page (proposal §3): how the eight rankings relate to UST's institutional goals. */
 /** `embedded` drops the page header when the overview sits inside the executive dashboard. */
@@ -25,7 +27,10 @@ export function RankingsOverview({
   rankings?: Ranking[];
   evidence?: EvidenceItem[];
 }) {
-  const { calendar, dictionary, families, groups, rankings } = useViews();
+  const { calendar: defaultCalendar, dictionary, families, groups, rankings } = useViews();
+  const hub = useHub();
+  // The governed calendar: each ranking's deadline and the dates the Office keeps for it.
+  const calendar = hub ? calendarMonths(hub.calendar) : defaultCalendar;
   const internal = mode === "internal";
   const RANKINGS = given ?? rankings;
   const EVIDENCE = evidence;

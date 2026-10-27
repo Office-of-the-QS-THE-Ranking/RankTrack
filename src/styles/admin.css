@@ -1206,6 +1206,181 @@
 .adm-field--check {
   align-self: end;
 }
+.adm-field__label em {
+  margin-left: 2px;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--adm-muted);
+}
+
+/* Invite someone (InviteSheet): the Request access form's fields, in pairs as it sets them, over three steps
+   under the title. Names and organizations are typed in capitals (requestText), so nothing here transforms text. */
+/* A column (not a grid), so the closed website field's negative margins take back the gap it sits in. */
+.adm-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Focus is a neutral 1px edge, never the console's gold outline; a failed check keeps its red edge. */
+.adm .adm-invite :is(.input, .select, .textarea):focus-visible {
+  outline: none;
+}
+.adm .adm-invite :is(.input, .select, .textarea):not([data-invalid]):is(:focus, [aria-expanded="true"]) {
+  border-color: var(--adm-line-2);
+  box-shadow: 0 0 0 1px var(--adm-line-2);
+}
+.adm-invite__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 16px 14px;
+}
+@media (max-width: 420px) {
+  .adm-invite__pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Under the title and across to the close button's edge. */
+.adm-invite-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: calc(100% + 48px);
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.adm-invite-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 2px solid var(--adm-line);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--adm-muted);
+  transition:
+    border-color 320ms ease,
+    color 320ms ease;
+}
+.adm-invite-steps li:is(.is-current, .is-done) {
+  border-top-color: var(--gold-400);
+  color: var(--adm-text);
+}
+.adm-invite-steps__n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--adm-line-2);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.adm-invite-steps .is-current .adm-invite-steps__n {
+  background: var(--gold-400);
+  box-shadow: none;
+  color: var(--on-gold);
+}
+/* Jet black with a gold tick in both appearances, ringed so it holds on the dark panel. */
+.adm-invite-steps .is-done .adm-invite-steps__n {
+  background: #1d1d1f;
+  box-shadow: inset 0 0 0 1px var(--adm-line-2);
+  color: var(--gold-400);
+}
+.adm-invite-steps__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-invite-steps li {
+    transition: none;
+  }
+}
+/* The organization's website opens once an unlisted affiliation loses focus, as on the request form. */
+.adm-invite > .adm-invite__reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-block: -8px;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 240ms ease,
+    opacity 180ms ease,
+    visibility 0s 240ms;
+}
+.adm-invite > .adm-invite__reveal[data-visible="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 280ms ease,
+    opacity 220ms ease 40ms,
+    visibility 0s;
+}
+.adm-invite__reveal-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.adm-invite__reveal .adm-field {
+  padding-block: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-invite > .adm-invite__reveal {
+    transition: none;
+  }
+}
+/* The affiliation's suggestions (AffiliationField) in the console's colours instead of the sign-in night glass. */
+.adm-invite .si__combo-list {
+  border-radius: 14px;
+  background: var(--adm-bg);
+  color: var(--adm-text);
+  box-shadow:
+    0 0 0 1px var(--adm-line),
+    0 18px 40px -16px rgb(0 0 0 / 0.28);
+  scrollbar-color: var(--adm-line-2) transparent;
+}
+.adm-invite .si__combo-option {
+  border-radius: 10px;
+  color: var(--adm-text-2);
+}
+.adm-invite .si__combo-option[aria-selected="true"],
+.adm-invite .si__combo-option.is-selected {
+  background: var(--adm-hover);
+  color: var(--adm-text);
+}
+.adm-invite .si__combo-option mark {
+  color: var(--adm-text);
+}
+.adm-invite .si__combo-option--others {
+  border-top-color: var(--adm-line);
+}
+.adm-invite .si__combo-option--others:first-child {
+  border-radius: 10px;
+}
+.adm-invite .si__combo-option--others b {
+  color: var(--adm-text);
+}
+.adm-invite .si__combo-tag {
+  background: var(--adm-badge);
+  box-shadow: inset 0 0 0 1px var(--adm-line-2);
+  color: var(--adm-text-2);
+}
+.adm-invite .si__combo-clear {
+  border-radius: 8px;
+  color: var(--adm-muted);
+}
+.adm-invite .si__combo-clear:hover,
+.adm-invite .si__combo-clear:focus-visible {
+  background: var(--adm-hover);
+  color: var(--adm-text);
+}
+.adm-invite .si__combo-clear:focus-visible {
+  outline: 1px solid var(--adm-line-2);
+}
 .adm-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));

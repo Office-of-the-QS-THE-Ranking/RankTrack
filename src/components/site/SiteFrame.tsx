@@ -15,7 +15,7 @@ import { publicHub, siteData } from "@/lib/governance/server/site";
 export async function SiteFrame({ children, loader = true }: { children: ReactNode; loader?: boolean }) {
   // What the public may see is decided in Administration: menus, search, and a site-wide notice.
   const site = await siteData();
-  const menus = governedMenus(site.ref, { publicSlugs: site.rankings.map((r) => r.slug), stories: site.stories, features: site.features });
+  const menus = governedMenus({ ...site.ref, calendar: site.calendarMonths }, { publicSlugs: site.rankings.map((r) => r.slug), stories: site.stories, features: site.features });
   return (
     <div className={`site ${siteFontVars}`} id="top" data-intro={loader ? "load" : "done"} suppressHydrationWarning>
       <InlineScript html={SITE_BOOT} />

@@ -1,29 +1,30 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
+import type { HubUnit } from "@/lib/governance/hub-types";
 import { hub } from "@/lib/governance/server/hub";
+import { buildUnitLeaderboard } from "@/lib/governance/unit-leaderboard";
+import { Tile } from "@/components/dashboard/Tile";
+import { Medal } from "@/components/units/profile/Medal";
+import { UnitMark } from "@/components/units/UnitMark";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { Card, Empty, PageHeader, Pattern, SectionHead } from "@/components/ui/primitives";
+import { InfoTooltip } from "@/components/ui/interactive";
+import { Swatch } from "@/components/ui/primitives";
 
-const SECTIONS = [
-  ["achievements", "Institutional achievements"],
-  ["units", "Unit contributions"],
-  ["champions", "Evidence champions"],
-  ["innovation", "Innovation leaders"],
-  ["sustainability", "Sustainability partners"],
-  ["international", "International recognition"],
-  ["archive", "Recognition archive"],
-] as const;
-
-const AWARD_ICON: Record<string, IconName> = {
-  "Most reusable evidence": "layers",
-  "Best outcome evidence": "target",
-  "Strongest cross-unit collaboration": "collaboration",
-  "Earliest complete submission": "deadline",
-  "Most improved documentation": "trend-up",
-  "Most promising innovation": "innovation",
-  "Best impact story": "quote",
-};
+/** The emblem struck on an award's medal, by what the award is for; the first match wins. */
+const AWARD_ICON: [RegExp, IconName][] = [
+  [/\breus/i, "layers"],
+  [/\boutcome/i, "target"],
+  [/\bcollaborat/i, "collaboration"],
+  [/\bearl/i, "deadline"],
+  [/\bimprov/i, "trend-up"],
+  [/\binnovat/i, "innovation"],
+  [/\bstor/i, "quote"],
+  [/\bimpact/i, "impact"],
+  [/\bevidence/i, "evidence"],
+];
+const awardIcon = (award: string) => AWARD_ICON.find(([words]) => words.test(award))?.[1] ?? "recognition";
 
 /** Rankings whose evidence the sustainability partners supply. */
 const SUSTAINABILITY = ["UI GreenMetric", "QS Sustainability", "THE Impact"];
@@ -31,198 +32,279 @@ const SUSTAINABILITY = ["UI GreenMetric", "QS Sustainability", "THE Impact"];
 /** Awards given in earlier cycles, newest first. */
 const ARCHIVE: { cycle: string; awards: number }[] = [];
 
-/** Recognition follows verified evidence quality, measurable outcomes and collaboration (proposal §8). */
+const plural = (n: number, one: string) => (n === 1 ? one : `${one}s`);
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter((w) => /^\p{L}/u.test(w))
+    .filter((_, i, all) => i === 0 || i === all.length - 1)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+
+/** What an empty tile shows instead. */
+function None({ icon, children }: { icon: IconName; children: string }) {
+  return (
+    <p className="rw-none">
+      <Icon name={icon} size={16} />
+      {children}
+    </p>
+  );
+}
+
+/**
+ * The Recognition wall: the cycle's awards struck as gold medals on onyx, then the results that rose and the
+ * units, coordinators and programmes behind them, on the dashboard's tiles. Recognition follows verified
+ * evidence quality, measurable outcomes and collaboration (proposal §8).
+ */
 export async function RecognitionWall({ mode }: { mode: "internal" | "public" }) {
   const internal = mode === "internal";
   // Units follow the Organizational Directory (active ones are recognised); rankings follow configuration.
   const h = await hub();
-  const UNITS = h.activeUnits;
-  const STORIES = h.stories;
-  const unitHref = (name: string) => {
-    const u = h.unitByName(name);
-    return internal && u ? `/admin/units/${u.slug}` : undefined;
+  const units = h.activeUnits;
+  const unitHref = (u: HubUnit | undefined) => (internal && u ? `/admin/units/${u.slug}` : undefined);
+  const unitLink = (u: HubUnit) => {
+    const href = unitHref(u);
+    return href ? <Link href={href}>{u.name}</Link> : u.name;
   };
-  const achievements = h.rankings.filter((r) => r.direction === "up");
-  const topUnits = UNITS.filter((u) => u.validated > 0).sort((a, b) => b.validated - a.validated || b.rankingsServed - a.rankingsServed).slice(0, 6);
-  const champions = UNITS.filter((u) => u.coordinatorId && u.rankingsServed > 0).sort((a, b) => b.rankingsServed - a.rankingsServed).slice(0, 4);
-  const innovation = STORIES.filter((s) => s.themes.includes("Thomasian Innovations") && (internal || s.state === "Published"));
-  const partners = UNITS.filter((u) => STORIES.some((s) => s.state === "Published" && s.unit.startsWith(u.name) && s.rankings.some((r) => SUSTAINABILITY.includes(r)))).map((u) => u.name);
+
+  const awards = RECOGNITION.map((r) => ({ ...r, href: unitHref(h.unitByName(r.unit)) }));
+  const movers = h.rankings.filter((r) => r.direction === "up");
+  // Ties share a position, as on the Units leaderboard.
+  const top = buildUnitLeaderboard(units).filter((s) => s.rank !== null).slice(0, 6);
+  const most = Math.max(1, ...top.map((s) => s.unit.validated));
+  const champions = units.filter((u) => u.coordinatorId && u.rankingsServed > 0).sort((a, b) => b.rankingsServed - a.rankingsServed).slice(0, 4);
+  const innovation = h.stories.filter((s) => s.themes.includes("Thomasian Innovations") && (internal || s.state === "Published"));
+  // Stories name a ranking by its short name; older ones by its slug.
+  const green = h.ref.rankings.filter((r) => SUSTAINABILITY.includes(r.short));
+  const isGreen = (name: string) => green.some((r) => r.short === name || r.slug === name);
+  const partners = units.filter((u) => h.stories.some((s) => s.state === "Published" && s.unit.startsWith(u.name) && s.rankings.some(isGreen)));
+  const wuri = h.ref.rankings.find((r) => r.slug === "wuri");
 
   return (
-    <>
-      <PageHeader
-        title="Recognition wall"
-        lede="The people and units behind UST's results. Recognition follows verified evidence quality, measurable outcomes and collaboration, never the number of files uploaded."
-      />
-      <nav aria-label="Recognition sections" className="pills">
-        {SECTIONS.map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="pill">
-            {label}
-          </a>
-        ))}
-      </nav>
+    <div className="ov rw">
+      <header className="ov__head">
+        <div className="ov__title-row">
+          <h1 className="ov__title">Recognition wall</h1>
+          <InfoTooltip label="How recognition is earned">
+            Earned through verified evidence quality, measurable outcomes and collaboration, never the number of files uploaded.
+          </InfoTooltip>
+        </div>
+      </header>
 
-      <section id="achievements" className="stack" style={{ ["--gap" as string]: "14px" } as CSSProperties}>
-        <SectionHead title="Institutional achievements" sub="Movement in the latest editions" />
-        {achievements.length ? (
-          <div className="achieve">
-            {achievements.map((r, i) => (
-              <div key={r.slug} className={`achieve__tile${i === 0 ? " achieve__tile--gold" : i === 1 ? " achieve__tile--dark" : ""}`}>
-                {i < 2 && <Pattern fade="up" className="achieve__pattern" />}
-                <span className="achieve__name">{r.name}</span>
-                <span className="achieve__v">{r.current}</span>
-                <span className="achieve__from">
-                  <Icon name="arrow-up" size={14} strokeWidth={2.2} /> up from {r.previous}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <Empty icon="trend-up" title="No results have moved up yet" />
-          </Card>
-        )}
-      </section>
-
-      <section id="units" className="stack" style={{ ["--gap" as string]: "14px" } as CSSProperties}>
-        <SectionHead title={`${h.currentCycle} cycle awards`} sub="Awarded for quality: earliest complete submission, best outcome evidence, collaboration, reuse, improvement, impact stories and innovation" />
-        {RECOGNITION.length ? (
-          <div className="awards">
-            {RECOGNITION.map((r) => {
-              const href = unitHref(r.unit);
-              return (
-                <article key={r.award} className="award">
-                  <span className="award__icon">
-                    <Icon name={AWARD_ICON[r.award] ?? "recognition"} size={18} />
-                  </span>
-                  <p className="award__name">{r.award}</p>
-                  <h3>{href ? <Link href={href}>{r.unit}</Link> : r.unit}</h3>
-                  <p className="small text-2">{r.reason}</p>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <Empty icon="recognition" title="No awards this cycle yet" />
-          </Card>
-        )}
-      </section>
-
-      <div className="grid cols-2">
-        <Card title="Top contributing units" sub="By validated contributions and rankings served" icon="units">
-          {topUnits.length ? (
-            <ol className="list rank-list">
-              {topUnits.map((u, i) => (
-                <li key={u.slug}>
-                  <span className="list__main rank-list__main">
-                    <span className="rank-list__n">{i + 1}</span>
-                    {internal ? <Link href={`/admin/units/${u.slug}`}>{u.name}</Link> : u.name}
-                  </span>
-                  <span className="list__aside small num">
-                    <b>{u.validated}</b> validated
-                  </span>
-                  <span className="list__sub" style={{ paddingLeft: 36 }}>
-                    Evidence counts in {u.rankingsServed} rankings
-                  </span>
+      <div className="ov-bento rw-bento">
+        <Tile id="awards" className="rw-awards">
+          <header className="rw-awards__head">
+            <p className="rw-awards__cycle">{h.currentCycle}</p>
+            <h2 id="awards" className="rw-awards__title">
+              Cycle awards
+            </h2>
+          </header>
+          {awards.length ? (
+            <ol className="rw-awards__list" style={{ ["--cols" as string]: Math.min(3, awards.length) } as CSSProperties}>
+              {awards.map((a, i) => (
+                <li key={a.award} className="rw-award" style={{ ["--i" as string]: i } as CSSProperties}>
+                  <Medal icon={awardIcon(a.award)} metal="gold" size={60} />
+                  <p className="rw-award__name">{a.award}</p>
+                  <h3 className="rw-award__unit">{a.href ? <Link href={a.href}>{a.unit}</Link> : a.unit}</h3>
+                  <p className="rw-award__why">{a.reason}</p>
                 </li>
               ))}
             </ol>
           ) : (
-            <Empty icon="units" title="No validated contributions yet" />
+            <div className="rw-awards__none">
+              <span className="rw-awards__blanks" aria-hidden="true">
+                {(["layers", "target", "collaboration"] as const).map((icon) => (
+                  <Medal key={icon} icon={icon} size={52} />
+                ))}
+              </span>
+              <p>No awards yet</p>
+            </div>
           )}
-        </Card>
-        <Card title="Evidence champions" sub="Unit coordinators whose evidence is reused most widely" icon="recognition" id="champions" tone="dark">
-          {champions.length ? (
-            <ul className="list">
-              {champions.map((u) => (
-                <li key={u.slug}>
-                  <span className="list__main">{u.coordinator}</span>
-                  <span className="list__aside small" style={{ color: "var(--gold-400)", fontWeight: 600 }}>
-                    {u.rankingsServed} rankings
-                  </span>
-                  <span className="list__sub">{u.name}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="small" style={{ color: "var(--on-dark-2)" }}>
-              None yet.
-            </p>
-          )}
-        </Card>
-      </div>
+        </Tile>
 
-      <div className="grid cols-2">
-        <Card title="Innovation leaders" sub="Programmes documented for WURI and the public showcase" icon="innovation" id="innovation">
-          {innovation.length ? (
-            <ul className="list">
-              {innovation.map((s) => (
-                <li key={s.slug}>
-                  <Link href={internal ? `/admin/impact#${s.slug}` : `/impact/${s.slug}`} className="list__main">
-                    {s.title}
+        <Tile id="achievements" title="Moved up" className="rw-up">
+          {movers.length ? (
+            <ul className="rw-up__list" style={{ ["--cols" as string]: Math.min(4, movers.length) } as CSSProperties}>
+              {movers.map((r) => (
+                <li key={r.slug}>
+                  <Link href={internal ? `/admin/rankings/${r.slug}` : `/rankings/${r.slug}`} className="rw-mover">
+                    <span className="rw-mover__name">
+                      <Swatch family={r.family} />
+                      {r.short}
+                    </span>
+                    <span className="rw-mover__now">{r.current}</span>
+                    <span className="rw-mover__from">
+                      <Icon name="arrow-up" size={13} strokeWidth={2.4} />
+                      from {r.previous}
+                    </span>
                   </Link>
-                  <span className="list__sub">{s.unit}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <Empty icon="innovation" title="No innovations documented yet" />
+            <None icon="trend-up">No results have moved up yet</None>
           )}
-        </Card>
-        <Card title="Sustainability partners" sub="Units behind GreenMetric, QS Sustainability and THE Impact evidence" icon="sustainability" id="sustainability">
-          {partners.length ? (
-            <ul className="list">
-              {partners.map((n) => {
-                const href = unitHref(n);
-                return (
-                  <li key={n}>
-                    {href ? (
-                      <Link href={href} className="list__main">
-                        {n}
-                      </Link>
-                    ) : (
-                      <span className="list__main">{n}</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <Empty icon="sustainability" title="No published sustainability stories yet" />
-          )}
-        </Card>
-      </div>
+        </Tile>
 
-      <div className="grid cols-2-1" id="international">
-        <Card title="International recognition" icon="globe" sub="WURI Top 100 placements, from the official result letter">
-          {WURI_PLACEMENTS.length ? (
-            <div className="chips">
-              {WURI_PLACEMENTS.map((c) => (
-                <span key={c} className="chip chip--outline">
-                  <Icon name="recognition" size={13} /> {c}
-                </span>
-              ))}
+        <Tile
+          id="units"
+          title="Top contributors"
+          className="rw-top"
+          aside={
+            internal && (
+              <Link href="/admin/units" className="btn btn--sm">
+                All units
+              </Link>
+            )
+          }
+        >
+          {top.length ? (
+            <div className="rw-board">
+              <p className="rw-board__cols" aria-hidden="true">
+                <span>Validated</span>
+                <span>Rankings</span>
+              </p>
+              <ol className="rw-board__list">
+                {top.map(({ unit: u, rank }) => (
+                  <li key={u.slug} className="rw-board__row" style={{ ["--w" as string]: u.validated / most } as CSSProperties}>
+                    <span className="rw-board__n">
+                      <span className="sr-only">Position </span>
+                      {rank}
+                    </span>
+                    <UnitMark emblem={u.emblem ?? null} code={u.code} className="rw-mark" />
+                    <span className="rw-board__name">{unitLink(u)}</span>
+                    <span className="rw-board__bar" aria-hidden="true" />
+                    <span className="rw-board__figs">
+                      <span className="rw-board__v">
+                        {u.validated}
+                        <span className="rw-board__label"> validated</span>
+                      </span>
+                      <span className="rw-board__r">
+                        {u.rankingsServed}
+                        <span className="rw-board__label"> {plural(u.rankingsServed, "ranking")}</span>
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
             </div>
           ) : (
-            <Empty icon="globe" title="No placements recorded yet" />
+            <None icon="units">No validated evidence yet</None>
           )}
-        </Card>
-        <Card title="Recognition archive" icon="history" id="archive">
-          {ARCHIVE.length ? (
-            <ul className="list">
-              {ARCHIVE.map((a) => (
-                <li key={a.cycle}>
-                  <span className="list__main">{a.cycle} cycle</span>
-                  <span className="list__aside small muted">{a.awards} awards</span>
+        </Tile>
+
+        <Tile id="champions" title="Evidence champions" className="rw-champs">
+          {champions.length ? (
+            <ul className="rw-people">
+              {champions.map((u) => (
+                <li key={u.slug}>
+                  <span className="rw-face" aria-hidden="true">
+                    {initials(u.coordinator.split(", ")[0])}
+                  </span>
+                  <span className="rw-people__who">
+                    <b>{u.coordinator}</b>
+                    <span>{unitLink(u)}</span>
+                  </span>
+                  <span className="rw-people__n">
+                    <b>{u.rankingsServed}</b> {plural(u.rankingsServed, "ranking")}
+                  </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <Empty icon="history" title="No earlier cycles yet" />
+            <None icon="evidence">No champions yet</None>
           )}
-        </Card>
+        </Tile>
+
+        <Tile
+          id="international"
+          title={
+            <>
+              {wuri && <Swatch family={wuri.family} />}
+              WURI Top 100
+            </>
+          }
+          className="rw-intl"
+        >
+          {WURI_PLACEMENTS.length ? (
+            <ul className="rw-places">
+              {WURI_PLACEMENTS.map((c) => (
+                <li key={c}>
+                  <Medal icon="recognition" metal="gold" size={30} />
+                  {c}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <None icon="globe">No placements yet</None>
+          )}
+        </Tile>
+
+        <Tile id="innovation" title="Innovation leaders" className="rw-inno">
+          {innovation.length ? (
+            <ul className="rw-stories">
+              {innovation.map((s) => (
+                <li key={s.slug}>
+                  <Link href={internal ? `/admin/impact#${s.slug}` : `/impact/${s.slug}`} className="rw-story">
+                    <span className="rw-story__pic">
+                      {s.images[0] ? <Image src={s.images[0]} alt="" fill sizes="52px" /> : <Icon name="innovation" size={18} />}
+                    </span>
+                    <span className="rw-story__title">{s.title}</span>
+                    <span className="rw-story__unit">{s.unit}</span>
+                    {s.outcomeFigure && <span className="rw-story__fig">{s.outcomeFigure}</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <None icon="innovation">No innovations yet</None>
+          )}
+        </Tile>
+
+        <Tile
+          id="sustainability"
+          title="Sustainability partners"
+          className="rw-green"
+          aside={
+            <span className="rw-swatches">
+              {green.map((r) => (
+                <Swatch key={r.slug} family={r.family} title={r.short} />
+              ))}
+            </span>
+          }
+        >
+          {partners.length ? (
+            <ul className="rw-units">
+              {partners.map((u) => (
+                <li key={u.slug}>
+                  <UnitMark emblem={u.emblem ?? null} code={u.code} className="rw-mark rw-mark--sm" />
+                  <span>{unitLink(u)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <None icon="sustainability">No partners yet</None>
+          )}
+        </Tile>
+
+        <Tile id="archive" title="Archive" className="rw-archive">
+          {ARCHIVE.length ? (
+            <ul className="rw-cycles">
+              {ARCHIVE.map((a) => (
+                <li key={a.cycle}>
+                  <span>{a.cycle}</span>
+                  <span className="rw-cycles__n">
+                    {a.awards} {plural(a.awards, "award")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <None icon="history">No earlier cycles yet</None>
+          )}
+        </Tile>
       </div>
-    </>
+    </div>
   );
 }

@@ -11,7 +11,7 @@ import { alert } from "@/lib/alerts";
 import { adminDb } from "@/lib/supabase/server";
 import { withDemo } from "@/lib/demo";
 import type { Ranking } from "@/lib/data";
-import type { Photo, Reference } from "@/lib/reference";
+import type { DeadlineSource, Photo, Reference } from "@/lib/reference";
 
 const TTL_MS = 60_000;
 const g = globalThis as typeof globalThis & { __hubReference?: { at: number; ref: Reference } };
@@ -28,8 +28,26 @@ function rows<T>(r: { data: T | null; error: { message: string } | null }): T {
   return r.data;
 }
 
+/** The deadline check's sources. A database without them yet (before its migration) reads none rather than failing. */
+async function deadlineSources(): Promise<DeadlineSource[]> {
+  const { data, error } = await adminDb().from("deadline_sources").select("*").order("position");
+  if (error || !data) return [];
+  return data.map((d) => ({
+    id: d.id,
+    body: d.body,
+    name: d.name,
+    page: d.page,
+    fetchUrl: d.fetch_url,
+    kind: d.kind as DeadlineSource["kind"],
+    pattern: d.pattern,
+    rules: Array.isArray(d.rules) ? (d.rules as DeadlineSource["rules"]) : [],
+    note: d.note,
+  }));
+}
+
 async function load(): Promise<Reference> {
   const db = adminDb();
+  const sources = deadlineSources();
   const [settings, families, frameworks, indicators, results, dimensions, terms, links, calendar, office, entries, assets, stages, sdgs, lists, directory, emblems] = await Promise.all([
     db.from("site_settings").select("latest_edition").single(),
     db.from("ranking_families").select("*").order("position"),
@@ -179,6 +197,7 @@ async function load(): Promise<Reference> {
     emblems: Object.fromEntries(
       emblems.map((e) => [e.unit_key, { key: e.unit_key, src: assetSrc(e.file_path), form: e.form as "shield" | "seal", width: e.width, height: e.height }]),
     ),
+    deadlineSources: await sources,
   };
 }
 

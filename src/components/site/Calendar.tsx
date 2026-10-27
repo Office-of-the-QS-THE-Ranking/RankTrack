@@ -1,9 +1,11 @@
 import Image from "next/image";
+import { siteData } from "@/lib/governance/server/site";
 import { serverViews } from "@/lib/governance/server/views";
 
 /** The submission year, October to March: one gold disc per month with what closes in it, beside the Carillon. */
 export async function Calendar({ id = "calendar", title = "When each ranking collects data" }: { id?: string; title?: string }) {
-  const { calendar, photos } = await serverViews();
+  const { photos } = await serverViews();
+  const calendar = (await siteData()).calendarMonths;
   return (
     <section id={id} className="w-cal w-section" aria-labelledby={`${id}-title`}>
       <div className="w-wrap">

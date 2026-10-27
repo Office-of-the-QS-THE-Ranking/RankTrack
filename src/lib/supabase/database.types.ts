@@ -511,6 +511,50 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_entries: {
+        Row: {
+          due: string
+          id: string
+          label: string
+          ord: number
+          set_at: string
+          set_by: string
+          slug: string
+          source: string
+          url: string | null
+        }
+        Insert: {
+          due: string
+          id: string
+          label: string
+          ord: number
+          set_at: string
+          set_by: string
+          slug: string
+          source: string
+          url?: string | null
+        }
+        Update: {
+          due?: string
+          id?: string
+          label?: string
+          ord?: number
+          set_at?: string
+          set_by?: string
+          slug?: string
+          source?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_entries_slug_fkey"
+            columns: ["slug"]
+            isOneToOne: false
+            referencedRelation: "ranking_frameworks"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       calendar_items: {
         Row: {
           item: string
@@ -631,6 +675,131 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      deadline_findings: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          due: string
+          found_at: string
+          id: string
+          label: string
+          ord: number
+          quote: string
+          slug: string
+          source_id: string
+          state: string
+          target: string
+          url: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          due: string
+          found_at: string
+          id: string
+          label: string
+          ord: number
+          quote?: string
+          slug: string
+          source_id: string
+          state: string
+          target: string
+          url: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          due?: string
+          found_at?: string
+          id?: string
+          label?: string
+          ord?: number
+          quote?: string
+          slug?: string
+          source_id?: string
+          state?: string
+          target?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadline_findings_slug_fkey"
+            columns: ["slug"]
+            isOneToOne: false
+            referencedRelation: "ranking_frameworks"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      deadline_sources: {
+        Row: {
+          body: string
+          fetch_url: string | null
+          id: string
+          kind: string
+          name: string
+          note: string
+          page: string
+          pattern: string | null
+          position: number
+          rules: Json
+        }
+        Insert: {
+          body: string
+          fetch_url?: string | null
+          id: string
+          kind: string
+          name: string
+          note?: string
+          page: string
+          pattern?: string | null
+          position: number
+          rules?: Json
+        }
+        Update: {
+          body?: string
+          fetch_url?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          note?: string
+          page?: string
+          pattern?: string | null
+          position?: number
+          rules?: Json
+        }
+        Relationships: []
+      }
+      deadline_watch: {
+        Row: {
+          changed_at: string | null
+          checked_at: string
+          hash: string | null
+          id: string
+          note: string
+          ord: number
+          status: string
+        }
+        Insert: {
+          changed_at?: string | null
+          checked_at: string
+          hash?: string | null
+          id: string
+          note?: string
+          ord: number
+          status: string
+        }
+        Update: {
+          changed_at?: string | null
+          checked_at?: string
+          hash?: string | null
+          id?: string
+          note?: string
+          ord?: number
+          status?: string
+        }
+        Relationships: []
       }
       dictionary_links: {
         Row: {
@@ -1994,6 +2163,10 @@ export type Database = {
       ranking_settings: {
         Row: {
           deadline: string
+          deadline_at: string | null
+          deadline_by: string | null
+          deadline_source: string | null
+          deadline_url: string | null
           enabled: boolean
           ord: number
           public: boolean
@@ -2001,6 +2174,10 @@ export type Database = {
         }
         Insert: {
           deadline: string
+          deadline_at?: string | null
+          deadline_by?: string | null
+          deadline_source?: string | null
+          deadline_url?: string | null
           enabled: boolean
           ord: number
           public: boolean
@@ -2008,6 +2185,10 @@ export type Database = {
         }
         Update: {
           deadline?: string
+          deadline_at?: string | null
+          deadline_by?: string | null
+          deadline_source?: string | null
+          deadline_url?: string | null
           enabled?: boolean
           ord?: number
           public?: boolean

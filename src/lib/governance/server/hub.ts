@@ -12,7 +12,9 @@ import type { Reference } from "@/lib/reference";
 import { datasetPublic, featureOn, rankingActive, rankingPublic } from "../derive";
 import { canWith } from "../rbac";
 import { evidenceList, requirementUnit, storyList } from "../records";
-import type { HubData } from "../hub-types";
+import { calendarOf } from "@/lib/calendar";
+import { fillUrl } from "../deadline-read";
+import type { DeadlineDesk, HubData } from "../hub-types";
 import type { GovernanceState } from "../types";
 import { buildUnits } from "../unit-participation";
 import type { Viewer } from "../viewer";
@@ -98,6 +100,33 @@ export const hub = cache(async (): Promise<Hub> => {
   return build(state, ref);
 });
 
+/** The Office's view of the deadline check: what waits, what each source last said, and each ranking's other dates. */
+function deadlineDesk(state: GovernanceState, ref: Reference): DeadlineDesk {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    findings: state.config.findings.filter((f) => f.state === "New"),
+    sources: ref.deadlineSources.map((s) => {
+      const w = state.config.watch.find((x) => x.id === s.id);
+      return {
+        id: s.id,
+        name: s.name,
+        page: fillUrl(s.page, today),
+        body: s.body,
+        kind: s.kind,
+        slugs: [...new Set(s.rules.flatMap((r) => r.slugs))],
+        status: w?.status,
+        checkedAt: w?.checkedAt,
+        changedAt: w?.changedAt,
+        note: w?.note ?? s.note,
+      };
+    }),
+    entries: state.config.calendar,
+    origin: Object.fromEntries(
+      state.config.rankings.filter((r) => r.deadlineSource).map((r) => [r.slug, { deadlineSource: r.deadlineSource, deadlineUrl: r.deadlineUrl, deadlineBy: r.deadlineBy, deadlineAt: r.deadlineAt }]),
+    ),
+  };
+}
+
 /** What a workspace's client components receive, filtered to what the viewer may reach. */
 export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Promise<HubData> {
   const h = await hub();
@@ -125,6 +154,8 @@ export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Pro
     activeSlugs: h.rankings.map((r) => r.slug),
     publicSlugs: h.publicRankings.map((r) => r.slug),
     deadlines: Object.fromEntries(state.config.rankings.map((r) => [r.slug, r.deadline])),
+    calendar: calendarOf(h.rankings, state.config.calendar),
+    deadlineDesk: variant === "office" && canWith(viewer.grants, "config", "edit") ? deadlineDesk(state, h.ref) : null,
     bodies: state.config.bodies.map((b) => ({ key: b.key, name: b.name, short: b.short, enabled: b.enabled })),
     units: h.units,
     evidence,

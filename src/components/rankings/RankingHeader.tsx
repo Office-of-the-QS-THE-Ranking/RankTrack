@@ -1,16 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
-import { ACTIONS, EVIDENCE, daysUntil, formatAsOf, formatDate, readinessLevel, type Indicator, type Ranking } from "@/lib/data";
+import type { CSSProperties } from "react";
+import { ACTIONS, daysUntil, formatAsOf, formatDate, readinessLevel, type Indicator, type Ranking } from "@/lib/data";
+import { familyOf } from "@/lib/reference";
+import { Tile } from "@/components/dashboard/Tile";
 import { Icon } from "@/components/ui/Icon";
-import { Crumbs, Direction, Meter, Pattern, Trend } from "@/components/ui/primitives";
-import { useViews } from "@/components/reference/ReferenceProvider";
+import { Crumbs, Direction, Pattern, cx } from "@/components/ui/primitives";
+import { useReference, useViews } from "@/components/reference/ReferenceProvider";
+import { DeadlineControl } from "./DeadlineDrawer";
+import { Gauge, RankArc, weightOf } from "./RankingCharts";
 
-const weightOf = (i: Indicator) => {
-  const n = parseFloat(i.weight);
-  return Number.isFinite(n) ? n : 0;
-};
 const gapOf = (i: Indicator) => (i.current !== null && i.target ? (i.target - i.current) / i.target : 0);
 
 /** The indicators that drive the result: heaviest weights first, then the widest gap to target. */
@@ -25,146 +25,64 @@ export function nextAction(r: Ranking) {
   return ind ? { action: ind.actions[0], unit: ind.owner, due: undefined } : null;
 }
 
-export function RankingHeader({ ranking: r, actions, asOf }: { ranking: Ranking; actions?: ReactNode; asOf?: string }) {
-  const { families } = useViews();
-  const fam = families[r.family];
+/**
+ * The ranking at a glance: where UST stands and how it got there, in the family's colour, beside the
+ * readiness dial and the days left before the next submission.
+ */
+export function RankingHero({ ranking: r, asOf }: { ranking: Ranking; asOf?: string }) {
+  const fam = familyOf(useReference(), r.family);
   const days = daysUntil(r.deadline);
   const lvl = readinessLevel(r.readiness);
+  const compared = r.direction !== "new" && r.direction !== "none" && r.previous;
   return (
-    <header className="card rhead" style={{ ["--band" as string]: fam.band } as CSSProperties}>
-      <span className="rhead__band" aria-hidden="true" />
-      <Pattern className="rhead__pattern" fade="left" />
-      <div className="rhead__in">
-        <div className="rhead__row">
-          <div className="rhead__titles">
-            <p className="rhead__fam">
-              <i className="sw sw--lg" style={{ background: fam.band }} aria-hidden="true" />
-              {fam.name}
+    <div className="ov-bento rk-top" style={{ "--fam": fam.color } as CSSProperties}>
+      <Tile id="rk-title" className="rk-hero">
+        <header className="rk-hero__head">
+          <p className="rk-hero__fam">
+            <i aria-hidden="true" />
+            {fam.name}
+          </p>
+          <h1 id="rk-title" className="rk-hero__title">
+            {r.name}
+          </h1>
+          {r.current && asOf && (
+            <p className="rk-hero__asof">
+              <Icon name="clock" size={13} />
+              Updated {formatAsOf(asOf)}
             </p>
-            <h1 className="rhead__title">{r.name}</h1>
-            <p className="rhead__msg">{r.message}</p>
+          )}
+        </header>
+        <div className="rk-hero__body">
+          <div className="rk-hero__now">
+            <p className={cx("rk-hero__rank", !r.current && "is-none")}>{r.current || "—"}</p>
+            <p className="rk-hero__move">
+              <Direction dir={r.direction} />
+              {compared && <span>from {r.previous}</span>}
+            </p>
+            <p className="rk-hero__target">
+              <Icon name="target" size={14} />
+              Target <b>{r.target || "not set"}</b>
+            </p>
           </div>
-          {actions && <div className="ph__actions">{actions}</div>}
+          <RankArc points={r.history} color={fam.color} label={`${r.short} by edition`} />
         </div>
-        <dl className="rhead__facts">
-          <div>
-            <dt>Target</dt>
-            <dd className="num">{r.target || <span className="muted">Not set</span>}</dd>
-          </div>
-          <div>
-            <dt>Next submission deadline</dt>
-            <dd>
-              {formatDate(r.deadline, { day: "numeric", month: "short", year: "numeric" })}
-              <span className="muted"> · in {days} days</span>
-            </dd>
-          </div>
-          <div className="rhead__ready">
-            <dt>Overall readiness</dt>
-            <dd>
-              <span className="row" style={{ ["--gap" as string]: "8px" } as CSSProperties}>
-                <b className="num">{r.readiness}%</b>
-                <span className="muted">{lvl.label}</span>
-              </span>
-              <Meter value={r.readiness} label="Overall readiness" tone={lvl.tone === "ok" ? "ok" : lvl.tone === "revise" ? "revise" : "missing"} />
-            </dd>
-          </div>
-          <div>
-            <dt>Data last updated</dt>
-            <dd>
-              {r.current && asOf ? formatAsOf(asOf) : "No data yet"}
-              <span className="muted"> · {r.reportingPeriod.split(";")[0]}</span>
-            </dd>
-          </div>
-        </dl>
-      </div>
-    </header>
-  );
-}
+      </Tile>
 
-/** Every ranking page answers five questions immediately (proposal, "Design of each ranking dashboard"). */
-export function FiveQuestions({ ranking: r, onTab, reviewing: inReview }: { ranking: Ranking; onTab?: (tab: string) => void; reviewing?: number }) {
-  const { latestEdition } = useViews();
-  const top = drivers(r);
-  const act = nextAction(r);
-  const revisions = r.indicators.filter((i) => i.status === "Needs revision").length;
-  const missing = r.indicators.filter((i) => i.status === "Not yet submitted").length;
-  const reviewing = inReview ?? EVIDENCE.filter((e) => e.status === "For review" && e.mappedTo.some((m) => m.startsWith(r.short + " ·"))).length;
-  const jump = (tab: string) =>
-    onTab ? (
-      <button type="button" className="link small" onClick={() => onTab(tab)}>
-        {tab === "Indicators" ? "All indicators" : tab === "Evidence" ? "Open evidence" : "Action plan"} <Icon name="arrow" size={14} />
-      </button>
-    ) : null;
-
-  return (
-    <section className="fq" aria-label="Five questions">
-      <div className="fq__cell">
-        <p className="fq__q">Where is UST now?</p>
-        <p className="fq__big">{r.current || "—"}</p>
-        <p className="fq__note">{r.current ? `${r.short}, ${latestEdition} edition` : "No result recorded yet"}</p>
-      </div>
-      <div className="fq__cell">
-        <p className="fq__q">What changed?</p>
-        <p className="fq__mid">
-          <Direction dir={r.direction} />
-        </p>
-        <p className="fq__note">
-          {r.direction === "new" ? "Building a first ranked entry" : r.direction === "none" ? "Nothing to compare yet" : <>From {r.previous} in the previous edition</>}
-        </p>
-      </div>
-      <div className="fq__cell fq__cell--wide">
-        <p className="fq__q">Which indicators drive the result?</p>
-        <ul className="fq__list">
-          {top.map((i) => (
-            <li key={i.name}>
-              <span className="fq__ind">
-                <b>{i.name}</b>
-                <span className="muted"> · {i.weight}</span>
-              </span>
-              <span className="row nowrap" style={{ ["--gap" as string]: "10px" } as CSSProperties}>
-                <span className="num small">
-                  {i.current ?? "—"}
-                  <span className="muted"> / {i.target ?? "—"}</span>
-                </span>
-                <Trend trend={i.trend} />
-              </span>
-            </li>
-          ))}
-        </ul>
-        {jump("Indicators")}
-      </div>
-      <div className="fq__cell">
-        <p className="fq__q">What evidence is still required?</p>
-        <p className="fq__big">
-          {r.pending}
-          <span className="fq__unit"> items</span>
-        </p>
-        <p className="fq__note">
-          {revisions} needs revision · {missing} not yet submitted · {reviewing} in review
-        </p>
-        {jump("Evidence")}
-      </div>
-      <div className="fq__cell fq__cell--wide">
-        <p className="fq__q">Who needs to act next?</p>
-        {act ? (
-          <>
-            <p className="fq__act">{act.action}</p>
-            <p className="fq__note">
-              {act.unit}
-              {act.due && (
-                <>
-                  {" · due "}
-                  {formatDate(act.due)} <span className="muted">(in {daysUntil(act.due)} days)</span>
-                </>
-              )}
-            </p>
-          </>
-        ) : (
-          <p className="fq__note">No open actions.</p>
-        )}
-        {jump("Action Plan")}
-      </div>
-    </section>
+      <Tile id="rk-ready" title="Readiness" className="rk-ready" aside={<span className={`rk-lvl is-${lvl.tone}`}>{lvl.label}</span>}>
+        <Gauge value={r.readiness} label="Readiness" />
+        <div className={cx("rk-due", days >= 0 && days <= 30 && "is-soon")}>
+          <span className="rk-due__icon">
+            <Icon name="calendar" size={16} />
+          </span>
+          <span className="rk-due__when">
+            <b>{formatDate(r.deadline, { day: "numeric", month: "short", year: "numeric" })}</b>
+            <small>Submission due</small>
+          </span>
+          <span className="rk-due__days">{days > 1 ? `${days} days` : days === 1 ? "1 day" : days === 0 ? "Today" : "Closed"}</span>
+          <DeadlineControl ranking={r} />
+        </div>
+      </Tile>
+    </div>
   );
 }
 

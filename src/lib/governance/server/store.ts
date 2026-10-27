@@ -49,6 +49,9 @@ interface Holder {
 
 const g = globalThis as typeof globalThis & { __hubTables?: Holder };
 const holder: Holder = (g.__hubTables ??= { snapshot: null, checkedAt: 0, reading: null, queue: Promise.resolve(), pending: null });
+// next dev keeps globalThis across edits, so a copy read by the code before an edit (without a field the model
+// has since gained) would outlive it and break every commit: this code reads the store again.
+holder.snapshot = null;
 
 const failed = (what: string, e: { message: string }) => new Error(`Governance store: ${what} failed (${e.message})`);
 

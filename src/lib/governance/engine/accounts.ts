@@ -1,12 +1,12 @@
 /*
  * Account lifecycle and role assignments. The roles themselves are fixed (catalog.ts).
  */
-import { ROLE, roleOf } from "../catalog";
+import { HUB_OFFICE, ROLE, roleOf } from "../catalog";
 import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
 import type { CommandResult, InviteInput } from "../commands";
-import { domainAllowed, domainOf } from "../derive";
 import { descendants, grantCheck, grantsFor, runsHub, scopeLabel, topTier } from "../rbac";
-import type { Account, Scope } from "../types";
+import { personTitle, placePerson, readPerson, type Person } from "../person-details";
+import type { Account, OrgUnit, RoleId, Scope } from "../types";
 import {
   accountById,
   can,
@@ -15,7 +15,6 @@ import {
   deny,
   invalid,
   isDay,
-  isEmail,
   log,
   ok,
   unitById,
@@ -37,44 +36,52 @@ const holdsAdmin = (ctx: Ctx, a: Account) => a.assignments.some((x) => runsHub(x
 
 const activeAdmins = (ctx: Ctx) => ctx.state.accounts.filter((a) => a.status === "Active" && holdsAdmin(ctx, a));
 
-function validateInvite(ctx: Ctx, input: InviteInput): string | null {
-  const name = clean(input.name);
-  const email = clean(input.email).toLowerCase();
-  if (name.length < 3) return "Enter the person's full name.";
-  if (!isEmail(email)) return "Enter a valid email address.";
-  if (ctx.state.accounts.some((a) => a.email.toLowerCase() === email)) return `${email} already has an account.`;
-  const unit = unitById(ctx, input.unitId);
-  if (!unit) return "Choose the person's unit.";
-  if (unit.status !== "Active") return `${unit.name} is archived; choose an active unit.`;
-  const role = roleOf(input.roleId);
-  if (!role) return "Choose a role.";
-  if (!invitationUnitMatchesRole(unit, role.id)) return roleUnitHint(role.id);
-  const sso = ctx.state.security.sso;
-  if (input.external) {
-    if (!sso.allowGuests) return "Guest accounts are switched off in Privacy and Security.";
-    if (role.id !== ROLE.external) return "External partners can only hold the External role.";
+/**
+ * Who is invited and where, checked as an access request is (person-details.ts): a Thomasian joins the unit
+ * they were placed in with the role chosen, anyone else is an External guest of the Office until the end date.
+ */
+function readInvite(ctx: Ctx, input: InviteInput): { person: Person; unit: OrgUnit; roleId: RoleId; external: boolean } | string {
+  const person = readPerson(input, "other");
+  if (typeof person === "string") return person;
+  if (ctx.state.accounts.some((a) => a.email.toLowerCase() === person.email)) return `${person.email} already has an account.`;
+  const placed = placePerson(person, { domains: ctx.state.security.sso.domains, units: ctx.state.units, voice: "other" });
+  if (typeof placed === "string") return placed;
+  const external = !person.thomasian;
+  const unit = external ? unitById(ctx, HUB_OFFICE) : placed.unit;
+  if (!unit || unit.status !== "Active") return external ? "External partners are guests of the Office, which isn't an active unit in the Directory." : "Choose an active unit.";
+  const roleId = person.roleId ?? ROLE.external;
+  if (!invitationUnitMatchesRole(unit, roleId)) return roleUnitHint(roleId);
+  if (external) {
+    if (!ctx.state.security.sso.allowGuests) return "Guest accounts are switched off in Privacy and Security.";
     if (!input.expires) return "External access needs an end date.";
-  } else if (!domainAllowed(ctx.state, email)) {
-    return `${domainOf(email) || "That domain"} is not an allowed sign-in domain (${sso.domains.join(", ")}). Invite them as an external collaborator instead.`;
   }
   if (input.expires && (!isDay(input.expires) || input.expires <= ctx.day)) return "The end date must be in the future.";
-  return null;
+  return { person, unit, roleId, external };
 }
 
 export function invite(ctx: Ctx, input: InviteInput): CommandResult {
-  const problem = validateInvite(ctx, input);
-  if (problem) return invalid(problem);
-  const unit = unitById(ctx, input.unitId)!;
-  const role = roleOf(input.roleId)!;
-  const target = { type: "Account", id: input.email, label: clean(input.name) };
+  const read = readInvite(ctx, input);
+  if (typeof read === "string") return invalid(read);
+  const { person, unit, external } = read;
+  const role = roleOf(read.roleId)!;
+  const target = { type: "Account", id: person.email, label: person.name };
   if (!can(ctx, "accounts", "create", { unitId: unit.id })) return deny(ctx, "account.invite", "Account", target, `You cannot add accounts to ${unit.name}.`);
   // Outside collaborators are sponsored by the Office, not by individual units.
-  if ((input.external || role.id === ROLE.external) && !can(ctx, "accounts", "manage"))
-    return deny(ctx, "account.invite", "Account", target, "Only University-wide Administrators can invite guests.");
+  if (external && !can(ctx, "accounts", "manage")) return deny(ctx, "account.invite", "Account", target, "Only University-wide Administrators can invite guests.");
   const scope = input.scope ?? defaultScope(role.id, unit.id);
   const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units);
   if (!check.ok) return deny(ctx, "account.invite", "Access", target, check.reason);
-  const account = createAccount(ctx, { ...input, name: clean(input.name), email: clean(input.email), title: clean(input.title) || "Staff", scope });
+  const account = createAccount(ctx, {
+    name: person.name,
+    email: person.email,
+    title: personTitle(person),
+    unitId: unit.id,
+    roleId: role.id,
+    scope,
+    expires: input.expires || undefined,
+    external,
+    profile: person.profile,
+  });
   log(ctx, "account.invite", "Account", res(account), "Success", `${role.name} · ${scopeLabel(scope, ctx.state.units)}${input.expires ? ` · until ${input.expires}` : ""}`);
   return ok(`Invitation sent to ${account.email}.`, { data: account.id });
 }

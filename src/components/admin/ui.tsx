@@ -271,7 +271,9 @@ export function Sheet({ open, title, sub, headerContent, onClose, children, foot
     returnTo.current = document.activeElement as HTMLElement | null;
     requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>(".adm-sheet__close")?.focus());
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector(".adm-confirm[open]")) {
+      // an open dropdown, calendar or suggestion list takes Escape first; the next one closes the panel
+      const picker = e.target instanceof Element && e.target.closest('[aria-haspopup][aria-expanded="true"], [popover]');
+      if (e.key === "Escape" && !picker && !document.querySelector(".adm-confirm[open]")) {
         e.stopPropagation();
         e.preventDefault();
         onClose();

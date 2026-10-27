@@ -7,6 +7,7 @@ import "server-only";
  * System Configuration has switched on.
  */
 import { cache } from "react";
+import { calendarMonths, calendarOf } from "@/lib/calendar";
 import { bodies, counts, movers } from "@/lib/reference";
 import type { HubData } from "../hub-types";
 import { hub } from "./hub";
@@ -21,6 +22,8 @@ export const siteData = cache(async () => {
     s.images.length ? s : { ...s, images: ref.photos.courtyard ? [ref.photos.courtyard.src] : [], ...(s.post ? {} : { outcomeFigure: s.outcomeFigure || "—", outcomeLabel: s.outcomeLabel || s.outcome }) },
   );
   const pub = (slug: string) => rankings.find((r) => r.slug === slug);
+  const calendar = calendarOf(rankings, h.state.config.calendar);
+  const today = new Date().toISOString().slice(0, 10);
   return {
     rankings,
     isPublic: (slug: string) => !!pub(slug),
@@ -39,6 +42,9 @@ export const siteData = cache(async () => {
     notice: h.site.noticeOn ? h.site.notice : "",
     asOf: h.site.asOf,
     currentCycle: h.currentCycle,
+    calendar,
+    /** What is still to close, as months of lines: the website's calendar and its menu. */
+    calendarMonths: calendarMonths(calendar.filter((c) => c.due >= today)),
     ref,
   };
 });
@@ -53,6 +59,8 @@ export async function publicHub(): Promise<HubData> {
     activeSlugs: site.rankings.map((r) => r.slug),
     publicSlugs: site.rankings.map((r) => r.slug),
     deadlines: Object.fromEntries(site.rankings.map((r) => [r.slug, r.deadline])),
+    calendar: site.calendar,
+    deadlineDesk: null,
     bodies: h.state.config.bodies.map((b) => ({ key: b.key, name: b.name, short: b.short, enabled: b.enabled })),
     units: site.units,
     evidence: [],

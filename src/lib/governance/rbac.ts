@@ -189,10 +189,13 @@ export const topTier = (grants: Grant[]) => topGrant(grants)?.tier ?? 0;
 
 /**
  * Nobody can grant more than they hold: the role's permissions must sit inside the actor's own, and the
- * scope must sit inside what the actor administers.
+ * scope must sit inside what the actor administers. A role ranked below the one the actor administers accounts
+ * with is the exception: Administrators make Coordinators (user, 2026-10-27), whose submission rights they
+ * set aside for themselves, since administrators never submit on behalf of units.
  */
 export function grantCheck(actor: Grant[], role: Role, scope: Scope, units: OrgUnit[]): { ok: true } | { ok: false; reason: string } {
-  const extra = beyond(permissionsAt(role, scope), mergedPermissions(actor));
+  const outranks = actor.some((g) => has(g.perms, "accounts", "edit") && g.tier > role.tier);
+  const extra = outranks ? [] : beyond(permissionsAt(role, scope), mergedPermissions(actor));
   if (extra.length)
     return { ok: false, reason: `You can't assign ${role.name}: it includes permissions you don't hold (${extra.slice(0, 3).map((e) => `${e.module} ${e.action}`).join(", ")}${extra.length > 3 ? "…" : ""}).` };
   const admin = reach(actor, "accounts", "edit");

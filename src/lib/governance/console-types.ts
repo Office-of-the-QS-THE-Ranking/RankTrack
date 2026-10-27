@@ -125,10 +125,15 @@ export interface ConsoleData {
   /** Workflows that the viewer's own changes wait on: switched on, with enough other administrators to decide them. */
   approvals: WorkflowKey[];
   requests: RequestRow[];
-  config?: SystemConfig & { rankingMeta: { slug: string; name: string; short: string; family: string; body: string }[] };
+  config?: SystemConfig & {
+    rankingMeta: { slug: string; name: string; short: string; family: string; body: string }[];
+    deadlineSources: { id: string; name: string; page: string; kind: "table" | "sentence" | "watch" | "manual"; slugs: string[] }[];
+  };
   backup?: BackupState;
   /** People the viewer can pick from (stewards, administrators, flag audiences). */
   people: { id: string; name: string; unitId: string; status: string }[];
+  /** The University's sign-in domains and whether guests may sign in, for the invite drawer's email and affiliation checks. */
+  signIn: { domains: string[]; allowGuests: boolean };
   /** Names for scope pickers, open to every administrator. */
   catalog: { cycles: string[]; datasets: { id: string; name: string; classification: Classification }[]; bodies: { key: string; name: string }[] };
 }

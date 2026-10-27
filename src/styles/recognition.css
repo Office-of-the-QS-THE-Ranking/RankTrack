@@ -1,0 +1,668 @@
+/*
+ * The Recognition wall (/admin/recognition): the dashboard's bento of tiles (overview.css), led by the
+ * cycle's awards struck as gold medals on onyx, in the honours vocabulary of unit-profile.css. Gold is the
+ * honour here; family colours stay on the dots that name a ranking.
+ */
+
+/* ---------- Bento ---------- */
+@container content (min-width: 620px) {
+  .rw-bento > .rw-champs,
+  .rw-bento > .rw-intl,
+  .rw-bento > .rw-green,
+  .rw-bento > .rw-archive {
+    grid-column: span 6;
+  }
+}
+@container content (min-width: 960px) {
+  .rw-bento > .rw-top {
+    grid-column: span 7;
+    grid-row: span 2;
+  }
+  .rw-bento > .rw-champs,
+  .rw-bento > .rw-intl,
+  .rw-bento > .rw-inno {
+    grid-column: span 5;
+  }
+  .rw-bento > .rw-green {
+    grid-column: span 4;
+  }
+  .rw-bento > .rw-archive {
+    grid-column: span 3;
+  }
+}
+
+/* What an empty tile shows */
+.rw .rw-none {
+  margin: auto;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 10px 0 14px;
+  font-size: 13.5px;
+  color: var(--text-3);
+  text-align: center;
+}
+.rw-none svg {
+  box-sizing: content-box;
+  padding: 9px;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.05);
+}
+
+/* A unit's arms, or its code on a small tile when it has none */
+.rw-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgb(var(--hair) / 0.06);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+.rw-mark--sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 8px;
+}
+
+/* ---------- Cycle awards: gold medals on onyx ---------- */
+.rw-awards .ov-tile__core {
+  isolation: isolate;
+  overflow: hidden;
+  gap: 26px;
+  padding: 26px 30px 30px;
+  color: #f5f5f7;
+  background:
+    radial-gradient(55% 140% at 0% 0%, rgb(242 183 5 / 0.17), transparent 62%),
+    radial-gradient(70% 140% at 100% 0%, rgb(255 255 255 / 0.05), transparent 60%),
+    linear-gradient(155deg, #1b160c 0%, #0c0b08 48%, #050505 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(247 207 94 / 0.13),
+    inset 0 1px 0 rgb(255 255 255 / 0.07),
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 24px 48px -30px rgb(0 0 0 / 0.65);
+}
+/* Rings engraved from the corner, as on a watch dial */
+.rw-awards .ov-tile__core::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-radial-gradient(circle at 0 0, rgb(247 207 94 / 0.075) 0 1px, transparent 1px 8px),
+    repeating-conic-gradient(from 90deg at 0 0, rgb(247 207 94 / 0.05) 0 0.4deg, transparent 0.4deg 3deg);
+  -webkit-mask-image: radial-gradient(560px 300px at 0 0, #000 15%, transparent 100%);
+  mask-image: radial-gradient(560px 300px at 0 0, #000 15%, transparent 100%);
+  pointer-events: none;
+}
+/* Now and then a band of light crosses the onyx */
+.rw-awards .ov-tile__core::after {
+  content: "";
+  position: absolute;
+  inset: -50% auto -50% 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgb(255 236 179 / 0.06) 45%, rgb(255 236 179 / 0.1) 50%, rgb(255 236 179 / 0.06) 55%, transparent);
+  transform: translateX(-120%) rotate(8deg);
+  pointer-events: none;
+}
+.rw-awards__head {
+  display: grid;
+  gap: 6px;
+}
+.rw .rw-awards__cycle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f7cf5e;
+}
+.rw .rw-awards__title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.rw-awards__list {
+  --cols: 3;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  row-gap: 30px;
+}
+.rw-award {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 28px;
+  border-left: 1px solid rgb(255 255 255 / 0.08);
+}
+.rw-award:nth-child(3n + 1) {
+  padding-left: 0;
+  border-left: 0;
+}
+.rw-award .medal {
+  margin-bottom: 12px;
+}
+.rw .rw-award__name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: #f7cf5e;
+}
+.rw .rw-award__unit {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: #fff;
+}
+.rw-award__unit a {
+  color: inherit;
+  text-decoration: none;
+}
+.rw-award__unit a:hover {
+  text-decoration: underline;
+  text-decoration-color: rgb(247 207 94 / 0.6);
+  text-underline-offset: 3px;
+}
+.rw .rw-award__why {
+  max-width: 40ch;
+  margin-top: 2px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgb(235 235 245 / 0.6);
+}
+
+/* Before the Office names any: blank medals, waiting to be struck */
+.rw-awards__none {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 22px;
+}
+.rw-awards__blanks {
+  display: flex;
+}
+.rw-awards__blanks .medal + .medal {
+  margin-left: -10px;
+}
+.rw .rw-awards__none p {
+  font-size: 15px;
+  color: rgb(235 235 245 / 0.6);
+}
+.rw-awards .medal--blank {
+  --rim: conic-gradient(from 200deg, #2f2c26, #5d584e 22%, #24221d 48%, #54504a 72%, #2f2c26);
+  --face: radial-gradient(circle at 34% 26%, #2b2924, #12110e 70%);
+  --engrave: rgb(247 207 94 / 0.32);
+}
+.rw-awards .medal--blank .medal__face {
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.5),
+    inset 0 1px 1px rgb(255 255 255 / 0.06),
+    inset 0 -3px 6px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rw-awards .ov-tile__core::after {
+    animation: rw-sheen 9s ease-in-out 1.4s infinite;
+  }
+  /* Each medal is struck in turn */
+  .rw-award .medal {
+    animation: medal-strike 520ms var(--ease-spring) calc(80ms + var(--i, 0) * 90ms) backwards;
+  }
+  .rw-award:hover .medal {
+    transform: translateY(-2px) rotate(-6deg);
+  }
+  .rw-award:hover .medal__face::after {
+    animation: medal-glint 900ms var(--ease-out) both;
+  }
+}
+@keyframes rw-sheen {
+  0% {
+    transform: translateX(-120%) rotate(8deg);
+  }
+  35%,
+  100% {
+    transform: translateX(380%) rotate(8deg);
+  }
+}
+
+/* ---------- Moved up ---------- */
+.rw-up__list {
+  --cols: 4;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 4px;
+  margin: -4px -12px -8px;
+}
+.rw-mover {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--t) ease;
+}
+.rw-mover__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.rw-mover__now {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.rw-mover__from {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.rw-mover__from svg {
+  color: var(--ok);
+}
+@media (hover: hover) {
+  .rw-mover:hover {
+    background: rgb(var(--hair) / 0.035);
+  }
+}
+
+/* ---------- Top contributors ---------- */
+.rw-board {
+  --board: 22px 28px minmax(0, 1fr) minmax(48px, 16%) 60px 60px;
+  display: grid;
+}
+.rw .rw-board__cols {
+  display: grid;
+  grid-template-columns: var(--board);
+  column-gap: 12px;
+  padding-bottom: 4px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.rw-board__cols span {
+  text-align: right;
+}
+.rw-board__cols span:first-child {
+  grid-column: 5;
+}
+.rw-board__row {
+  display: grid;
+  grid-template-columns: var(--board);
+  align-items: center;
+  column-gap: 12px;
+  min-height: 52px;
+  padding: 8px 0;
+  border-top: 1px solid rgb(var(--hair) / 0.06);
+}
+.rw-board__n {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text-3);
+}
+.rw-board__row:first-child .rw-board__n {
+  color: var(--gold-ink);
+}
+.rw-board__name {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text);
+}
+.rw-board__name a,
+.rw-people__who a,
+.rw-units a {
+  color: inherit;
+  text-decoration: none;
+}
+.rw-board__name a:hover,
+.rw-people__who a:hover,
+.rw-units a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Validated evidence against the leader's */
+.rw-board__bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.07);
+}
+.rw-board__bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--w, 0) * 100%);
+  min-width: 6px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
+}
+/* The figures sit in the row's own columns; on a phone they move under the name, with their words */
+.rw-board__figs {
+  display: contents;
+}
+.rw-board__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.rw-board__v,
+.rw-board__r {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.rw-board__v {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.rw-board__r {
+  font-size: 14px;
+  color: var(--text-2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rw-board__bar::before {
+    animation: rw-grow 700ms var(--ease-out) both;
+  }
+  .rw-board__row:nth-child(2) .rw-board__bar::before {
+    animation-delay: 50ms;
+  }
+  .rw-board__row:nth-child(3) .rw-board__bar::before {
+    animation-delay: 100ms;
+  }
+  .rw-board__row:nth-child(4) .rw-board__bar::before {
+    animation-delay: 150ms;
+  }
+  .rw-board__row:nth-child(5) .rw-board__bar::before {
+    animation-delay: 200ms;
+  }
+  .rw-board__row:nth-child(6) .rw-board__bar::before {
+    animation-delay: 250ms;
+  }
+}
+@keyframes rw-grow {
+  from {
+    width: 0;
+    min-width: 0;
+  }
+}
+
+/* ---------- Evidence champions ---------- */
+.rw-people li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid rgb(var(--hair) / 0.06);
+}
+.rw-people li:first-child {
+  border-top: 0;
+}
+/* Initials struck in gold on an onyx disc */
+.rw-face {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 26%, #3d3932, #13120f 58%, #050505);
+  box-shadow:
+    0 0 0 1px rgb(247 207 94 / 0.5),
+    inset 0 1px 1px rgb(255 255 255 / 0.12),
+    0 4px 10px -4px rgb(0 0 0 / 0.5);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f7cf5e;
+}
+.rw-people__who {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.rw-people__who b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.rw-people__who span {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+.rw-people__n {
+  font-size: 12.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.rw-people__n b {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ---------- WURI Top 100 ---------- */
+.rw-places {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+  gap: 14px 16px;
+}
+.rw-places li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+/* ---------- Innovation leaders ---------- */
+.rw-stories {
+  display: grid;
+  gap: 2px;
+  margin: -6px -10px;
+}
+.rw-story {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "pic title fig"
+    "pic unit fig";
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 2px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--t) ease;
+}
+.rw-story__pic {
+  grid-area: pic;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--gold-cream);
+  color: var(--gold-ink);
+}
+.rw-story__pic img {
+  object-fit: cover;
+}
+.rw-story__title {
+  grid-area: title;
+  align-self: end;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.rw-story__unit {
+  grid-area: unit;
+  align-self: start;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+.rw-story__fig {
+  grid-area: fig;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gold-ink);
+  white-space: nowrap;
+}
+@media (hover: hover) {
+  .rw-story:hover {
+    background: rgb(var(--hair) / 0.035);
+  }
+}
+
+/* ---------- Sustainability partners ---------- */
+.rw-swatches {
+  display: inline-flex;
+  gap: 5px;
+}
+.rw-units li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid rgb(var(--hair) / 0.06);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+}
+.rw-units li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* ---------- Archive ---------- */
+.rw-cycles li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid rgb(var(--hair) / 0.06);
+  font-size: 14px;
+  font-weight: 500;
+}
+.rw-cycles li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.rw-cycles__n {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+/* ---------- Narrow ---------- */
+@container content (max-width: 619px) {
+  .rw-awards .ov-tile__core {
+    padding: 22px 20px 24px;
+  }
+  .rw .rw-awards__title {
+    font-size: 24px;
+  }
+  /* The medal beside its citation, one award under another */
+  .rw-awards__list {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+  .rw-award,
+  .rw-award:nth-child(3n + 1) {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 16px;
+    padding: 18px 0;
+    border-left: 0;
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+  }
+  .rw-award:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .rw-award .medal {
+    grid-row: span 3;
+    align-self: start;
+    margin: 0;
+  }
+  .rw-up__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rw-mover__now {
+    font-size: 26px;
+  }
+  .rw .rw-board__cols,
+  .rw-board__bar {
+    display: none;
+  }
+  .rw-board__row {
+    grid-template-columns: 18px 28px minmax(0, 1fr);
+    grid-template-areas:
+      "n mark name"
+      "n mark figs";
+    row-gap: 3px;
+  }
+  .rw-board__n {
+    grid-area: n;
+  }
+  .rw-board__row > .rw-mark {
+    grid-area: mark;
+  }
+  .rw-board__name {
+    grid-area: name;
+  }
+  .rw-board__figs {
+    grid-area: figs;
+    display: flex;
+    gap: 14px;
+  }
+  .rw-board__v,
+  .rw-board__r {
+    font-size: 13px;
+    text-align: left;
+  }
+  .rw-board__label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    font-weight: 400;
+    color: var(--text-3);
+  }
+}

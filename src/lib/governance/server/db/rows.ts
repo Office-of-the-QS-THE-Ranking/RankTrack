@@ -8,15 +8,20 @@
  */
 import type {
   Account,
+  AccountProfile,
   ApprovalRequest,
   AuditEvent,
   BackupState,
+  CalendarEntry,
+  DeadlineFinding,
+  DeadlineWatch,
   EvidenceFile,
   EvidenceRecord,
   GovernanceState,
   OrgUnit,
   PostMedia,
   PostRecord,
+  RankingConfig,
   Records,
   RequestPayload,
   Scope,
@@ -82,6 +87,9 @@ export const TABLES = {
   id_counters: ["name"],
   notices: ["id"],
   notice_reads: ["notice_id", "account_id"],
+  calendar_entries: ["id"],
+  deadline_findings: ["id"],
+  deadline_watch: ["id"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type TableName = keyof typeof TABLES;
@@ -169,6 +177,7 @@ export function toRows(s: Stored): Tables {
       first_login: nul(a.firstLogin),
       identity: a.identity,
       external: nul(a.external),
+      profile: nul(a.profile),
       mfa_enrolled: a.mfa.enrolled,
       mfa_method: nul(a.mfa.method),
       reauth_after: nul(a.reauthAfter),
@@ -378,7 +387,19 @@ function securityRows(p: SecurityPolicy, t: Tables) {
 
 function configRows(c: SystemConfig, r: Records, t: Tables) {
   c.bodies.forEach((b, i) => t.ranking_bodies.push({ key: b.key, ord: appendOrd(i), name: b.name, short: b.short, enabled: b.enabled, website: b.website }));
-  c.rankings.forEach((x, i) => t.ranking_settings.push({ slug: x.slug, ord: appendOrd(i), enabled: x.enabled, public: x.public, deadline: x.deadline }));
+  c.rankings.forEach((x, i) =>
+    t.ranking_settings.push({
+      slug: x.slug,
+      ord: appendOrd(i),
+      enabled: x.enabled,
+      public: x.public,
+      deadline: x.deadline,
+      deadline_source: nul(x.deadlineSource),
+      deadline_url: nul(x.deadlineUrl),
+      deadline_by: nul(x.deadlineBy),
+      deadline_at: nul(x.deadlineAt),
+    }),
+  );
   c.cycles.forEach((x, i) => t.reporting_cycles.push({ id: x.id, ord: appendOrd(i), status: x.status }));
   c.academicYears.forEach((x, i) => t.academic_years.push({ id: x.id, ord: appendOrd(i), current: x.current }));
   c.periods.forEach((x, i) => t.reporting_periods.push({ id: x.id, ord: appendOrd(i), label: x.label, note: x.note, accepting: x.accepting }));
@@ -388,6 +409,29 @@ function configRows(c: SystemConfig, r: Records, t: Tables) {
   c.features.forEach((x, i) => t.features.push({ id: x.id, ord: appendOrd(i), name: x.name, description: x.description, area: x.area, enabled: x.enabled }));
   c.flags.forEach((x, i) =>
     t.feature_flags.push({ id: x.id, ord: appendOrd(i), name: x.name, description: x.description, mode: x.mode, accounts: x.accounts, units: x.units, updated_at: x.updatedAt }),
+  );
+  c.calendar.forEach((x, i) =>
+    t.calendar_entries.push({ id: x.id, ord: appendOrd(i), slug: x.slug, label: x.label, due: x.due, source: x.source, url: nul(x.url), set_by: x.by, set_at: x.at }),
+  );
+  c.findings.forEach((x, i, all) =>
+    t.deadline_findings.push({
+      id: x.id,
+      ord: prependOrd(i, all.length),
+      source_id: x.sourceId,
+      slug: x.slug,
+      target: x.target,
+      label: x.label,
+      due: x.due,
+      quote: x.quote,
+      url: x.url,
+      found_at: x.foundAt,
+      state: x.state,
+      decided_by: nul(x.decidedBy),
+      decided_at: nul(x.decidedAt),
+    }),
+  );
+  c.watch.forEach((x, i) =>
+    t.deadline_watch.push({ id: x.id, ord: appendOrd(i), checked_at: x.checkedAt, status: x.status, hash: nul(x.hash), changed_at: nul(x.changedAt), note: x.note }),
   );
   t.system_settings.push({
     id: 1,
@@ -604,6 +648,7 @@ export function fromRows(t: Tables): Stored {
       firstLogin: isoOpt(a.first_login),
       identity: a.identity as Account["identity"],
       external: opt(a.external as boolean | null),
+      profile: opt(a.profile as AccountProfile | null),
       mfa: tidy({ enrolled: !!a.mfa_enrolled, method: opt(a.mfa_method as Account["mfa"]["method"] | null) }),
       reauthAfter: isoOpt(a.reauth_after),
       sessionPrefs: a.pref_idle_minutes != null || a.pref_stay_signed_in ? tidy({ idleMinutes: a.pref_idle_minutes != null ? num(a.pref_idle_minutes) : undefined, stay: a.pref_stay_signed_in ? true : undefined }) : undefined,
@@ -714,7 +759,18 @@ export function fromRows(t: Tables): Stored {
   const settings = single(t.system_settings, "system_settings");
   const config: SystemConfig = {
     bodies: sorted(t.ranking_bodies).map((b) => ({ key: str(b.key), name: str(b.name), short: str(b.short), enabled: !!b.enabled, website: str(b.website) })),
-    rankings: sorted(t.ranking_settings).map((x) => ({ slug: str(x.slug), enabled: !!x.enabled, public: !!x.public, deadline: str(x.deadline) })),
+    rankings: sorted(t.ranking_settings).map((x) =>
+      tidy({
+        slug: str(x.slug),
+        enabled: !!x.enabled,
+        public: !!x.public,
+        deadline: str(x.deadline),
+        deadlineSource: opt(x.deadline_source as RankingConfig["deadlineSource"] | null),
+        deadlineUrl: opt(x.deadline_url as string | null),
+        deadlineBy: opt(x.deadline_by as string | null),
+        deadlineAt: isoOpt(x.deadline_at),
+      }),
+    ),
     cycles: sorted(t.reporting_cycles).map((x) => ({ id: str(x.id), status: x.status as SystemConfig["cycles"][number]["status"] })),
     academicYears: sorted(t.academic_years).map((x) => ({ id: str(x.id), current: !!x.current })),
     periods: sorted(t.reporting_periods).map((x) => ({ id: str(x.id), label: str(x.label), note: str(x.note), accepting: !!x.accepting })),
@@ -750,6 +806,45 @@ export function fromRows(t: Tables): Stored {
       updatedAt: iso(x.updated_at),
     })),
     site: { notice: str(settings.site_notice), noticeOn: !!settings.site_notice_on, asOf: str(settings.site_as_of) },
+    // A database from before the deadline check has none of these tables.
+    calendar: sorted(t.calendar_entries ?? []).map((x) =>
+      tidy({
+        id: str(x.id),
+        slug: str(x.slug),
+        label: str(x.label),
+        due: str(x.due),
+        source: x.source as CalendarEntry["source"],
+        url: opt(x.url as string | null),
+        by: str(x.set_by),
+        at: iso(x.set_at),
+      }),
+    ),
+    findings: sorted(t.deadline_findings ?? [], "prepend").map((x) =>
+      tidy({
+        id: str(x.id),
+        sourceId: str(x.source_id),
+        slug: str(x.slug),
+        target: x.target as DeadlineFinding["target"],
+        label: str(x.label),
+        due: str(x.due),
+        quote: str(x.quote),
+        url: str(x.url),
+        foundAt: iso(x.found_at),
+        state: x.state as DeadlineFinding["state"],
+        decidedBy: opt(x.decided_by as string | null),
+        decidedAt: isoOpt(x.decided_at),
+      }),
+    ),
+    watch: sorted(t.deadline_watch ?? []).map((x) =>
+      tidy({
+        id: str(x.id),
+        checkedAt: iso(x.checked_at),
+        status: x.status as DeadlineWatch["status"],
+        hash: opt(x.hash as string | null),
+        changedAt: isoOpt(x.changed_at),
+        note: str(x.note),
+      }),
+    ),
   };
 
   const b = single(t.backup_settings, "backup_settings");

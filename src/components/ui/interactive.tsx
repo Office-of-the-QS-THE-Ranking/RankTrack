@@ -5,10 +5,32 @@ import { motion, useReducedMotion } from "motion/react";
 import { Icon } from "./Icon";
 import { cx } from "./primitives";
 
-export function InfoTooltip({ children, label = "Data reporting date" }: { children: ReactNode; label?: string }) {
+export function InfoTooltip({ children, label = "Data reporting date", escapeClipping = false }: { children: ReactNode; label?: string; escapeClipping?: boolean }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const contentRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!open || !escapeClipping || !content) return;
+    const position = () => {
+      const trigger = ref.current?.getBoundingClientRect();
+      if (!trigger) return;
+      const box = content.getBoundingClientRect();
+      content.style.left = `${Math.max(16, Math.min(window.innerWidth - box.width - 16, trigger.left + trigger.width / 2 - box.width / 2))}px`;
+      content.style.top = `${Math.max(16, trigger.bottom + box.height + 8 > window.innerHeight ? trigger.top - box.height - 4 : trigger.bottom + 4)}px`;
+    };
+    content.showPopover();
+    position();
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    return () => {
+      content.hidePopover();
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+    };
+  }, [open, escapeClipping]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,7 +61,7 @@ export function InfoTooltip({ children, label = "Data reporting date" }: { child
       >
         <Icon name="info" size={18} />
       </button>
-      {open && <span id={id} role="tooltip" className="info-tooltip__content">{children}</span>}
+      {open && <span ref={contentRef} id={id} role="tooltip" popover={escapeClipping ? "manual" : undefined} className={`info-tooltip__content${escapeClipping ? " info-tooltip__content--floating" : ""}`}>{children}</span>}
     </span>
   );
 }

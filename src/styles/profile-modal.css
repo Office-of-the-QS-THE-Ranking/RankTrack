@@ -527,7 +527,8 @@ a.pfm__tab > svg:last-child {
 }
 .pfm__stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-columns: calc((100% - 16px) / 3);
+  grid-auto-flow: column;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -570,7 +571,8 @@ a.pfm__tab > svg:last-child {
 
 .pfm__badges {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-columns: calc((100% - 8px) / 2);
+  grid-auto-flow: column;
   gap: 8px;
   margin: 0 0 4px;
   padding: 0;
@@ -766,10 +768,10 @@ a.pfm__tab > svg:last-child {
 
 @media (max-width: 720px) {
   .pfm__stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: minmax(155px, calc((100% - 8px) / 2));
   }
   .pfm__badges {
-    grid-template-columns: minmax(0, 1fr);
+    grid-auto-columns: minmax(230px, 86%);
   }
   .pfm__item {
     flex-wrap: wrap;
@@ -1011,3 +1013,107 @@ a.pfm__item-control {
     background: rgb(var(--hair) / 0.32);
   }
 }
+
+
+/* Overview carousels retain a single row at every window size. */
+.pfm__carousel,
+.pfm__activity {
+  min-width: 0;
+  margin-top: 20px;
+}
+.pfm__carousel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.pfm__carousel-head .pfm__label { margin: 0; }
+.pfm__carousel-controls { display: flex; gap: 5px; }
+.pfm__carousel-controls button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--pfm-line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: var(--cursor-pointer);
+  transition: background-color 180ms ease, opacity 180ms ease;
+}
+.pfm__carousel-controls button:hover:not(:disabled) { background: rgb(var(--hair) / 0.07); }
+.pfm__carousel-controls button:active:not(:disabled) { transform: scale(0.95); }
+.pfm__carousel-controls button:disabled { opacity: 0.3; cursor: default; }
+.pfm__carousel-track {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.pfm__carousel-track::-webkit-scrollbar { display: none; }
+.pfm__carousel-track > li { min-width: 0; scroll-snap-align: start; }
+.pfm__carousel-track:focus-visible,
+.pfm__carousel-controls button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.pfm__carousel-track:focus-visible { outline-offset: -2px; border-radius: 14px; }
+.pfm__activity-period,
+.pfm__activity-summary > span { color: var(--text-3); font-size: 12px; }
+.pfm__heatmap {
+  padding: 16px;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px var(--pfm-line);
+  background: rgb(var(--hair) / 0.02);
+}
+.pfm__activity-summary { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+.pfm__activity-summary b { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pfm__heatmap-scroll { overflow-x: auto; scrollbar-width: thin; scrollbar-color: rgb(var(--hair) / 0.2) transparent; padding: 2px 2px 8px; }
+.pfm__heatmap-chart {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-rows: 16px auto;
+  gap: 5px;
+  min-width: 450px;
+}
+.pfm__heatmap-months,
+.pfm__heatmap-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--activity-weeks), minmax(0, 1fr));
+  gap: 3px;
+}
+.pfm__heatmap-months { grid-column: 2; color: var(--text-3); font-size: 9px; }
+.pfm__heatmap-weekdays { position: relative; min-height: 0; color: var(--text-3); font-size: 9px; }
+.pfm__heatmap-weekdays > span { position: absolute; left: 0; transform: translateY(-50%); }
+.pfm__heatmap-weekdays > :nth-child(1) { top: 21.428%; }
+.pfm__heatmap-weekdays > :nth-child(2) { top: 50%; }
+.pfm__heatmap-weekdays > :nth-child(3) { top: 78.571%; }
+.pfm__heatmap-cells { grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); }
+.pfm__heatmap-cell,
+.pfm__heatmap-legend i {
+  --activity-fill: rgb(var(--hair) / 0.07);
+  display: block;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--activity-fill);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.04);
+}
+.pfm__heatmap [data-level="1"] { --activity-fill: #9be9a8; }
+.pfm__heatmap [data-level="2"] { --activity-fill: #40c463; }
+.pfm__heatmap [data-level="3"] { --activity-fill: #30a14e; }
+.pfm__heatmap [data-level="4"] { --activity-fill: #216e39; }
+.pfm__heatmap-cell { cursor: var(--cursor-pointer); }
+.pfm__heatmap-cell:hover,
+.pfm__heatmap-cell:focus-visible { outline: 2px solid var(--text-2); outline-offset: 1px; position: relative; z-index: 1; }
+.pfm__heatmap-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 6px; color: var(--text-3); font-size: 10px; }
+.pfm__heatmap-legend { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; }
+.pfm__heatmap-legend i { width: 9px; height: 9px; }
+.pfm__heatmap-legend > span:first-child { margin-right: 3px; }
+.pfm__heatmap-legend > span:last-child { margin-left: 3px; }
+.pfm__activity-note { margin: 10px 0 0; color: var(--text-3); font-size: 10px; line-height: 1.5; }

@@ -2,8 +2,22 @@
  * What the workspaces and the website read from governance: which rankings are tracked and public, the
  * directory's units, records with their review and publication state, and configuration.
  */
+import type { CalendarItem } from "@/lib/calendar";
 import type { ActionItem, DictionaryEntry, EvidenceItem, EvidenceStatus, Requirement, Story, Unit } from "@/lib/data";
-import type { AccountStatus, CycleConfig, NotificationTemplate, PeriodConfig, PostMedia, PostStatus, SystemConfig } from "./types";
+import type { DeadlineSource } from "@/lib/reference";
+import type {
+  AccountStatus,
+  CalendarEntry,
+  CycleConfig,
+  DeadlineFinding,
+  DeadlineWatch,
+  NotificationTemplate,
+  PeriodConfig,
+  PostMedia,
+  PostStatus,
+  RankingConfig,
+  SystemConfig,
+} from "./types";
 import type { UnitEmblem } from "./unit-emblems";
 
 export interface HubUnit extends Unit {
@@ -57,10 +71,34 @@ export interface HubNotice {
   unread: boolean;
 }
 
+/** What the Office needs to keep deadlines right: dates waiting, each source's last reading, and each ranking's other dates. */
+export interface DeadlineDesk {
+  findings: DeadlineFinding[];
+  sources: {
+    id: string;
+    name: string;
+    page: string;
+    body: string;
+    kind: DeadlineSource["kind"];
+    slugs: string[];
+    status?: DeadlineWatch["status"];
+    checkedAt?: string;
+    changedAt?: string;
+    note: string;
+  }[];
+  entries: CalendarEntry[];
+  /** Where each ranking's deadline came from, once someone changed it. */
+  origin: Record<string, Pick<RankingConfig, "deadlineSource" | "deadlineUrl" | "deadlineBy" | "deadlineAt">>;
+}
+
 export interface HubData {
   activeSlugs: string[];
   publicSlugs: string[];
   deadlines: Record<string, string>;
+  /** Each tracked ranking's deadline and other dates, soonest first. */
+  calendar: CalendarItem[];
+  /** Only for people who may change deadlines. */
+  deadlineDesk: DeadlineDesk | null;
   bodies: { key: string; name: string; short: string; enabled: boolean }[];
   units: HubUnit[];
   evidence: EvidenceItem[];

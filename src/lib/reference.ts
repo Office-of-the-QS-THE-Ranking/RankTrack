@@ -64,6 +64,24 @@ export interface Office extends OfficeProfile {
   portfolio: { name: string; href: string }[];
 }
 
+/** Where a ranking body publishes its dates and how the deadline check reads them (deadline_sources). */
+export interface DeadlineSource {
+  id: string;
+  /** The ranking body (ranking_families.body). */
+  body: string;
+  name: string;
+  /** The page a person opens; {year} and {next} stand for this year and the next. */
+  page: string;
+  /** What the check reads, or null for a body whose dates are entered by hand. */
+  fetchUrl: string | null;
+  /** table: rows of a dates table; sentence: a pattern with a named group `due`; watch: what to compare; manual: not read. */
+  kind: "table" | "sentence" | "watch" | "manual";
+  pattern: string | null;
+  /** Which rankings a date belongs to, and whether it is their deadline or another date in their calendar. */
+  rules: { row?: string; slugs: string[]; deadline?: boolean; label?: string }[];
+  note: string;
+}
+
 export interface Reference {
   latestEdition: number;
   families: Record<string, Family>;
@@ -102,6 +120,7 @@ export interface Reference {
   directory: DirectoryEntry[];
   /** The University's arms for its units, by directory key (unit_emblems). */
   emblems: Record<string, UnitEmblem>;
+  deadlineSources: DeadlineSource[];
 }
 
 /* ---------- Rankings ---------- */

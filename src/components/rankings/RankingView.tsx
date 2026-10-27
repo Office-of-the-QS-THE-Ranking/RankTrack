@@ -2,23 +2,53 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import { ACTION_PLAN, COMPARISON, EVIDENCE as STATIC_EVIDENCE, STAGES, formatDate, type Indicator, type Ranking } from "@/lib/data";
-import { Icon } from "@/components/ui/Icon";
-import { Card, Empty, MeterRow, Notice, PlanStatus, Status, Trend } from "@/components/ui/primitives";
-import { Segmented, TabPanel, Tabs } from "@/components/ui/interactive";
+import { ACTION_PLAN, COMPARISON, EVIDENCE as STATIC_EVIDENCE, STAGES, daysUntil, formatDate, type EvidenceStatus, type Indicator, type Ranking } from "@/lib/data";
+import { familyOf } from "@/lib/reference";
+import { Tile } from "@/components/dashboard/Tile";
+import { UnitMark } from "@/components/units/UnitMark";
+import { Icon, type IconName } from "@/components/ui/Icon";
+import { PlanStatus, Ring, Status, cx } from "@/components/ui/primitives";
+import { Drawer, InfoTooltip, Segmented, TabPanel, Tabs, type ContentTab } from "@/components/ui/interactive";
 import { toast } from "@/components/ui/toast";
-import { ChartFrame, Heatmap, RankTrajectory, Sparkline, TrajectoryTable } from "@/components/charts/charts";
-import { FiveQuestions, RankingHeader } from "./RankingHeader";
+import { Select } from "@/components/ui/pickers";
+import { useHub } from "@/components/hub/HubProvider";
+import { useReference, useViews } from "@/components/reference/ReferenceProvider";
+import { RankingHero, drivers, nextAction } from "./RankingHeader";
+import { Bullet, EmptyArt, HeatGrid, PeerLadder, Quiet, Spark, StatusDonut, WeightMosaic, shareOf, valueOf, weightOf, type Part } from "./RankingCharts";
 import { IndicatorDrawer } from "./IndicatorDrawer";
 import { SpecialDashboard } from "./SpecialDashboard";
-import { actionIcon, resolveFocus } from "./focus";
-import { useHub } from "@/components/hub/HubProvider";
-import { Select } from "@/components/ui/pickers";
-import { useViews } from "@/components/reference/ReferenceProvider";
+import { actionIcon, resolveFocus, type FocusTarget } from "./focus";
 
-const TABS = ["Overview", "Performance", "Indicators", "Evidence", "Contributors", "Action Plan", "Methodology", "Reports"] as const;
-type Tab = (typeof TABS)[number];
+/* Keys stay as the ranking menus (focus.ts) and earlier links (#indicators, #methodology) name them. */
+type Tab = "Overview" | "Indicators" | "Evidence" | "Contributors" | "Action Plan" | "Methodology";
+const TABS: ContentTab<Tab>[] = [
+  { key: "Overview", label: "Overview" },
+  { key: "Indicators", label: "Indicators" },
+  { key: "Evidence", label: "Evidence" },
+  { key: "Contributors", label: "Units" },
+  { key: "Action Plan", label: "Action plan" },
+  { key: "Methodology", label: "Methodology" },
+];
 const slugOf = (t: string) => t.toLowerCase().replace(/\s+/g, "-");
+/** Sections that were tabs of their own before. */
+const MOVED: Record<string, Tab> = { performance: "Indicators" };
+
+const TONE: Record<EvidenceStatus, Part["tone"] | null> = {
+  Validated: "ok",
+  "For review": "review",
+  "Needs revision": "revise",
+  "Not yet submitted": "missing",
+  "Not applicable": null,
+};
+const PARTS: { status: EvidenceStatus; label: string }[] = [
+  { status: "Validated", label: "Validated" },
+  { status: "For review", label: "For review" },
+  { status: "Needs revision", label: "Revisions" },
+  { status: "Not yet submitted", label: "Not sent" },
+];
+const PLAN = ["Complete", "On track", "At risk", "Not started"] as const;
+
+const FOCUS_ICON: Record<FocusTarget["kind"], IconName> = { tab: "layers", indicator: "target", link: "arrow-up-right", anchor: "arrow-down" };
 
 function downloadCsv(name: string, rows: (string | number | null)[][]) {
   const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -30,14 +60,35 @@ function downloadCsv(name: string, rows: (string | number | null)[][]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Counts of items by evidence status, as legend rows. */
+function StatusLegend({ parts }: { parts: Part[] }) {
+  return (
+    <dl className="rk-legend">
+      {parts.map((p) => (
+        <div key={p.key}>
+          <dt>
+            <span className={`status status--${p.tone} ov-key`}>
+              <i className="status__shape" />
+            </span>
+            {p.label}
+          </dt>
+          <dd>{p.n}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function RankingView({ ranking }: { ranking: Ranking }) {
-  const { reportTypes } = useViews();
+  const { latestEdition, reportTypes } = useViews();
+  const fam = familyOf(useReference(), ranking.family);
   // Evidence and units come from the governance store: review states, directory names and archives.
   const hub = useHub();
   const EVIDENCE = hub?.evidence ?? STATIC_EVIDENCE;
   const UNITS = hub?.units.filter((u) => u.status === "Active") ?? [];
   const [tab, setTabState] = useState<Tab>("Overview");
   const [ind, setInd] = useState<Indicator | null>(null);
+  const [reports, setReports] = useState(false);
   const [made, setMade] = useState<string[]>([]);
   const [evFilter, setEvFilter] = useState<"All" | "Needs attention" | "Reused">("All");
 
@@ -49,7 +100,8 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
   useEffect(() => {
     const fromHash = () => {
       const h = location.hash.slice(1);
-      const t = TABS.find((x) => slugOf(x) === h);
+      if (h === "reports") return setReports(true);
+      const t = TABS.find((x) => slugOf(x.key) === h)?.key ?? MOVED[h];
       if (t) setTabState(t);
     };
     fromHash();
@@ -74,546 +126,656 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
   const shownEvidence = evidence.filter((e) =>
     evFilter === "All" ? true : evFilter === "Reused" ? e.mappedTo.length > 1 : e.status === "Needs revision" || e.status === "For review",
   );
+  const missing = ranking.indicators.filter((i) => i.status === "Not yet submitted");
   const owners = new Set(ranking.indicators.map((i) => i.owner));
   const contributors = UNITS.filter((u) => owners.has(u.name) || u.rankingsServed >= 4).slice(0, 10);
   const actions = ranking.indicators.flatMap((i) => i.actions.map((a) => ({ a, ind: i })));
-  const idx = TABS.indexOf(tab);
-  const included = evidence.filter((e) => e.stage >= 3).length;
+  const idx = TABS.findIndex((t) => t.key === tab);
+
+  const countBy = <T,>(items: T[], statusOf: (x: T) => EvidenceStatus): Part[] =>
+    PARTS.map((p) => ({ key: p.status, label: p.label, tone: TONE[p.status]!, n: items.filter((x) => statusOf(x) === p.status).length }));
+  const indicatorParts = countBy(ranking.indicators, (i) => i.status);
+  const evidenceParts = countBy(evidence, (e) => e.status);
+
+  const top = drivers(ranking);
+  const act = nextAction(ranking);
+  const more = actions.filter(({ a }) => a !== act?.action).slice(0, 3);
+  const actDays = act?.due ? daysUntil(act.due) : null;
+  const sgo = [
+    { label: "Strengths", icon: "trend-up", tone: "ok", items: ranking.strengths },
+    { label: "Gaps", icon: "alert", tone: "revise", items: ranking.gaps },
+    { label: "Opportunities", icon: "spark", tone: "gold", items: ranking.opportunities },
+  ] as const;
+  const read = ranking.interpretation || sgo.some((g) => g.items.length);
+  const menu = ranking.menu.filter((m) => !/Overview$/.test(m));
+
+  // Each indicator's history ends at the latest edition.
+  const span = Math.max(0, ...ranking.indicators.map((i) => i.history.length));
+  const years = Array.from({ length: span }, (_, k) => latestEdition - span + 1 + k);
+  const heatRows = ranking.indicators.map((i) => ({
+    label: i.name,
+    values: Array.from({ length: span }, (_, k) => {
+      const h = i.history[k - (span - i.history.length)];
+      return h && h > 0 && i.target ? Math.round((h / i.target) * 100) : null;
+    }),
+  }));
+  const plan = PLAN.map((s) => ({ status: s, n: ACTION_PLAN.filter((a) => a.status === s).length })).filter((p) => p.n);
+  const totalWeight = ranking.indicators.reduce((s, i) => s + weightOf(i), 0);
 
   return (
-    <>
-      <RankingHeader
-        ranking={ranking}
-        asOf={hub?.site.asOf}
+    <div className="ov rk" style={{ "--fam": fam.color } as CSSProperties}>
+      <RankingHero ranking={ranking} asOf={hub?.site.asOf} />
+
+      <Tabs
+        tabs={TABS}
+        value={tab}
+        onChange={setTab}
+        label={`${ranking.short} sections`}
+        idBase={`rk-${ranking.slug}`}
+        counts={{ Evidence: ranking.pending || undefined }}
         actions={
-          <>
-            <button type="button" className="btn" onClick={() => setTab("Reports")}>
-              <Icon name="reports" size={18} /> Reports
-            </button>
-          </>
+          <button type="button" className="content-tabs__action" onClick={() => setReports(true)} aria-haspopup="dialog">
+            <Icon name="reports" size={16} /> Reports
+          </button>
         }
       />
 
-      <FiveQuestions ranking={ranking} onTab={(t) => setTab(t as Tab)} reviewing={evidence.filter((e) => e.status === "For review").length} />
-
-      <div className="stack" style={{ ["--gap" as string]: "20px" } as CSSProperties}>
-        <Tabs tabs={TABS} value={tab} onChange={setTab} label={`${ranking.short} sections`} idBase={`rk-${ranking.slug}`} />
-
-        <TabPanel idBase={`rk-${ranking.slug}`} index={idx} className="stack tabpanel">
-          {tab === "Overview" && (
-            <>
-              <div className="grid cols-2-1">
-                <Card title="Executive interpretation" icon="quote">
-                  {!ranking.interpretation && !ranking.strengths.length && !ranking.gaps.length && !ranking.opportunities.length ? (
-                    <Empty icon="quote" title="No interpretation yet">
-                      The Office writes it once {ranking.short} has a result to read.
-                    </Empty>
-                  ) : (
+      <TabPanel idBase={`rk-${ranking.slug}`} index={idx} className="rk-panel tabpanel">
+        {tab === "Overview" && (
+          <>
+            <div className="ov-bento rk-bento">
+              <Tile
+                id="rk-drivers"
+                title="What drives it"
+                className="rk-s5"
+                aside={
+                  <button type="button" className="rk-more" onClick={() => setTab("Indicators")} aria-label="All indicators">
+                    <Icon name="chevron" size={16} />
+                  </button>
+                }
+              >
+                {ranking.indicators.length ? (
                   <>
-                  <p className="lead-text">{ranking.interpretation}</p>
-                  <div className="sgo">
-                    <div>
-                      <h3 className="sgo__h">Key strengths</h3>
-                      <ul className="bullets">
-                        {ranking.strengths.map((s) => (
-                          <li key={s}>{s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="sgo__h">Critical gaps</h3>
-                      <ul className="bullets bullets--gap">
-                        {ranking.gaps.map((s) => (
-                          <li key={s}>{s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="sgo__h">Main opportunities</h3>
-                      <ul className="bullets bullets--opp">
-                        {ranking.opportunities.map((s) => (
-                          <li key={s}>{s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  </>
-                  )}
-                </Card>
-                <Card
-                  title="Action panel"
-                  sub="Specific actions, not only scores"
-                  icon="flag"
-                  id="action-panel"
-                  foot={
-                    actions.length > 4 ? (
-                      <button type="button" className="link" onClick={() => setTab("Indicators")}>
-                        All {actions.length} actions by indicator <Icon name="arrow" size={14} />
-                      </button>
-                    ) : undefined
-                  }
-                >
-                  {actions.length ? (
-                    <ul className="actions-list actions-list--btn">
-                      {actions.slice(0, 4).map(({ a, ind: i }) => (
-                        <li key={a}>
+                    <WeightMosaic indicators={ranking.indicators} onPick={setInd} />
+                    <ol className="rk-top2">
+                      {top.map((i) => (
+                        <li key={i.name}>
                           <button type="button" onClick={() => setInd(i)}>
-                            <span className="actions-list__icon">
-                              <Icon name={actionIcon(a)} size={16} />
+                            <span className="rk-top2__w">{i.weight}</span>
+                            <span className="rk-top2__name">{i.name}</span>
+                            <span className="rk-top2__v">
+                              {valueOf(i)}
+                              <small> / {i.target ?? "—"}</small>
                             </span>
-                            <span>
-                              {a}
-                              <small>
-                                {i.name} · {i.owner}
-                              </small>
-                            </span>
-                            <Icon name="chevron" size={16} />
                           </button>
                         </li>
                       ))}
-                    </ul>
-                  ) : (
-                    <Empty icon="check-circle" title="No open actions">
-                      Every indicator has its evidence in place.
-                    </Empty>
-                  )}
-                </Card>
-              </div>
+                    </ol>
+                  </>
+                ) : (
+                  <Quiet icon="target">No indicators yet</Quiet>
+                )}
+              </Tile>
 
-              <nav className="focusnav" aria-label={`${ranking.short} menu`}>
-                <span className="focusnav__label">In this ranking</span>
-                <div className="pills">
-                  {ranking.menu.map((m) => (
-                    <button key={m} type="button" className="pill" onClick={() => focus(m)}>
-                      {m}
-                    </button>
-                  ))}
-                </div>
-              </nav>
+              <Tile
+                id="rk-ev"
+                title="Evidence"
+                className="rk-s3"
+                aside={
+                  <button type="button" className="rk-more" onClick={() => setTab("Evidence")} aria-label="Open evidence">
+                    <Icon name="chevron" size={16} />
+                  </button>
+                }
+              >
+                <StatusDonut parts={indicatorParts} label="Indicators by evidence status">
+                  <b>{ranking.pending}</b>
+                  <span>to go</span>
+                </StatusDonut>
+                <StatusLegend parts={indicatorParts} />
+              </Tile>
 
-              <SpecialDashboard ranking={ranking} onIndicator={openIndicator} />
-            </>
-          )}
-
-          {tab === "Performance" && (
-            <>
-              <div className="grid cols-1-2">
-                <ChartFrame
-                  title="Multi-year overall trend"
-                  sub="Published band by edition; rank 1 at the top"
-                  table={<TrajectoryTable rankings={[ranking]} />}
-                >
-                  <RankTrajectory ranking={ranking} height={210} />
-                </ChartFrame>
-                <Card title="Target versus actual" sub="Indicator-level trends and share of target" icon="target" bodyClass="card__body--flush">
-                  <div className="table-wrap">
-                    <table className="table table--stack">
-                      <thead>
-                        <tr>
-                          <th>Indicator</th>
-                          <th>Trend</th>
-                          <th className="r">Actual</th>
-                          <th className="r">Target</th>
-                          <th className="table__meter">Share of target</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ranking.indicators.map((i) => (
-                          <tr key={i.name}>
-                            <td>
-                              <button type="button" className="rowlink" onClick={() => setInd(i)}>
-                                {i.name}
-                              </button>
-                            </td>
-                            <td data-label="Trend">
-                              <Sparkline values={i.history} label={i.name} />
-                            </td>
-                            <td data-label="Actual" className="r num">
-                              {i.current}
-                            </td>
-                            <td data-label="Target" className="r num">
-                              {i.target}
-                            </td>
-                            <td data-label="Share">
-                              <MeterRow value={((i.current ?? 0) / (i.target ?? 1)) * 100} label={`${i.name} share of target`} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              <Tile
+                id="rk-next"
+                title="Next up"
+                className="rk-s4"
+                aside={
+                  <button type="button" className="rk-more" onClick={() => setTab("Action Plan")} aria-label="Action plan">
+                    <Icon name="chevron" size={16} />
+                  </button>
+                }
+              >
+                {act ? (
+                  <div className="rk-next">
+                    <span className="rk-next__icon">
+                      <Icon name={actionIcon(act.action)} size={18} />
+                    </span>
+                    <p className="rk-next__what">{act.action}</p>
+                    <p className="rk-next__who">{act.unit}</p>
+                    {act.due && actDays !== null && (
+                      <p className={cx("rk-next__due", actDays <= 14 && "is-soon")}>
+                        <Icon name="clock" size={13} />
+                        {formatDate(act.due)}
+                        <span>· {actDays > 0 ? `${actDays} days` : actDays === 0 ? "today" : "overdue"}</span>
+                      </p>
+                    )}
                   </div>
-                </Card>
-              </div>
-              <div className="grid cols-3-2">
-                <Card title="Strength and risk heat map" sub="Value as a share of target, by year" icon="grid">
-                  <Heatmap
-                    caption={`${ranking.short} indicator value as a share of target by year`}
-                    columns={[2023, 2024, 2025, 2026]}
-                    rows={ranking.indicators.map((i) => ({
-                      label: i.name,
-                      values: i.history.map((h) => (h > 0 && i.target ? Math.round((h / i.target) * 100) : null)),
-                    }))}
-                    min={40}
-                    max={100}
-                    format={(v) => `${v}%`}
-                  />
-                </Card>
-                <Card title="Philippine and ASEAN comparison" sub="Sample peers, anonymised" icon="globe">
-                  <ul className="list">
-                    {COMPARISON.map((c) => (
-                      <li key={c.name} className={c.own ? "list__own" : undefined}>
-                        <span className="list__main">{c.own ? `UST (${ranking.short})` : c.name}</span>
-                        <span className="num small" style={{ fontWeight: 600 }}>
-                          {c.own ? ranking.current : c.value}
-                        </span>
+                ) : (
+                  <Quiet icon="check-circle">Nothing waiting</Quiet>
+                )}
+                {more.length > 0 && (
+                  <ul className="rk-then">
+                    {more.map(({ a, ind: i }) => (
+                      <li key={a}>
+                        <button type="button" onClick={() => setInd(i)}>
+                          <Icon name={actionIcon(a)} size={14} />
+                          <span>{i.name}</span>
+                          <Icon name="chevron" size={14} />
+                        </button>
                       </li>
                     ))}
                   </ul>
-                </Card>
-              </div>
-            </>
-          )}
+                )}
+              </Tile>
 
-          {tab === "Indicators" && (
-            <Card
-              title="Indicator scorecard"
-              sub="Select an indicator for its definition, formula, evidence, history, owner and recommended actions"
-              icon="target"
-              bodyClass="card__body--flush"
-            >
-              <div className="table-wrap">
-                <table className="table table--hover table--click table--stack">
-                  <thead>
-                    <tr>
-                      <th>Indicator</th>
-                      <th>Weight</th>
-                      <th className="r">Current</th>
-                      <th className="r">Target</th>
-                      <th>Trend</th>
-                      <th>Evidence status</th>
-                      <th>Responsible unit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ranking.indicators.map((i) => (
-                      <tr key={i.name} onClick={() => setInd(i)}>
-                        <td>
-                          <button
-                            type="button"
-                            className="rowlink"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setInd(i);
-                            }}
-                          >
-                            {i.name}
-                          </button>
-                        </td>
-                        <td data-label="Weight" className="num">
-                          {i.weight}
-                        </td>
-                        <td data-label="Current" className="r num">
-                          <b>
-                            {i.current}
-                            {i.unit === "% of threshold" ? "%" : ""}
-                          </b>
-                        </td>
-                        <td data-label="Target" className="r num">
-                          {i.target}
-                        </td>
-                        <td data-label="Trend">
-                          <Trend trend={i.trend} />
-                        </td>
-                        <td data-label="Evidence">
-                          <Status status={i.status} />
-                        </td>
-                        <td data-label="Owner" className="small text-2">
-                          {i.owner}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
-
-          {tab === "Evidence" && (
-            <div className="grid cols-2-1">
-              <Card
-                title="Evidence checklist"
-                sub={`${evidence.length} items mapped this cycle · ${included} included in the final submission`}
-                icon="evidence"
-                actions={
-                  <Segmented
-                    options={["All", "Needs attention", "Reused"] as const}
-                    value={evFilter}
-                    onChange={setEvFilter}
-                    label="Filter evidence"
-                  />
-                }
-              >
-                {ranking.indicators
-                  .filter((i) => i.status === "Not yet submitted")
-                  .map((i) => (
-                    <div key={i.name} className="mt-2" style={{ marginBottom: 12 }}>
-                      <Notice tone="warn" icon="alert">
-                        Still required: <b>{i.name}</b> from {i.owner}.
-                      </Notice>
+              <Tile id="rk-sum" title="Summary" className="rk-s8">
+                {read ? (
+                  <>
+                    {ranking.interpretation && <p className="rk-sum__lead">{ranking.interpretation}</p>}
+                    <div className="rk-sgo">
+                      {sgo
+                        .filter((g) => g.items.length)
+                        .map((g) => (
+                          <section key={g.label} className={`rk-sgo__col is-${g.tone}`} aria-label={g.label}>
+                            <h3>
+                              <span className="rk-sgo__badge">
+                                <Icon name={g.icon} size={14} strokeWidth={2} />
+                              </span>
+                              {g.label}
+                            </h3>
+                            <ul>
+                              {g.items.map((s) => (
+                                <li key={s}>{s}</li>
+                              ))}
+                            </ul>
+                          </section>
+                        ))}
                     </div>
-                  ))}
-                {shownEvidence.length ? (
-                  <ul className="evlist">
-                    {shownEvidence.map((e) => (
-                      <li key={e.id}>
-                        <div className="evlist__top">
-                          <Link href={`/admin/contribute?item=${e.id}`} className="list__main">
-                            {e.title}
-                          </Link>
-                          <Status status={e.status} />
-                        </div>
-                        <p className="list__sub">
-                          {e.id} · {e.unit} · {e.period}
-                        </p>
-                        <ol className="track track--mini" aria-label="Validation history">
-                          {STAGES.map((s, k) => (
-                            <li key={s} className={k < e.stage ? "is-done" : k === e.stage ? (e.status === "Needs revision" ? "is-flag" : "is-now") : ""}>
-                              <span className="sr-only">{s}</span>
-                            </li>
-                          ))}
-                        </ol>
-                        {e.mappedTo.length > 1 && (
-                          <p className="small text-2">
-                            <Icon name="layers" size={14} className="inline-icon" /> Reused in {e.mappedTo.length} rankings:{" "}
-                            {e.mappedTo.map((m) => m.split(" · ")[0]).join(", ")}
-                          </p>
-                        )}
-                        {e.comments[0] && (
-                          <div className="comment comment--compact">
-                            <p className="comment__who">
-                              {e.comments[0].by} · {formatDate(e.comments[0].date)}
-                            </p>
-                            <p>{e.comments[0].text}</p>
-                          </div>
-                        )}
+                  </>
+                ) : (
+                  <Quiet icon="quote">No summary yet</Quiet>
+                )}
+              </Tile>
+
+              <Tile id="rk-explore" title="Explore" className="rk-s4">
+                {menu.length ? (
+                  <ul className="rk-chips">
+                    {menu.map((m) => (
+                      <li key={m}>
+                        <button type="button" className="rk-chip" onClick={() => focus(m)}>
+                          <Icon name={FOCUS_ICON[resolveFocus(ranking, m).kind]} size={13} />
+                          {m}
+                        </button>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <Empty icon="evidence" title="Nothing in this view">
-                    No evidence matches this filter yet.
-                  </Empty>
+                  <Quiet icon="layers">Nothing to explore yet</Quiet>
                 )}
-              </Card>
-              <Card title="Add evidence" sub="Document upload or public URL, checked against the reporting window" icon="upload" tone="tint">
-                <form
-                  className="stack"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    (e.currentTarget as HTMLFormElement).reset();
-                    toast(`Sent for validation. It will appear in the ${ranking.short} checklist once received.`);
-                  }}
-                >
-                  <label className="dropzone">
-                    <span className="dropzone__icon">
-                      <Icon name="upload" />
-                    </span>
-                    <strong>Upload a document</strong>
-                    <span className="small muted">PDF, XLSX or CSV up to 25 MB</span>
-                    <input type="file" className="sr-only" />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">Or a public URL</span>
-                    <input className="input" type="url" placeholder="https://www.ust.edu.ph/…" />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">Reporting period</span>
-                    <Select className="select" defaultValue={ranking.reportingPeriod}>
-                      <option>{ranking.reportingPeriod}</option>
-                      <option>Calendar year 2024</option>
-                    </Select>
-                    <span className="field__hint">Verified against this ranking&rsquo;s reporting window before review.</span>
-                  </label>
-                  <button className="btn btn--dark" type="submit">
-                    <Icon name="send" size={18} /> Send for validation
-                  </button>
-                </form>
-              </Card>
+              </Tile>
             </div>
-          )}
 
-          {tab === "Contributors" && (
-            <Card title="Contributing offices" sub="Assigned requirements, completion and assistance requested" icon="collaboration" bodyClass="card__body--flush">
-              <div className="table-wrap">
-                <table className="table table--hover table--stack">
-                  <thead>
-                    <tr>
-                      <th>Unit</th>
-                      <th>Coordinator</th>
-                      <th className="r">Assigned</th>
-                      <th className="table__meter">Completion</th>
-                      <th className="r">Validated</th>
-                      <th>Assistance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contributors.map((u) => (
-                      <tr key={u.slug}>
-                        <td>
-                          <Link href={`/admin/units/${u.slug}`} className="rowlink">
-                            {u.name}
-                          </Link>
-                        </td>
-                        <td data-label="Coordinator">{u.coordinator}</td>
-                        <td data-label="Assigned" className="r num">
-                          {u.assigned}
-                        </td>
-                        <td data-label="Completion">
-                          <MeterRow value={(u.completed / u.assigned) * 100} label={`${u.name} completion`} />
-                        </td>
-                        <td data-label="Validated" className="r num">
-                          {u.validated}
-                        </td>
-                        <td data-label="Assistance">
-                          {u.assistance ? <span className="chip chip--gold">Requested</span> : <span className="muted">—</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
+            <SpecialDashboard ranking={ranking} onIndicator={openIndicator} />
+          </>
+        )}
 
-          {tab === "Action Plan" && (
-            <Card title="Strategy tracker" sub="Improvement actions with KPI, owner, timeline and progress" icon="flag" bodyClass="card__body--flush">
-              <div className="table-wrap">
-                <table className="table table--stack">
-                  <thead>
-                    <tr>
-                      <th>Improvement action</th>
-                      <th>KPI</th>
-                      <th>Owner</th>
-                      <th>Timeline</th>
-                      <th className="table__meter">Progress</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ACTION_PLAN.map((a) => (
-                      <tr key={a.action}>
-                        <td className="table__primary">{a.action}</td>
-                        <td data-label="KPI">{a.kpi}</td>
-                        <td data-label="Owner" className="small text-2">
-                          {a.owner}
-                        </td>
-                        <td data-label="Timeline" className="num nowrap">
-                          {a.timeline}
-                        </td>
-                        <td data-label="Progress">
-                          <MeterRow value={a.progress} tone="gold" label={`${a.action} progress`} />
-                        </td>
-                        <td data-label="Status">
-                          <PlanStatus status={a.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
+        {tab === "Indicators" && (
+          <div className="ov-bento rk-bento">
+            <Tile id="rk-score" title="Scorecard" className="rk-s12">
+              {ranking.indicators.length ? (
+                <div className="rk-score">
+                  <p className="rk-score__head" aria-hidden="true">
+                    <span>Indicator</span>
+                    <span>Weight</span>
+                    <span>Toward target</span>
+                    <span>Trend</span>
+                    <span>Evidence</span>
+                  </p>
+                  <ul>
+                    {ranking.indicators.map((i) => {
+                      const s = shareOf(i);
+                      return (
+                        <li key={i.name}>
+                          <button type="button" className="rk-score__row" onClick={() => setInd(i)}>
+                            <span className="rk-score__name">
+                              <b>{i.name}</b>
+                              <small>{i.owner}</small>
+                            </span>
+                            <span className="rk-score__w">{i.weight}</span>
+                            <span className="rk-score__prog">
+                              <Bullet share={s} label={`${i.name} toward target`} />
+                              <span className="rk-score__v">
+                                {valueOf(i)}
+                                <small> / {i.target ?? "—"}</small>
+                              </span>
+                            </span>
+                            <Spark values={i.history} trend={i.trend} label={`${i.name} by year`} />
+                            <Status status={i.status} />
+                            <Icon name="chevron" size={16} className="rk-score__go" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : (
+                <EmptyArt kind="start">No indicators yet</EmptyArt>
+              )}
+            </Tile>
 
-          {tab === "Methodology" && (
-            <div className="grid cols-2-1">
-              <Card title="In plain language" icon="knowledge">
-                <p className="lead-text">
-                  <b>What it measures.</b> {ranking.measures}.
-                </p>
-                <h3 className="sgo__h mt-6">Indicators and weightings</h3>
-                <ul className="list mt-3">
-                  {ranking.indicators.map((i) => (
+            <Tile id="rk-heat" title="Share of target by year" className="rk-s7">
+              {span > 1 && heatRows.some((r) => r.values.some((v) => v !== null)) ? (
+                <HeatGrid years={years} rows={heatRows} caption={`${ranking.short} indicator value as a share of target by year`} />
+              ) : (
+                <Quiet icon="grid">No yearly values yet</Quiet>
+              )}
+            </Tile>
+
+            <Tile
+              id="rk-peers"
+              title={
+                <>
+                  Peers
+                  <InfoTooltip label="About peers">Philippine and ASEAN universities, anonymised.</InfoTooltip>
+                </>
+              }
+              className="rk-s5"
+            >
+              {COMPARISON.length ? (
+                <PeerLadder rows={COMPARISON.map((c) => (c.own ? { name: "UST", value: ranking.current || "—", own: true } : c))} />
+              ) : (
+                <Quiet icon="globe">No peer results yet</Quiet>
+              )}
+            </Tile>
+          </div>
+        )}
+
+        {tab === "Evidence" && (
+          <div className="ov-bento rk-bento">
+            <Tile
+              id="rk-evlist"
+              title={
+                <>
+                  Evidence <span className="count">{evidence.length}</span>
+                </>
+              }
+              className="rk-s8"
+              aside={
+                evidence.length > 0 && (
+                  <Segmented options={["All", "Needs attention", "Reused"] as const} value={evFilter} onChange={setEvFilter} label="Filter evidence" />
+                )
+              }
+            >
+              {evidence.length > 0 && (
+                <div className="rk-evbar">
+                  <span className="ov-pipe__bar" aria-hidden="true">
+                    {evidenceParts
+                      .filter((p) => p.n)
+                      .map((p) => (
+                        <i key={p.key} className={`is-${p.tone}`} style={{ flexGrow: p.n }} />
+                      ))}
+                  </span>
+                  <StatusLegend parts={evidenceParts} />
+                </div>
+              )}
+              {missing.length > 0 && (
+                <ul className="rk-slots" aria-label="Still to send">
+                  {missing.map((i) => (
                     <li key={i.name}>
-                      <span className="list__main">{i.name}</span>
-                      <span className="list__aside chip">{i.weight}</span>
-                      <span className="list__sub">{i.definition}</span>
+                      <button type="button" className="rk-slot" onClick={() => setInd(i)}>
+                        <span className="rk-slot__icon">
+                          <Icon name="plus" size={16} />
+                        </span>
+                        <span className="rk-slot__name">
+                          <b>{i.name}</b>
+                          <small>{i.owner}</small>
+                        </span>
+                        <Status status="Not yet submitted" label="Not sent" />
+                      </button>
                     </li>
                   ))}
                 </ul>
-              </Card>
-              <div className="grid">
-                <Card title="Data sources and reporting period" icon="data">
-                  <ul className="bullets bullets--ink">
-                    {ranking.dataSources.map((d) => (
-                      <li key={d}>{d}</li>
-                    ))}
-                  </ul>
-                  <p className="small text-2 mt-4">
-                    <b>Reporting period:</b> {ranking.reportingPeriod}
-                  </p>
-                </Card>
-                <Card title="Common evidence errors" icon="alert" tone="tint">
-                  <ul className="bullets bullets--gap">
-                    {ranking.commonErrors.map((d) => (
-                      <li key={d}>{d}</li>
-                    ))}
-                  </ul>
-                </Card>
-                <Card title="Methodology changes" icon="history">
-                  <p className="small text-2">{ranking.methodologyChanges}</p>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {tab === "Reports" && (
-            <Card title="Generate a report" sub={`${ranking.short}, cycle ${hub?.currentCycle ?? ""}. Available to authorised users.`} icon="reports">
-              <ul className="list">
-                {reportTypes.map((r) => (
-                  <li key={r.name}>
-                    <span className="list__main">{r.name}</span>
-                    <span className="list__aside">
-                      {made.includes(r.name) ? (
-                        <span className="row" style={{ ["--gap" as string]: "6px" } as CSSProperties}>
-                          <button
-                            type="button"
-                            className="btn btn--sm"
-                            onClick={() =>
-                              downloadCsv(`${ranking.slug}-${r.name.toLowerCase().replace(/\s+/g, "-")}.csv`, [
-                                ["Indicator", "Weight", "Current", "Target", "Trend", "Evidence status", "Owner"],
-                                ...ranking.indicators.map((i) => [i.name, i.weight, i.current, i.target, i.trend, i.status, i.owner]),
-                              ])
-                            }
-                          >
-                            <Icon name="download" size={16} /> CSV
-                          </button>
-                          <button type="button" className="btn btn--sm" onClick={() => window.print()}>
-                            <Icon name="reports" size={16} /> Print or PDF
-                          </button>
+              )}
+              {shownEvidence.length ? (
+                <ul className="rk-evs">
+                  {shownEvidence.map((e) => {
+                    const at = Math.min(e.stage, STAGES.length - 1);
+                    return (
+                      <li key={e.id} className="rk-evi">
+                        <span className="rk-evi__icon">
+                          <Icon name="evidence" size={18} />
                         </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn--dark btn--sm"
-                          onClick={() => {
-                            setMade((m) => [...m, r.name]);
-                            toast(`${r.name} is ready to download.`);
-                          }}
+                        <span className="rk-evi__main">
+                          <Link href={`/admin/contribute?item=${e.id}`} className="rk-evi__title">
+                            {e.title}
+                          </Link>
+                          <span className="rk-evi__meta">
+                            {e.unit} · {e.period}
+                            {e.mappedTo.length > 1 && (
+                              <span className="rk-evi__reuse" data-tip={e.mappedTo.map((m) => m.split(" · ")[0]).join(", ")}>
+                                <Icon name="layers" size={12} /> {e.mappedTo.length} rankings
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                        <ol className="rk-stages" aria-label={`Stage: ${STAGES[at]}`} data-tip={STAGES[at]}>
+                          {STAGES.map((s, k) => (
+                            <li key={s} className={k < e.stage ? "is-done" : k === e.stage ? (e.status === "Needs revision" ? "is-flag" : "is-now") : undefined} />
+                          ))}
+                        </ol>
+                        <Status status={e.status} />
+                        {e.comments[0] && (
+                          <p className="rk-evi__note">
+                            <Icon name="comment" size={13} />
+                            <span>
+                              <b>{e.comments[0].by}</b> {e.comments[0].text}
+                            </span>
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <EmptyArt kind={evidence.length ? "search" : "start"}>{evidence.length ? "Nothing in this view" : "No evidence yet"}</EmptyArt>
+              )}
+            </Tile>
+
+            <Tile id="rk-add" title="Add evidence" className="rk-s4 rk-addtile">
+              <form
+                className="rk-add"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLFormElement).reset();
+                  toast(`Sent for validation. It joins the ${ranking.short} list once received.`);
+                }}
+              >
+                <label className="dropzone rk-drop">
+                  <span className="dropzone__icon">
+                    <Icon name="upload" />
+                  </span>
+                  <strong>Upload a file</strong>
+                  <span className="small muted">PDF, XLSX or CSV · 25 MB</span>
+                  <input type="file" className="sr-only" accept=".pdf,.xlsx,.csv" />
+                </label>
+                <label className="field">
+                  <span className="field__label">Or a link</span>
+                  <input className="input" type="url" placeholder="https://www.ust.edu.ph/…" />
+                </label>
+                <label className="field">
+                  <span className="field__label">Reporting period</span>
+                  <Select className="select" defaultValue={ranking.reportingPeriod}>
+                    <option>{ranking.reportingPeriod}</option>
+                    <option>Calendar year 2024</option>
+                  </Select>
+                </label>
+                <button className="btn btn--dark" type="submit">
+                  <Icon name="send" size={18} /> Send for validation
+                </button>
+              </form>
+            </Tile>
+          </div>
+        )}
+
+        {tab === "Contributors" && (
+          <div className="ov-bento rk-bento">
+            <Tile
+              id="rk-units"
+              title={
+                <>
+                  Units <span className="count">{contributors.length}</span>
+                </>
+              }
+              className="rk-s12"
+            >
+              {contributors.length ? (
+                <ul className="rk-units">
+                  {contributors.map((u) => {
+                    const pct = u.assigned ? Math.round((u.completed / u.assigned) * 100) : 0;
+                    return (
+                      <li key={u.slug}>
+                        <Link href={`/admin/units/${u.slug}`} className="rk-unit">
+                          <UnitMark emblem={u.emblem ?? null} code={u.code} className="rk-unit__mark" />
+                          <span className="rk-unit__name">
+                            <b>{u.name}</b>
+                            {u.coordinator && <small>{u.coordinator}</small>}
+                          </span>
+                          <Ring value={pct} size={50} stroke={5} label={
+                            <b>
+                              {pct}
+                              <small>%</small>
+                            </b>
+                          } />
+                          <dl className="rk-unit__stats">
+                            <div>
+                              <dt>Assigned</dt>
+                              <dd>{u.assigned}</dd>
+                            </div>
+                            <div>
+                              <dt>Validated</dt>
+                              <dd>{u.validated}</dd>
+                            </div>
+                          </dl>
+                          {u.assistance && (
+                            <span className="rk-unit__help">
+                              <Icon name="help" size={13} /> Help asked
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <EmptyArt kind="start">No units on this ranking yet</EmptyArt>
+              )}
+            </Tile>
+          </div>
+        )}
+
+        {tab === "Action Plan" && (
+          <div className="ov-bento rk-bento">
+            <Tile
+              id="rk-plan"
+              title="Action plan"
+              className="rk-s12"
+              aside={
+                plan.length > 0 && (
+                  <ul className="rk-plan__sum" aria-label="Actions by status">
+                    {plan.map((p) => (
+                      <li key={p.status}>
+                        <PlanStatus status={p.status} />
+                        <b>{p.n}</b>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
+            >
+              {ACTION_PLAN.length ? (
+                <ul className="rk-plan">
+                  {ACTION_PLAN.map((a) => (
+                    <li key={a.action} className={cx("rk-plan__row", a.status === "At risk" && "is-risk")}>
+                      <span className="rk-plan__main">
+                        <b>{a.action}</b>
+                        <small>
+                          <Icon name="target" size={12} /> {a.kpi}
+                        </small>
+                      </span>
+                      <span className="rk-plan__who">
+                        <Icon name="building" size={13} />
+                        {a.owner}
+                      </span>
+                      <span className="rk-plan__when">
+                        <Icon name="calendar" size={13} />
+                        {a.timeline}
+                      </span>
+                      <span className="rk-plan__prog">
+                        <Bullet share={a.progress} label={`${a.action} progress`} />
+                        <b>{a.progress}%</b>
+                      </span>
+                      <PlanStatus status={a.status} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyArt kind="start">No plan yet</EmptyArt>
+              )}
+            </Tile>
+          </div>
+        )}
+
+        {tab === "Methodology" && (
+          <div className="ov-bento rk-bento">
+            <Tile
+              id="rk-weights"
+              title={
+                <>
+                  Weights
+                  {ranking.measures && <InfoTooltip label="What it measures">{ranking.measures}.</InfoTooltip>}
+                </>
+              }
+              className="rk-s12"
+            >
+              {ranking.indicators.length ? (
+                <>
+                  <div className="rk-ramp" role="img" aria-label={ranking.indicators.map((i) => `${i.name} ${i.weight}`).join(", ")}>
+                    {ranking.indicators.map((i, k, all) => {
+                      const w = weightOf(i);
+                      return (
+                        <i
+                          key={i.name}
+                          className={cx(k === 0 && "is-start", k === all.length - 1 && "is-end", all.length > 1 && k / (all.length - 1) > 0.5 && "is-light")}
+                          style={{ flexGrow: totalWeight ? Math.max(w, 1) : 1, "--k": all.length > 1 ? k / (all.length - 1) : 0 } as CSSProperties}
+                          data-tip={`${i.name} · ${i.weight}`}
                         >
-                          Generate
-                        </button>
-                      )}
-                    </span>
-                    <span className="list__sub">{r.note}</span>
+                          {w >= 8 && <span>{i.weight}</span>}
+                        </i>
+                      );
+                    })}
+                  </div>
+                  <ul className="rk-defs">
+                    {ranking.indicators.map((i, k, all) => (
+                      <li key={i.name}>
+                        <details className="rk-def">
+                          <summary>
+                            <i className="rk-def__sw" style={{ "--k": all.length > 1 ? k / (all.length - 1) : 0 } as CSSProperties} aria-hidden="true" />
+                            <span className="rk-def__name">{i.name}</span>
+                            <b className="rk-def__w">{i.weight}</b>
+                            <Icon name="chevron-down" size={16} className="rk-def__go" />
+                          </summary>
+                          <div className="rk-def__body">
+                            <p>{i.definition}</p>
+                            {i.formula && (
+                              <p className="rk-def__formula">
+                                <Icon name="hash" size={13} />
+                                {i.formula}
+                              </p>
+                            )}
+                          </div>
+                        </details>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <Quiet icon="layers">No indicators yet</Quiet>
+              )}
+            </Tile>
+
+            <Tile id="rk-src" title="Data sources" className="rk-s4">
+              <ul className="rk-list">
+                {ranking.dataSources.map((d) => (
+                  <li key={d}>
+                    <Icon name="data" size={14} />
+                    {d}
                   </li>
                 ))}
               </ul>
-            </Card>
-          )}
-        </TabPanel>
-      </div>
+              {ranking.reportingPeriod && (
+                <p className="rk-period">
+                  <Icon name="calendar" size={14} />
+                  {ranking.reportingPeriod}
+                </p>
+              )}
+            </Tile>
+            <Tile id="rk-err" title="Common errors" className="rk-s4">
+              {ranking.commonErrors.length ? (
+                <ul className="rk-list is-warn">
+                  {ranking.commonErrors.map((d) => (
+                    <li key={d}>
+                      <Icon name="alert" size={14} />
+                      {d}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Quiet icon="check-circle">None noted</Quiet>
+              )}
+            </Tile>
+            <Tile id="rk-chg" title="What changed" className="rk-s4">
+              {ranking.methodologyChanges ? <p className="rk-chg">{ranking.methodologyChanges}</p> : <Quiet icon="history">No changes this edition</Quiet>}
+            </Tile>
+          </div>
+        )}
+      </TabPanel>
+
+      <Drawer open={reports} onClose={() => setReports(false)} eyebrow={`${ranking.short}${hub?.currentCycle ? ` · ${hub.currentCycle}` : ""}`} title="Reports">
+        <ul className="rk-reports">
+          {reportTypes.map((r) => (
+            <li key={r.name} className="rk-report">
+              <span className="rk-report__icon">
+                <Icon name="reports" size={18} />
+              </span>
+              <span className="rk-report__name">
+                <b>{r.name}</b>
+                <small>{r.note}</small>
+              </span>
+              {made.includes(r.name) ? (
+                <span className="rk-report__get">
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={() =>
+                      downloadCsv(`${ranking.slug}-${r.name.toLowerCase().replace(/\s+/g, "-")}.csv`, [
+                        ["Indicator", "Weight", "Current", "Target", "Trend", "Evidence status", "Owner"],
+                        ...ranking.indicators.map((i) => [i.name, i.weight, i.current, i.target, i.trend, i.status, i.owner]),
+                      ])
+                    }
+                  >
+                    <Icon name="download" size={16} /> CSV
+                  </button>
+                  <button type="button" className="btn btn--sm" onClick={() => window.print()}>
+                    <Icon name="reports" size={16} /> PDF
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--dark btn--sm"
+                  onClick={() => {
+                    setMade((m) => [...m, r.name]);
+                    toast(`${r.name} is ready.`);
+                  }}
+                >
+                  Generate
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Drawer>
 
       <IndicatorDrawer ranking={ranking} indicator={ind} onClose={() => setInd(null)} />
-    </>
+    </div>
   );
 }

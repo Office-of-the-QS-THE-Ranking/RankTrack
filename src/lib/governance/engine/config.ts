@@ -66,7 +66,8 @@ export function configure(ctx: Ctx, cmd: Extract<Command, { type: `config.${stri
       if (cmd.deadline !== undefined && cmd.deadline !== r.deadline) {
         if (!isDay(cmd.deadline)) return invalid("Enter the data collection deadline as a date.");
         changes.push(`deadline ${r.deadline} → ${cmd.deadline}`);
-        r.deadline = cmd.deadline;
+        Object.assign(r, { deadline: cmd.deadline, deadlineSource: "Manual", deadlineBy: ctx.actor.name, deadlineAt: ctx.iso });
+        delete r.deadlineUrl;
       }
       if (!changes.length) return ok("No changes.");
       log(ctx, "config.ranking", "Configuration", SETTING(r.slug, meta.name), "Success", changes.join("; "));

@@ -324,6 +324,7 @@ export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = 
         { id: "tpl-published", name: "Story published", event: "A story reaches the public website", channel: "In-app", subject: "Published: {title}", body: "“{title}” is now on the public Impact and Innovation page.", enabled: true },
         { id: "tpl-deadline", name: "Deadline reminder", event: "A ranking's data collection is about to close", channel: "Email", subject: "{ranking} closes in {days} days", body: "{ranking} closes in {days} days. {open} requirements are still open for {unit}.", enabled: true },
         { id: "tpl-suspended", name: "Account suspended", event: "An account is suspended", channel: "Email", subject: "Your Hub account is suspended", body: "{name}, your account was suspended: {reason} Contact the Office if this is unexpected.", enabled: true },
+        { id: "tpl-deadline-found", name: "New date found", event: "The deadline check reads a date that differs from the Hub's", channel: "In-app", subject: "New date for {ranking}", body: "{ranking}: {label} {date} on {source}. Apply it or dismiss it on the ranking's page.", enabled: true },
       ],
       dashboard: { officeView: "submissions", showClock: true, deadlineWarningDays: 21 },
       features: [
@@ -345,6 +346,9 @@ export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = 
         { id: "story-drafting", name: "Story drafting help", description: "Suggests a structure for impact stories from linked evidence.", mode: "Off", accounts: [], units: [], updatedAt: at },
       ],
       site: { notice: "", noticeOn: false, asOf: day },
+      calendar: [],
+      findings: [],
+      watch: [],
     },
     backup: {
       schedule: { full: "Daily at 02:00", incremental: "Every hour", retentionDays: 35, monthlyMonths: 12, offsite: false, encrypted: true },

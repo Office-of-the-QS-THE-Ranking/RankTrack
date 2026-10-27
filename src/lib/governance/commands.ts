@@ -25,16 +25,15 @@ import type {
   WorkflowKey,
   WorkflowStep,
 } from "./types";
+import type { PersonInput } from "./person-details";
 
-export interface InviteInput {
-  name: string;
-  email: string;
-  title: string;
-  unitId: string;
-  roleId: RoleId;
+/**
+ * Who is invited, in the Request access form's fields (person-details.ts): University of Santo Tomas brings a
+ * role and unit, any other affiliation an External guest of the Office. Scope and end date are the inviter's.
+ */
+export interface InviteInput extends PersonInput {
   scope?: Scope;
   expires?: string;
-  external?: boolean;
 }
 
 /** What the post composer sends. */
@@ -122,6 +121,10 @@ export type Command =
   | { type: "config.feature"; id: string; enabled: boolean }
   | { type: "config.flag"; id: string; mode?: FeatureFlag["mode"]; accounts?: string[]; units?: string[] }
   | { type: "config.site"; notice?: string; noticeOn?: boolean }
+  /** A ranking's deadline and the other dates in its calendar, set by hand on the ranking's page. */
+  | { type: "deadline.set"; slug: string; deadline?: string; entries?: { id?: string; label: string; due: string }[] }
+  | { type: "deadline.apply"; id: string }
+  | { type: "deadline.dismiss"; id: string }
   /* Backup and recovery */
   | { type: "backup.run" }
   | { type: "backup.test"; pointId: string }

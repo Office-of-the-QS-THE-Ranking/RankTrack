@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearCookiesAndSignOut, exportMyData, loadDevices, loadLogs, loadOverview, loadPrivacy, saveNotificationPrefs, saveProfile, saveSessionPrefs, signOutDevice, signOutOtherDevices, type DeviceRow, type LogRow, type PrivacyInfo } from "@/app/actions/profile";
 import { useReference } from "@/components/reference/ReferenceProvider";
-import type { Badge, OverviewStats } from "@/lib/governance/account-overview";
+import type { ActivityDay, Badge, OverviewStats } from "@/lib/governance/account-overview";
 import { idleChoices } from "@/lib/governance/session-limits";
 import { NOTIFY_KINDS, prefKey, type NotifyChannel, type NotifyKind } from "@/lib/governance/notification-prefs";
 import { signOut } from "@/app/actions/session";
@@ -337,7 +337,114 @@ const NUM = new Intl.NumberFormat("en-PH");
 
 const duration = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60 ? `${minutes % 60} min` : ""}`.trim());
 
-type Loaded = { stats: OverviewStats; badges: Badge[]; memberSince: string; lastLogin?: string };
+type Loaded = { stats: OverviewStats; badges: Badge[]; activity: ActivityDay[]; memberSince: string; lastLogin?: string };
+
+/** Scroll snapping keeps both overview collections to a single row. */
+function ProfileCarousel({ label, kind, busy, children }: { label: string; kind: "stats" | "badges"; busy: boolean; children: ReactNode }) {
+  const id = useId();
+  const track = useRef<HTMLUListElement>(null);
+  const [edges, setEdges] = useState({ start: true, end: false });
+  useEffect(() => {
+    const element = track.current;
+    if (!element) return;
+    const update = () => setEdges({ start: element.scrollLeft <= 1, end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1 });
+    update();
+    element.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => { element.removeEventListener("scroll", update); observer.disconnect(); };
+  }, [busy]);
+  const move = (direction: number) => {
+    const element = track.current;
+    if (!element) return;
+    element.scrollBy({ left: direction * element.clientWidth, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  };
+  return (
+    <section className="pfm__carousel" aria-labelledby={`${id}-label`} aria-roledescription="carousel">
+      <div className="pfm__carousel-head">
+        <h3 id={`${id}-label`} className="pfm__label">{label}</h3>
+        <div className="pfm__carousel-controls">
+          <button type="button" aria-label={`Previous ${label.toLowerCase()}`} aria-controls={id} disabled={edges.start} onClick={() => move(-1)}><Icon name="chevron-left" size={14} /></button>
+          <button type="button" aria-label={`Next ${label.toLowerCase()}`} aria-controls={id} disabled={edges.end} onClick={() => move(1)}><Icon name="chevron" size={14} /></button>
+        </div>
+      </div>
+      <ul ref={track} id={id} className={`pfm__${kind} pfm__carousel-track`} aria-busy={busy} aria-label={label} tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); move(event.key === "ArrowLeft" ? -1 : 1); }
+        }}>
+        {children}
+      </ul>
+    </section>
+  );
+}
+
+const activityLevel = (count: number) => count === 0 ? 0 : count < 3 ? 1 : count < 6 ? 2 : count < 10 ? 3 : 4;
+const activityLabel = (day: ActivityDay) => `${NUM.format(day.count)} ${day.count === 1 ? "action" : "actions"} on ${DATE_FMT.format(new Date(`${day.date}T00:00:00Z`))}`;
+
+function ActivityGrid({ days }: { days: ActivityDay[] }) {
+  const id = useId();
+  const scroll = useRef<HTMLDivElement>(null);
+  const cells = useRef<HTMLDivElement>(null);
+  const [selected, setSelected] = useState(days.length - 1);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const offset = new Date(`${days[0].date}T00:00:00Z`).getUTCDay();
+  const weeks = Math.ceil((days.length + offset) / 7);
+  const total = days.reduce((sum, day) => sum + day.count, 0);
+  const active = days.filter((day) => day.count > 0).length;
+  const detail = days[hovered ?? selected];
+  useEffect(() => {
+    const element = scroll.current;
+    if (!element) return;
+    const revealLatest = () => { element.scrollLeft = element.scrollWidth; };
+    revealLatest();
+    const observer = new ResizeObserver(revealLatest);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <section className="pfm__activity" aria-labelledby={id}>
+      <div className="pfm__carousel-head">
+        <h3 className="pfm__label" id={id}>Activity monitor</h3>
+        <span className="pfm__activity-period">Past year</span>
+      </div>
+      <div className="pfm__heatmap">
+        <div className="pfm__activity-summary"><b>{NUM.format(total)} actions</b><span>{NUM.format(active)} active {active === 1 ? "day" : "days"}</span></div>
+        <div ref={scroll} className="pfm__heatmap-scroll">
+          <div className="pfm__heatmap-chart" style={{ "--activity-weeks": weeks } as React.CSSProperties}>
+            <div className="pfm__heatmap-months" aria-hidden="true">
+              {days.map((day, index) => {
+                const date = new Date(`${day.date}T00:00:00Z`);
+                if (date.getUTCDate() !== 1 || index > days.length - 14) return null;
+                return <span key={day.date} style={{ gridColumn: `${Math.floor((index + offset) / 7) + 1} / span 3` }}>{date.toLocaleDateString("en", { month: "short", timeZone: "UTC" })}</span>;
+              })}
+            </div>
+            <div className="pfm__heatmap-weekdays" aria-hidden="true"><span>Mon</span><span>Wed</span><span>Fri</span></div>
+            <div ref={cells} className="pfm__heatmap-cells" role="group" aria-label="Daily activity. Use arrow keys to explore days." onMouseLeave={() => setHovered(null)}>
+              {Array.from({ length: offset }, (_, index) => <span key={`blank-${index}`} />)}
+              {days.map((day, index) => (
+                <button type="button" key={day.date} className="pfm__heatmap-cell" data-level={activityLevel(day.count)} aria-label={activityLabel(day)} aria-describedby={`${id}-detail`} tabIndex={selected === index ? 0 : -1}
+                  onMouseEnter={() => setHovered(index)} onFocus={() => setSelected(index)} onClick={() => setSelected(index)}
+                  onKeyDown={(event) => {
+                    const step = { ArrowLeft: -7, ArrowRight: 7, ArrowUp: -1, ArrowDown: 1 }[event.key];
+                    if (step === undefined && event.key !== "Home" && event.key !== "End") return;
+                    event.preventDefault();
+                    const next = event.key === "Home" ? 0 : event.key === "End" ? days.length - 1 : Math.max(0, Math.min(days.length - 1, index + step!));
+                    cells.current?.querySelectorAll("button")[next]?.focus();
+                  }} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="pfm__heatmap-footer">
+          <span id={`${id}-detail`}>{activityLabel(detail)}</span>
+          <span className="pfm__heatmap-legend" aria-label="Intensity: 0, 1–2, 3–5, 6–9, 10 or more actions per day"><span>Less</span>{[0, 1, 2, 3, 4].map((level) => <i key={level} data-level={level} aria-hidden="true" />)}<span>More</span></span>
+        </div>
+        <p className="pfm__activity-note">Recorded Hub actions, including sign-ins. Dates in Manila time.</p>
+      </div>
+    </section>
+  );
+}
 
 /** The person's activity at a glance and the badges it has earned, counted from the audit trail. */
 function Overview({ viewer }: { viewer: Viewer }) {
@@ -387,24 +494,22 @@ function Overview({ viewer }: { viewer: Viewer }) {
         </p>
       </Banner>
 
-      <h3 className="pfm__label">Activity</h3>
-      <ul className="pfm__stats" aria-busy={!data && !failed}>
+      <ProfileCarousel label="Activity" kind="stats" busy={!data && !failed}>
         {data
           ? tiles.map((t) => (
               <li key={t.label}>
                 <span className="pfm__stat-head">
                   <Icon name={t.icon} size={14} />
                   {t.label}
-                  <InfoTooltip label={`About ${t.label.toLowerCase()}`}>{t.hint}</InfoTooltip>
+                  <InfoTooltip escapeClipping label={`About ${t.label.toLowerCase()}`}>{t.hint}</InfoTooltip>
                 </span>
                 <b className="num">{t.value}</b>
               </li>
             ))
           : Array.from({ length: 6 }, (_, i) => <li key={i} className="pfm__stat--skeleton" aria-hidden="true" />)}
-      </ul>
+      </ProfileCarousel>
 
-      <h3 className="pfm__label">Badges</h3>
-      <ul className="pfm__badges">
+      <ProfileCarousel label="Badges" kind="badges" busy={!data && !failed}>
         {data
           ? data.badges.map((b) => (
               <li key={b.id} className={`pfm__badge${b.tier ? ` pfm__badge--${b.tier.toLowerCase()}` : " pfm__badge--locked"}`}>
@@ -420,11 +525,13 @@ function Overview({ viewer }: { viewer: Viewer }) {
                     </span>
                   )}
                 </span>
-                <InfoTooltip label={`How to earn ${b.name}`}>{b.next !== null ? `${b.how} to reach the next tier.` : "You reached the top tier."}</InfoTooltip>
+                <InfoTooltip escapeClipping label={`How to earn ${b.name}`}>{b.next !== null ? `${b.how} to reach the next tier.` : "You reached the top tier."}</InfoTooltip>
               </li>
             ))
           : Array.from({ length: 6 }, (_, i) => <li key={i} className="pfm__badge pfm__stat--skeleton" aria-hidden="true" />)}
-      </ul>
+      </ProfileCarousel>
+
+      {data && <ActivityGrid days={data.activity} />}
     </div>
   );
 }

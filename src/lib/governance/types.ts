@@ -100,6 +100,8 @@ export interface Account {
   /** Sign-in is through University Google Workspace; external collaborators use a sponsored guest identity. */
   identity: "Google Workspace" | "Sponsored guest";
   external?: boolean;
+  /** Their names, salutation and affiliation, from the invitation or the approved access request. */
+  profile?: AccountProfile;
   mfa: { enrolled: boolean; method?: "Authenticator app" | "Security key" };
   /** Sessions started before this moment must sign in again. */
   reauthAfter?: ISOTime;
@@ -372,26 +374,33 @@ export interface Workflow {
   separation: boolean;
 }
 
-/** Who asked for an account from the sign-in page, as they gave it (access-requests.ts). */
-export interface Applicant {
+/**
+ * Who a person is, in the fields the Request access form and the invite drawer share (person-details.ts): kept
+ * on the account from its invitation or its approved request.
+ */
+export interface AccountProfile {
   lastName: string;
   firstName: string;
   middleName?: string;
-  /** The preferred salutation (Dr., Prof., …); left out when the requester prefers not to specify. */
+  /** The preferred salutation (Dr., Prof., …); left out when they prefer not to specify. */
   salutation?: string;
+  /** A listed affiliation, or their own words when none matched (listed: false, shown as Others). */
+  affiliation: string;
+  listed: boolean;
+  /** The organization named for "International Accreditation Organization (Specify)". */
+  organization?: string;
+  /** For an organization not on the list: its website (https only), only ever shown as text. */
+  website?: string;
+}
+
+/** Who asked for an account from the sign-in page, as they gave it (access-requests.ts). */
+export interface Applicant extends AccountProfile {
   /** Empty once removed, a month after the request closed (housekeeping). */
   birthday: ISODate | "";
   /** A Thomasian: on a University email, asking to be an Administrator, Coordinator or Student. */
   thomasian?: boolean;
   /** A Thomasian's college, faculty or office as they gave it; the approver confirms or changes it. */
   unitId?: string;
-  /** A listed affiliation, or the requester's own words when none matched (listed: false, shown as Others). */
-  affiliation: string;
-  listed: boolean;
-  /** The organization named for "International Accreditation Organization (Specify)". */
-  organization?: string;
-  /** For an organization not on the list: its website as typed (https only), shown to approvers as text. */
-  website?: string;
   /** When the requester accepted the declarations, the Data Privacy Notice and the Terms of Use. */
   agreedAt?: string;
 }
@@ -449,6 +458,56 @@ export interface RankingConfig {
   /** Shown on the public website. */
   public: boolean;
   deadline: ISODate;
+  /** Where the deadline came from once someone changed it: set by hand, or read from the ranking body's website. */
+  deadlineSource?: "Manual" | "Automatic";
+  deadlineUrl?: string;
+  deadlineBy?: string;
+  deadlineAt?: ISOTime;
+}
+
+/** A date in a ranking's calendar besides its deadline: a survey window, a portal closing in stages. */
+export interface CalendarEntry {
+  id: string;
+  slug: string;
+  label: string;
+  due: ISODate;
+  source: "Manual" | "Automatic";
+  /** The page an automatic date was read from. */
+  url?: string;
+  by: string;
+  at: ISOTime;
+}
+
+/** A date the deadline check read that differs from the Hub's, waiting for the Office. */
+export interface DeadlineFinding {
+  id: string;
+  /** deadline_sources.id */
+  sourceId: string;
+  slug: string;
+  /** The ranking's deadline, or another date in its calendar (matched by label). */
+  target: "deadline" | "milestone";
+  label: string;
+  due: ISODate;
+  /** The words the date was read from. */
+  quote: string;
+  url: string;
+  foundAt: ISOTime;
+  state: "New" | "Applied" | "Dismissed";
+  decidedBy?: string;
+  decidedAt?: ISOTime;
+}
+
+/** A source's last reading. */
+export interface DeadlineWatch {
+  /** deadline_sources.id */
+  id: string;
+  checkedAt: ISOTime;
+  /** Read: dates or page read; Waiting: the page isn't published yet; Failed: unreadable or no longer says when. */
+  status: "Read" | "Waiting" | "Failed" | "Manual";
+  /** What was read, to tell when the page changes. */
+  hash?: string;
+  changedAt?: ISOTime;
+  note: string;
 }
 
 export interface CycleConfig {
@@ -503,6 +562,11 @@ export interface SystemConfig {
   features: FeatureConfig[];
   flags: FeatureFlag[];
   site: { notice: string; noticeOn: boolean; asOf: ISODate };
+  /** Dates in each ranking's calendar besides its deadline. */
+  calendar: CalendarEntry[];
+  /** What the deadline check read, newest first. */
+  findings: DeadlineFinding[];
+  watch: DeadlineWatch[];
 }
 
 /* ---------- Backup and recovery ---------- */

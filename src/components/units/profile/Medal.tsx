@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { cx } from "@/components/ui/primitives";

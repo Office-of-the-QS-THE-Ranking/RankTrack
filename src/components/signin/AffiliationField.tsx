@@ -25,8 +25,26 @@ function marked(text: string, answer: string): ReactNode {
  * arrows are used, so Enter keeps what was typed. An answer that matches none stays as typed and is filed under
  * Others, which the list's last row and, once the list closes, a tag on the field say. A listed answer is
  * highlighted in the list; the field's X clears either kind of answer. The list opens upward near the screen's foot.
+ * The invite drawer (InviteSheet) uses it too, with the console's field classes and, when the inviter can't
+ * invite guests, a `problem` that marks an affiliation from outside the University.
  */
-export function AffiliationField({ value, onChange, onFocusChange, required }: { value: string; onChange: (v: string) => void; onFocusChange?: (focused: boolean) => void; required?: boolean }) {
+export function AffiliationField({
+  value,
+  onChange,
+  onFocusChange,
+  required,
+  problem = "",
+  fieldClass = "field",
+  labelClass = "field__label",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onFocusChange?: (focused: boolean) => void;
+  required?: boolean;
+  problem?: string;
+  fieldClass?: string;
+  labelClass?: string;
+}) {
   const id = useId();
   const listId = `${id}-list`;
   const field = useRef<HTMLInputElement>(null);
@@ -56,6 +74,10 @@ export function AffiliationField({ value, onChange, onFocusChange, required }: {
   const selectForReplacement = () => {
     if (replaceSelection.current) field.current?.select();
   };
+
+  useEffect(() => {
+    field.current?.setCustomValidity(problem);
+  }, [problem]);
 
   // Use the top layer so the sidebar's stacking contexts cannot put the footer over the list.
   useLayoutEffect(() => {
@@ -115,8 +137,8 @@ export function AffiliationField({ value, onChange, onFocusChange, required }: {
   }, [active, id]);
 
   return (
-    <div className="field si__combo">
-      <label className="field__label" htmlFor={id}>
+    <div className={`${fieldClass} si__combo`}>
+      <label className={labelClass} htmlFor={id}>
         Institution Affiliation
       </label>
       <div className="si__combo-box">
@@ -127,6 +149,7 @@ export function AffiliationField({ value, onChange, onFocusChange, required }: {
           title=""
           className={`input${!open && typed && !listed ? " has-tag" : ""}`}
           role="combobox"
+          aria-haspopup="listbox"
           aria-autocomplete="list"
           aria-expanded={open}
           aria-controls={listId}

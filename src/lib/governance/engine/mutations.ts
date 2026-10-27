@@ -4,7 +4,7 @@
  */
 import { roleOf } from "../catalog";
 import { roleScope } from "../rbac";
-import type { Account, Assignment, DataGrant, OrgKind, OrgUnit, PostRecord, RoleId, Scope } from "../types";
+import type { Account, AccountProfile, Assignment, DataGrant, OrgKind, OrgUnit, PostRecord, RoleId, Scope } from "../types";
 import { log, nextId, notify, unitById, type Ctx } from "./core";
 
 export function defaultScope(roleId: RoleId, unitId: string): Scope {
@@ -13,7 +13,7 @@ export function defaultScope(roleId: RoleId, unitId: string): Scope {
 
 export function createAccount(
   ctx: Ctx,
-  input: { name: string; email: string; title: string; unitId: string; roleId: RoleId; scope?: Scope; expires?: string; external?: boolean },
+  input: { name: string; email: string; title: string; unitId: string; roleId: RoleId; scope?: Scope; expires?: string; external?: boolean; profile?: AccountProfile },
   note?: string,
 ): Account {
   const id = nextId(ctx, "account", "ACC-");
@@ -38,6 +38,7 @@ export function createAccount(
     invitedAt: ctx.iso,
     identity: input.external ? "Sponsored guest" : "Google Workspace",
     external: input.external || undefined,
+    ...(input.profile ? { profile: input.profile } : {}),
     mfa: { enrolled: false },
     transfers: [],
   };

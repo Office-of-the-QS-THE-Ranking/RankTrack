@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
+import { checkDeadlinesNow } from "@/app/actions/deadlines";
+import { fillUrl } from "@/lib/governance/deadline-read";
 import type { CycleConfig, FeatureFlag, NotificationTemplate } from "@/lib/governance/types";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
@@ -20,7 +23,12 @@ export function Config() {
     <div className="adm-stack">
       <Tabs label="System configuration" value={tab} onChange={setTab} tabs={["Rankings", "Calendar", "Workspace", "Notifications", "Features"] as const} />
       {!edit && <ReadOnly>View only.</ReadOnly>}
-      {tab === "Rankings" && <Bodies />}
+      {tab === "Rankings" && (
+        <>
+          <DeadlineCheck />
+          <Bodies />
+        </>
+      )}
       {tab === "Calendar" && <Calendar />}
       {tab === "Workspace" && (
         <div className="adm-cols">
@@ -61,6 +69,79 @@ function SaveRow({ dirty, onSave, onReset }: { dirty: boolean; onSave: () => voi
 }
 
 /* ---------- Rankings ---------- */
+
+/** "2 h ago", "3 d ago", then the date. */
+function ago(iso?: string) {
+  if (!iso) return "not yet";
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (m < 2) return "just now";
+  if (m < 60) return `${m} min ago`;
+  if (m < 48 * 60) return `${Math.round(m / 60)} h ago`;
+  return `${Math.round(m / 1440)} d ago`;
+}
+
+const WATCH_TONE = { Read: "ok", Waiting: "gold", Failed: "danger", Manual: "neutral" } as const;
+
+/** The daily deadline check: each source's last reading, the dates waiting, and a way to check at once. */
+function DeadlineCheck() {
+  const { data, notify, reload } = useConsole();
+  const c = data.config!;
+  const edit = viewerCan(data.viewer, "config", "edit");
+  const [checking, start] = useTransition();
+  const waiting = c.findings.filter((f) => f.state === "New");
+  const short = (slug: string) => c.rankingMeta.find((r) => r.slug === slug)?.short ?? slug;
+  const check = () =>
+    start(async () => {
+      const r = await checkDeadlinesNow();
+      notify(r.message, r.ok ? "ok" : "error");
+      if (r.ok) await reload();
+    });
+  return (
+    <Block
+      title={
+        <>
+          Deadline check <Hint text="Read each morning from the ranking bodies' websites. A date that differs from the Hub's waits on that ranking's page until someone applies or dismisses it." />
+        </>
+      }
+      actions={
+        edit && (
+          <button type="button" className="btn btn--sm" disabled={checking} onClick={check}>
+            <Icon name="refresh" size={15} /> {checking ? "Checking…" : "Check now"}
+          </button>
+        )
+      }
+    >
+      <ul className="adm-rowlist dl-checks">
+        {c.deadlineSources.map((s) => {
+          const w = c.watch.find((x) => x.id === s.id);
+          const status = s.kind === "manual" ? "Manual" : w?.status;
+          const news = waiting.filter((f) => f.sourceId === s.id);
+          return (
+            <li key={s.id}>
+              <span className="dl-checks__main">
+                <a href={fillUrl(s.page, new Date().toISOString().slice(0, 10))} target="_blank" rel="noopener noreferrer">
+                  {s.name}
+                  <Icon name="external" size={12} />
+                </a>
+                <small className="adm-muted">
+                  {s.slugs.map(short).join(" · ")}
+                  {status && status !== "Manual" && ` · ${ago(w?.checkedAt)}`}
+                  {w?.note && status !== "Read" ? ` · ${w.note}` : ""}
+                </small>
+              </span>
+              {news.length > 0 && (
+                <Link href={`/admin/rankings/${news[0].slug}#deadlines`} className="adm-pill adm-pill--gold">
+                  {news.length} new
+                </Link>
+              )}
+              <Pill tone={status ? WATCH_TONE[status] : "neutral"}>{status === "Manual" ? "By hand" : status === "Read" ? "Read" : status ?? "Not checked"}</Pill>
+            </li>
+          );
+        })}
+      </ul>
+    </Block>
+  );
+}
 
 function Bodies() {
   const { data } = useConsole();

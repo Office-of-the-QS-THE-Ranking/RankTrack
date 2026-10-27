@@ -19,7 +19,7 @@ export const NOTIFY_KINDS: NotifyKind[] = [
   { key: "reviews", label: "Review results", hint: "Evidence accepted or sent back for revision", templates: ["tpl-accepted", "tpl-revision"] },
   { key: "requests", label: "Request decisions", hint: "Approval requests approved or rejected", templates: ["tpl-decision"] },
   { key: "published", label: "Publications", hint: "Stories and posts that reach the public website", templates: ["tpl-published"] },
-  { key: "deadlines", label: "Deadline reminders", hint: "Data collection that is about to close", templates: ["tpl-deadline"] },
+  { key: "deadlines", label: "Deadlines", hint: "Data collection about to close, and new dates found on the ranking bodies' websites", templates: ["tpl-deadline", "tpl-deadline-found"] },
   { key: "account", label: "Account and security", hint: "Invitations, suspensions and privacy requests", templates: ["tpl-invite", "tpl-suspended"], required: true },
 ];
 

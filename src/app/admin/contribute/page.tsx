@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import { pipeline } from "@/lib/reference";
 import { reference } from "@/lib/governance/server/reference";
-import { Card, PageHeader } from "@/components/ui/primitives";
-import { Funnel } from "@/components/charts/charts";
+import { PageHeader } from "@/components/ui/primitives";
 import { ValidationQueue } from "@/components/contribute/ValidationQueue";
 import { Gate } from "@/components/hub/Gate";
 
@@ -14,11 +13,8 @@ export default async function Contribute() {
     <Gate path="/admin/contribute" title="Contributions and validation">
       <PageHeader title="Contributions and validation" />
       <Suspense>
-        <ValidationQueue />
+        <ValidationQueue steps={steps} />
       </Suspense>
-      <Card title="Contribution pipeline, this cycle" sub="From identified contribution to measured result and impact" icon="layers">
-        <Funnel steps={steps} label="Contribution pipeline" />
-      </Card>
     </Gate>
   );
 }

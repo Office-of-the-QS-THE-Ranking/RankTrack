@@ -21,6 +21,7 @@ import "@/styles/posts.css";
 import "@/styles/signin.css";
 import "@/styles/overview.css";
 import "@/styles/unit-profile.css";
+import "@/styles/recognition.css";
 import "@/styles/site.css";
 import "@/styles/site-home.css";
 import "@/styles/site-ascent.css";
@@ -30,6 +31,10 @@ import "@/styles/portal-typography.css";
 import "@/styles/pickers.css";
 import "@/styles/profile-modal.css";
 import "@/styles/content-tabs.css";
+import "@/styles/contribute.css";
+import "@/styles/ranking.css";
+import "@/styles/knowledge.css";
+import "@/styles/deadlines.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
 const sans = Instrument_Sans({
