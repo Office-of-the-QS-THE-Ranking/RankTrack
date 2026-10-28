@@ -36,7 +36,7 @@ export function RankingsOverview({
   const EVIDENCE = evidence;
   const rankingsInGroup = (label: string) => (groups.find((g) => g.label === label)?.slugs ?? []).flatMap((s) => RANKINGS.filter((r) => r.slug === s));
   const base = internal ? "/admin/rankings" : "/rankings";
-  const knowledge = internal ? "/admin/knowledge" : "/knowledge";
+  const knowledge = internal ? "/admin/workspace/knowledge" : "/knowledge";
   const mapped = EVIDENCE.filter((e) => e.status !== "Not applicable" && e.mappedTo.filter((m) => RANKINGS.some((r) => m.startsWith(r.short + " ·"))).length > 1);
   const cols = rankings.filter((r) => RANKINGS.some((x) => x.slug === r.slug)).map((r) => r.short);
 

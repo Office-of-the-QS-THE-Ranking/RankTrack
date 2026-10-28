@@ -5,7 +5,7 @@ import "server-only";
  * the viewer may see.
  */
 import { participationKind } from "../directory";
-import { ROLES } from "../catalog";
+import { ROLES, roleOf } from "../catalog";
 import type { AccountRow, Attention, ConsoleData, DatasetRow, DuplicateRow, Health, RequestRow, RoleRow, TermRow, UnitRow } from "../console-types";
 import { actorFor, decisionBlock, makeCtx, needsApproval } from "../engine";
 import { daysSince, isInactive, keyOverdue, lastActivity, mfaRequired, rankingActive, rankingPublic, recordReach, workspacesOf } from "../derive";
@@ -31,7 +31,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
   const stories = storyList(state);
 
   /* Accounts */
-  const grantsOf = new Map<string, Grant[]>(state.accounts.map((a) => [a.id, grantsFor(a, state.units, day)]));
+  const grantsOf = new Map<string, Grant[]>(state.accounts.map((a) => [a.id, grantsFor(a, state.units, day, state.config.rolePermissions)]));
   const accountReach = (unitId: string) => can(viewer, "accounts", "view", { unitId });
   const accounts: AccountRow[] | undefined = viewer.admin.includes("accounts")
     ? state.accounts
@@ -54,7 +54,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     : undefined;
 
   /* Roles */
-  const roles: RoleRow[] = ROLES.map((r) => ({
+  const roles: RoleRow[] = ROLES.map((base) => roleOf(base.id, state.config.rolePermissions)!).map((r) => ({
     ...r,
     members: state.accounts.filter((a) => a.status !== "Deactivated" && a.assignments.some((x) => x.roleId === r.id && (!x.expires || x.expires > day))).length,
     grantable: [unitScope(viewer.portal.unitId), UNIVERSITY].some((scope) => grantCheck(viewer.grants, r, scope, state.units).ok),

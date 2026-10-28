@@ -216,7 +216,7 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
                     <tr key={r.id} className="pm-row dm-row" onClick={() => setEditing(r)}>
                       <td className="dm-col-thumb">
                         {kind === "report" ? (
-                          <DocCover title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="xs" />
+                          <DocCover tone={r.coverTone} title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="xs" />
                         ) : (
                           <span className="dm-year" aria-hidden="true">
                             <b>{r.issued.slice(0, 4)}</b>

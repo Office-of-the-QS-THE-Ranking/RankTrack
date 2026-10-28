@@ -338,6 +338,111 @@ input.pick-proxy {
   opacity: 0.3;
   cursor: var(--cursor-default);
 }
+.pick-date--range {
+  height: auto;
+  min-height: 44px;
+}
+.pick-date--range .pick-trigger__label {
+  white-space: normal;
+  line-height: 1.4;
+}
+.pick-cal__range-hint {
+  margin: 0 0 8px;
+  color: var(--pick-muted, var(--text-3));
+  font-size: 12px;
+}
+.pick--cal--range {
+  --pick-bg: #171619;
+  --pick-fg: #f7f6fa;
+  --pick-muted: #aaa5b2;
+  --pick-hover: #2c2835;
+  --pick-accent: #7563d5;
+  --pick-on-accent: #ffffff;
+  --pick-focus: #b9aaff;
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 24px;
+  background: var(--pick-bg);
+  color: var(--pick-fg);
+}
+.pick--cal--range .pick-cal__title {
+  order: -1;
+  justify-content: flex-start;
+  font-size: 17px;
+}
+.pick--cal--range .pick-cal__nav {
+  color: #a7ceff;
+}
+.pick--cal--range .pick-cal__week abbr {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+.pick-cal__grid--range {
+  touch-action: none;
+  user-select: none;
+}
+.pick-cal__grid--range .pick-cal__row {
+  gap: 0;
+}
+.pick-cal__grid--range .pick-cal__row:not(.pick-cal__week) {
+  margin-top: 5px;
+}
+.pick-cal__grid--range [data-range] {
+  position: relative;
+}
+.pick-cal__grid--range [data-range]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--pick-accent, var(--gold-500));
+}
+.pick-cal__grid--range [data-range]:is(:first-child, [data-range="start"], [data-range="single"])::before {
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+.pick-cal__grid--range [data-range]:is(:last-child, [data-range="end"], [data-range="single"])::before {
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+.pick-cal__grid--range .pick-cal__day {
+  position: relative;
+  border-radius: 50%;
+  font-size: 14px;
+}
+.pick--cal--range [data-range] .pick-cal__day,
+.pick--cal--range [data-range] .pick-cal__day:hover {
+  background: transparent;
+  color: #ffffff;
+  box-shadow: none;
+  font-weight: 500;
+}
+.pick--cal--range .pick-cal__foot {
+  border-color: rgb(255 255 255 / 0.1);
+}
+.pick--cal--range .pick-cal__link {
+  color: #c7bdff;
+}
+.pick-cal__reset {
+  height: 32px;
+  margin-left: auto;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 10px;
+  background: #29252f;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  cursor: var(--cursor-pointer);
+}
+.pick-cal__reset:hover {
+  background: #393141;
+}
+.pick-cal__reset:focus-visible {
+  outline: 2px solid var(--pick-focus, var(--focus));
+  outline-offset: 2px;
+}
 .pick-cal__day:focus-visible,
 .pick-cal__tile:focus-visible,
 .pick-cal__nav:focus-visible,
@@ -409,6 +514,13 @@ input.pick-proxy {
 }
 .pick-num__field:focus {
   outline: none;
+}
+.pick-num__suffix {
+  flex: none;
+  order: 2;
+  color: var(--pick-muted, var(--text-3));
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 .pick-num__field::-webkit-inner-spin-button,
 .pick-num__field::-webkit-outer-spin-button {

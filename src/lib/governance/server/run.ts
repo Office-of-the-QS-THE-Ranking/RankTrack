@@ -13,6 +13,7 @@ import { addDays } from "../derive";
 import { documentPath } from "../documents";
 import { evidencePath } from "../evidence-files";
 import { mediaPath } from "../posts";
+import { workspacePath } from "../workspace";
 import { canWith } from "../rbac";
 import { emblemPath } from "../unit-emblems";
 import type { GovernanceState } from "../types";
@@ -66,9 +67,9 @@ async function effects(ctx: Ctx, result: CommandResult, verified?: Verified): Pr
         break;
       }
       case "delete-media": {
-        // Only uploads, and only those no post, document, unit or evidence item still shows.
+        // Only uploads, and only those no post, document, unit, evidence item or Workspace file still shows.
         const used = mediaInUse(s);
-        const paths = fx.srcs.filter((src) => !used.has(src)).flatMap((src) => mediaPath(src) ?? documentPath(src) ?? emblemPath(src) ?? evidencePath(src) ?? []);
+        const paths = fx.srcs.filter((src) => !used.has(src)).flatMap((src) => mediaPath(src) ?? documentPath(src) ?? emblemPath(src) ?? evidencePath(src) ?? workspacePath(src) ?? []);
         if (paths.length) releaseMediaLater(paths);
         break;
       }

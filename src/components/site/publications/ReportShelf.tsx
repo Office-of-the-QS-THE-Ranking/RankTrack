@@ -107,7 +107,7 @@ function LeadReport({ report: r }: { report: DocumentView }) {
   return (
     <article className="w-replead" data-reveal aria-labelledby={`lead-${r.id}`}>
       <Link href={href} className="w-replead__cover" tabIndex={-1} aria-hidden="true">
-        <DocCover title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="lg" />
+        <DocCover tone={r.coverTone} title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="lg" />
       </Link>
       <div className="w-replead__text">
         <p className="w-paper__kicker">
@@ -145,7 +145,7 @@ function LeadReport({ report: r }: { report: DocumentView }) {
 function ReportCard({ report: r }: { report: DocumentView }) {
   return (
     <Link href={documentPublicPath(r.kind, r.slug)} className="w-rcard">
-      <DocCover title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="sm" />
+      <DocCover tone={r.coverTone} title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="sm" />
       <span className="w-rcard__text">
         <span className="w-rcard__kicker">
           {r.type} · <time dateTime={r.issued}>{issuedMonth(r.issued)}</time>

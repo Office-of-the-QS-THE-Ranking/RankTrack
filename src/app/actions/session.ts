@@ -16,6 +16,7 @@ import { allow, clientKey } from "@/lib/governance/server/limits";
 import { run, runSystem } from "@/lib/governance/server/run";
 import { STAY_COOKIE, STAY_COOKIE_OPTIONS, checkSession, clearSessionCookie, sessionIdOf } from "@/lib/governance/server/session";
 import { STATE_COOKIE, verifiedEmail } from "@/lib/governance/server/email-verify";
+import { DIRECTORY_SIGNIN } from "@/lib/governance/server/google-directory";
 import { siteOrigin } from "@/lib/governance/server/origin";
 import { safeNext } from "@/lib/governance/server/signin";
 import { readState, touch } from "@/lib/governance/server/store";
@@ -37,8 +38,10 @@ export async function startGoogleSignIn(next?: string, stay = false): Promise<{ 
     provider: "google",
     options: {
       redirectTo: back.toString(),
+      // The University directory too, for finding people on forms (server/google-directory.ts).
+      scopes: DIRECTORY_SIGNIN.scopes,
       // Google lists only University accounts unless sponsored guests may sign in too.
-      queryParams: { prompt: "select_account", ...(!sso.allowGuests && sso.domains.length === 1 ? { hd: sso.domains[0] } : {}) },
+      queryParams: { prompt: "select_account", ...DIRECTORY_SIGNIN.queryParams, ...(!sso.allowGuests && sso.domains.length === 1 ? { hd: sso.domains[0] } : {}) },
     },
   });
   if (error || !data.url) return { ok: false, message: "Google sign-in is unavailable right now. Try again in a moment." };
@@ -48,6 +51,12 @@ export async function startGoogleSignIn(next?: string, stay = false): Promise<{ 
 const res = (id: string, label: string) => ({ type: "Account", id, label });
 
 export async function signOut() {
+  await endSession();
+  redirect("/signin?ended=signed-out");
+}
+
+/** End this browser's Hub session, logged like any sign-out; the page that asked stays where it is. */
+export async function endSession() {
   const jar = await cookies();
   const id = sessionIdOf(jar);
   if (id) {
@@ -60,7 +69,6 @@ export async function signOut() {
     });
   }
   clearSessionCookie(jar);
-  redirect("/signin?ended=signed-out");
 }
 
 /** The idle timer's ping while someone is working. Returns how the session stands. */

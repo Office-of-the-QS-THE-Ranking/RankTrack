@@ -176,6 +176,10 @@
   box-shadow: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.1);
   pointer-events: none;
 }
+.tabs__icon {
+  flex: none;
+  margin-right: 6px;
+}
 .tabs__tab > .count {
   display: inline-grid;
   place-items: center;

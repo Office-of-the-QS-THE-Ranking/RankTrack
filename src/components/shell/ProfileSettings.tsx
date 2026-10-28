@@ -1008,7 +1008,7 @@ function Support({ workspace, onOpen }: { workspace: "office" | "portal"; onOpen
   const base = workspace === "office" ? "/admin" : "/portal";
   const help: { href: string; icon: IconName; title: string; text: string }[] = [
     ...(workspace === "portal" ? [{ href: "/portal/assistance", icon: "help" as IconName, title: "Request assistance", text: "Ask the Office for help with a requirement or submission" }] : []),
-    { href: `${base}/knowledge`, icon: "knowledge" as IconName, title: "Knowledge Center", text: "Guides, templates and ranking methodology" },
+    { href: `${base}/workspace/knowledge`, icon: "knowledge" as IconName, title: "Knowledge Center", text: "Guides, templates and ranking methodology" },
     { href: `${base}/about`, icon: "info", title: "About the Office", text: "Who we are, and what each team looks after" },
   ];
   const keys: [string, string][] = [

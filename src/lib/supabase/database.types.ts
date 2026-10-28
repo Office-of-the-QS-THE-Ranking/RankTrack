@@ -216,6 +216,7 @@ export type Database = {
       }
       accounts: {
         Row: {
+          active_assignment: string | null
           avatar: string | null
           created_at: string
           email: string
@@ -231,6 +232,11 @@ export type Database = {
           mfa_method: string | null
           name: string
           ord: number
+          pref_idle_minutes: number | null
+          pref_notify_email: boolean
+          pref_notify_off: string[]
+          pref_stay_signed_in: boolean
+          profile: Json | null
           reauth_after: string | null
           status: string
           status_changed_at: string | null
@@ -239,6 +245,7 @@ export type Database = {
           unit_id: string
         }
         Insert: {
+          active_assignment?: string | null
           avatar?: string | null
           created_at: string
           email: string
@@ -254,6 +261,11 @@ export type Database = {
           mfa_method?: string | null
           name: string
           ord: number
+          pref_idle_minutes?: number | null
+          pref_notify_email?: boolean
+          pref_notify_off?: string[]
+          pref_stay_signed_in?: boolean
+          profile?: Json | null
           reauth_after?: string | null
           status: string
           status_changed_at?: string | null
@@ -262,6 +274,7 @@ export type Database = {
           unit_id: string
         }
         Update: {
+          active_assignment?: string | null
           avatar?: string | null
           created_at?: string
           email?: string
@@ -277,6 +290,11 @@ export type Database = {
           mfa_method?: string | null
           name?: string
           ord?: number
+          pref_idle_minutes?: number | null
+          pref_notify_email?: boolean
+          pref_notify_off?: string[]
+          pref_stay_signed_in?: boolean
+          profile?: Json | null
           reauth_after?: string | null
           status?: string
           status_changed_at?: string | null
@@ -848,6 +866,93 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          abstract: string
+          authors: string[]
+          cover_tone: string | null
+          created_at: string
+          created_by: string
+          doi: string | null
+          featured: boolean
+          file_mb: number | null
+          file_name: string | null
+          file_src: string | null
+          id: string
+          issued: string
+          keywords: string[]
+          kind: string
+          ord: number
+          published_at: string | null
+          sdgs: number[]
+          slug: string
+          status: string
+          title: string
+          type: string
+          unit_id: string | null
+          updated_at: string
+          updated_by: string
+          url: string | null
+          venue: string
+        }
+        Insert: {
+          abstract?: string
+          authors?: string[]
+          cover_tone?: string | null
+          created_at: string
+          created_by: string
+          doi?: string | null
+          featured?: boolean
+          file_mb?: number | null
+          file_name?: string | null
+          file_src?: string | null
+          id: string
+          issued: string
+          keywords?: string[]
+          kind: string
+          ord: number
+          published_at?: string | null
+          sdgs?: number[]
+          slug: string
+          status: string
+          title: string
+          type: string
+          unit_id?: string | null
+          updated_at: string
+          updated_by: string
+          url?: string | null
+          venue?: string
+        }
+        Update: {
+          abstract?: string
+          authors?: string[]
+          cover_tone?: string | null
+          created_at?: string
+          created_by?: string
+          doi?: string | null
+          featured?: boolean
+          file_mb?: number | null
+          file_name?: string | null
+          file_src?: string | null
+          id?: string
+          issued?: string
+          keywords?: string[]
+          kind?: string
+          ord?: number
+          published_at?: string | null
+          sdgs?: number[]
+          slug?: string
+          status?: string
+          title?: string
+          type?: string
+          unit_id?: string | null
+          updated_at?: string
+          updated_by?: string
+          url?: string | null
+          venue?: string
+        }
+        Relationships: []
+      }
       duplicate_decisions: {
         Row: {
           at: string
@@ -1048,6 +1153,174 @@ export type Database = {
           id?: string
           name?: string
           ord?: number
+        }
+        Relationships: []
+      }
+      form_responses: {
+        Row: {
+          access: string | null
+          access_requests: Json
+          answers: Json
+          client: string | null
+          created_at: string
+          edited: Json | null
+          form_id: string
+          id: string
+          label: string | null
+          live: string
+          members: string[]
+          owner_email: string | null
+          owner_name: string | null
+          presence: Json
+          privacy_consent: Json | null
+          ref: string
+          respondent: Json
+          review: Json
+          seq: number
+          status: string
+          submitted_at: string
+          token: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          access?: string | null
+          access_requests?: Json
+          answers: Json
+          client?: string | null
+          created_at?: string
+          edited?: Json | null
+          form_id: string
+          id?: string
+          label?: string | null
+          live?: string
+          members?: string[]
+          owner_email?: string | null
+          owner_name?: string | null
+          presence?: Json
+          privacy_consent?: Json | null
+          ref: string
+          respondent?: Json
+          review?: Json
+          seq: number
+          status?: string
+          submitted_at?: string
+          token?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          access?: string | null
+          access_requests?: Json
+          answers?: Json
+          client?: string | null
+          created_at?: string
+          edited?: Json | null
+          form_id?: string
+          id?: string
+          label?: string | null
+          live?: string
+          members?: string[]
+          owner_email?: string | null
+          owner_name?: string | null
+          presence?: Json
+          privacy_consent?: Json | null
+          ref?: string
+          respondent?: Json
+          review?: Json
+          seq?: number
+          status?: string
+          submitted_at?: string
+          token?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      forms: {
+        Row: {
+          closes_on: string | null
+          code: string
+          copies: boolean
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          issuer_id: string | null
+          kind: string
+          ord: number
+          prefix: string
+          reference: string | null
+          schema: Json
+          status: string
+          title: string
+          unit_id: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          closes_on?: string | null
+          code: string
+          copies?: boolean
+          created_at: string
+          created_by: string
+          description?: string
+          id: string
+          issuer_id?: string | null
+          kind: string
+          ord: number
+          prefix: string
+          reference?: string | null
+          schema: Json
+          status: string
+          title: string
+          unit_id?: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Update: {
+          closes_on?: string | null
+          code?: string
+          copies?: boolean
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          issuer_id?: string | null
+          kind?: string
+          ord?: number
+          prefix?: string
+          reference?: string | null
+          schema?: Json
+          status?: string
+          title?: string
+          unit_id?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      google_directory_tokens: {
+        Row: {
+          access_token: string
+          email: string
+          expires_at: string
+          refresh_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          email: string
+          expires_at: string
+          refresh_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          email?: string
+          expires_at?: string
+          refresh_token?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2855,6 +3128,7 @@ export type Database = {
           dashboard_show_clock: boolean
           id: number
           post_views_since: string
+          role_permissions: Json | null
           site_as_of: string
           site_notice: string
           site_notice_on: boolean
@@ -2868,6 +3142,7 @@ export type Database = {
           dashboard_show_clock: boolean
           id?: number
           post_views_since: string
+          role_permissions?: Json | null
           site_as_of: string
           site_notice?: string
           site_notice_on?: boolean
@@ -2881,6 +3156,7 @@ export type Database = {
           dashboard_show_clock?: boolean
           id?: number
           post_views_since?: string
+          role_permissions?: Json | null
           site_as_of?: string
           site_notice?: string
           site_notice_on?: boolean
@@ -3067,6 +3343,150 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_docs: {
+        Row: {
+          authors: string[]
+          created_at: string
+          created_by: string
+          doc_date: string
+          id: string
+          links: string[]
+          ord: number
+          rankings: string[]
+          remarks: string
+          sdgs: number[]
+          status: string
+          title: string
+          unit_id: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          authors?: string[]
+          created_at: string
+          created_by: string
+          doc_date: string
+          id: string
+          links: string[]
+          ord: number
+          rankings?: string[]
+          remarks?: string
+          sdgs?: number[]
+          status: string
+          title: string
+          unit_id?: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Update: {
+          authors?: string[]
+          created_at?: string
+          created_by?: string
+          doc_date?: string
+          id?: string
+          links?: string[]
+          ord?: number
+          rankings?: string[]
+          remarks?: string
+          sdgs?: number[]
+          status?: string
+          title?: string
+          unit_id?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      workspace_files: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          bytes: number
+          created_at: string
+          created_by: string
+          folder_id: string | null
+          id: string
+          name: string
+          ord: number
+          shelf: string
+          src: string
+          unit_id: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          bytes: number
+          created_at: string
+          created_by: string
+          folder_id?: string | null
+          id: string
+          name: string
+          ord: number
+          shelf: string
+          src: string
+          unit_id?: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          bytes?: number
+          created_at?: string
+          created_by?: string
+          folder_id?: string | null
+          id?: string
+          name?: string
+          ord?: number
+          shelf?: string
+          src?: string
+          unit_id?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      workspace_folders: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          ord: number
+          parent_id: string | null
+          shelf: string
+          unit_id: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          ord: number
+          parent_id?: string | null
+          shelf: string
+          unit_id?: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          ord?: number
+          parent_id?: string | null
+          shelf?: string
+          unit_id?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3095,6 +3515,101 @@ export type Database = {
           p_window_seconds: number
         }
         Returns: boolean
+      }
+      hub_form_copy_admits: {
+        Args: {
+          p_access: string
+          p_email: string
+          p_members: string[]
+          p_owner: string
+        }
+        Returns: boolean
+      }
+      hub_form_copy_answer: {
+        Args: {
+          p_allow: boolean
+          p_email: string
+          p_form_id: string
+          p_owner: string
+          p_token: string
+        }
+        Returns: string
+      }
+      hub_form_copy_create: {
+        Args: {
+          p_access: string
+          p_client: string
+          p_form_id: string
+          p_label: string
+          p_members: string[]
+          p_owner_email: string
+          p_owner_name: string
+          p_prefix: string
+          p_token: string
+        }
+        Returns: {
+          created_at: string
+          ref: string
+        }[]
+      }
+      hub_form_copy_pulse: {
+        Args: {
+          p_email: string
+          p_form_id: string
+          p_known: number
+          p_name: string
+          p_token: string
+          p_who: string
+        }
+        Returns: Json
+      }
+      hub_form_copy_request: {
+        Args: {
+          p_avatar: string
+          p_email: string
+          p_form_id: string
+          p_name: string
+          p_token: string
+        }
+        Returns: string
+      }
+      hub_form_copy_save: {
+        Args: {
+          p_by: string
+          p_email: string
+          p_form_id: string
+          p_known: number
+          p_max: number
+          p_set: Json
+          p_token: string
+          p_unset: string[]
+        }
+        Returns: Json
+      }
+      hub_form_counts: {
+        Args: { p_form_ids: string[] }
+        Returns: {
+          drafts: number
+          form_id: string
+          last_at: string
+          total: number
+          week: number
+        }[]
+      }
+      hub_form_submit: {
+        Args: {
+          p_answers: Json
+          p_client: string
+          p_consent: Json
+          p_form_id: string
+          p_prefix: string
+          p_respondent: Json
+          p_status: string
+        }
+        Returns: {
+          ref: string
+          submitted_at: string
+        }[]
       }
       hub_rate_hit: {
         Args: {

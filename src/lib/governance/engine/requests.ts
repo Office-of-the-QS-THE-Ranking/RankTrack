@@ -28,7 +28,7 @@ export function needsApproval(ctx: Ctx, id: WorkflowKey) {
   const wf = ctx.state.workflows.find((w) => w.id === id);
   if (!wf?.enabled) return false;
   const approvers = ctx.state.accounts.filter(
-    (a) => a.status === "Active" && (!wf.separation || a.id !== ctx.actor.id) && canWith(grantsFor(a, ctx.state.units, ctx.day), "workflows", "approve"),
+    (a) => a.status === "Active" && (!wf.separation || a.id !== ctx.actor.id) && canWith(grantsFor(a, ctx.state.units, ctx.day, ctx.state.config.rolePermissions), "workflows", "approve"),
   );
   return approvers.length >= wf.steps.length;
 }
@@ -87,12 +87,12 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
       // the account keeps who they are; the birthday and website stay with the request, which housekeeping clears
       const profile = p.applicant && profileOf({ ...p.applicant, website: undefined });
       const acc = createAccount(ctx, { name: p.name, email: p.email, title: p.title, unitId: unit, roleId: p.roleId, external: p.external, expires, profile }, `Approved request ${req.id}`);
-      log(ctx, "account.invite", "Account", { type: "Account", id: acc.id, label: acc.name }, "Success", `Through ${req.id} · ${roleOf(p.roleId)?.name}${expires ? ` · until ${expires}` : ""}`);
+      log(ctx, "account.invite", "Account", { type: "Account", id: acc.id, label: acc.name }, "Success", `Through ${req.id} · ${roleOf(p.roleId, ctx.state.config.rolePermissions)?.name}${expires ? ` · until ${expires}` : ""}`);
       return null;
     }
     case "privilege-escalation": {
       const acc = accountById(ctx, p.accountId);
-      const role = roleOf(p.roleId);
+      const role = roleOf(p.roleId, ctx.state.config.rolePermissions);
       if (!acc || !role) return "The account or role no longer exists.";
       if (acc.status !== "Active" && acc.status !== "Pending Invitation") return `${acc.name} is ${acc.status.toLowerCase()}.`;
       if (acc.external && role.id !== ROLE.external) return "External partners can only hold the External role.";
@@ -231,7 +231,7 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
   switch (payload.kind) {
     case "privilege-escalation": {
       const acc = accountById(ctx, payload.accountId);
-      const role = roleOf(payload.roleId);
+      const role = roleOf(payload.roleId, ctx.state.config.rolePermissions);
       if (!acc || !role) return invalid("Choose an account and a role.");
       if (acc.external && role.id !== ROLE.external) return invalid("External partners can only hold the External role.");
       if (acc.id !== ctx.actor.id && !can(ctx, "accounts", "edit", { unitId: acc.unitId }))

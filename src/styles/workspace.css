@@ -1,0 +1,1481 @@
+/*
+ * The Workspace (components/workspace/Workspace.tsx, parts.tsx): a shelf of folder cards drawn as folders (back,
+ * sheets, frosted front with a gold mark); inside a folder, its path, the folders in it and its files, with the
+ * shared drop zone while it's empty and a drop veil over it while files are dragged in. Anything a drag can land
+ * on lights up. Colours come from the workspace tokens, so the dark appearance follows.
+ */
+
+.ws {
+  --ws-fold-back: #cbcbd2;
+  --ws-fold-front: linear-gradient(180deg, rgb(255 255 255 / 0.66), rgb(222 222 229 / 0.9));
+  --ws-fold-edge: rgb(255 255 255 / 0.95);
+  --ws-sheet: #ffffff;
+  --ws-sheet-2: #f2f2f5;
+  position: relative;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+:root[data-theme="dark"] .ws {
+  --ws-fold-back: #3a3a3d;
+  --ws-fold-front: linear-gradient(180deg, rgb(98 98 104 / 0.6), rgb(64 64 70 / 0.82));
+  --ws-fold-edge: rgb(255 255 255 / 0.14);
+  --ws-sheet: #ececf0;
+  --ws-sheet-2: #c9c9cf;
+}
+.ws-panel {
+  position: relative;
+  outline: none;
+}
+
+/* ---------- Layout ---------- */
+.ws-folder {
+  position: relative;
+  display: grid;
+  gap: 28px;
+  min-width: 0;
+}
+.ws-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ws-h__count {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Naming fields and drop targets ---------- */
+.ws-namefield,
+.ws-name__edit {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgb(var(--hair) / 0.18);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.ws-namefield:focus,
+.ws-name__edit:focus {
+  border-color: rgb(var(--hair) / 0.45);
+}
+.ws-crumb.is-target,
+.ws-tiles > li.is-target .ws-tile {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1.5px var(--gold-500);
+}
+:root[data-theme="dark"] .ws-crumb.is-target,
+:root[data-theme="dark"] .ws-tiles > li.is-target .ws-tile {
+  background: rgb(var(--hair) / 0.06);
+}
+
+/* ---------- The open folder's path ---------- */
+.ws-crumbs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  margin-bottom: -4px;
+}
+.ws-crumbs ol {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  list-style: none;
+}
+.ws-crumbs li {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-3);
+}
+.ws-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 240px;
+  height: 34px;
+  padding: 0 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+.ws-crumbs li:first-child .ws-crumb {
+  margin-left: -8px;
+  padding-left: 6px;
+}
+.ws-crumbs .ws-namefield {
+  width: 220px;
+}
+.ws-crumb:hover {
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text);
+}
+.ws-crumb[aria-current="page"] {
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.ws-crumb:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+}
+
+/* ---------- Folder art ---------- */
+.ws-fold {
+  position: relative;
+  display: block;
+  width: 112px;
+  height: 86px;
+  flex: none;
+}
+.ws-fold__back {
+  position: absolute;
+  inset: 10px 0 0;
+  border-radius: 10px;
+  background: var(--ws-fold-back);
+}
+.ws-fold__back::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 0;
+  width: 42%;
+  height: 14px;
+  border-radius: 7px 9px 0 0;
+  background: var(--ws-fold-back);
+}
+.ws-fold__sheet {
+  position: absolute;
+  top: 4px;
+  right: 16%;
+  left: 13%;
+  height: 58px;
+  padding: 8px 9px;
+  border-radius: 5px;
+  background: var(--ws-sheet);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.14);
+  transform: rotate(-3deg);
+  transition: transform 320ms var(--ease-out);
+}
+.ws-fold__sheet--2 {
+  top: 8px;
+  right: 9%;
+  left: 22%;
+  background: var(--ws-sheet-2);
+  transform: rotate(5deg);
+}
+.ws-fold__front {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 57%;
+  border-radius: 10px;
+  background: var(--ws-fold-front);
+  box-shadow:
+    inset 0 1px 0 var(--ws-fold-edge),
+    inset 0 0 0 1px rgb(var(--hair) / 0.04),
+    0 10px 20px -10px rgb(0 0 0 / 0.4);
+  -webkit-backdrop-filter: blur(7px) saturate(1.3);
+  backdrop-filter: blur(7px) saturate(1.3);
+  transform-origin: 50% 100%;
+  transition: transform 320ms var(--ease-out);
+}
+.ws-fold__front::after {
+  content: "";
+  position: absolute;
+  bottom: 11px;
+  left: 11px;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gold-400);
+}
+
+/* ---------- Folder tiles ---------- */
+.ws-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 16px;
+  list-style: none;
+}
+.ws-tile {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  position: relative;
+  width: 100%;
+  padding: 28px 16px 20px;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  box-shadow: var(--sh-xs);
+  cursor: var(--cursor-pointer);
+  transition:
+    box-shadow 240ms var(--ease-out),
+    transform 240ms var(--ease-out);
+}
+.ws-tiles > li {
+  position: relative;
+}
+.ws-tile .ws-fold {
+  margin: 8px 0 26px;
+  scale: 1.22;
+}
+.ws-tile__name {
+  font-size: 15px;
+}
+/* While files are dragged over the shelf, the folders that take them say so. */
+.ws-tile__drop {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--gold-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.ws.is-dragging .ws-tile:has(.ws-tile__drop) {
+  box-shadow: inset 0 0 0 1.5px rgb(var(--hair) / 0.14);
+  outline: 1.5px dashed var(--gold-500);
+  outline-offset: -1.5px;
+}
+.ws.is-dragging .ws-tile:has(.ws-tile__drop) .ws-tile__count {
+  display: none;
+}
+.ws.is-dragging .ws-tile__drop {
+  display: inline-flex;
+}
+.ws-tile[draggable="true"] {
+  cursor: var(--cursor-pointer);
+}
+.ws-tile__menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity var(--t-fast) ease;
+}
+.ws-tiles > li:hover .ws-tile__menu,
+.ws-tile__menu:focus-within,
+.ws-tile__menu:has([aria-expanded="true"]) {
+  opacity: 1;
+}
+@media (hover: none) {
+  .ws-tile__menu {
+    opacity: 1;
+  }
+}
+.ws-tile__tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--gold-wash);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.ws-tile--new {
+  cursor: default;
+}
+.ws-tile--new .ws-fold {
+  animation: ws-pop 360ms var(--ease-out) both;
+}
+.ws-tile--new .ws-namefield {
+  height: 32px;
+  text-align: center;
+}
+@keyframes ws-pop {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+.ws-tile__name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-tile__count {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+@media (hover: hover) {
+  .ws-tile:hover {
+    box-shadow: var(--sh-sm);
+    transform: translateY(-2px);
+  }
+  .ws-tile:hover .ws-fold__front {
+    transform: perspective(320px) rotateX(-16deg);
+  }
+  .ws-tile:hover .ws-fold__sheet {
+    transform: translateY(-7px) rotate(-4deg);
+  }
+  .ws-tile:hover .ws-fold__sheet--2 {
+    transform: translateY(-4px) rotate(7deg);
+  }
+}
+
+/* ---------- File glyphs ---------- */
+.ws-glyph {
+  --fam: #6e6e73;
+  position: relative;
+  display: block;
+  flex: none;
+  width: 28px;
+  height: 34px;
+  border-radius: 4px 9px 4px 4px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.13);
+}
+.ws-glyph::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 0 8px 0 3px;
+  background: rgb(var(--hair) / 0.1);
+}
+.ws-glyph i {
+  position: absolute;
+  bottom: 5px;
+  left: -4px;
+  display: grid;
+  place-items: center;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--fam);
+  color: #ffffff;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.ws-glyph--sm {
+  width: 20px;
+  height: 25px;
+  border-radius: 3px 7px 3px 3px;
+}
+.ws-glyph--sm::before {
+  width: 7px;
+  height: 7px;
+}
+.ws-glyph--sm i {
+  bottom: 4px;
+  left: -3px;
+  height: 11px;
+  padding: 0 3px;
+  font-size: 6.5px;
+}
+.ws-glyph--pdf {
+  --fam: #d14b3f;
+}
+.ws-glyph--doc {
+  --fam: #2f6bd6;
+}
+.ws-glyph--sheet {
+  --fam: #1f8a4d;
+}
+.ws-glyph--slides {
+  --fam: #dc7428;
+}
+.ws-glyph--image {
+  --fam: #8656d0;
+}
+.ws-fold__sheet .ws-glyph {
+  box-shadow: none;
+  background: transparent;
+}
+.ws-fold__sheet .ws-glyph::before {
+  display: none;
+}
+
+/* ---------- Table ---------- */
+.ws-card {
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-xs);
+}
+.ws-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.ws-table th {
+  height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgb(var(--hair) / 0.07);
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+.ws-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid rgb(var(--hair) / 0.06);
+  vertical-align: middle;
+}
+.ws-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ws-table th:first-child,
+.ws-table td:first-child {
+  padding-left: 20px;
+}
+.ws-table th:last-child,
+.ws-table td:last-child {
+  padding-right: 12px;
+}
+.ws-col-who {
+  width: 200px;
+}
+.ws-col-date {
+  width: 116px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+.ws-col-size {
+  width: 92px;
+  color: var(--text-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ws-col-menu {
+  width: 56px;
+  text-align: right;
+}
+.ws-row td {
+  transition: background-color var(--t-fast) ease;
+}
+@media (hover: hover) {
+  .ws-row:hover td {
+    background: rgb(var(--hair) / 0.025);
+  }
+}
+.ws-file {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.ws-file .ws-glyph {
+  margin-left: 4px;
+}
+.ws-name {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.ws-name__link {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-name__link:hover {
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--hair) / 0.3);
+  text-underline-offset: 3px;
+}
+.ws-name__link:focus-visible {
+  border-radius: 4px;
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+}
+.ws-name__sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.ws-name__sub:empty {
+  display: none;
+}
+.ws-name__where {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-name__where svg {
+  flex: none;
+}
+.ws-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--gold-wash);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+.ws-who {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.ws-who__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ws-none {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 40px 20px 44px;
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+/* ---------- Empty shelf ---------- */
+.ws-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 56px 24px 60px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-xs);
+  text-align: center;
+}
+.ws-empty__art {
+  margin-bottom: 14px;
+}
+.ws-empty__art .ws-fold__sheet {
+  animation: ws-peek 3.6s var(--ease-out) infinite;
+}
+.ws-empty__title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.ws-empty__text {
+  max-width: 340px;
+  margin-bottom: 12px;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ws-empty__hint {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+@keyframes ws-peek {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  45%,
+  60% {
+    translate: 0 -6px;
+  }
+}
+
+/* ---------- Adding files: the shared drop zone and its upload rows ---------- */
+.ws-upload .dz__area {
+  padding: 22px 20px 20px;
+  box-shadow: var(--sh-xs);
+}
+/* Files from the computer anywhere over the page: the drop zone shows where they'll land. */
+.ws.is-dragging .ws-upload .dz__area {
+  border-style: solid;
+  border-color: var(--gold-500);
+}
+.ws.is-dragging .ws-upload .dz__sheet--l {
+  transform: translateX(-27px) translateY(2px) rotate(-18deg);
+}
+.ws.is-dragging .ws-upload .dz__sheet--r {
+  transform: translateX(27px) translateY(2px) rotate(18deg);
+}
+.ws-adding {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+.ws-adding .dz-list {
+  justify-self: stretch;
+  margin-top: 0;
+}
+/* Files dragged over an open folder that has files: a veil over the folder says where they'll go. */
+.ws-dropzone {
+  position: absolute;
+  inset: -8px;
+  z-index: 5;
+  display: none;
+  place-items: center;
+  border: 1.5px dashed var(--gold-500);
+  border-radius: calc(var(--r-lg) + 4px);
+  background: rgb(var(--bg-rgb) / 0.8);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+.ws-folder.is-over .ws-dropzone {
+  display: grid;
+  animation: ws-fade 160ms ease both;
+}
+.ws-dropzone__card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  background: var(--dark);
+  color: var(--on-dark);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--sh-md);
+}
+.ws-dropzone__card svg {
+  color: var(--gold-300);
+}
+@keyframes ws-fade {
+  from {
+    opacity: 0;
+  }
+}
+.ws-tray .ws-glyph {
+  margin-left: 4px;
+}
+.ws-row[draggable="true"] {
+  cursor: var(--cursor-pointer);
+}
+.ws-office {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--gold-wash);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+.ws-none__art {
+  margin-bottom: 4px;
+  scale: 0.8;
+  opacity: 0.85;
+}
+
+/* ---------- A folder, opened: a full-size modal with its path and actions on top, its contents below ---------- */
+.ws-modal {
+  width: calc(100vw - 48px);
+  max-width: 1360px;
+  height: calc(100dvh - 48px);
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 24px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--sh-lg);
+}
+.ws-modal[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  animation: ws-rise 260ms var(--ease-out) both;
+}
+.ws-modal::backdrop {
+  background: rgb(0 0 0 / 0.36);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.ws-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  padding: 14px 18px 14px 32px;
+  border-bottom: 1px solid rgb(var(--hair) / 0.07);
+  background: var(--surface);
+}
+.ws-modal__head .ws-crumbs {
+  min-width: 0;
+  margin: 0 0 0 -10px;
+}
+.ws-modal__head .ws-crumbs li:first-child .ws-crumb {
+  margin-left: 0;
+}
+.ws-modal__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.ws-modal__x {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text-2);
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t-fast) ease;
+}
+.ws-modal__x:hover {
+  background: rgb(var(--hair) / 0.1);
+  color: var(--text);
+}
+.ws-modal__x:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+}
+.ws-modal__body {
+  align-content: start;
+  padding: 28px 32px 40px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* The veil covers the modal's view of the folder, not the whole scrolled folder. */
+.ws-modal__body.ws-folder {
+  position: static;
+}
+.ws-modal__body .ws-dropzone {
+  inset: 84px 16px 16px;
+}
+@keyframes ws-rise {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+    scale: 0.985;
+  }
+}
+@media (max-width: 640px) {
+  .ws-modal {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .ws-modal__head {
+    flex-wrap: wrap;
+    padding: 12px 12px 12px 16px;
+  }
+  .ws-modal__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .ws-modal__body {
+    padding: 20px 16px 32px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-modal[open] {
+    animation: none;
+  }
+}
+
+/* ---------- Sheets (move, delete) ---------- */
+.ws-sheet {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--sh-lg);
+}
+.ws-sheet--confirm {
+  width: min(400px, calc(100vw - 32px));
+}
+.ws-sheet[open] {
+  animation: pc-in 200ms var(--ease-out) both;
+}
+.ws-sheet::backdrop {
+  background: rgb(0 0 0 / 0.3);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.ws-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 18px 0 24px;
+}
+.ws-sheet__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.ws-sheet__x {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text-2);
+  cursor: var(--cursor-pointer);
+}
+.ws-sheet__x:hover {
+  background: rgb(var(--hair) / 0.09);
+}
+.ws-sheet__body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 24px 22px;
+}
+.ws-sheet__text {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ws-sheet__file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.ws-sheet__file span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-sheet__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ws-picked {
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  margin: -4px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.ws-picked li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto 24px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px 6px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+.ws-picked li:hover {
+  background: rgb(var(--hair) / 0.03);
+}
+.ws-picked li.is-bad .ws-picked__name {
+  color: var(--danger);
+}
+.ws-picked__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-picked__size {
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ws-picked__x {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-3);
+  cursor: var(--cursor-pointer);
+}
+.ws-picked__x:hover {
+  background: rgb(var(--hair) / 0.06);
+  color: var(--text);
+}
+
+/* ---------- Working Documents (WorkingDocs.tsx): links with ranking tags, a status and an icon per link ---------- */
+.ws-docs .ws-col-name {
+  width: auto;
+}
+.ws-col-tags {
+  width: 120px;
+}
+.ws-col-status {
+  width: 150px;
+}
+.ws-col-links {
+  width: 132px;
+}
+.ws-docs .ws-col-date {
+  width: 124px;
+}
+.ws-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ws-ranking-dot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.ws-tagpick__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px 0 8px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.ws-tagpick__tag i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.ws-none-mark {
+  color: var(--text-3);
+}
+.ws-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--ws-status-bg);
+  color: var(--ws-status-ink);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ws-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ws-status--draft,
+.ws-status-pick[data-status="Draft"] {
+  --ws-status-bg: rgb(var(--hair) / 0.06);
+  --ws-status-ink: var(--text-2);
+}
+.ws-status--in-progress,
+.ws-status-pick[data-status="In progress"] {
+  --ws-status-bg: rgb(37 99 235 / 0.1);
+  --ws-status-ink: #1d4ed8;
+}
+.ws-status--for-review,
+.ws-status-pick[data-status="For review"] {
+  --ws-status-bg: rgb(217 119 6 / 0.12);
+  --ws-status-ink: #b45309;
+}
+.ws-status--final,
+.ws-status-pick[data-status="Final"] {
+  --ws-status-bg: rgb(22 163 74 / 0.11);
+  --ws-status-ink: #15803d;
+}
+:root[data-theme="dark"] .ws-status--in-progress,
+:root[data-theme="dark"] .ws-status-pick[data-status="In progress"] {
+  --ws-status-ink: #93b4ff;
+}
+:root[data-theme="dark"] .ws-status--for-review,
+:root[data-theme="dark"] .ws-status-pick[data-status="For review"] {
+  --ws-status-ink: #f5b75a;
+}
+:root[data-theme="dark"] .ws-status--final,
+:root[data-theme="dark"] .ws-status-pick[data-status="Final"] {
+  --ws-status-ink: #6fd496;
+}
+/* The status picker reads as the status pill until it is opened. */
+.ws-status-pick .select {
+  width: auto;
+  min-width: 0;
+  height: 26px;
+  padding-inline: 10px 26px;
+  border-color: transparent;
+  border-radius: 999px;
+  background-color: var(--ws-status-bg);
+  box-shadow: none;
+  color: var(--ws-status-ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ws-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ws-links__a {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--text-2);
+  transition: background-color var(--t-fast) ease, transform var(--t-fast) var(--ease-out);
+}
+.ws-links__a:hover {
+  background: rgb(var(--hair) / 0.06);
+  transform: translateY(-1px);
+}
+.ws-links__a:focus-visible {
+  outline: 1px solid var(--text-2);
+  outline-offset: 1px;
+}
+.ws-link {
+  flex: none;
+  color: var(--text-2);
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.08));
+}
+/* Empty state: the four kinds of link, fanned like cards. */
+.ws-linkfan {
+  display: flex;
+  margin-bottom: 18px;
+}
+.ws-linkfan .ws-link {
+  margin-inline: -4px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--sh-sm, 0 2px 8px rgb(0 0 0 / 0.08));
+  animation: ws-fan 4.8s var(--ease-out) infinite;
+}
+.ws-linkfan .ws-link:nth-child(1) {
+  rotate: -12deg;
+  translate: 0 6px;
+}
+.ws-linkfan .ws-link:nth-child(2) {
+  rotate: -4deg;
+  animation-delay: 0.3s;
+}
+.ws-linkfan .ws-link:nth-child(3) {
+  rotate: 4deg;
+  animation-delay: 0.6s;
+}
+.ws-linkfan .ws-link:nth-child(4) {
+  rotate: 12deg;
+  translate: 0 6px;
+  animation-delay: 0.9s;
+}
+@keyframes ws-fan {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+  }
+  80% {
+    transform: translateY(-6px);
+  }
+}
+/* Add / edit document: the Invite someone panel (adm-sheet) with Details and Links tabs */
+.adm-sheet:has(.ws-docform) {
+  width: min(720px, calc(100% - 20px));
+}
+.adm-sheet:has(.ws-docform) > .adm-sheet__head {
+  flex-shrink: 0;
+  padding: 24px 28px 20px;
+}
+.adm-sheet:has(.ws-docform) > .adm-sheet__body {
+  min-height: 0;
+  padding: 24px 28px 32px;
+  scrollbar-gutter: stable;
+}
+.adm-sheet:has(.ws-docform) > .adm-sheet__foot {
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 16px 28px;
+}
+.ws-docform.adm-invite {
+  gap: 24px;
+  min-width: 0;
+}
+.ws-docform__remarks {
+  min-height: 200px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.ws-docform .adm-field {
+  gap: 10px;
+}
+.ws-docform .adm-invite__pair {
+  gap: 20px;
+}
+.ws-docform .ws-tagpick > legend {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.ws-docform .ws-tagpick__list {
+  gap: 8px;
+  margin-top: 0;
+}
+.ws-docform .ws-tagpick__tag {
+  min-height: 32px;
+}
+.ws-docform .pc-sdgs--compact {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 600px;
+  margin: 0;
+  padding: 3px 0;
+}
+.adm-sheet:has(.ws-docform[data-tab="Details"]) > .adm-sheet__body {
+  display: flex;
+  flex-direction: column;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+.adm-sheet:has(.ws-docform[data-tab="Details"]) > .adm-sheet__body > [role="tabpanel"] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: min-content;
+}
+.ws-docform.adm-invite[data-tab="Details"] {
+  flex: 1;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: min-content;
+  max-height: 640px;
+}
+.ws-docform[data-tab="Details"] > * {
+  flex-shrink: 0;
+}
+@media (max-width: 560px) {
+  .adm-sheet:has(.ws-docform) {
+    width: calc(100% - 12px);
+  }
+  .adm-sheet:has(.ws-docform) > :is(.adm-sheet__head, .adm-sheet__body, .adm-sheet__foot) {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .ws-docform .pc-sdgs--compact {
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
+  }
+}
+@media (max-width: 420px) {
+  .ws-docform .adm-invite__pair {
+    gap: 24px;
+  }
+}
+/* One link per box: its kind on the left, the link, and a remove button on the right */
+.ws-linkrows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ws-linkrow {
+  position: relative;
+  min-width: 0;
+  animation: pc-in 200ms var(--ease-out) both;
+}
+.ws-linkrow::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 1px;
+  right: 40px;
+  bottom: 1px;
+  width: 32px;
+  background: linear-gradient(to right, transparent, var(--adm-bg));
+  pointer-events: none;
+}
+.ws-linkrow__kind {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-3);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.ws-linkrow__kind .ws-link {
+  animation: ws-kind-in 240ms var(--ease-out) both;
+}
+@keyframes ws-kind-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+.ws-linkrow__input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding-left: 44px;
+  padding-right: 48px;
+  background: var(--adm-bg);
+  font-size: 13.5px;
+}
+.ws-linkrow__x {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--adm-bg);
+  color: var(--text-3);
+  cursor: var(--cursor-pointer);
+  transform: translateY(-50%);
+  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.ws-linkrow:has(.ws-linkrow__input[data-invalid]) .ws-linkrow__x,
+.ws-linkrow:has(.ws-linkrow__input[data-invalid])::after {
+  visibility: hidden;
+}
+.ws-linkrow__x:hover {
+  background: rgb(var(--hair) / 0.07);
+  color: var(--text);
+}
+.ws-linkrow__x:focus-visible {
+  outline: 1px solid var(--text-2);
+  outline-offset: 1px;
+}
+.ws-linkrows__add {
+  justify-self: start;
+  margin-top: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-linkrow,
+  .ws-linkrow__kind .ws-link {
+    animation: none;
+  }
+}
+.ws-tagpick {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ws-tagpick__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ws-tagpick__tag {
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.ws-tagpick__tag:hover {
+  background: rgb(var(--hair) / 0.09);
+}
+.ws-tagpick__tag[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--surface);
+}
+.ws-tagpick__tag:focus-visible {
+  outline: 1px solid var(--text-2);
+  outline-offset: 1px;
+}
+
+/* ---------- Narrow screens ---------- */
+@media (max-width: 640px) {
+  .ws-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ws-tile {
+    padding: 16px 10px 14px;
+  }
+  .ws-tile .ws-fold {
+    scale: 0.85;
+    margin: -6px 0 6px;
+  }
+  .ws-table,
+  .ws-table tbody {
+    display: block;
+  }
+  .ws-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .ws-row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name name name menu"
+      "pad date size .";
+    align-items: center;
+    gap: 2px 10px;
+    padding: 12px 10px 12px 14px;
+    border-bottom: 1px solid rgb(var(--hair) / 0.06);
+  }
+  .ws-row:last-child {
+    border-bottom: 0;
+  }
+  .ws-table td,
+  .ws-table td:first-child,
+  .ws-table td:last-child {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+  }
+  .ws-table .ws-col-name {
+    grid-area: name;
+  }
+  .ws-table .ws-col-who {
+    display: none;
+  }
+  .ws-table .ws-col-date {
+    grid-area: date;
+    padding-left: 46px;
+    color: var(--text-3);
+    font-size: 12px;
+  }
+  .ws-table .ws-col-size {
+    grid-area: size;
+    font-size: 12px;
+  }
+  .ws-table .ws-col-menu {
+    grid-area: menu;
+  }
+  .ws-docs .ws-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name name menu"
+      "status links links"
+      "tags tags date";
+    gap: 8px 10px;
+  }
+  .ws-docs .ws-col-status {
+    grid-area: status;
+  }
+  .ws-docs .ws-col-links {
+    grid-area: links;
+  }
+  .ws-docs .ws-col-tags {
+    grid-area: tags;
+  }
+  .ws-docs .ws-col-date {
+    padding-left: 0;
+    text-align: right;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-tile,
+  .ws-fold__front,
+  .ws-fold__sheet {
+    transition: none;
+  }
+  .ws-tile:hover,
+  .ws-tile:hover .ws-fold__front,
+  .ws-tile:hover .ws-fold__sheet,
+  .ws-tile:hover .ws-fold__sheet--2 {
+    transform: none;
+  }
+  .ws-empty__art .ws-fold__sheet,
+  .ws-linkfan .ws-link {
+    animation: none;
+  }
+}

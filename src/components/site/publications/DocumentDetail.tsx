@@ -99,7 +99,7 @@ export async function DocumentDetail({ doc, more }: { doc: DocumentView; more: D
         </div>
         {report && (
           <div className="w-doc__cover" data-reveal>
-            <DocCover title={doc.title} type={doc.type} year={year} size="lg" />
+            <DocCover tone={doc.coverTone} title={doc.title} type={doc.type} year={year} size="lg" />
           </div>
         )}
       </header>
@@ -165,7 +165,7 @@ export async function DocumentDetail({ doc, more }: { doc: DocumentView; more: D
                 {more.map((r, i) => (
                   <li key={r.id} data-reveal style={{ "--d": `${i * 60}ms` } as CSSProperties}>
                     <Link href={documentPublicPath(r.kind, r.slug)} className="w-rcard">
-                      <DocCover title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="sm" />
+                      <DocCover tone={r.coverTone} title={r.title} type={r.type} year={r.issued.slice(0, 4)} size="sm" />
                       <span className="w-rcard__text">
                         <span className="w-rcard__kicker">
                           {r.type} · <time dateTime={r.issued}>{issuedMonth(r.issued)}</time>

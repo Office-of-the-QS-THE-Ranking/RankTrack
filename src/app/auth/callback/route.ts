@@ -3,6 +3,7 @@ import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, STAY_COOKIE } from "@/lib/gover
 import { completeSignIn, deviceOf, safeNext } from "@/lib/governance/server/signin";
 import { adminDb, authClient } from "@/lib/supabase/server";
 import { STATE_COOKIE } from "@/lib/governance/server/email-verify";
+import { keepDirectoryTokens } from "@/lib/governance/server/google-directory";
 import { finishVerification } from "./verify";
 
 /**
@@ -49,6 +50,8 @@ export async function GET(request: NextRequest) {
     if (r.why === "not-registered" || r.why === "pending") await adminDb().auth.admin.deleteUser(user.id);
     return back(r.why);
   }
+  // A University account's Google tokens, for searching the directory as them (server/google-directory.ts).
+  if (hd) await keepDirectoryTokens(user.email, data.session?.provider_token, data.session?.provider_refresh_token);
   const res = NextResponse.redirect(new URL(r.dest, url));
   res.cookies.set(SESSION_COOKIE, r.token, r.staySeconds ? { ...SESSION_COOKIE_OPTIONS, maxAge: r.staySeconds } : SESSION_COOKIE_OPTIONS);
   res.cookies.delete(STAY_COOKIE);

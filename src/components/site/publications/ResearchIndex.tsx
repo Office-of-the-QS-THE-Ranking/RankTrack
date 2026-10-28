@@ -1,8 +1,6 @@
 import type { CSSProperties } from "react";
 import { siteData } from "@/lib/governance/server/site";
-import { PublicationsMasthead } from "./PublicationsMasthead";
 import { ResearchList } from "./ResearchList";
-import { issuedDay } from "./doc-format";
 
 /** Research Articles: published work by Thomasian authors, newest first, then the articles in figures. */
 export async function ResearchIndex() {
@@ -11,11 +9,6 @@ export async function ResearchIndex() {
   const units = new Set(articles.flatMap((a) => (a.unit ? [a.unit] : [])));
   return (
     <>
-      <PublicationsMasthead
-        section="research"
-        lead="Peer-reviewed work by Thomasian authors, with the journal, the DOI and the full text where it is open."
-        note={articles[0] && <>Latest <time dateTime={articles[0].issued}>{issuedDay(articles[0].issued)}</time></>}
-      />
       <section className="w-wrap w-news-section" aria-label="Articles">
         <ResearchList articles={articles} />
       </section>

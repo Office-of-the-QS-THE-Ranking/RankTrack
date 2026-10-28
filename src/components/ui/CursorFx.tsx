@@ -100,6 +100,9 @@ export function CursorFx() {
     const showTip = () => {
       if (!owner || !text) return;
       tip.textContent = text;
+      const dotColor = owner.dataset.tooltipColor;
+      if (dotColor) tip.style.setProperty("--cursor-tip-dot", dotColor);
+      else tip.style.removeProperty("--cursor-tip-dot");
       lift(tip);
       place();
       tip.classList.add("is-on");

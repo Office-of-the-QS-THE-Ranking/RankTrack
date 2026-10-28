@@ -45,7 +45,7 @@ export interface Ctx {
 
 /** A person acts in their active role only, so commands are authorized by that role alone. */
 export function actorFor(state: GovernanceState, account: Account, now = new Date()): Actor {
-  const grants = actingGrants(account, state.units, today(now));
+  const grants = actingGrants(account, state.units, today(now), state.config.rolePermissions);
   return { id: account.id, name: account.name, role: topGrant(grants)?.roleName ?? "No role", grants, account };
 }
 

@@ -1,7 +1,7 @@
 /*
  * Roles & Permissions (Administration › Roles): the four roles as cards, each carrying a fingerprint of its
- * permissions (modules across, actions down), over the chosen role on a dashboard tile (overview.css): its
- * profile, how far it reaches in each group, and the permission matrix (admin.css). Ink is what every holder
+ * permissions (modules across, actions down). Clicking a card opens a modal with its
+ * description, people and permission matrix (admin.css). Ink is what every holder
  * of a role gets; gold is what only the Rankings Office's Administrators add, University-wide.
  */
 
@@ -22,31 +22,15 @@
 /* ---------- Role cards ---------- */
 .rp-roles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-@container content (max-width: 1040px) {
-  .rp-roles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @container content (max-width: 520px) {
   .rp-roles {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(236px, 78%);
-    overflow-x: auto;
-    margin-inline: calc(-1 * var(--gutter));
-    padding: 2px var(--gutter) 10px;
-    scroll-padding-inline: var(--gutter);
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-  }
-  .rp-roles > li {
-    scroll-snap-align: start;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -89,7 +73,7 @@
 .rp-role:active {
   transform: scale(0.99);
 }
-.rp-role[aria-current="true"] {
+.rp-role[data-current="true"] {
   --rp-dot: rgb(255 255 255 / 0.13);
   --rp-held: #f5f5f7;
   --rp-soft: rgb(245 245 247 / 0.62);
@@ -100,7 +84,7 @@
     0 0 0 1px #1d1d1f,
     0 20px 38px -22px rgb(0 0 0 / 0.55);
 }
-:root[data-theme="dark"] .rp-role[aria-current="true"] {
+:root[data-theme="dark"] .rp-role[data-current="true"] {
   --rp-dot: rgb(0 0 0 / 0.12);
   --rp-held: #1d1d1f;
   --rp-soft: rgb(29 29 31 / 0.6);
@@ -176,10 +160,10 @@
 .rp-faces .adm-avatar + .adm-avatar {
   margin-left: -5px;
 }
-.rp-role[aria-current="true"] .rp-faces .adm-avatar {
+.rp-role[data-current="true"] .rp-faces .adm-avatar {
   box-shadow: 0 0 0 2px #1d1d1f;
 }
-:root[data-theme="dark"] .rp-role[aria-current="true"] .rp-faces .adm-avatar {
+:root[data-theme="dark"] .rp-role[data-current="true"] .rp-faces .adm-avatar {
   box-shadow: 0 0 0 2px #f5f5f7;
 }
 .rp-faces__n {
@@ -213,122 +197,105 @@
 }
 
 /* ---------- The chosen role ---------- */
-.rp-detail .ov-tile__core {
-  gap: 22px;
-  padding: 24px 26px 0;
-  overflow: hidden;
+.adm-sheet--modal:has(.rp-detail) {
+  width: min(1040px, calc(100% - 32px));
+  height: min(760px, calc(100dvh - 48px));
 }
-.rp-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(250px, 320px);
-  gap: 16px 20px;
-  align-items: start;
+.adm-sheet--modal:has(.rp-detail) > .adm-sheet__head {
+  flex-shrink: 0;
 }
-.rp-head__title {
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+.adm-sheet--modal:has(.rp-detail) > .adm-sheet__body {
+  min-height: 0;
+  scrollbar-gutter: stable;
 }
-.rp-head__lede {
-  max-width: 62ch;
-  margin-top: 6px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-2);
+/* Match the slim scrolling columns used by the profile modal. */
+.adm-sheet--modal:has(.rp-detail) > .adm-sheet__body,
+.rp-detail .adm-matrix-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--hair) / 0.2) transparent;
 }
-.rp-chips {
+@supports selector(::-webkit-scrollbar) {
+  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body,
+  .rp-detail .adm-matrix-scroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body::-webkit-scrollbar,
+  .rp-detail .adm-matrix-scroll::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body::-webkit-scrollbar-track,
+  .rp-detail .adm-matrix-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body::-webkit-scrollbar-thumb,
+  .rp-detail .adm-matrix-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgb(var(--hair) / 0.2);
+  }
+}
+.rp-modal-heading {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 14px;
-}
-.rp-chip {
-  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 28px;
-  padding: 0 12px 0 10px;
-  border-radius: 999px;
-  background: rgb(var(--hair) / 0.05);
-  font-size: 12.5px;
-  color: var(--text-2);
+  gap: 14px;
 }
-.rp-chip i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--adm-ink);
-}
-.rp-chip--wide {
-  background: color-mix(in srgb, var(--gold-500) 14%, transparent);
-  color: var(--text);
-}
-.rp-chip--wide i {
-  background: var(--gold-500);
-}
-
-/* Reach: how much of each group the role holds */
-.rp-reach {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: rgb(var(--hair) / 0.035);
-}
-.rp-reach__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 12px;
-  align-items: baseline;
-}
-.rp-reach dt {
-  font-size: 12.5px;
-  color: var(--text-2);
-}
-.rp-reach dd {
-  margin: 0;
-}
-.rp-reach__n {
-  font-size: 12px;
-  color: var(--text-3);
-}
-.rp-reach__n b {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-.rp-reach__bar {
-  grid-column: 1 / -1;
+.rp-modal-heading__name {
   display: flex;
-  gap: 2px;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: rgb(var(--hair) / 0.08);
+  align-items: center;
+  gap: 8px;
 }
-.rp-reach__bar i {
-  border-radius: 3px;
-  background: var(--adm-ink);
-  transform-origin: left;
+.rp-modal-heading__context {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--adm-muted);
 }
-.rp-reach__bar i.is-wide {
-  background: var(--gold-500);
+.rp-role:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 4px;
 }
-.rp-reach__bar i[style*="width: 0%"] {
-  display: none;
+.rp-detail {
+  container: content / inline-size;
+  min-width: 0;
 }
-
-/* Tabs and the matrix run edge to edge in the tile */
+.rp-detail__content {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  padding: 4px 6px 0;
+}
+/* Role details live inside the shared modal. */
+.rp-detail .adm-matrix__toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: var(--cursor-pointer);
+}
+.rp-detail .adm-matrix__toggle:hover:not(:disabled) {
+  background: rgb(var(--hair) / 0.06);
+}
+.rp-detail .adm-matrix__toggle:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
+}
+.rp-detail .adm-matrix__toggle:disabled {
+  cursor: default;
+}
 .rp-body {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
 .rp-detail .adm-matrix-wrap {
-  --mx-bg: var(--surface);
-  margin-inline: -26px;
+  --mx-bg: var(--adm-bg);
+  margin-inline: -6px;
   border: 0;
   border-top: 1px solid var(--adm-line);
   border-radius: 0;
@@ -341,8 +308,22 @@
 .rp-detail .adm-matrix__group-in {
   left: 26px;
 }
+.rp-body > .content-tabs {
+  flex-wrap: wrap;
+}
+.rp-body > .content-tabs .content-tabs__controls {
+  flex: 1 1 auto;
+}
+.rp-body > .content-tabs .content-tabs__actions {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 16px;
+}
 .rp-detail .adm-matrix__legend {
-  padding-inline: 26px;
+  justify-content: flex-end;
+  padding: 0;
+  border: 0;
 }
 .rp-detail .rp-people,
 .rp-detail .adm-empty {
@@ -359,9 +340,6 @@
   .rp-detail td:nth-child(7) .adm-mark { animation-delay: 100ms; }
   .rp-detail td:nth-child(8) .adm-mark { animation-delay: 120ms; }
   .rp-detail td:nth-child(9) .adm-mark { animation-delay: 140ms; }
-  .rp-reach__bar i {
-    animation: rp-grow 520ms var(--ease-out) both;
-  }
 }
 @keyframes rp-pop {
   from {
@@ -369,12 +347,6 @@
     transform: scale(0.4);
   }
 }
-@keyframes rp-grow {
-  from {
-    transform: scaleX(0);
-  }
-}
-
 /* People who hold the role */
 .rp-people {
   display: grid;
@@ -472,36 +444,17 @@
 }
 
 /* ---------- Narrow ---------- */
-@container content (max-width: 1100px) {
-  .rp-head {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  .rp-reach {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px 20px;
-  }
-}
 @container content (max-width: 640px) {
-  .rp-detail .ov-tile__core {
-    padding: 18px 16px 0;
-  }
-  .rp-head {
-    grid-template-columns: minmax(0, 1fr);
+  .rp-detail__content {
+    padding: 4px 0 0;
   }
   .rp-glyph--lg {
     width: 44px;
     height: 44px;
     border-radius: 13px;
   }
-  .rp-head__title {
-    font-size: 22px;
-  }
-  .rp-reach {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .rp-detail .adm-matrix-wrap {
-    margin-inline: -16px;
+    margin-inline: 0;
   }
   .rp-detail .adm-matrix thead th:first-child,
   .rp-detail .adm-matrix tbody th[scope="row"],
@@ -523,7 +476,11 @@
   .rp-detail .adm-matrix__group-in {
     left: 16px;
   }
-  .rp-detail .adm-matrix__legend {
-    padding-inline: 16px;
+}
+
+@media (max-width: 720px) {
+  .adm-sheet--modal:has(.rp-detail) {
+    width: auto;
+    height: min(760px, calc(100dvh - 24px));
   }
 }

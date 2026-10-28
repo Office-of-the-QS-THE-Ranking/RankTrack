@@ -6,18 +6,21 @@
 import type { Command } from "./commands";
 
 const TYPES = [
+  "role.permissions",
   "account.invite", "account.keep", "account.reauth", "account.resend", "account.revoke", "account.status", "account.transfer", "account.update",
   "alert.update", "assignment.add", "assignment.remove", "assistance.request", "audit.export", "audit.verify",
   "backup.request", "backup.run", "backup.schedule", "backup.test",
   "config.body", "config.bodyAdd", "config.cycle", "config.cycleAdd", "config.dashboard", "config.feature", "config.flag", "config.period",
   "config.periodAdd", "config.ranking", "config.site", "config.template", "config.uploads", "config.year", "config.yearAdd",
   "data.submit", "dataset.update", "dataset.version", "deadline.apply", "deadline.dismiss", "deadline.set", "document.delete", "document.save", "document.status", "dsr.create", "dsr.update", "duplicate.resolve",
-  "evidence.map", "evidence.respond", "evidence.review", "evidence.submit",
+  "evidence.map", "evidence.respond", "evidence.review", "evidence.submit", "form.delete", "form.duplicate", "form.save", "form.status",
   "incident.report", "incident.update", "innovation.propose", "key.rotate", "notice.read", "pia.save",
   "post.delete", "post.save", "post.status", "report.export", "report.publish",
   "request.cancel", "request.create", "request.decide", "request.review", "retention.run",
   "review.complete", "review.decide", "review.start", "rule.run", "rule.toggle", "security.policy", "story.propose", "story.state", "term.update",
   "unit.archive", "unit.coordinator", "unit.create", "unit.merge", "unit.move", "unit.reactivate", "unit.update", "workflow.update",
+  "workdoc.delete", "workdoc.save", "workdoc.status",
+  "workspace.add", "workspace.archive", "workspace.delete", "workspace.edit", "workspace.folder", "workspace.folderDelete",
 ] as const satisfies readonly Command["type"][];
 
 // Every command type is listed: a type added to Command but not here fails to compile.

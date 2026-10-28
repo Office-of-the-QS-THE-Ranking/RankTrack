@@ -50,7 +50,7 @@ export function RequestAssistance() {
           <Link href="/portal" className="btn btn--dark">
             Back to my dashboard
           </Link>
-          <Link href="/portal/knowledge#faq" className="btn">
+          <Link href="/portal/workspace/knowledge#faq" className="btn">
             Browse frequently asked questions
           </Link>
         </div>
@@ -168,19 +168,19 @@ export function RequestAssistance() {
         <Card title="Quick answers" icon="knowledge" tone="tint">
           <ul className="list">
             <li>
-              <Link href="/portal/knowledge#standards" className="list__main">
+              <Link href="/portal/workspace/knowledge#standards" className="list__main">
                 What makes evidence acceptable
               </Link>
               <span className="list__sub">Five checks reviewers apply</span>
             </li>
             <li>
-              <Link href="/portal/knowledge#calendar" className="list__main">
+              <Link href="/portal/workspace/knowledge#calendar" className="list__main">
                 Submission calendar
               </Link>
               <span className="list__sub">When each ranking collects data</span>
             </li>
             <li>
-              <Link href="/portal/knowledge?q=public" className="list__main">
+              <Link href="/portal/workspace/knowledge?q=public" className="list__main">
                 Public evidence URLs
               </Link>
               <span className="list__sub">Why links behind a login are returned</span>

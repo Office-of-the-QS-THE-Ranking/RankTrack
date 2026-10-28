@@ -77,7 +77,7 @@ export function checkSession(state: GovernanceState, id: string, now = new Date(
 export function buildViewer(state: GovernanceState, account: Account, session: Session, now = new Date()): Viewer {
   const day = today(now);
   // Everything below follows the role they are acting in; the others are only listed, to switch to.
-  const grants = actingGrants(account, state.units, day);
+  const grants = actingGrants(account, state.units, day, state.config.rolePermissions);
   const acting = grants[0];
   const unitName = (id: string) => state.units.find((u) => u.id === id)?.name ?? id;
   const portal = portalScope(account, grants, state.units);

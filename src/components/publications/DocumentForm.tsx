@@ -7,12 +7,12 @@
  * needs. The PDF uploads while the person fills in the rest; saving or publishing sends one governance command,
  * which the server checks, applies and audits.
  */
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type Ref, type CSSProperties } from "react";
 import { discardDocumentUpload, startDocumentUpload } from "@/app/actions/documents";
 import type { DocumentInput } from "@/lib/governance/commands";
-import { citation, cleanDoi, cleanUrl, DOC_LIMITS, DOC_NOUN } from "@/lib/governance/documents";
+import { citation, cleanDoi, cleanUrl, DOC_COVER_TONES, DOC_LIMITS, DOC_NOUN } from "@/lib/governance/documents";
 import type { DocumentDesk, DocumentRow } from "@/lib/governance/hub-types";
-import type { DocumentKind } from "@/lib/governance/types";
+import type { DocumentCoverTone, DocumentKind } from "@/lib/governance/types";
 import { useGovern } from "@/components/hub/HubProvider";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import { Switch } from "@/components/admin/ui";
@@ -99,11 +99,12 @@ export function DocumentForm({
   const [keywords, setKeywords] = useState<string[]>(row?.keywords ?? []);
   const [unit, setUnit] = useState(row?.unitSlug ?? "");
   const [featured, setFeatured] = useState(row?.featured ?? false);
+  const [coverTone, setCoverTone] = useState<DocumentCoverTone | undefined>(row?.coverTone);
   const [saving, setSaving] = useState<false | "draft" | "publish">(false);
   const [leaving, setLeaving] = useState(false);
 
   const status = row?.status ?? "Draft";
-  const signature = () => JSON.stringify([title.trim(), authors, venue.trim(), type, issued, abstract.trim(), doi.trim(), url.trim(), pdf?.src ?? pdf?.name ?? null, sdgs, keywords, unit, featured]);
+  const signature = () => JSON.stringify([title.trim(), authors, venue.trim(), type, issued, abstract.trim(), doi.trim(), url.trim(), pdf?.src ?? pdf?.name ?? null, sdgs, keywords, unit, featured, coverTone]);
   const [initial] = useState(signature);
 
   useEffect(() => {
@@ -177,6 +178,7 @@ export function DocumentForm({
       keywords,
       unitSlug: unit,
       featured,
+      coverTone,
     };
     setSaving(publish ? "publish" : "draft");
     const r = await run({ type: "document.save", id: row?.id, kind, input, publish });
@@ -280,7 +282,7 @@ export function DocumentForm({
             </div>
             {kind === "report" ? (
               <div className="df__cover">
-                <DocCover title={title.trim() || "Report title"} type={type || "Report"} year={year} size="md" />
+                <DocCover tone={coverTone} title={title.trim() || "Report title"} type={type || "Report"} year={year} size="md" />
               </div>
             ) : (
               <article className="df__card">
@@ -502,12 +504,35 @@ export function DocumentForm({
               <Field label="Keywords" htmlFor={`${ids}-keys`} note={`${keywords.length} of ${DOC_LIMITS.keywords}`}>
                 <ChipInput id={`${ids}-keys`} value={keywords} onChange={setKeywords} max={DOC_LIMITS.keywords} maxLength={DOC_LIMITS.keyword} split={/[,;\n]+/} placeholder="Type, then Enter" label="Keywords" />
               </Field>
-              <div className="df__feature">
+            </section>
+
+            <section className="df__set" aria-labelledby={`${ids}-display`}>
+              <h3 id={`${ids}-display`} className="df__setlabel">Display</h3>
+              {kind === "report" && (
+                <fieldset className="df__cover-colors">
+                  <legend>Book cover color</legend>
+                  <div className="df__cover-options">
+                    {[{ value: undefined, label: "Automatic", color: undefined }, ...DOC_COVER_TONES].map((tone) => (
+                      <label key={tone.value ?? "auto"} className="df__cover-option">
+                        <input type="radio" name={`${ids}-cover-color`} checked={coverTone === tone.value} onChange={() => setCoverTone(tone.value)} />
+                        <span className={`df__cover-swatch${tone.value ? "" : " df__cover-swatch--auto"}`} style={tone.color ? { "--cover-color": tone.color } as CSSProperties : undefined} aria-hidden="true">
+                          {coverTone === tone.value && <Icon name="check" size={14} />}
+                        </span>
+                        <span>{tone.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+              <div className="df__feature" data-enabled={featured}>
                 <span>
                   <b>Lead the page</b>
                   <span>Shown first on {kind === "article" ? "Research Articles" : "Reports & Insights"}.</span>
                 </span>
-                <Switch checked={featured} onChange={setFeatured} label="Lead the page" />
+                <div className="df__feature-control">
+                  <span className="df__feature-state" aria-hidden="true">{featured ? "On" : "Off"}</span>
+                  <Switch checked={featured} onChange={setFeatured} label="Lead the page" />
+                </div>
               </div>
             </section>
           </div>
@@ -594,7 +619,7 @@ function Field({ label, htmlFor, note, children }: { label: string; htmlFor?: st
  * Names or words as removable chips, typed into one box: Enter (or a separator) adds what is typed, Backspace on an
  * empty box takes the last one back, and pasting a list adds each.
  */
-function ChipInput({
+export function ChipInput({
   id,
   value,
   onChange,

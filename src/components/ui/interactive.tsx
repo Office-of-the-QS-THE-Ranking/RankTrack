@@ -2,10 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 import { cx } from "./primitives";
 
-export function InfoTooltip({ children, label = "Data reporting date", escapeClipping = false }: { children: ReactNode; label?: string; escapeClipping?: boolean }) {
+export function InfoTooltip({ children, label = "Data reporting date", escapeClipping = false, icon, tone }: { children: ReactNode; label?: string; escapeClipping?: boolean; icon?: ReactNode; tone?: "success" }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -59,9 +59,9 @@ export function InfoTooltip({ children, label = "Data reporting date", escapeCli
         onBlur={() => setOpen(false)}
         onClick={() => setOpen(true)}
       >
-        <Icon name="info" size={18} />
+        {icon ?? <Icon name="info" size={18} />}
       </button>
-      {open && <span ref={contentRef} id={id} role="tooltip" popover={escapeClipping ? "manual" : undefined} className={`info-tooltip__content${escapeClipping ? " info-tooltip__content--floating" : ""}`}>{children}</span>}
+      {open && <span ref={contentRef} id={id} role="tooltip" popover={escapeClipping ? "manual" : undefined} className={`info-tooltip__content${escapeClipping ? " info-tooltip__content--floating" : ""}${tone === "success" ? " info-tooltip__content--success" : ""}`}>{children}</span>}
     </span>
   );
 }
@@ -87,6 +87,7 @@ function useRoving(count: number, onMove: (i: number) => void) {
 export type ContentTab<T extends string> = {
   key: T;
   label: ReactNode;
+  icon?: IconName;
   count?: number;
   countTone?: "alert";
 };
@@ -178,6 +179,7 @@ export function Tabs<T extends string>({
                 transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 450, damping: 38 }}
               />
             )}
+            {t.icon && <Icon name={t.icon} size={14} className="tabs__icon" />}
             {t.label}
             {(t.count ?? counts?.[t.key]) !== undefined && (
               <span className={cx("count", t.countTone === "alert" && "is-alert")}>{t.count ?? counts?.[t.key]}</span>

@@ -1,18 +1,9 @@
-import { Suspense } from "react";
-import { PageHeader } from "@/components/ui/primitives";
-import { Knowledge } from "@/components/knowledge/Knowledge";
+import { redirect } from "next/navigation";
 
-import { Gate } from "@/components/hub/Gate";
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-export const metadata = { title: "Knowledge Center" };
-
-export default function KnowledgePage() {
-  return (
-    <Gate path="/admin/knowledge" title="Knowledge Center">
-      <PageHeader title="Knowledge Center" />
-      <Suspense>
-        <Knowledge />
-      </Suspense>
-    </Gate>
-  );
+/** The Knowledge Center moved into the Workspace; old links keep their search. */
+export default async function KnowledgeMovedPage({ searchParams }: Props) {
+  const q = new URLSearchParams(Object.entries(await searchParams).flatMap(([k, v]) => (v === undefined ? [] : [v].flat().map((x) => [k, x] as [string, string])))).toString();
+  redirect(`/admin/workspace/knowledge${q ? `?${q}` : ""}`);
 }

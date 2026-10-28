@@ -2,6 +2,7 @@ import type { Reference } from "@/lib/reference";
 import type { IconName } from "@/components/ui/Icon";
 import type { Action, ModuleKey } from "@/lib/governance/types";
 import { PUBLICATION_SECTIONS } from "@/lib/publications";
+import { workspaceViewLabel, workspaceViews, type WorkspaceView } from "@/lib/governance/workspace";
 
 export type Variant = "public" | "office" | "unit";
 
@@ -16,6 +17,9 @@ export interface NavLink {
   rankingsBase?: string;
   /** Base path for the Publications sub-menu (Stories & News, Research Articles, Reports & Insights). */
   publicationsBase?: string;
+  /** Base path for the Workspace sub-menu (its shelves, Digital Forms, Archives and the Knowledge Center), and the
+      permission its shelves need. The row shows when any of its pages does. */
+  workspace?: { base: string; office?: boolean; need: [ModuleKey, Action] };
   /** The permission the row needs. Rows the viewer cannot use are not shown. */
   need?: [ModuleKey, Action];
   /** The System Configuration feature the row depends on. */
@@ -29,8 +33,8 @@ export interface NavGroup {
   items: NavLink[];
 }
 
-/* Main navigation from the proposal: Dashboard, Rankings, Contributions, Publications, Recognition,
-   Knowledge Center, Reports, About the Office. Rankings, Publications and Administration open their own
+/* Main navigation from the proposal: Dashboard, Rankings, Contributions, Publications, Recognition (a
+   Dashboard tab in the office workspace), Workspace (with the Knowledge Center), Reports, About the Office. Rankings, Publications, Workspace and Administration open their own
    sets of tabs in the sidebar. Administration is shown to people who administer something; About the
    Office sits apart at the foot. */
 export const NAV: Record<Variant, NavGroup[]> = {
@@ -54,8 +58,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
         { href: "/admin/contributions", label: "Contributions", icon: "contributions", count: "review", need: ["evidence", "view"] },
         { href: "/admin/units", label: "Units", icon: "units", need: ["units", "view"] },
         { href: "/admin/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/admin/publications" },
-        { href: "/admin/recognition", label: "Recognition", icon: "recognition", feature: "recognition-internal" },
-        { href: "/admin/knowledge", label: "Knowledge Center", icon: "knowledge", need: ["knowledge", "view"] },
+        { href: "/admin/workspace", label: "Workspace", icon: "folder", workspace: { base: "/admin/workspace", office: true, need: ["knowledge", "edit"] } },
         { href: "/admin/reports", label: "Reports", icon: "reports", need: ["reports", "view"], feature: "reports" },
         { href: "/admin/administration", label: "Administration", icon: "sliders", admin: true },
         { href: "/admin/about", label: "About the Office", icon: "about" },
@@ -77,7 +80,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
     },
     {
       label: "Resources",
-      items: [{ href: "/portal/knowledge", label: "Knowledge Center", icon: "knowledge", need: ["knowledge", "view"] }],
+      items: [{ href: "/portal/workspace", label: "Workspace", icon: "folder", workspace: { base: "/portal/workspace", need: ["evidence", "view"] } }],
     },
     {
       label: "Manage",
@@ -103,6 +106,29 @@ export const rankingSubnav = (ref: Reference, base: string, active?: string[]) =
 export const publicationsSubnav = (base: string) =>
   PUBLICATION_SECTIONS.map((s) => ({ href: `${base}/${s.key}`, label: s.label, icon: s.icon }));
 
+const WORKSPACE_ICONS: Record<WorkspaceView, IconName> = { working: "folder", library: "publications", forms: "clipboard", archive: "archive" };
+
+export interface SubLink {
+  href: string;
+  label: string;
+  icon: IconName;
+  need: [ModuleKey, Action];
+}
+
+/* The Workspace pages: its shelves, Digital Forms, Archives, then the Knowledge Center. Each keeps its own
+   permission, so someone who may read the Knowledge Center but not the shelves still finds it here. */
+export const workspaceSubnav = ({ base, office = false, need }: NonNullable<NavLink["workspace"]>): SubLink[] => [
+  ...workspaceViews(office).map((v) => ({ href: `${base}/${v}`, label: workspaceViewLabel(v), icon: WORKSPACE_ICONS[v], need })),
+  { href: `${base}/knowledge`, label: "Knowledge Center", icon: "knowledge", need: ["knowledge", "view"] },
+];
+
+/** Where the Knowledge Center lives on each side. */
+export const knowledgeHref = (variant: Variant) => (variant === "office" ? "/admin/workspace/knowledge" : variant === "unit" ? "/portal/workspace/knowledge" : "/knowledge");
+
+/** Every page the navigation guards, the Workspace's own pages included, for the server-side Gate. */
+export const navPages = (variant: Variant): Pick<NavLink, "href" | "need" | "feature">[] =>
+  NAV[variant].flatMap((g) => g.items.flatMap((i) => [i, ...(i.workspace ? workspaceSubnav(i.workspace) : [])]));
+
 /* Public/Internal view switch keeps the reader on the equivalent page. */
 export function publicPathFor(path: string): string {
   const m = path.match(/^\/admin\/rankings\/([^/]+)/);
@@ -110,7 +136,8 @@ export function publicPathFor(path: string): string {
   if (path.startsWith("/admin/rankings")) return "/rankings";
   const pub = path.match(/^\/admin\/publications\/(stories|research|reports)/);
   if (pub) return `/publications/${pub[1]}`;
-  for (const seg of ["publications", "recognition", "knowledge", "about"]) {
+  if (/^\/(admin|portal)\/workspace\/knowledge/.test(path)) return "/knowledge";
+  for (const seg of ["publications", "recognition", "about"]) {
     if (path.startsWith(`/admin/${seg}`) || path.startsWith(`/portal/${seg}`)) return `/${seg}`;
   }
   return "/";
@@ -122,7 +149,9 @@ export function internalPathFor(path: string): string {
   if (path.startsWith("/rankings")) return "/admin/rankings";
   const pub = path.match(/^\/publications\/(stories|research|reports)/);
   if (pub) return `/admin/publications/${pub[1]}`;
-  for (const seg of ["publications", "recognition", "knowledge", "about"]) {
+  if (path.startsWith("/recognition")) return "/admin?view=recognition";
+  if (path.startsWith("/knowledge")) return knowledgeHref("office");
+  for (const seg of ["publications", "about"]) {
     if (path.startsWith(`/${seg}`)) return `/admin/${seg}`;
   }
   return "/admin";

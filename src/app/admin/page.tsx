@@ -2,14 +2,17 @@ import Link from "next/link";
 import { formatAsOf } from "@/lib/data";
 import { hub } from "@/lib/governance/server/hub";
 import { getViewer } from "@/lib/governance/server/session";
+import { featureOn } from "@/lib/governance/derive";
+import { readState } from "@/lib/governance/server/store";
 import { viewerCan } from "@/lib/governance/viewer";
 import { Icon } from "@/components/ui/Icon";
 import { InfoTooltip } from "@/components/ui/interactive";
-import { DashboardViewSwitch } from "@/components/dashboard/DashboardViewSwitch";
+import { DashboardViewSwitch, type DashboardView } from "@/components/dashboard/DashboardViewSwitch";
 import { DashboardViewPanel } from "@/components/dashboard/DashboardViewPanel";
 import { SubmissionsBoard } from "@/components/dashboard/SubmissionsBoard";
 import { OfficeWelcome } from "@/components/dashboard/Welcome";
 import { RankingsOverview } from "@/components/rankings/Overview";
+import { RecognitionWall } from "@/components/recognition/RecognitionWall";
 
 export const metadata = {
   title: {
@@ -25,8 +28,11 @@ export default async function ExecutiveDashboard({
   const h = await hub();
   const viewer = await getViewer();
   // System Configuration sets which view opens first; the switch below still changes it.
-  const asked = (await searchParams).view;
-  const view = asked === "rankings" || asked === "submissions" ? asked : h.dashboard.officeView;
+  // The Recognition wall is a tab here while System Configuration keeps it switched on.
+  const views: DashboardView[] = ["submissions", "rankings"];
+  if (featureOn(await readState(), "recognition-internal")) views.push("recognition");
+  const asked = (await searchParams).view as DashboardView | undefined;
+  const view = asked && views.includes(asked) ? asked : h.dashboard.officeView;
 
   return (
     <div className="ov">
@@ -35,7 +41,7 @@ export default async function ExecutiveDashboard({
           <h1 className="ov__title">Dashboard</h1>
           <InfoTooltip>As of {formatAsOf(h.site.asOf)}</InfoTooltip>
         </div>
-        <DashboardViewSwitch view={view} />
+        <DashboardViewSwitch view={view} views={views} />
         <div className="ov__actions">
           <Link href="/admin/reports" className="btn btn--sm">
             <Icon name="download" size={16} /> Report
@@ -45,7 +51,7 @@ export default async function ExecutiveDashboard({
 
       <OfficeWelcome h={h} viewer={viewer} />
 
-      <DashboardViewPanel view={view}>
+      <DashboardViewPanel view={view} views={views}>
         {view === "rankings" ? (
           <div className="ov-rankings">
             <RankingsOverview
@@ -55,6 +61,8 @@ export default async function ExecutiveDashboard({
               evidence={h.evidence.filter((e) => viewerCan(viewer, "evidence", "view", { unitId: e.unitSlug }))}
             />
           </div>
+        ) : view === "recognition" ? (
+          <RecognitionWall mode="internal" embedded />
         ) : (
           <SubmissionsBoard h={h} viewer={viewer} />
         )}

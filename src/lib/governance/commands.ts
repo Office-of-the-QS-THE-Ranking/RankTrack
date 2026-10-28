@@ -8,6 +8,7 @@ import type {
   BodyKey,
   Classification,
   CycleConfig,
+  DocumentCoverTone,
   DocumentFile,
   DocumentKind,
   ExportPolicy,
@@ -17,6 +18,7 @@ import type {
   OrgKind,
   PostMedia,
   PrivacyAssessment,
+  PermissionSet,
   RequestPayload,
   RoleId,
   Scope,
@@ -26,7 +28,10 @@ import type {
   SystemConfig,
   WorkflowKey,
   WorkflowStep,
+  WorkspaceShelf,
+  WorkingDocStatus,
 } from "./types";
+import type { FormKind, FormSchema, FormStatus } from "@/lib/forms/types";
 import type { PersonInput } from "./person-details";
 
 /**
@@ -66,9 +71,11 @@ export interface DocumentInput {
   keywords: string[];
   unitSlug: string;
   featured: boolean;
+  coverTone?: DocumentCoverTone;
 }
 
 export type Command =
+  | { type: "role.permissions"; id: RoleId; scope: "unit" | "university"; permissions: PermissionSet; previous: PermissionSet }
   /* Accounts */
   | { type: "account.invite"; input: InviteInput }
   | { type: "account.update"; id: string; name?: string; title?: string }
@@ -191,6 +198,24 @@ export type Command =
   | { type: "document.save"; id?: string; kind: DocumentKind; input: DocumentInput; publish: boolean }
   | { type: "document.status"; id: string; status: "Published" | "Unpublished" | "Draft" }
   | { type: "document.delete"; id: string }
+  /* Workspace files. No unitId: the Office's shared files. Sizes are read from storage on the server. */
+  | { type: "workspace.add"; unitId?: string; shelf: WorkspaceShelf; folderId: string; files: { name: string; src: string; bytes?: number }[] }
+  | { type: "workspace.edit"; id: string; name?: string; folderId?: string; shelf?: WorkspaceShelf }
+  /** Without `id`, a new folder; with it, a rename or (with `parentId`, "" for the top level) a move. */
+  | { type: "workspace.folder"; id?: string; unitId?: string; shelf: WorkspaceShelf; parentId?: string; name: string }
+  | { type: "workspace.folderDelete"; id: string }
+  | { type: "workspace.archive"; ids: string[]; archived: boolean }
+  | { type: "workspace.delete"; ids: string[] }
+  /* Working Documents: links a unit (or, with no unitId, the Office) keeps. No id: a new document. */
+  | { type: "workdoc.save"; id?: string; unitId?: string; title: string; date: string; rankings: string[]; sdgs?: number[]; authors?: string[]; status: WorkingDocStatus; links: string[]; remarks?: string }
+  | { type: "workdoc.status"; id: string; status: WorkingDocStatus }
+  | { type: "workdoc.delete"; ids: string[] }
+  /* Digital Forms. No id: a new form, which needs its schema. No unitId: the Office's. Responses aren't commands
+     (app/actions/forms.ts writes them straight to form_responses). */
+  | { type: "form.save"; id?: string; unitId?: string; title: string; description?: string; kind: FormKind; reference?: string; issuerId?: string; closesOn?: string; prefix?: string; copies?: boolean; schema?: FormSchema }
+  | { type: "form.status"; id: string; status: FormStatus }
+  | { type: "form.duplicate"; id: string }
+  | { type: "form.delete"; id: string }
   | { type: "innovation.propose"; unitSlug: string; name: string; category: string }
   | { type: "assistance.request"; unitSlug: string; topic: string; urgent: boolean; message: string }
   | { type: "report.export"; report: string; cycle: string; rows: number; datasets: string[] }

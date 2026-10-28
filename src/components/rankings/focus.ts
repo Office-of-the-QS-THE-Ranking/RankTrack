@@ -24,7 +24,7 @@ const SPECIAL: Record<string, FocusTarget> = {
   "Institutional Data": { kind: "tab", tab: "Indicators" },
   "Impact Stories": { kind: "link", href: "/admin/publications/stories" },
   "Submit an Innovation": { kind: "link", href: "/portal/innovation" },
-  "Mentorship and Engagement": { kind: "link", href: "/admin/recognition#international" },
+  "Mentorship and Engagement": { kind: "link", href: "/admin?view=recognition#international" },
   "Innovation Pipeline": { kind: "anchor", id: "wuri-pipeline" },
   "WURI Categories": { kind: "anchor", id: "wuri-categories" },
   "Submitted Projects": { kind: "anchor", id: "wuri-initiatives" },

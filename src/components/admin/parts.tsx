@@ -164,11 +164,10 @@ const LEGEND: Record<CellState, string> = { granted: "Granted", wide: "Universit
  * marks what a change adds and removes; a role marks what only its University-wide holders get as `wide`.
  * With `fold`, a group with nothing granted shows as one line until opened.
  */
-export function PermissionMatrix({ cell, caption, labels, fold = false }: { cell: (m: ModuleKey, a: Action) => CellState; caption: string; labels?: Partial<Record<CellState, string>>; fold?: boolean }) {
+export function PermissionMatrix({ cell, caption, labels, showLegend = true, fold = false, onToggle, locked, disabled = false }: { cell: (m: ModuleKey, a: Action) => CellState; caption: string; labels?: Partial<Record<CellState, string>>; showLegend?: boolean; fold?: boolean; onToggle?: (m: ModuleKey, a: Action) => void; locked?: (m: ModuleKey, a: Action) => boolean; disabled?: boolean }) {
   const [hot, setHot] = useState<number | null>(null);
   const [opened, setOpened] = useState<string[]>([]);
   const groups = [...new Set(MODULES.map((m) => m.group))];
-  const states = new Set(MODULES.flatMap((m) => m.actions.map((a) => cell(m.key, a))));
   const legend = { ...LEGEND, ...labels };
   const held = (st: CellState) => st !== "none" && st !== "removed";
   return (
@@ -235,9 +234,23 @@ export function PermissionMatrix({ cell, caption, labels, fold = false }: { cell
                           const st = cell(m.key, a.key);
                           return (
                             <td key={a.key} className={`adm-matrix__cell is-${st}`}>
-                              <span role="img" aria-label={`${m.label}: ${a.label} — ${legend[st].toLowerCase()}`}>
-                                <CellMark st={st} />
-                              </span>
+                              {onToggle ? (
+                                <button
+                                  type="button"
+                                  className="adm-matrix__toggle"
+                                  role="checkbox"
+                                  aria-checked={held(st)}
+                                  aria-label={`${m.label}: ${a.label}${locked?.(m.key, a.key) ? " (required for permission management)" : ""}`}
+                                  disabled={disabled || locked?.(m.key, a.key)}
+                                  onClick={() => onToggle(m.key, a.key)}
+                                >
+                                  <CellMark st={st} />
+                                </button>
+                              ) : (
+                                <span role="img" aria-label={`${m.label}: ${a.label} — ${legend[st].toLowerCase()}`}>
+                                  <CellMark st={st} />
+                                </span>
+                              )}
                             </td>
                           );
                         })}
@@ -249,16 +262,25 @@ export function PermissionMatrix({ cell, caption, labels, fold = false }: { cell
           </tbody>
         </table>
       </div>
-      <p className="adm-matrix__legend" aria-hidden="true">
-        {(["granted", "wide", "added", "removed", "none"] as const)
-          .filter((st) => st === "granted" || states.has(st))
-          .map((st) => (
-            <span key={st}>
-              <CellMark st={st} /> {legend[st]}
-            </span>
-          ))}
-      </p>
+      {showLegend && <PermissionLegend cell={cell} labels={labels} />}
     </div>
+  );
+}
+
+/** Shared key, rendered beside the tabs in role modals or below other matrices. */
+export function PermissionLegend({ cell, labels }: { cell: (m: ModuleKey, a: Action) => CellState; labels?: Partial<Record<CellState, string>> }) {
+  const states = new Set(MODULES.flatMap((m) => m.actions.map((a) => cell(m.key, a))));
+  const legend = { ...LEGEND, ...labels };
+  return (
+    <p className="adm-matrix__legend" aria-hidden="true">
+      {(["granted", "wide", "added", "removed", "none"] as const)
+        .filter((st) => st === "granted" || states.has(st))
+        .map((st) => (
+          <span key={st}>
+            <CellMark st={st} /> {legend[st]}
+          </span>
+        ))}
+    </p>
   );
 }
 

@@ -45,6 +45,7 @@ export function documentView(state: GovernanceState, d: DocumentRecord): Documen
     unitSlug: d.unitSlug,
     unit: d.unitSlug ? state.units.find((u) => u.id === d.unitSlug)?.name : undefined,
     featured: !!d.featured,
+    coverTone: d.coverTone,
     status: d.status,
   };
 }

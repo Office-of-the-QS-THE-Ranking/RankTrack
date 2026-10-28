@@ -3,10 +3,12 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { TabPanel } from "@/components/ui/interactive";
+import type { DashboardView } from "./DashboardViewSwitch";
 
-export function DashboardViewPanel({ view, children }: { view: "submissions" | "rankings"; children: ReactNode }) {
+export function DashboardViewPanel({ view, views, children }: { view: DashboardView; views: DashboardView[]; children: ReactNode }) {
   const reduceMotion = useReducedMotion();
-  const direction = view === "rankings" ? 1 : -1;
+  const index = views.indexOf(view);
+  const direction = index > 0 ? 1 : -1;
 
   return (
     <div style={{ minWidth: 0 }}>
@@ -24,7 +26,7 @@ export function DashboardViewPanel({ view, children }: { view: "submissions" | "
           exit="exit"
           transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
         >
-          <TabPanel idBase="dashboard-view" index={view === "rankings" ? 1 : 0}>
+          <TabPanel idBase="dashboard-view" index={index}>
             {children}
           </TabPanel>
         </motion.div>

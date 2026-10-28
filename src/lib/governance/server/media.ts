@@ -10,7 +10,7 @@ import "server-only";
  * bytes) reaches the public bucket (a PDF is copied as it is, once it reads as a PDF), and removed from there when
  * it stops being public. /media/… serves a public
  * file from the public bucket, and an internal one only to people who manage posts or the Directory. Files
- * attached to evidence (folder evidence/) never become public.
+ * attached to evidence (folder evidence/) and Workspace files (workspace/) never become public.
  *
  * public.media_uploads records who was handed each upload URL (only they may discard it) and when a file stopped
  * being used: a released file is kept for the backup retention period, so restoring a recovery point that still
@@ -32,8 +32,8 @@ const SWEEP_MS = 3_600_000;
 const UPLOAD_SECONDS = 2 * 3600;
 const DAY_MS = 86_400_000;
 
-type Folder = "posts" | "emblems" | "evidence" | "documents";
-const FOLDERS: Folder[] = ["posts", "emblems", "evidence", "documents"];
+type Folder = "posts" | "emblems" | "evidence" | "documents" | "workspace";
+const FOLDERS: Folder[] = ["posts", "emblems", "evidence", "documents", "workspace"];
 
 const g = globalThis as typeof globalThis & { __hubMedia?: { sweptAt: number; published: Set<string> } };
 /** `published`: keys this instance has seen in the public bucket, so serving them skips a lookup. */
@@ -91,6 +91,7 @@ export const mediaInUse = (state: GovernanceState) =>
     ...state.units.flatMap((u) => (u.emblem ? [u.emblem.src] : [])),
     ...state.requests.flatMap((request) => request.status === "Pending" && request.payload.kind === "org-unit" && request.payload.emblem ? [request.payload.emblem.src] : []),
     ...evidenceList(state).flatMap((e) => (e.attachments ?? []).map((f) => f.src)),
+    ...state.records.workspace.map((f) => f.src),
   ]);
 
 /** Unit logos are shown wherever the unit is, so every logo a unit carries is public. */

@@ -29,3 +29,22 @@ body:has(> .nf) {
   font-size: 1rem;
   line-height: 1.6;
 }
+
+/* A digital form's responder page (/f/<code>) reads in the portal's faces; the lockup keeps the identity's. */
+.site.fr {
+  --font-display: Arial, Helvetica, sans-serif;
+  --font-text: Arial, Helvetica, sans-serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-serif: Arial, Helvetica, sans-serif;
+  font-family: var(--font-text);
+}
+
+.site.fr :is(h1, h2, h3, h4, .fr-hero__title, .fr-card__title, .fr-done__title, .fr-shut__title) {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variation-settings: normal;
+}
+
+.site.fr .w-lockup__unit {
+  font-family: var(--font-crimson), "Minion Pro", Georgia, serif;
+}

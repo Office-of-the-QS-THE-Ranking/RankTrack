@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { NAV } from "@/components/shell/nav";
+import { navPages } from "@/components/shell/nav";
 import { Card, Empty, PageHeader } from "@/components/ui/primitives";
 import { moduleInfo } from "@/lib/governance/catalog";
 import { featureOn } from "@/lib/governance/derive";
@@ -16,7 +16,7 @@ import { viewerCan } from "@/lib/governance/viewer";
 export async function Gate({ path, title, children }: { path: string; title: string; children: ReactNode }) {
   const viewer = await getViewer();
   const variant = path.startsWith("/portal") ? "unit" : "office";
-  const item = NAV[variant].flatMap((g) => g.items).find((i) => i.href === path);
+  const item = navPages(variant).find((i) => i.href === path);
   // Fail closed: no session goes to sign-in (a layout isn't re-rendered on client navigation, so it can't be the
   // only check), and a path missing from the navigation is never shown by default.
   if (!viewer) redirect(`/signin?next=${encodeURIComponent(path)}`);

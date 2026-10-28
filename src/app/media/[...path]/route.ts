@@ -9,6 +9,8 @@ import { publicUrl, streamObject, type Bucket } from "@/lib/r2";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
 import { viewerCan } from "@/lib/governance/viewer";
+import { workspacePath } from "@/lib/governance/workspace";
+import { seesWorkspaceFile } from "@/lib/governance/server/workspace";
 
 /** The website's own pictures and the units' official arms (reference data, lib/governance/server/reference.ts). */
 const REFERENCE = /^\/media\/((?:site\/(?:photos|sdg)|units)\/[a-z0-9][a-z0-9._-]*\.(?:jpg|webp|png))$/;
@@ -58,6 +60,14 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
       if (file && viewerCan(viewer, "evidence", "view", { unitId: e.programId ?? e.unitSlug })) return serve("private", evidence, "private, no-store", file.name);
     }
     return missing();
+  }
+
+  const kept = workspacePath(src);
+  if (kept) {
+    // A Workspace file goes, as a download, to the people who may see its unit's evidence; a shared one to anyone using a workspace.
+    const file = (await readState()).records.workspace.find((f) => f.src === src);
+    if (!file || !seesWorkspaceFile(await getViewer(), file)) return missing();
+    return serve("private", kept, "private, no-store", file.name);
   }
 
   const doc = documentPath(src);

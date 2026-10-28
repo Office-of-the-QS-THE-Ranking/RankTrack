@@ -5,14 +5,14 @@
  * authorized and audited.
  */
 import type { Command, CommandResult, DocumentInput } from "../commands";
-import { cleanDoi, cleanUrl, DOC_LIMITS, DOC_NOUN, documentPath } from "../documents";
+import { cleanDoi, cleanUrl, DOC_COVER_TONES, DOC_LIMITS, DOC_NOUN, documentPath } from "../documents";
 import { slugify } from "../posts";
 import type { DocumentFile, DocumentKind, DocumentRecord } from "../types";
 import { can, clean, cleanText, deny, invalid, isDay, log, nextId, ok, type Ctx } from "./core";
 import { publishDocument } from "./mutations";
 import { needsApproval, openRequest } from "./requests";
 
-type Fields = Pick<DocumentRecord, "title" | "authors" | "venue" | "type" | "abstract" | "issued" | "doi" | "url" | "file" | "sdgs" | "keywords" | "unitSlug" | "featured">;
+type Fields = Pick<DocumentRecord, "title" | "authors" | "venue" | "type" | "abstract" | "issued" | "doi" | "url" | "file" | "sdgs" | "keywords" | "unitSlug" | "featured" | "coverTone">;
 
 const res = (d: { id: string; title: string }) => ({ type: "Document", id: d.id, label: d.title });
 
@@ -33,6 +33,7 @@ const PARTS: [keyof Fields, string][] = [
   ["keywords", "keywords"],
   ["unitSlug", "unit"],
   ["featured", "featured"],
+  ["coverTone", "cover color"],
 ];
 
 /** The PDF as the form sent it, or null when it isn't an upload of the Hub's. Its size was read from storage (actions/governance.ts). */
@@ -48,6 +49,7 @@ function pdf(f: unknown): DocumentFile | null {
 function read(ctx: Ctx, kind: DocumentKind, input: DocumentInput | undefined, publish: boolean): { fields: Fields } | { problem: string } {
   const i: Partial<DocumentInput> = input ?? {};
   const noun = DOC_NOUN[kind];
+  if (i.coverTone !== undefined && !DOC_COVER_TONES.some((tone) => tone.value === i.coverTone)) return { problem: "Choose a cover color from the list." };
   const title = clean(i.title, DOC_LIMITS.title);
   if (title.length < 4) return { problem: `Give the ${noun.one} a title of at least four characters.` };
 
@@ -105,6 +107,7 @@ function read(ctx: Ctx, kind: DocumentKind, input: DocumentInput | undefined, pu
       keywords,
       unitSlug: unitSlug || undefined,
       featured: i.featured === true || undefined,
+      coverTone: kind === "report" ? i.coverTone : undefined,
     },
   };
 }
@@ -205,6 +208,7 @@ export function saveDocument(ctx: Ctx, cmd: Extract<Command, { type: "document.s
     ...(f.file && { file: f.file }),
     ...(f.unitSlug && { unitSlug: f.unitSlug }),
     ...(f.featured && { featured: true }),
+    ...(f.coverTone && { coverTone: f.coverTone }),
     status: "Draft",
     createdBy: ctx.actor.id,
     createdAt: ctx.iso,

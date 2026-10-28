@@ -90,7 +90,7 @@ export function switchRole(ctx: Ctx, assignmentId: unknown) {
   if (!to) return invalid("That role is no longer yours. Reload to see your current roles.");
   const role = roleOf(to.roleId);
   const label = `${role?.name ?? to.roleId} · ${scopeLabel(to.scope, ctx.state.units)}`;
-  if (actingGrants(account, ctx.state.units, ctx.day)[0]?.assignmentId === to.id) return ok(`You are already acting as ${label}.`);
+  if (actingGrants(account, ctx.state.units, ctx.day, ctx.state.config.rolePermissions)[0]?.assignmentId === to.id) return ok(`You are already acting as ${label}.`);
   const from = ctx.actor.role;
   account.activeAssignment = to.id;
   log(ctx, "role.switch", "Access", { type: "Account", id: account.id, label: account.name }, "Success", `${from} → ${label}`);

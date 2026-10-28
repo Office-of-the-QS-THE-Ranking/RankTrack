@@ -120,8 +120,8 @@ input::-webkit-caps-lock-indicator {
   height: 6px;
   margin-top: 5px;
   border-radius: 50%;
-  background: var(--gold-500);
-  box-shadow: 0 0 0 2px rgb(242 183 5 / 0.18);
+  background: var(--cursor-tip-dot, var(--gold-500));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cursor-tip-dot, var(--gold-500)) 18%, transparent);
 }
 .cursor-tip.is-on {
   opacity: 1;

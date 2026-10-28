@@ -73,7 +73,8 @@ describe("store migrations", () => {
     // from the first migration that follows the rule; earlier ones are already applied
     for (const file of readdirSync(dir).filter((f) => f >= "20261027310000")) {
       const sql = readFileSync(path.join(dir, file), "utf8").replace(/--.*$/gm, "");
-      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits"].includes(t));
+      // form_responses lives outside the store on purpose (Digital Forms' responses and team copies).
+      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits", "form_responses"].includes(t));
       if (edits.length) expect(sql, file).toMatch(/update\s+public\.hub_meta\s+set\s+version\s*=\s*version\s*\+\s*1/i);
     }
   });

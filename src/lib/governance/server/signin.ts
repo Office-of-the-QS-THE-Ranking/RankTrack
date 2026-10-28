@@ -36,7 +36,7 @@ export function deviceOf(ua: string) {
 
 /** Where someone lands: the page they asked for if their active role's workspaces include it, else that role's workspace. */
 export function landing(state: GovernanceState, a: Account, next?: string) {
-  const ws = workspacesOf(actingGrants(a, state.units, today()));
+  const ws = workspacesOf(actingGrants(a, state.units, today(), state.config.rolePermissions));
   if (next?.startsWith("/admin") && ws.includes("office")) return next;
   if (next?.startsWith("/portal") && ws.includes("portal")) return next;
   return ws.includes("office") ? "/admin" : "/portal";
@@ -143,7 +143,7 @@ export async function completeSignIn(input: {
     if (a.status === "Deactivated") return fail("deactivated", "Deactivated");
     if (!a.external && !domainAllowed(s, a.email)) return fail("domain", `Outside ${s.security.sso.domains.join(", ")}`);
     if (a.external && !s.security.sso.allowGuests) return fail("guests", "Sponsored guest sign-in is switched off");
-    const grants = grantsFor(a, s.units, ctx.day);
+    const grants = grantsFor(a, s.units, ctx.day, s.config.rolePermissions);
     if (!activeAssignments(a, ctx.day).length || !workspacesOf(grants).length) return fail("no-role", "No active role");
 
     const known = a.id === existing?.id && seenDevice;
@@ -163,7 +163,7 @@ export async function completeSignIn(input: {
       a.statusChangedAt = ctx.iso;
       log(ctx, "account.activate", "Account", res(a), "Success", "Invitation accepted at first sign-in");
     }
-    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${input.device}${a.sessionPrefs?.stay ? " · stays signed in" : ""}`, { ...signingIn(a), role: actingGrants(a, s.units, ctx.day)[0]?.roleName ?? "No role" });
+    log(ctx, "session.signin", "Session", res(a), "Success", `Google Workspace · ${input.device}${a.sessionPrefs?.stay ? " · stays signed in" : ""}`, { ...signingIn(a), role: actingGrants(a, s.units, ctx.day, s.config.rolePermissions)[0]?.roleName ?? "No role" });
     if (!known && a.external) raiseAlert(ctx, "Suspicious sign-in", "Medium", `External partner ${a.name} signed in from a new device (${input.device}).`, a.id);
     return { ok: true, message: "Signed in" };
   });

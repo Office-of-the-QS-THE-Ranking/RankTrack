@@ -4,11 +4,8 @@ import { siteData } from "@/lib/governance/server/site";
 import { AdaptCoupon } from "../home/AdaptCoupon";
 import { byDate, storyCard } from "./cards";
 import { Newsroom } from "./Newsroom";
-import { PublicationsMasthead } from "./PublicationsMasthead";
 import type { PublicationFilters } from "./NewsFilters";
 import { serverViews } from "@/lib/governance/server/views";
-
-const UPDATED = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Manila" });
 
 /** Stories & News as a newsroom: the published stories, newest first, then the stories in figures. */
 export async function StoriesIndex({ theme, sdgs: selectedSdgs, publication }: { theme?: string; sdgs?: number[]; publication?: Partial<PublicationFilters> }) {
@@ -22,12 +19,6 @@ export async function StoriesIndex({ theme, sdgs: selectedSdgs, publication }: {
 
   return (
     <>
-      <PublicationsMasthead
-        section="stories"
-        lead="Thomasian work that changed something measurable, and how other universities can adapt it."
-        note={cards[0] && <>Updated <time dateTime={cards[0].date}>{UPDATED.format(new Date(cards[0].date))}</time></>}
-      />
-
       <section id="stories" className="w-wrap w-news-section" aria-label="Stories">
         <Newsroom cards={cards} theme={theme} sdgs={selectedSdgs} publication={publication} />
       </section>

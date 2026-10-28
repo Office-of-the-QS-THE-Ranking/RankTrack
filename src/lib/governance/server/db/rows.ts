@@ -20,6 +20,7 @@ import type {
   EvidenceLink,
   EvidenceRecord,
   EvidenceReference,
+  FormRecord,
   GovernanceState,
   OrgUnit,
   PostMedia,
@@ -30,6 +31,9 @@ import type {
   Scope,
   SecurityPolicy,
   SystemConfig,
+  WorkspaceFile,
+  WorkspaceFolder,
+  WorkingDoc,
 } from "../../types";
 
 export type Row = Record<string, unknown>;
@@ -94,6 +98,10 @@ export const TABLES = {
   deadline_findings: ["id"],
   deadline_watch: ["id"],
   documents: ["id"],
+  workspace_files: ["id"],
+  workspace_docs: ["id"],
+  workspace_folders: ["id"],
+  forms: ["id"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type TableName = keyof typeof TABLES;
@@ -440,6 +448,7 @@ function configRows(c: SystemConfig, r: Records, t: Tables) {
   );
   t.system_settings.push({
     id: 1,
+    ...(c.rolePermissions ? { role_permissions: c.rolePermissions } : {}),
     upload_max_file_mb: c.uploads.maxFileMB,
     upload_max_files: c.uploads.maxFiles,
     upload_types: c.uploads.types,
@@ -570,12 +579,86 @@ function recordRows(r: Records, t: Tables) {
       keywords: d.keywords,
       unit_id: nul(d.unitSlug),
       featured: d.featured ?? false,
+      cover_tone: nul(d.coverTone),
       status: d.status,
       created_by: d.createdBy,
       created_at: d.createdAt,
       updated_at: d.updatedAt,
       updated_by: d.updatedBy,
       published_at: nul(d.publishedAt),
+    }),
+  );
+  (r.workspace ?? []).forEach((f, i, all) =>
+    t.workspace_files.push({
+      id: f.id,
+      ord: prependOrd(i, all.length),
+      unit_id: nul(f.unitId),
+      shelf: f.shelf,
+      folder_id: nul(f.folderId),
+      name: f.name,
+      src: f.src,
+      bytes: f.bytes,
+      created_by: f.createdBy,
+      created_at: f.createdAt,
+      updated_at: f.updatedAt,
+      updated_by: f.updatedBy,
+      archived_at: nul(f.archivedAt),
+      archived_by: nul(f.archivedBy),
+    }),
+  );
+  (r.workspaceFolders ?? []).forEach((f, i) =>
+    t.workspace_folders.push({
+      id: f.id,
+      ord: appendOrd(i),
+      unit_id: nul(f.unitId),
+      shelf: f.shelf,
+      parent_id: nul(f.parentId),
+      name: f.name,
+      created_by: f.createdBy,
+      created_at: f.createdAt,
+      updated_at: f.updatedAt,
+      updated_by: f.updatedBy,
+    }),
+  );
+  (r.workingDocs ?? []).forEach((d, i, all) =>
+    t.workspace_docs.push({
+      id: d.id,
+      ord: prependOrd(i, all.length),
+      unit_id: nul(d.unitId),
+      title: d.title,
+      doc_date: d.date,
+      rankings: d.rankings,
+      sdgs: d.sdgs ?? [],
+      authors: d.authors ?? [],
+      status: d.status,
+      links: d.links,
+      remarks: d.remarks ?? "",
+      created_by: d.createdBy,
+      created_at: d.createdAt,
+      updated_at: d.updatedAt,
+      updated_by: d.updatedBy,
+    }),
+  );
+  (r.forms ?? []).forEach((f, i, all) =>
+    t.forms.push({
+      id: f.id,
+      ord: prependOrd(i, all.length),
+      unit_id: nul(f.unitId),
+      code: f.code,
+      prefix: f.prefix,
+      title: f.title,
+      description: f.description,
+      kind: f.kind,
+      reference: nul(f.reference),
+      issuer_id: nul(f.issuerId),
+      status: f.status,
+      closes_on: nul(f.closesOn),
+      copies: !!f.copies,
+      schema: f.schema,
+      created_by: f.createdBy,
+      created_at: f.createdAt,
+      updated_at: f.updatedAt,
+      updated_by: f.updatedBy,
     }),
   );
   for (const [slug, state] of Object.entries(r.stories)) t.story_states.push({ slug, state });
@@ -797,6 +880,7 @@ export function fromRows(t: Tables): Stored {
 
   const settings = single(t.system_settings, "system_settings");
   const config: SystemConfig = {
+    ...(settings.role_permissions ? { rolePermissions: settings.role_permissions as SystemConfig["rolePermissions"] } : {}),
     bodies: sorted(t.ranking_bodies).map((b) => ({ key: str(b.key), name: str(b.name), short: str(b.short), enabled: !!b.enabled, website: str(b.website) })),
     rankings: sorted(t.ranking_settings).map((x) =>
       tidy({
@@ -999,12 +1083,84 @@ export function fromRows(t: Tables): Stored {
         keywords: strs(x.keywords),
         unitSlug: opt(x.unit_id as string | null),
         featured: x.featured ? true : undefined,
+        coverTone: opt(x.cover_tone as string | null) as DocumentRecord["coverTone"],
         status: x.status as DocumentRecord["status"],
         createdBy: str(x.created_by),
         createdAt: iso(x.created_at),
         updatedAt: iso(x.updated_at),
         updatedBy: str(x.updated_by),
         publishedAt: isoOpt(x.published_at),
+      }),
+    ),
+    // Read as empty until the workspace migration reaches the database.
+    workspace: sorted(t.workspace_files ?? [], "prepend").map((x): WorkspaceFile =>
+      tidy({
+        id: str(x.id),
+        unitId: opt(x.unit_id as string | null),
+        shelf: x.shelf as WorkspaceFile["shelf"],
+        folderId: opt(x.folder_id as string | null),
+        name: str(x.name),
+        src: str(x.src),
+        bytes: num(x.bytes),
+        createdBy: str(x.created_by),
+        createdAt: iso(x.created_at),
+        updatedAt: iso(x.updated_at),
+        updatedBy: str(x.updated_by),
+        archivedAt: isoOpt(x.archived_at),
+        archivedBy: opt(x.archived_by as string | null),
+      }),
+    ),
+    // Read as empty until the folders migration reaches the database.
+    workspaceFolders: sorted(t.workspace_folders ?? [], "append").map((x): WorkspaceFolder =>
+      tidy({
+        id: str(x.id),
+        unitId: opt(x.unit_id as string | null),
+        shelf: x.shelf as WorkspaceFolder["shelf"],
+        parentId: opt(x.parent_id as string | null),
+        name: str(x.name),
+        createdBy: str(x.created_by),
+        createdAt: iso(x.created_at),
+        updatedAt: iso(x.updated_at),
+        updatedBy: str(x.updated_by),
+      }),
+    ),
+    // Read as empty until the working documents migration reaches the database.
+    workingDocs: sorted(t.workspace_docs ?? [], "prepend").map((x): WorkingDoc => ({
+      id: str(x.id),
+      unitId: opt(x.unit_id as string | null),
+      title: str(x.title),
+      date: str(x.doc_date).slice(0, 10),
+      rankings: strs(x.rankings),
+      sdgs: ints(x.sdgs),
+      authors: strs(x.authors),
+      status: x.status as WorkingDoc["status"],
+      links: strs(x.links),
+      remarks: str(x.remarks),
+      createdBy: str(x.created_by),
+      createdAt: iso(x.created_at),
+      updatedAt: iso(x.updated_at),
+      updatedBy: str(x.updated_by),
+    })),
+    // Read as empty until the digital forms migration reaches the database.
+    forms: sorted(t.forms ?? [], "prepend").map((x): FormRecord =>
+      tidy({
+        id: str(x.id),
+        unitId: opt(x.unit_id as string | null),
+        code: str(x.code),
+        prefix: str(x.prefix),
+        title: str(x.title),
+        description: str(x.description),
+        kind: x.kind as FormRecord["kind"],
+        reference: opt(x.reference as string | null),
+        issuerId: opt(x.issuer_id as string | null),
+        status: x.status as FormRecord["status"],
+        closesOn: x.closes_on ? str(x.closes_on).slice(0, 10) : undefined,
+        copies: x.copies === true || undefined,
+        schema: x.schema as FormRecord["schema"],
+        createdBy: str(x.created_by),
+        createdAt: iso(x.created_at),
+        updatedAt: iso(x.updated_at),
+        updatedBy: str(x.updated_by),
       }),
     ),
     postViewsStartedAt: iso(settings.post_views_since),

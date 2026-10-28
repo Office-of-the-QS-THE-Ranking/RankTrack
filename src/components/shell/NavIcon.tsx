@@ -11,6 +11,7 @@ import { ClipboardCheck } from "@/components/animate-ui/icons/clipboard-check";
 import { CloudUpload } from "@/components/animate-ui/icons/cloud-upload";
 import { FileText } from "@/components/animate-ui/icons/file-text";
 import { FolderClock } from "@/components/animate-ui/icons/folder-clock";
+import { FolderOpen } from "@/components/animate-ui/icons/folder-open";
 import { GraduationCap } from "@/components/animate-ui/icons/graduation-cap";
 import { Info } from "@/components/animate-ui/icons/info";
 import { LayoutDashboard } from "@/components/animate-ui/icons/layout-dashboard";
@@ -42,6 +43,7 @@ const ANIMATED: Partial<Record<IconName, ComponentType<IconProps<never>>>> = {
   innovation: Lightbulb,
   comment: MessageSquareText,
   history: FolderClock,
+  folder: FolderOpen,
   help: CircleQuestionMark,
 };
 

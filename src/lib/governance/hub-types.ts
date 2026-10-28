@@ -12,6 +12,7 @@ import type {
   DeadlineFinding,
   DeadlineWatch,
   DocumentFile,
+  DocumentCoverTone,
   DocumentKind,
   NotificationTemplate,
   PeriodConfig,
@@ -19,8 +20,12 @@ import type {
   PostStatus,
   RankingConfig,
   SystemConfig,
+  WorkspaceShelf,
+  WorkingDocStatus,
 } from "./types";
 import type { UnitEmblem } from "./unit-emblems";
+import type { Answers, FormKind, FormSchema, FormStatus, ResponseStatus, ReviewState, StageSpec, UnitSection } from "@/lib/forms/types";
+import type { CopyAccess } from "@/lib/forms/copies";
 
 export interface HubUnit extends Unit {
   code: string;
@@ -177,6 +182,7 @@ export interface DocumentView {
   unitSlug?: string;
   unit?: string;
   featured: boolean;
+  coverTone?: DocumentCoverTone;
   status: PostStatus;
 }
 
@@ -213,4 +219,233 @@ export interface PostDesk {
   live: boolean;
   /** The viewer, as the composer shows the author. */
   me: { name: string; unit: string; avatar?: string };
+}
+
+/** A Workspace file as the page shows it: names, not account ids. */
+export interface WorkspaceItem {
+  id: string;
+  shelf: WorkspaceShelf;
+  folderId?: string;
+  name: string;
+  src: string;
+  bytes: number;
+  /** One of the Office's shared files. */
+  shared: boolean;
+  addedBy: string;
+  addedAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  archivedBy?: string;
+}
+
+/** A Workspace folder as the page shows it. */
+export interface WorkspaceFolderItem {
+  id: string;
+  shelf: WorkspaceShelf;
+  parentId?: string;
+  name: string;
+  /** One of the Office's shared folders. */
+  shared: boolean;
+}
+
+/** A working document as the page shows it. */
+export interface WorkingDocItem {
+  id: string;
+  title: string;
+  date: string;
+  rankings: string[];
+  sdgs: number[];
+  authors: string[];
+  status: WorkingDocStatus;
+  links: string[];
+  remarks?: string;
+  addedBy: string;
+  updatedAt: string;
+}
+
+/** A unit's Working Documents. */
+export interface WorkingDesk {
+  /** Whose documents these are; null for the Office's own. */
+  unitId: string | null;
+  docs: WorkingDocItem[];
+  /** May add, change and remove them. */
+  canWrite: boolean;
+}
+
+/** One Workspace: a unit's (with the Office's shared files beside its own), or the Office's shared one. */
+export interface WorkspaceDesk {
+  /** Whose files are written here; null for the Office's shared files. */
+  unitId: string | null;
+  owner: string;
+  shelves: WorkspaceShelf[];
+  files: WorkspaceItem[];
+  folders: WorkspaceFolderItem[];
+  /** May add, rename, move, archive and delete the files (and folders) written here. */
+  canWrite: boolean;
+  uploads: { types: string[]; maxFileMB: number };
+}
+
+/** A digital form as the Digital Forms page shows it. */
+export interface FormItem {
+  id: string;
+  code: string;
+  prefix: string;
+  title: string;
+  description: string;
+  kind: FormKind;
+  reference?: string;
+  issuer?: { id: string; name: string };
+  status: FormStatus;
+  closesOn?: string;
+  /** Its link builds team copies, each a response with its own reference and link. */
+  copies: boolean;
+  /** The Office's form, in a unit's Workspace: open to fill in and share, not to change. */
+  shared: boolean;
+  /** The viewer runs it: details, status, responses and analytics. */
+  manage: boolean;
+  /** Its questions; the review's too for those who run it. */
+  schema: FormSchema;
+  /** For those who run it, team copies included from the moment they're built; `drafts` are the ones not sent yet. */
+  responses?: { total: number; week: number; lastAt?: string; drafts: number };
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+/** A unit a unit question can name, by Directory section. */
+export interface FormUnit {
+  id: string;
+  name: string;
+  section: UnitSection;
+  /** Nested under the unit before it, for the picker's indent. */
+  depth?: number;
+}
+
+/** The Digital Forms of a Workspace: a unit's own with the Office's open forms beside them, or the Office's. */
+export interface FormsDesk {
+  /** Whose forms are run here; null for the Office's. */
+  unitId: string | null;
+  /** May change the forms run here. */
+  canWrite: boolean;
+  /** Where responder links point: https://… */
+  origin: string;
+  forms: FormItem[];
+  units: FormUnit[];
+  /** Offices a form can name as its issuer. */
+  issuers: { id: string; name: string }[];
+}
+
+/** One response, for the people who run its form; a team copy is one from the moment it's built, "draft" until it's sent. */
+export interface FormResponseItem {
+  id: string;
+  ref: string;
+  answers: Answers;
+  review: ReviewState;
+  status: "draft" | ResponseStatus;
+  respondent: { name: string; email: string };
+  submittedAt: string;
+  updatedAt: string;
+  /** A team copy: its name and who started it. */
+  copy?: { label: string; owner: string };
+}
+
+/** A response that has been sent: what the review, analytics and export work on. */
+export type SentResponse = FormResponseItem & { status: ResponseStatus };
+
+export const isSent = (r: FormResponseItem): r is SentResponse => r.status !== "draft";
+
+/** A form as its responder link opens it: no review fields, nothing internal. */
+export interface ResponderForm {
+  code: string;
+  /** Starts each response's reference: CDP-0007. */
+  prefix: string;
+  title: string;
+  description: string;
+  kind: FormKind;
+  reference?: string;
+  issuer?: string;
+  /** The Faculty, College, Institute or School the issuer belongs to: the unit mark names it, with the issuer under it as a department. */
+  issuerUnit?: string;
+  status: FormStatus;
+  closesOn?: string;
+  schema: FormSchema;
+  /** The sign-offs a response goes through, in order, for the confirmation's "what happens next". */
+  stages: StageSpec[];
+  units: FormUnit[];
+  /** Opened by someone who runs it, before it takes responses: nothing is sent. */
+  preview: boolean;
+  /** Its link builds team copies (lib/forms/copies.ts) instead of opening on the questions. */
+  copies: boolean;
+}
+
+/** Who a form's pages know this browser to be: from Google sign-in on a form, or the Hub's own session. */
+export interface FormWho {
+  email: string;
+  name: string;
+  avatar?: string;
+  via: "google" | "hub";
+}
+
+/** A team copy in a list: the start page's "Your copies". */
+export interface CopySummary {
+  token: string;
+  ref: string;
+  label: string;
+  access: CopyAccess;
+  status: "draft" | ResponseStatus;
+  /** The viewer started it. */
+  mine: boolean;
+  editedAt: string;
+}
+
+/** Someone with a copy open now, by the page they have it open on. */
+export interface CopyPerson {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
+/** A sign-off as a sent copy's link shows it. */
+export interface CopyStage {
+  verb: string;
+  role: string;
+  state: "done" | "next" | "waiting" | "returned" | "declined";
+  on?: string;
+  note?: string;
+}
+
+/** A team copy as its link opens it. */
+/** Someone signed in with Google who asked a private copy's owner to let them open it. */
+export interface CopyRequest {
+  email: string;
+  name: string;
+  /** Their Google photo, as they asked or from their Hub account. */
+  avatar?: string;
+  at: string;
+}
+
+export interface CopyView {
+  token: string;
+  ref: string;
+  label: string;
+  access: CopyAccess;
+  /** Who started it: their Google name, or email. */
+  owner: string;
+  /** The viewer started it: may rename it and choose who can open it. */
+  mine: boolean;
+  /** Who else may open it when private; for its owner only. */
+  members?: string[];
+  /** Who asked to open it while private, oldest first; for its owner only. */
+  requests?: CopyRequest[];
+  /** Full names and photos of the people on it and asking, by email (Hub accounts, then the owner's directory); for its owner only. */
+  faces?: Record<string, { name: string; photo?: string }>;
+  version: number;
+  answers: Answers;
+  status: "draft" | ResponseStatus;
+  edited?: { by: string; at: string };
+  here: CopyPerson[];
+  /** The Realtime channel its open pages share changes on (lib/forms/copies.ts liveChannel); new whenever its sharing changes. */
+  live: string;
+  /** Once sent: when, and where its sign-offs stand. */
+  sent?: { at: string; stages: CopyStage[] };
 }

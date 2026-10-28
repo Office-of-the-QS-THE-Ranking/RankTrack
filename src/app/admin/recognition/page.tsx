@@ -1,13 +1,6 @@
-import { RecognitionWall } from "@/components/recognition/RecognitionWall";
+import { redirect } from "next/navigation";
 
-import { Gate } from "@/components/hub/Gate";
-
-export const metadata = { title: "Recognition" };
-
+/** The Recognition wall moved into the Dashboard as a tab; older links land there. */
 export default function Recognition() {
-  return (
-    <Gate path="/admin/recognition" title="Recognition">
-      <RecognitionWall mode="internal" />
-    </Gate>
-  );
+  redirect("/admin?view=recognition");
 }

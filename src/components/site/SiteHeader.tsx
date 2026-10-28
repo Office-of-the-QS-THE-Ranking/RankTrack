@@ -22,6 +22,8 @@ import { HubProvider } from "@/components/hub/HubProvider";
 import type { HubData } from "@/lib/governance/hub-types";
 import { Stars } from "./Stars";
 
+const isPublicationIndex = (path: string) => /^\/publications\/(stories|research|reports)\/?$/.test(path);
+
 const within = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
 /** The words a link's group heading stands in for ("THE " before "Impact Rankings"), for screen readers. */
@@ -73,6 +75,8 @@ function MenuAnchor({
   style?: CSSProperties;
   children: ReactNode;
 }) {
+  const pathname = usePathname() ?? "/";
+  const publicationSwitch = isPublicationIndex(pathname) && isPublicationIndex(href);
   const props = {
     className,
     style,
@@ -84,7 +88,7 @@ function MenuAnchor({
       <span className="sr-only"> (official website)</span>
     </a>
   ) : (
-    <Link href={href} {...props}>
+    <Link href={href} scroll={publicationSwitch ? false : undefined} prefetch={isPublicationIndex(href) ? true : undefined} {...props}>
       {children}
     </Link>
   );
@@ -226,6 +230,8 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
   const ref = useReference();
   const MENUS = menus ?? allMenus(ref);
   const pathname = usePathname() ?? "/";
+  // Switching publication indexes keeps the header’s current scroll state.
+  const scrollRoute = isPublicationIndex(pathname) ? "/publications" : pathname;
   const [panel, setPanel] = useState<string | null>(null);
   const [closing, setClosing] = useState<string | null>(null);
   const [search, setSearch] = useState(false);
@@ -263,7 +269,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
       const y = Math.max(0, Math.min(window.scrollY, root.scrollHeight - root.clientHeight));
       const delta = y - previousY;
       previousY = y;
-      const hero = pathname === "/" ? document.getElementById("hero") : null;
+      const hero = scrollRoute === "/" ? document.getElementById("hero") : null;
       const inLandingHero = hero !== null && hero.getBoundingClientRect().bottom > header.offsetHeight;
       if (inLandingHero || y <= 112 || panel || closing || search || sheetRef.current?.open || cursorNearTop || header.querySelector(":focus-visible")) {
         show();
@@ -297,7 +303,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
       window.removeEventListener("pointermove", onPointer);
       header.removeEventListener("focusin", show);
     };
-  }, [panel, closing, search, pathname]);
+  }, [panel, closing, search, scrollRoute]);
 
   // A closed panel stays drawn for its exit, so it lifts away instead of vanishing.
   const lastPanel = useRef<string | null>(null);

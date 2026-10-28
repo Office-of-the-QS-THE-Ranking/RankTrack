@@ -63,7 +63,7 @@ export function invite(ctx: Ctx, input: InviteInput): CommandResult {
   const read = readInvite(ctx, input);
   if (typeof read === "string") return invalid(read);
   const { person, unit, external } = read;
-  const role = roleOf(read.roleId)!;
+  const role = roleOf(read.roleId, ctx.state.config.rolePermissions)!;
   const target = { type: "Account", id: person.email, label: person.name };
   if (!can(ctx, "accounts", "create", { unitId: unit.id })) return deny(ctx, "account.invite", "Account", target, `You cannot add accounts to ${unit.name}.`);
   // Outside collaborators are sponsored by the Office, not by individual units.
@@ -219,7 +219,7 @@ function validScope(ctx: Ctx, scope: Scope): string | null {
 
 export function addRole(ctx: Ctx, accountId: string, roleId: string, scope: Scope, expires?: string, note?: string): CommandResult {
   const a = accountById(ctx, accountId);
-  const role = roleOf(roleId);
+  const role = roleOf(roleId, ctx.state.config.rolePermissions);
   if (!a || !role) return invalid("Choose a role.");
   if (a.status === "Deactivated") return invalid(`${a.name} is deactivated. Reactivate the account first.`);
   const blocked = guard(ctx, a, "edit", "assignment.add");
@@ -251,7 +251,7 @@ export function removeRole(ctx: Ctx, accountId: string, assignmentId: string): C
   if (a.id === ctx.actor.id) return deny(ctx, "assignment.remove", "Access", res(a), "Ask another administrator to change your own roles.");
   const blocked = guard(ctx, a, "edit", "assignment.remove");
   if (blocked) return blocked;
-  const role = roleOf(asg.roleId);
+  const role = roleOf(asg.roleId, ctx.state.config.rolePermissions);
   const lastAdmin = runsHub(asg) && a.assignments.filter((x) => runsHub(x) && (!x.expires || x.expires > ctx.day)).length === 1;
   if (lastAdmin && a.status === "Active" && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1) return invalid("This is the last active University-wide Administrator.");
   a.assignments = a.assignments.filter((x) => x.id !== assignmentId);
@@ -261,4 +261,4 @@ export function removeRole(ctx: Ctx, accountId: string, assignmentId: string): C
 }
 
 /** Recompute grants after a change, for callers that need the new picture in the same transaction. */
-export const grantsOf = (ctx: Ctx, a: Account) => grantsFor(a, ctx.state.units, ctx.day);
+export const grantsOf = (ctx: Ctx, a: Account) => grantsFor(a, ctx.state.units, ctx.day, ctx.state.config.rolePermissions);

@@ -2,9 +2,25 @@
  * Research articles and reports as both sides see them: the limits the form and the server share, where a
  * document's PDF may come from, and how a citation is written. No server code, so the form can import it.
  */
-import type { DocumentKind, DocumentRecord } from "./types";
+import type { DocumentCoverTone, DocumentKind, DocumentRecord } from "./types";
 
 export const DOC_LIMITS = { title: 220, authors: 30, author: 120, venue: 160, type: 60, abstract: 4000, keywords: 10, keyword: 40, url: 400, fileMb: 25, fileName: 160 } as const;
+
+/** Report cover colors shared by the editor, saved record and public display. */
+export const DOC_COVER_TONES: { value: DocumentCoverTone; label: string; color: string }[] = [
+  { value: "night", label: "Night", color: "#0b0d12" },
+  { value: "gold", label: "Gold", color: "#fcbf15" },
+  { value: "stone", label: "Stone", color: "#efece5" },
+  { value: "onyx", label: "Onyx", color: "#1d1b18" },
+];
+
+/** Existing reports keep the same automatic color unless an editor chooses another. */
+export function documentCoverTone(type: string, chosen?: DocumentCoverTone): DocumentCoverTone {
+  if (chosen) return chosen;
+  let hash = 0;
+  for (const c of type) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+  return DOC_COVER_TONES[hash % DOC_COVER_TONES.length].value;
+}
 
 /** What each kind is called, in the form, the table and the audit trail. */
 export const DOC_NOUN: Record<DocumentKind, { one: string; many: string; summary: string; venue: string; authors: string }> = {

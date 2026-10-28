@@ -7,6 +7,7 @@
  * records they can reach. The store keeps each entity in its own Supabase table (server/db/rows.ts maps
  * this model to them); the domain engine works on this model in memory, one transaction at a time.
  */
+import type { FormKind, FormSchema, FormStatus } from "@/lib/forms/types";
 
 export type ISODate = string; // 2026-10-21
 export type ISOTime = string; // 2026-10-21T08:30:00.000Z
@@ -50,8 +51,10 @@ export interface Scope {
   datasets: "all" | string[];
 }
 
-/** The Hub's four roles. They are fixed: what each one may do is set in catalog.ts, not in the store. */
+/** The Hub's four role identities. Their permissions can be configured by Rankings Office Administrators. */
 export type RoleId = "administrator" | "coordinator" | "student" | "external";
+
+export type RolePermissions = Partial<Record<RoleId, { permissions: PermissionSet; universityPermissions?: PermissionSet }>>;
 
 export interface Role {
   id: RoleId;
@@ -553,6 +556,7 @@ export interface FeatureFlag {
 }
 
 export interface SystemConfig {
+  rolePermissions?: RolePermissions;
   bodies: BodyConfig[];
   rankings: RankingConfig[];
   cycles: CycleConfig[];
@@ -715,6 +719,7 @@ export interface PostRecord {
 
 /** Publications beside the stories: research articles and reports. */
 export type DocumentKind = "article" | "report";
+export type DocumentCoverTone = "night" | "gold" | "stone" | "onyx";
 
 /** A PDF attached to a research article or report. Uploads live in the private bucket under documents/. */
 export interface DocumentFile {
@@ -749,6 +754,8 @@ export interface DocumentRecord {
   unitSlug?: string;
   /** Leads its page on the public website. At most one per kind. */
   featured?: boolean;
+  /** Optional report cover color; omitted lets the report type choose it. */
+  coverTone?: DocumentCoverTone;
   status: PostStatus;
   createdBy: string;
   createdAt: ISOTime;
@@ -758,6 +765,102 @@ export interface DocumentRecord {
   publishedAt?: ISOTime;
 }
 
+/** The Workspace's shelves of files. Archives is not a shelf: an archived file keeps its shelf to go back to. */
+export type WorkspaceShelf = "working" | "library";
+
+/** A file in the Workspace (portal and Office). Uploads live in the private bucket under workspace/ and are never public. */
+export interface WorkspaceFile {
+  id: string;
+  /** The unit whose Workspace holds it; absent for the Office's shared files, which every unit sees. */
+  unitId?: string;
+  shelf: WorkspaceShelf;
+  /** The folder of its shelf it sits in. Files go only inside folders; one without (none should be) shows in search. */
+  folderId?: string;
+  name: string;
+  src: string;
+  bytes: number;
+  createdBy: string;
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+  updatedBy: string;
+  archivedAt?: ISOTime;
+  archivedBy?: string;
+}
+
+/** A folder on a Workspace shelf. Folders nest; the owner (a unit, or the Office) is the same all the way down. */
+export interface WorkspaceFolder {
+  id: string;
+  /** As on its files: absent for the Office's shared folders. */
+  unitId?: string;
+  shelf: WorkspaceShelf;
+  /** The folder it sits in; absent at the shelf's top level. */
+  parentId?: string;
+  name: string;
+  createdBy: string;
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+  updatedBy: string;
+}
+
+/** Where a working document stands. */
+export type WorkingDocStatus = "Draft" | "In progress" | "For review" | "Final";
+
+/** A unit's working document: links to where it lives (Google Docs, Sheets, Drive, a PDF), not an upload. */
+export interface WorkingDoc {
+  id: string;
+  /** The unit whose Working Documents hold it; absent for the Office's own. */
+  unitId?: string;
+  title: string;
+  /** When the document is due, YYYY-MM-DD. */
+  date: string;
+  /** Ranking slugs it serves. */
+  rankings: string[];
+  /** SDG numbers it serves, 1 to 17. */
+  sdgs: number[];
+  /** Who writes it, as typed. */
+  authors: string[];
+  status: WorkingDocStatus;
+  /** https links, in the order they were pasted. */
+  links: string[];
+  remarks?: string;
+  createdBy: string;
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+  updatedBy: string;
+}
+
+/**
+ * A digital form in the Workspace: its details, its responder link (/f/<code>) and its questions
+ * (lib/forms/types.ts). Responses don't live in the store: each is a row of form_responses, read and written
+ * directly, so a busy form never rewrites the store.
+ */
+export interface FormRecord {
+  id: string;
+  /** The unit whose Digital Forms hold it; absent for the Office's, which every unit sees. */
+  unitId?: string;
+  /** The responder link's code, unique. */
+  code: string;
+  /** Starts each response's reference: CDP-0007. */
+  prefix: string;
+  title: string;
+  description: string;
+  kind: FormKind;
+  /** The paper form's control number, like UST:S040-00-FO21 rev06. */
+  reference?: string;
+  /** The unit that issues the form, named on its page. */
+  issuerId?: string;
+  status: FormStatus;
+  /** Takes no responses after this day (Manila), YYYY-MM-DD. */
+  closesOn?: ISODate;
+  /** Its link builds team copies (lib/forms/copies.ts) instead of opening on the questions. */
+  copies?: boolean;
+  schema: FormSchema;
+  createdBy: string;
+  createdAt: ISOTime;
+  updatedAt: ISOTime;
+  updatedBy: string;
+}
+
 export interface Records {
   /** Changes to the sample evidence and every new submission, by id. */
   evidence: Record<string, EvidenceRecord>;
@@ -765,6 +868,14 @@ export interface Records {
   posts: PostRecord[];
   /** Research articles and reports, newest first. */
   documents: DocumentRecord[];
+  /** Workspace files, newest first. */
+  workspace: WorkspaceFile[];
+  /** Workspace folders, oldest first. */
+  workspaceFolders: WorkspaceFolder[];
+  /** Working Documents (links), newest first. */
+  workingDocs: WorkingDoc[];
+  /** Digital Forms, newest first. Their responses are kept apart, in form_responses. */
+  forms: FormRecord[];
   /** When anonymous post view counting began (the counts are in hub_post_views). */
   postViewsStartedAt: ISOTime;
   /** Publication state of impact stories, by slug. "Deleted": one of the Hub's own stories that became a post. */

@@ -23,10 +23,12 @@ const origin = (url: string | undefined) => {
   }
 };
 
-/** Hosts the browser talks to: R2 for uploads (presigned PUTs) and the public bucket, Supabase and Google for sign-in. */
+/** Hosts the browser talks to: R2 for uploads (presigned PUTs) and the public bucket, Supabase and Google for sign-in, Supabase Realtime. */
 const R2_UPLOADS = process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : "";
 const R2_PUBLIC = origin(process.env.R2_PUBLIC_URL);
 const SUPABASE = origin(process.env.NEXT_PUBLIC_SUPABASE_URL);
+/** Supabase Realtime, for team copies of a digital form that update live. */
+const SUPABASE_LIVE = SUPABASE.replace(/^https:/, "wss:");
 
 function policy(nonce: string) {
   return [
@@ -37,7 +39,7 @@ function policy(nonce: string) {
     `img-src 'self' data: blob: https://*.googleusercontent.com ${R2_PUBLIC}`.trim(),
     `media-src 'self' blob: ${R2_PUBLIC}`.trim(),
     "font-src 'self' data:",
-    `connect-src 'self' ${R2_UPLOADS} ${DEV ? "ws: wss:" : ""}`.trim(),
+    `connect-src 'self' ${R2_UPLOADS} ${SUPABASE} ${SUPABASE_LIVE} ${DEV ? "ws: wss:" : ""}`.replace(/\s+/g, " ").trim(),
     `form-action 'self' https://accounts.google.com ${SUPABASE}`.trim(),
     "frame-src 'none'",
     "frame-ancestors 'none'",

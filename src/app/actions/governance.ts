@@ -18,7 +18,9 @@ import { allowAccount } from "@/lib/governance/server/limits";
 import { run } from "@/lib/governance/server/run";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
+import { adminDb } from "@/lib/supabase/server";
 import { statObject } from "@/lib/r2";
+import { workspacePath } from "@/lib/governance/workspace";
 
 const ENDED: CommandResult = { ok: false, message: "Your session has ended. Sign in again to continue." };
 const BUSY: CommandResult = { ok: false, message: "Too many changes in a short time. Wait a minute and try again." };
@@ -27,11 +29,32 @@ const BUSY: CommandResult = { ok: false, message: "Too many changes in a short t
 const EXPORT_MAX = 10_000;
 
 /**
- * Files named by evidence.submit, evidence.respond and document.save must be uploads that exist, within the upload
- * limit; their sizes come from storage, not from what the browser said.
+ * Files named by evidence.submit, evidence.respond, document.save and workspace.add must be uploads that exist,
+ * within the upload limit; their sizes come from storage, not from what the browser said.
  */
 async function checkAttachments(cmd: Command): Promise<string | null> {
+  if (cmd.type === "role.permissions") {
+    const { error } = await adminDb().from("system_settings" as never).select("role_permissions").limit(0);
+    if (error) return "Permission editing is temporarily unavailable. Apply the role permissions database migration and try again.";
+  }
+  if (cmd.type === "workspace.add") {
+    if (!Array.isArray(cmd.files)) return "Add the files again.";
+    const { maxFileMB } = (await readState()).config.uploads;
+    for (const f of cmd.files) {
+      const path = f && typeof f.src === "string" ? workspacePath(f.src) : null;
+      const stat = path ? await statObject("private", path).catch(() => null) : null;
+      if (!stat) return `${typeof f?.name === "string" ? f.name : "A file"} didn’t finish uploading. Add it again.`;
+      if (stat.size > maxFileMB * 1_048_576) return `${f.name} is larger than ${maxFileMB} MB.`;
+      f.bytes = stat.size;
+    }
+    return null;
+  }
   if (cmd.type === "document.save") {
+    // Older deployments must not report success while Postgres ignores the new optional column.
+    if (cmd.kind === "report" && cmd.input?.coverTone) {
+      const { error } = await adminDb().from("documents" as never).select("cover_tone").limit(0);
+      if (error) return "Cover colors are temporarily unavailable. Choose Automatic and save again.";
+    }
     const f = cmd.input?.file;
     if (!f) return null;
     const path = typeof f === "object" && typeof f.src === "string" ? documentPath(f.src) : null;

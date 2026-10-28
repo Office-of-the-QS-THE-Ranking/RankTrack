@@ -9,7 +9,7 @@ import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Stars } from "@/components/site/Stars";
-import { NAV, publicationsSubnav, type Variant } from "./nav";
+import { NAV, knowledgeHref, publicationsSubnav, workspaceSubnav, type NavLink, type Variant } from "./nav";
 import { officeStoryPath, storyPath } from "@/lib/publications";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import type { Views } from "@/lib/reference";
@@ -35,8 +35,6 @@ interface Hit {
 /** The last row: send the words to the indicator dictionary. It has no heading. */
 const MORE = "Search";
 
-const knowledgeHref = (variant: Variant) => (variant === "office" ? "/admin/knowledge" : variant === "unit" ? "/portal/knowledge" : "/knowledge");
-
 /* The index follows governance: pages the viewer's role opens, rankings that are tracked, and only the
    evidence, units and stories the viewer can reach. Dictionary terms only when the Knowledge Center is
    one of those pages. */
@@ -47,14 +45,20 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
   const PUBLISHED_STORIES = STORIES.filter((s) => s.state === "Published");
   const UNITS = hub?.units.filter((u) => u.status === "Active") ?? [];
   const target = variant === "unit" && viewer ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
+  const can = (need?: NavLink["need"]) => !need || !viewer || viewerCan(viewer, need[0], need[1], target);
   const pages: Entry[] = NAV[variant].flatMap((g) =>
     g.items
-      .filter((i) => (!i.need || !viewer || viewerCan(viewer, i.need[0], i.need[1], target)) && (!i.feature || feature(viewer, i.feature)))
-      .flatMap((i): Entry[] => [
-        { group: "Pages", label: i.label, href: i.href, icon: i.icon },
-        // Publications' sections are pages of their own.
-        ...(i.publicationsBase ? publicationsSubnav(i.publicationsBase).map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })) : []),
-      ]),
+      .filter((i) => can(i.need) && (!i.feature || feature(viewer, i.feature)))
+      .flatMap((i): Entry[] => {
+        const ws = i.workspace ? workspaceSubnav(i.workspace).filter((c) => can(c.need)) : [];
+        if (i.workspace && !ws.length) return [];
+        return [
+          { group: "Pages", label: i.label, href: i.href, icon: i.icon },
+          // Publications' sections and the Workspace's pages are pages of their own.
+          ...(i.publicationsBase ? publicationsSubnav(i.publicationsBase).map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })) : []),
+          ...ws.map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })),
+        ];
+      }),
   );
   const rankingBase = variant === "office" ? "/admin/rankings" : "/rankings";
   const rankings: Entry[] = RANKINGS.map((r) => ({

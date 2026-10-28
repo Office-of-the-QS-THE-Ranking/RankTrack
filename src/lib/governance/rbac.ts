@@ -4,7 +4,7 @@
  * decides which records they can reach.
  */
 import { HUB_OFFICE, MODULES, ROLE, roleOf } from "./catalog";
-import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Role, RoleId, Scope } from "./types";
+import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Role, RoleId, RolePermissions, Scope } from "./types";
 
 export const today = (now = new Date()) => now.toISOString().slice(0, 10);
 
@@ -36,8 +36,8 @@ export function normalize(set: PermissionSet): PermissionSet {
 }
 
 /** A role's permissions; with a scope, what it holds there (a University-wide Administrator holds more). */
-export const rolePermissions = (roleId: string, scope?: Pick<Scope, "units">): PermissionSet => {
-  const role = roleOf(roleId);
+export const rolePermissions = (roleId: string, scope?: Pick<Scope, "units">, overrides?: RolePermissions): PermissionSet => {
+  const role = roleOf(roleId, overrides);
   return role ? (scope ? permissionsAt(role, scope) : role.permissions) : {};
 };
 
@@ -136,9 +136,9 @@ export interface Grant {
   tier: number;
 }
 
-export function grantsFor(account: Account, units: OrgUnit[], day: string): Grant[] {
+export function grantsFor(account: Account, units: OrgUnit[], day: string, overrides?: RolePermissions): Grant[] {
   return activeAssignments(account, day).flatMap((a) => {
-    const role = roleOf(a.roleId);
+    const role = roleOf(a.roleId, overrides);
     if (!role) return [];
     const reach = a.scope.units === "all" ? "all" : [...new Set(a.scope.units.flatMap((id) => descendants(units, id)))];
     return [
@@ -191,11 +191,15 @@ export const topTier = (grants: Grant[]) => topGrant(grants)?.tier ?? 0;
  * What someone can do right now: one role at a time. The assignment they switched to, or their highest role until
  * they choose one or once the chosen one ends. The roles they hold but aren't acting in grant nothing meanwhile.
  */
-export function actingGrants(account: Account, units: OrgUnit[], day: string): Grant[] {
-  const held = grantsFor(account, units, day);
+export function actingGrants(account: Account, units: OrgUnit[], day: string, overrides?: RolePermissions): Grant[] {
+  const held = grantsFor(account, units, day, overrides);
   const acting = held.find((g) => g.assignmentId === account.activeAssignment) ?? topGrant(held);
   return acting ? [acting] : [];
 }
+
+/** Only an active Rankings Office Administrator acting University-wide may edit the four roles. */
+export const canEditRolePermissions = (account: Pick<Account, "unitId" | "status">, grants: Grant[]) =>
+  account.status === "Active" && account.unitId === HUB_OFFICE && grants.some((g) => g.roleId === ROLE.admin && g.scopeUnits === "all");
 
 /**
  * Nobody can grant more than they hold: the role's permissions must sit inside the actor's own, and the

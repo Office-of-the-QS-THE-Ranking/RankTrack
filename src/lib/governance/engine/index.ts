@@ -17,7 +17,10 @@ import * as documents from "./documents";
 import * as posts from "./posts";
 import * as records from "./records";
 import * as requests from "./requests";
+import * as forms from "./forms";
+import * as workspace from "./workspace";
 import * as security from "./security";
+import { updateRolePermissions } from "./roles";
 
 export { actorFor, makeCtx, SYSTEM, GUEST, type Actor, type Ctx, type AuditDraft, type Effect } from "./core";
 export { decisionBlock, needsApproval } from "./requests";
@@ -77,6 +80,8 @@ export function housekeeping(ctx: Ctx) {
 
 export function execute(ctx: Ctx, cmd: Command): CommandResult {
   switch (cmd.type) {
+    case "role.permissions":
+      return updateRolePermissions(ctx, cmd);
     case "account.invite":
       return accounts.invite(ctx, cmd.input);
     case "account.update":
@@ -233,6 +238,32 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return documents.setDocumentStatus(ctx, cmd.id, cmd.status);
     case "document.delete":
       return documents.deleteDocument(ctx, cmd.id);
+    case "workspace.add":
+      return workspace.addFiles(ctx, cmd);
+    case "workspace.edit":
+      return workspace.editFile(ctx, cmd);
+    case "workspace.folder":
+      return workspace.saveFolder(ctx, cmd);
+    case "workspace.folderDelete":
+      return workspace.deleteFolder(ctx, cmd);
+    case "workspace.archive":
+      return workspace.archiveFiles(ctx, cmd);
+    case "workspace.delete":
+      return workspace.deleteFiles(ctx, cmd);
+    case "workdoc.save":
+      return workspace.saveDoc(ctx, cmd);
+    case "workdoc.status":
+      return workspace.setDocStatus(ctx, cmd);
+    case "workdoc.delete":
+      return workspace.deleteDocs(ctx, cmd);
+    case "form.save":
+      return forms.saveForm(ctx, cmd);
+    case "form.status":
+      return forms.setFormStatus(ctx, cmd);
+    case "form.duplicate":
+      return forms.duplicateForm(ctx, cmd);
+    case "form.delete":
+      return forms.deleteForm(ctx, cmd);
     case "innovation.propose":
       return records.proposeInnovation(ctx, cmd.unitSlug, cmd.name, cmd.category);
     case "assistance.request":

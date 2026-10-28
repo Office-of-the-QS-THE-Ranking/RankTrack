@@ -3,21 +3,25 @@ import Image from "next/image";
 export const UNIVERSITY = "University of Santo Tomas";
 
 /**
- * Unit mark from the Visual Identity Manual ("Unit Marks and Name Hierarchy"): the registered seal on
- * the left, the University name on the first line, the unit on the second, aligned left because the
- * Office has no logo of its own. The seal is the official file from ust.edu.ph, never redrawn, and is
- * shown at 48px or more (the manual's 0.5 inch minimum beside a logotype). On dark grounds the reverse
- * seal (white ring text) is required.
+ * Unit mark from the Visual Identity Manual ("Typography" and "Unit Marks and Name Hierarchy"): the
+ * registered seal on the left, the University name in Trajan capitals, the unit in Minion capitals under it
+ * and any department under the unit in the same face and size, no longer in capitals, all aligned left.
+ * The seal is the official file from ust.edu.ph, whole with its ®, never redrawn, and is shown at 48px or
+ * more (the manual's 0.5 inch minimum beside a logotype). On dark grounds the reverse seal (white ring
+ * text) is required.
  */
 export function Lockup({
   unit,
+  department,
   reverse,
   className,
   sizes = "(max-width: 700px) 48px, 60px",
   preload,
 }: {
-  /** The Office's name (reference data: office_profile). */
+  /** The unit's name: the Office (reference data: office_profile), a faculty, a college or an institute. */
   unit: string;
+  /** A department under the unit. */
+  department?: string;
   reverse?: boolean;
   className?: string;
   sizes?: string;
@@ -37,6 +41,7 @@ export function Lockup({
       <span className="w-lockup__words">
         <span className="w-lockup__name">{UNIVERSITY}</span>
         <span className="w-lockup__unit">{unit}</span>
+        {department && <span className="w-lockup__unit w-lockup__dept">{department}</span>}
       </span>
     </span>
   );

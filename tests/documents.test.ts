@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { fromRows, toRows } from "@/lib/governance/server/db/rows";
 import { ROLE } from "@/lib/governance/catalog";
 import { UNIVERSITY } from "@/lib/governance/rbac";
 import type { DocumentInput } from "@/lib/governance/commands";
@@ -35,6 +36,26 @@ function office() {
 }
 
 describe("research articles and reports", () => {
+  it("save, change and reset a report's cover color", () => {
+    const w = office();
+    const report = input({ type: "Annual report", coverTone: "gold" });
+    expect(execute(w.ctx(), { type: "document.save", kind: "report", input: report, publish: false }).ok).toBe(true);
+    const doc = w.state.records.documents[0];
+    expect(doc.coverTone).toBe("gold");
+    expect(fromRows(toRows(w.state)).records.documents[0].coverTone).toBe("gold");
+    expect(execute(w.ctx(), { type: "document.save", kind: "report", id: doc.id, input: { ...report, coverTone: "stone" }, publish: false }).ok).toBe(true);
+    expect(doc.coverTone).toBe("stone");
+    expect(execute(w.ctx(), { type: "document.save", kind: "report", id: doc.id, input: { ...report, coverTone: undefined }, publish: false }).ok).toBe(true);
+    expect(doc.coverTone).toBeUndefined();
+  });
+
+  it("refuse unsupported cover colors without creating a document", () => {
+    const w = office();
+    const bad = input({ type: "Annual report", coverTone: "red" as DocumentInput["coverTone"] });
+    expect(execute(w.ctx(), { type: "document.save", kind: "report", input: bad, publish: false }).ok).toBe(false);
+    expect(w.state.records.documents).toHaveLength(0);
+  });
+
   it("save a draft, cleaned", () => {
     const w = office();
     const r = execute(w.ctx(), { type: "document.save", kind: "article", input: input(), publish: false });

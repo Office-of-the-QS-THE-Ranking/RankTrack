@@ -1632,6 +1632,11 @@ a.list__main:hover {
   width: max-content;
   max-width: min(280px, calc(100vw - 32px));
 }
+.info-tooltip__content--success {
+  border-color: #183d2f;
+  background: #183d2f;
+  color: #ffffff;
+}
 .popwrap {
   position: relative;
 }

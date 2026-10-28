@@ -426,6 +426,7 @@ const isIso = (s: string | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}
 
 const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { ...o, timeZone: "UTC" });
 const SHOWN = fmt({ day: "numeric", month: "short", year: "numeric" });
+const SHOWN_LONG = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const SPOKEN = fmt({
   weekday: "long",
   day: "numeric",
@@ -437,12 +438,16 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => fmt({ month: "short" }).form
 const MONTHS_LONG = Array.from({ length: 12 }, (_, i) => fmt({ month: "long" }).format(Date.UTC(2026, i, 1)));
 const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** "25 Oct 2026", the way a picked date reads in its field. */
-export const formatPicked = (iso: string) => (isIso(iso) ? SHOWN.format(utc(iso)) : "");
+/** A picked date, optionally using the full month-first format used by digital forms. */
+export const formatPicked = (iso: string, displayFormat: "short" | "long" = "short") => (isIso(iso) ? (displayFormat === "long" ? SHOWN_LONG : SHOWN).format(utc(iso)) : "");
 
 type View = "days" | "months" | "years";
 
 export interface DateFieldProps {
+  /** Used by DateRangeField to select both endpoints in the shared calendar. */
+  rangeEnd?: string;
+  onRangeChange?: (from: string, to: string) => void;
+  displayFormat?: "short" | "long";
   /** ISO date (YYYY-MM-DD), or "" for none. */
   value: string;
   onChange: (value: string) => void;
@@ -458,8 +463,15 @@ export interface DateFieldProps {
   "aria-describedby"?: string;
 }
 
-export function DateField({ value, onChange, min, max, className = "input", placeholder = "Choose a date", id, name, required, disabled, ...aria }: DateFieldProps) {
+export function DateField({ value, onChange, min, max, className = "input", placeholder = "Choose a date", id, name, required, disabled, displayFormat = "short", rangeEnd, onRangeChange, ...aria }: DateFieldProps) {
   const [open, setOpen] = useState(false);
+  const [pickingEnd, setPickingEnd] = useState(false);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const drag = useRef<{ start: string; end: string; pointer: number; x: number; y: number; moved: boolean; beforeFrom: string; beforeTo: string } | null>(null);
+  const suppressClick = useRef(false);
+  const rangeChange = useRef(onRangeChange);
+  rangeChange.current = onRangeChange;
+  const range = !!onRangeChange;
   const [view, setView] = useState<View>("days");
   const [focus, setFocus] = useState(value || localToday());
   const jump = useRef(false);
@@ -471,6 +483,55 @@ export function DateField({ value, onChange, min, max, className = "input", plac
   const today = localToday();
   const [fy, fm] = parts(focus);
 
+  useEffect(() => {
+    if (!open || !range) return;
+    const move = (event: PointerEvent) => {
+      const active = drag.current;
+      if (!active || active.pointer !== event.pointerId) return;
+      const day = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLButtonElement>("button[data-date]");
+      const iso = day?.dataset.date;
+      if (!day || !pop.current?.contains(day) || day.disabled || !iso) return;
+      if (!active.moved && (iso === active.start || Math.hypot(event.clientX - active.x, event.clientY - active.y) < 4)) return;
+      if (!active.moved) rangeChange.current?.(active.start, "");
+      active.moved = true;
+      active.end = iso;
+      setPickingEnd(true);
+      setHovered(iso);
+      event.preventDefault();
+    };
+    const release = (event: PointerEvent) => {
+      const active = drag.current;
+      if (!active || active.pointer !== event.pointerId) return;
+      drag.current = null;
+      if (!active.moved) return;
+      suppressClick.current = true;
+      const [from, to] = active.start <= active.end ? [active.start, active.end] : [active.end, active.start];
+      rangeChange.current?.(from, to);
+      setPickingEnd(false);
+      setHovered(null);
+      setFocus(from);
+      setOpen(false);
+      anchor.current?.focus({ preventScroll: true });
+    };
+    const cancel = (event: PointerEvent) => {
+      const active = drag.current;
+      if (!active || active.pointer !== event.pointerId) return;
+      drag.current = null;
+      if (active?.moved) rangeChange.current?.(active.beforeFrom, active.beforeTo);
+      setPickingEnd(false);
+      setHovered(null);
+    };
+    document.addEventListener("pointermove", move, { passive: false });
+    document.addEventListener("pointerup", release);
+    document.addEventListener("pointercancel", cancel);
+    return () => {
+      drag.current = null;
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", release);
+      document.removeEventListener("pointercancel", cancel);
+    };
+  }, [open, range, anchor, pop]);
+
   // Keyboard moves and view changes carry focus to the matching cell; pointer moves leave it alone.
   useEffect(() => {
     if (!open || !jump.current) return;
@@ -481,8 +542,11 @@ export function DateField({ value, onChange, min, max, className = "input", plac
   const show = () => {
     if (disabled) return;
     jump.current = true;
+    suppressClick.current = false;
     setFocus(clamp(isIso(value) ? value : today));
     setView("days");
+    setPickingEnd(range && isIso(value) && !isIso(rangeEnd));
+    setHovered(null);
     setOpen(true);
   };
   const close = (refocus: boolean) => {
@@ -490,18 +554,37 @@ export function DateField({ value, onChange, min, max, className = "input", plac
     if (refocus) anchor.current?.focus();
   };
   const pick = (iso: string) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
     recheckField(anchor.current);
+    if (onRangeChange) {
+      if (!pickingEnd || !isIso(value)) {
+        jump.current = true;
+        onRangeChange(iso, "");
+        setPickingEnd(true);
+        setHovered(null);
+        setFocus(iso);
+      } else {
+        onRangeChange(iso < value ? iso : value, iso < value ? value : iso);
+        setPickingEnd(false);
+        close(true);
+      }
+      return;
+    }
     if (iso !== value) onChange(iso);
     close(true);
   };
   const moveTo = (iso: string) => {
     jump.current = true;
+    setHovered(null);
     setFocus(clamp(iso));
   };
 
   const onGridKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const k = e.key;
-    const dow = utc(focus).getUTCDay();
+    const dow = (utc(focus).getUTCDay() + (range ? 6 : 0)) % 7;
     const moves: Record<string, () => string> = {
       ArrowLeft: () => addDays(focus, -1),
       ArrowRight: () => addDays(focus, 1),
@@ -526,6 +609,9 @@ export function DateField({ value, onChange, min, max, className = "input", plac
   };
 
   const yearStart = Math.floor(fy / 12) * 12;
+  const end = range && pickingEnd ? hovered ?? focus : rangeEnd;
+  const rangeStart = isIso(value) && isIso(end) ? (value < end ? value : end) : value;
+  const rangeLast = isIso(value) && isIso(end) ? (value > end ? value : end) : value;
   const minY = min ? parts(min)[0] : -Infinity;
   const maxY = max ? parts(max)[0] : Infinity;
   const monthOpen = (y: number, m: number) => (!max || toIso(y, m, 1) <= max) && (!min || toIso(y, m, daysIn(y, m)) >= min);
@@ -537,17 +623,17 @@ export function DateField({ value, onChange, min, max, className = "input", plac
   if (view === "days") {
     title = MONTH_YEAR.format(Date.UTC(fy, fm - 1, 1));
     const first = toIso(fy, fm, 1);
-    const start = addDays(first, -utc(first).getUTCDay());
+    const start = addDays(first, -((utc(first).getUTCDay() + (range ? 6 : 0)) % 7));
     const before = addDays(first, -1);
     const after = toIso(fy, fm, daysIn(fy, fm));
     if (!min || before >= min) prev = () => setFocus(clamp(addMonths(focus, -1)));
     if (!max || addDays(after, 1) <= max) next = () => setFocus(clamp(addMonths(focus, 1)));
     body = (
-      <div role="grid" aria-labelledby={`${base}-title`} className="pick-cal__grid" onKeyDown={onGridKey}>
+      <div role="grid" aria-labelledby={`${base}-title`} aria-multiselectable={range || undefined} className={cx("pick-cal__grid", range && "pick-cal__grid--range")} onKeyDown={onGridKey} onMouseLeave={() => { if (!drag.current?.moved) setHovered(null); }}>
         <div role="row" className="pick-cal__row pick-cal__week">
-          {WEEK.map((w) => (
+          {(range ? [...WEEK.slice(1), WEEK[0]] : WEEK).map((w) => (
             <abbr key={w} role="columnheader" title={w} aria-label={w}>
-              {w[0]}
+              {range ? w.slice(0, 3).toUpperCase() : w[0]}
             </abbr>
           ))}
         </div>
@@ -557,18 +643,29 @@ export function DateField({ value, onChange, min, max, className = "input", plac
               const iso = addDays(start, r * 7 + c);
               const day = parts(iso)[2];
               const outside = iso.slice(0, 7) !== first.slice(0, 7);
+              const inRange = range && isIso(rangeStart) && isIso(rangeLast) && iso >= rangeStart && iso <= rangeLast;
+              const endpoint = range ? iso === value || iso === (pickingEnd ? end : rangeEnd) : iso === value;
               return (
-                <div role="gridcell" key={iso} aria-selected={iso === value}>
+                <div role="gridcell" key={iso} aria-selected={range ? !!inRange : iso === value} data-range={inRange ? rangeStart === rangeLast ? "single" : iso === rangeStart ? "start" : iso === rangeLast ? "end" : "between" : undefined}>
                   <button
                     type="button"
                     className={cx("pick-cal__day", outside && "is-outside")}
                     data-focus={iso === focus}
+                    data-date={iso}
                     tabIndex={iso === focus ? 0 : -1}
                     disabled={!within(iso)}
                     aria-label={SPOKEN.format(utc(iso))}
-                    aria-pressed={iso === value}
+                    aria-pressed={endpoint}
                     aria-current={iso === today ? "date" : undefined}
                     onClick={() => pick(iso)}
+                    onPointerDown={(event) => {
+                      if (!range || event.button !== 0 || !event.isPrimary) return;
+                      event.currentTarget.focus({ preventScroll: true });
+                      event.preventDefault();
+                      suppressClick.current = false;
+                      drag.current = { start: iso, end: iso, pointer: event.pointerId, x: event.clientX, y: event.clientY, moved: false, beforeFrom: value, beforeTo: rangeEnd ?? "" };
+                    }}
+                    onMouseEnter={() => range && pickingEnd && within(iso) && setHovered(iso)}
                   >
                     {day}
                   </button>
@@ -647,7 +744,7 @@ export function DateField({ value, onChange, min, max, className = "input", plac
         aria-expanded={open}
         aria-label={aria["aria-label"]}
         aria-describedby={aria["aria-describedby"]}
-        className={cx(className, "pick-trigger pick-date")}
+        className={cx(className, "pick-trigger pick-date", range && "pick-date--range")}
         data-placeholder={isIso(value) ? undefined : ""}
         disabled={disabled}
         onClick={() => (open ? close(false) : show())}
@@ -658,17 +755,17 @@ export function DateField({ value, onChange, min, max, className = "input", plac
           }
         }}
       >
-        <span className="pick-trigger__label">{isIso(value) ? formatPicked(value) : placeholder}</span>
+        <span className="pick-trigger__label">{isIso(value) ? `${formatPicked(value, displayFormat)}${range ? ` – ${isIso(rangeEnd) ? formatPicked(rangeEnd, displayFormat) : "Last day"}` : ""}` : placeholder}</span>
         <Icon name="calendar" size={16} className="pick-date__icon" />
       </button>
-      <Proxy name={name} value={value} required={required} disabled={disabled} missing="Choose a date." />
+      <Proxy name={name} value={range ? isIso(value) && isIso(rangeEnd) ? `${value}/${rangeEnd}` : "" : value} required={required} disabled={disabled} missing={range ? "Choose the first and last day." : "Choose a date."} />
       {open && (
         <div
           ref={pop}
           popover="manual"
           role="dialog"
           aria-label={aria["aria-label"] ? `Choose ${aria["aria-label"].toLowerCase()}` : "Choose a date"}
-          className="pick pick--cal"
+          className={cx("pick pick--cal", range && "pick--cal--range")}
           onClick={keepLabel}
           onKeyDown={(e) => {
             if (e.key !== "Escape") return;
@@ -696,15 +793,27 @@ export function DateField({ value, onChange, min, max, className = "input", plac
                 <Icon name="chevron" size={16} />
               </button>
             </div>
+            {range && <p className="pick-cal__range-hint" role="status">{pickingEnd ? "Choose the last day" : "Choose the first day, or drag across dates"}</p>}
             {body}
-            {(within(today) || (!required && isIso(value))) && (
+            {(range || within(today) || (!required && isIso(value))) && (
               <div className="pick-cal__foot">
                 {within(today) && (
                   <button type="button" className="pick-cal__link" onClick={() => pick(today)}>
                     Today
                   </button>
                 )}
-                {!required && isIso(value) && (
+                {range && <button type="button" className="pick-cal__reset" onClick={() => {
+                  drag.current = null;
+                  suppressClick.current = false;
+                  onRangeChange?.("", "");
+                  setPickingEnd(false);
+                  setHovered(null);
+                  setView("days");
+                  setFocus(clamp(today));
+                  jump.current = true;
+                  recheckField(anchor.current);
+                }}>Reset</button>}
+                {!range && !required && isIso(value) && (
                   <button
                     type="button"
                     className="pick-cal__link"
@@ -725,9 +834,16 @@ export function DateField({ value, onChange, min, max, className = "input", plac
   );
 }
 
+/** One field and one shared calendar for both ends of a range. */
+export function DateRangeField({ value, onChange, ...rest }: Omit<DateFieldProps, "value" | "onChange" | "rangeEnd" | "onRangeChange"> & { value: { from: string; to: string }; onChange: (value: { from: string; to: string }) => void }) {
+  return <DateField {...rest} value={value.from} rangeEnd={value.to} onChange={(from) => onChange({ from, to: "" })} onRangeChange={(from, to) => onChange({ from, to })} />;
+}
+
 /* ---------- NumberField ---------- */
 
 export interface NumberFieldProps {
+  /** Report an empty edit as NaN so optional form questions can clear their stored value. */
+  allowEmpty?: boolean;
   value: number;
   onChange: (value: number) => void;
   min?: number;
@@ -736,12 +852,17 @@ export interface NumberFieldProps {
   className?: string;
   id?: string;
   disabled?: boolean;
+  suffix?: string;
   "aria-label"?: string;
 }
 
 /** A number box with the Hub's own steppers in place of the browser's spin buttons. */
-export function NumberField({ value, onChange, min, max, step = 1, className = "input", id, disabled, ...aria }: NumberFieldProps) {
-  const nudge = (dir: 1 | -1) => onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, (Number.isFinite(value) ? value : 0) + dir * step)));
+export function NumberField({ value, onChange, min, max, step = 1, className = "input", id, disabled, suffix, allowEmpty = false, ...aria }: NumberFieldProps) {
+  const [blank, setBlank] = useState(false);
+  const nudge = (dir: 1 | -1) => {
+    setBlank(false);
+    onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, (Number.isFinite(value) ? value : 0) + dir * step)));
+  };
   return (
     <span className={cx(className, "pick-num")} data-disabled={disabled || undefined}>
       <input
@@ -749,14 +870,19 @@ export function NumberField({ value, onChange, min, max, step = 1, className = "
         type="number"
         inputMode="numeric"
         className="pick-num__field"
-        value={Number.isFinite(value) ? value : ""}
+        value={blank ? "" : Number.isFinite(value) ? value : ""}
         min={min}
         max={max}
         step={step}
         disabled={disabled}
         aria-label={aria["aria-label"]}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onBlur={() => setBlank(false)}
+        onChange={(e) => {
+          setBlank(e.target.value === "");
+          onChange(e.target.value === "" && allowEmpty ? NaN : Number(e.target.value));
+        }}
       />
+      {suffix && <span className="pick-num__suffix" aria-hidden="true">{suffix}</span>}
       <button type="button" className="pick-num__step pick-num__step--down" tabIndex={-1} aria-label="Decrease" disabled={disabled || (min !== undefined && value <= min)} onClick={() => nudge(-1)}>
         <Icon name="minus" size={14} />
       </button>

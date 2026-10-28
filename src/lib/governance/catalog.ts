@@ -1,4 +1,4 @@
-import type { Action, BodyKey, Classification, ModuleKey, PermissionSet, Role, RoleId } from "./types";
+import type { Action, BodyKey, Classification, ModuleKey, PermissionSet, Role, RoleId, RolePermissions } from "./types";
 
 /** Contact addresses a unit's profile may list. */
 export const UNIT_EMAILS = 6;
@@ -156,7 +156,18 @@ export const ROLES: Role[] = [
   },
 ];
 
-export const roleOf = (id: string) => ROLES.find((r) => r.id === id);
+export const roleOf = (id: string, overrides?: RolePermissions): Role | undefined => {
+  const base = ROLES.find((r) => r.id === id);
+  if (!base) return undefined;
+  const custom = overrides?.[base.id];
+  if (!custom) return base;
+  const role = { ...base, ...custom };
+  // The Office's authority to configure roles cannot be removed by its own permission edits.
+  if (role.id === ROLE.admin && role.universityPermissions) {
+    role.universityPermissions = { ...role.universityPermissions, roles: MODULES.find((m) => m.key === "roles")!.actions };
+  }
+  return role;
+};
 
 export const STATUS_TONE: Record<string, "ok" | "review" | "revise" | "missing" | "danger"> = {
   Active: "ok",

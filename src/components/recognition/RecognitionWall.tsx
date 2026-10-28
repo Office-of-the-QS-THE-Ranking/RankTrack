@@ -57,7 +57,7 @@ function None({ icon, children }: { icon: IconName; children: string }) {
  * units, coordinators and programmes behind them, on the dashboard's tiles. Recognition follows verified
  * evidence quality, measurable outcomes and collaboration (proposal §8).
  */
-export async function RecognitionWall({ mode }: { mode: "internal" | "public" }) {
+export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "public"; embedded?: boolean }) {
   const internal = mode === "internal";
   // Units follow the Organizational Directory (active ones are recognised); rankings follow configuration.
   const h = await hub();
@@ -82,15 +82,18 @@ export async function RecognitionWall({ mode }: { mode: "internal" | "public" })
   const wuri = h.ref.rankings.find((r) => r.slug === "wuri");
 
   return (
-    <div className="ov rw">
-      <header className="ov__head">
-        <div className="ov__title-row">
-          <h1 className="ov__title">Recognition wall</h1>
-          <InfoTooltip label="How recognition is earned">
-            Earned through verified evidence quality, measurable outcomes and collaboration, never the number of files uploaded.
-          </InfoTooltip>
-        </div>
-      </header>
+    <div className={embedded ? "rw" : "ov rw"}>
+      {/* On the dashboard the wall is a tab, so the dashboard's header stands in for its own. */}
+      {!embedded && (
+        <header className="ov__head">
+          <div className="ov__title-row">
+            <h1 className="ov__title">Recognition wall</h1>
+            <InfoTooltip label="How recognition is earned">
+              Earned through verified evidence quality, measurable outcomes and collaboration, never the number of files uploaded.
+            </InfoTooltip>
+          </div>
+        </header>
+      )}
 
       <div className="ov-bento rw-bento">
         <Tile id="awards" className="rw-awards">

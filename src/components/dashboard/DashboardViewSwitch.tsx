@@ -3,17 +3,20 @@
 import { useRouter } from "next/navigation";
 import { Tabs } from "@/components/ui/interactive";
 
-const VIEWS = [
+export type DashboardView = "submissions" | "rankings" | "recognition";
+
+export const DASHBOARD_VIEWS = [
   { key: "submissions", label: "Submissions" },
   { key: "rankings", label: "Rankings" },
+  { key: "recognition", label: "Recognition" },
 ] as const;
 
-export function DashboardViewSwitch({ view }: { view: "submissions" | "rankings" }) {
+export function DashboardViewSwitch({ view, views }: { view: DashboardView; views: DashboardView[] }) {
   const router = useRouter();
 
   return (
     <Tabs
-      tabs={VIEWS}
+      tabs={DASHBOARD_VIEWS.filter((v) => views.includes(v.key))}
       value={view}
       label="Dashboard view"
       idBase="dashboard-view"

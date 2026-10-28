@@ -2485,6 +2485,11 @@ html:has(.app) {
     height 420ms var(--ease-out),
     opacity 200ms ease;
 }
+/* Sliding panes create stacking contexts while their transform or opacity animates.
+   Keep the entire navigation above the sibling pill, including during those transitions. */
+.side__scroll {
+  z-index: 1;
+}
 .side__link {
   position: relative;
   z-index: 1;

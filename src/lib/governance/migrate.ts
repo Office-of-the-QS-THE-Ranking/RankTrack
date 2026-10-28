@@ -111,6 +111,24 @@ function fill10(s: Stored): Stored {
   // Research articles and reports joined schema 10 the same way.
   s.records.documents ??= [];
   s.records.counters.document ??= 0;
+  // And the Workspace's files.
+  s.records.workspace ??= [];
+  s.records.workspaceFolders ??= [];
+  s.records.workingDocs ??= [];
+  for (const d of s.records.workingDocs) {
+    d.sdgs ??= [];
+    d.authors ??= [];
+  }
+  s.records.counters.workspace ??= 0;
+  s.records.counters.workspaceFolder ??= 0;
+  // Templates & Forms became Digital Forms: a copy from before keeps its files and folders, in the library.
+  for (const x of [...s.records.workspace, ...s.records.workspaceFolders] as { shelf: string; kind?: string }[]) {
+    if (x.shelf === "templates") x.shelf = "library";
+    delete x.kind;
+  }
+  // And Digital Forms themselves.
+  s.records.forms ??= [];
+  s.records.counters.form ??= 0;
   s.config.calendar ??= [];
   s.config.findings ??= [];
   s.config.watch ??= [];

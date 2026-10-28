@@ -171,7 +171,7 @@ export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
           <StatusMix items={items} />
         </Tile>
 
-        <NextDeadline id="ud-next" rankings={deadlines} href={() => "/portal/knowledge"} />
+        <NextDeadline id="ud-next" rankings={deadlines} href={() => "/portal/workspace/knowledge"} />
 
         <Tile
           id="ud-todo"

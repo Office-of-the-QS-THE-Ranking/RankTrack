@@ -66,7 +66,7 @@ export async function SharedResources() {
         <Card title="Methods and results" icon="knowledge">
           <ul className="list">
             <li>
-              <Link href="/portal/knowledge" className="list__main">
+              <Link href="/portal/workspace/knowledge" className="list__main">
                 Knowledge Center <Icon name="arrow" size={14} />
               </Link>
               <span className="list__sub">Methodologies and the indicator dictionary</span>

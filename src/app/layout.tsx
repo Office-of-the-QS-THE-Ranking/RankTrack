@@ -19,6 +19,9 @@ import "@/styles/portal.css";
 import "@/styles/admin.css";
 import "@/styles/posts.css";
 import "@/styles/publications.css";
+import "@/styles/workspace.css";
+import "@/styles/shelf.css";
+import "@/styles/forms.css";
 import "@/styles/signin.css";
 import "@/styles/overview.css";
 import "@/styles/unit-board.css";
@@ -88,7 +91,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const ref = await reference();
   return (
     // The public site marks <html> with "js" before hydration (SiteFrame), so its class may differ.
-    <html lang="en" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
       <body>
         <ReferenceProvider value={ref}>{children}</ReferenceProvider>
         <Toaster />

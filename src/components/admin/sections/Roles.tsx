@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ACTIONS, MODULES, ROLE_SECTIONS } from "@/lib/governance/catalog";
 import type { AccountRow, RoleRow } from "@/lib/governance/console-types";
-import { has } from "@/lib/governance/rbac";
-import type { Action, Assignment, ModuleKey, RoleId } from "@/lib/governance/types";
-import { Tile } from "@/components/dashboard/Tile";
+import { canEditRolePermissions, has, normalize } from "@/lib/governance/rbac";
+import type { Action, Assignment, ModuleKey, PermissionSet, RoleId } from "@/lib/governance/types";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { TabPanel } from "@/components/ui/interactive";
-import { PermissionMatrix, type CellState } from "../parts";
-import { Avatar, EmptyNote, Hint, Pill, Tabs, fmtDate, plural, useConsole } from "../ui";
+import { InfoTooltip, TabPanel } from "@/components/ui/interactive";
+import { Select } from "@/components/ui/pickers";
+import { PermissionLegend, PermissionMatrix, type CellState } from "../parts";
+import { Avatar, EmptyNote, Hint, Pill, Sheet, Tabs, fmtDate, plural, useConsole } from "../ui";
 import { scopeText } from "./Accounts";
 
 type Tab = "Roles" | "Temporary access";
@@ -24,12 +24,11 @@ const where = (r: RoleRow) =>
 const cellOf = (r: RoleRow) => (m: ModuleKey, a: Action): CellState =>
   has(r.permissions, m, a) ? "granted" : r.universityPermissions && has(r.universityPermissions, m, a) ? "wide" : "none";
 
-const GROUPS = [...new Set(MODULES.map((m) => m.group))];
 const TOTAL = MODULES.reduce((n, m) => n + m.actions.length, 0);
 
-function tally(r: RoleRow, group?: string) {
+function tally(r: RoleRow) {
   const cell = cellOf(r);
-  const cells = MODULES.filter((m) => !group || m.group === group).flatMap((m) => m.actions.map((a) => cell(m.key, a)));
+  const cells = MODULES.flatMap((m) => m.actions.map((a) => cell(m.key, a)));
   return { total: cells.length, granted: cells.filter((c) => c === "granted").length, wide: cells.filter((c) => c === "wide").length };
 }
 
@@ -62,28 +61,60 @@ export function Roles() {
 
 function RoleBrowser() {
   const { data } = useConsole();
-  const [sel, setSel] = useState<RoleId>(data.roles[0].id);
+  const [sel, setSel] = useState<RoleId | undefined>(data.roles[0]?.id);
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
   const role = data.roles.find((r) => r.id === sel) ?? data.roles[0];
   return (
     <>
       <ul className="rp-roles" aria-label="Roles">
         {data.roles.map((r) => (
           <li key={r.id}>
-            <RoleCard role={r} current={r.id === role.id} onPick={() => setSel(r.id)} />
+            <RoleCard
+              role={r}
+              current={r.id === role?.id}
+              expanded={open && r.id === role?.id}
+              onPick={() => {
+                setSel(r.id);
+                setOpen(true);
+              }}
+            />
           </li>
         ))}
       </ul>
-      <RoleDetail key={role.id} role={role} />
+      {role && (
+        <Sheet
+          open={open}
+          title={
+            <span className="rp-modal-heading">
+              <span className="rp-glyph rp-glyph--lg">
+                <Icon name={GLYPH[role.id]} size={24} />
+              </span>
+              <span>
+                <span className="rp-modal-heading__name">
+                  {role.name}
+                  <InfoTooltip label={`About ${role.name}`} escapeClipping>{role.description}</InfoTooltip>
+                </span>
+                <small className="rp-modal-heading__context">Roles & Permissions</small>
+              </span>
+            </span>
+          }
+          onClose={close}
+          modal
+        >
+          <RoleDetail key={role.id} role={role} />
+        </Sheet>
+      )}
     </>
   );
 }
 
-function RoleCard({ role, current, onPick }: { role: RoleRow; current: boolean; onPick: () => void }) {
+function RoleCard({ role, current, expanded, onPick }: { role: RoleRow; current: boolean; expanded: boolean; onPick: () => void }) {
   const { data } = useConsole();
   const { granted, wide } = tally(role);
   const faces = data.accounts ? [...new Map(holders(data.accounts, role.id).map(({ a }) => [a.id, a])).values()].slice(0, 3) : [];
   return (
-    <button type="button" className="rp-role" aria-current={current || undefined} onClick={onPick}>
+    <button type="button" className="rp-role" data-current={current || undefined} aria-haspopup="dialog" aria-expanded={expanded} onClick={onPick}>
       <span className="rp-role__top">
         <span className="rp-glyph">
           <Icon name={GLYPH[role.id]} size={19} />
@@ -138,100 +169,102 @@ function Fingerprint({ role }: { role: RoleRow }) {
 }
 
 function RoleDetail({ role }: { role: RoleRow }) {
-  const { data, go } = useConsole();
+  const { data, go, run, busy, notify } = useConsole();
   const [tab, setTab] = useState<"Permissions" | "People">("Permissions");
+  const [editing, setEditing] = useState(false);
+  const [scope, setScope] = useState<"unit" | "university">(role.universityPermissions ? "university" : "unit");
+  const [draft, setDraft] = useState<PermissionSet>({});
+  const [previous, setPrevious] = useState<PermissionSet>({});
+  const editable = canEditRolePermissions({ unitId: data.viewer.unitId, status: "Active" }, data.viewer.grants);
+  const start = (target = scope) => {
+    const permissions = target === "university" ? role.universityPermissions! : role.permissions;
+    setScope(target);
+    setPrevious(normalize(permissions));
+    setDraft(normalize(permissions));
+    setEditing(true);
+  };
+  const save = async () => {
+    const result = await run({ type: "role.permissions", id: role.id, scope, permissions: draft, previous });
+    notify(result.message, result.ok ? "ok" : "error");
+    if (result.ok) setEditing(false);
+  };
+  const toggle = (module: ModuleKey, action: Action) => setDraft((value) => ({
+    ...value,
+    [module]: has(value, module, action) ? value[module]!.filter((a) => a !== action) : [...(value[module] ?? []), action],
+  }));
   const rows = data.accounts ? holders(data.accounts, role.id) : [];
   const head = `rp-role-${role.id}`;
+  const permissionCell = editing ? (m: ModuleKey, a: Action): CellState => has(draft, m, a) ? scope === "university" ? "wide" : "granted" : "none" : cellOf(role);
+  const permissionLabels = editing ? { granted: "Allowed", wide: "Allowed in the Rankings Office", none: "Not allowed" } : role.universityPermissions ? { granted: "Every Administrator", wide: "Rankings Office only" } : { granted: "Allowed", none: "Not allowed" };
 
   return (
-    <Tile id={`${head}-tile`} className="rp-detail">
-      <header className="rp-head">
-        <span className="rp-glyph rp-glyph--lg">
-          <Icon name={GLYPH[role.id]} size={24} />
-        </span>
-        <div className="rp-head__text">
-          <h2 id={`${head}-tile`} className="rp-head__title">
-            {role.name}
-          </h2>
-          <p className="rp-head__lede">{role.description}</p>
-          <p className="rp-chips">
-            {role.universityPermissions ? (
+    <section className="rp-detail" aria-label={`${role.name} details`}>
+      <div className="rp-detail__content">
+        <div className="rp-body">
+          <Tabs
+            label={`${role.name} details`}
+            idBase={head}
+            value={tab}
+            onChange={setTab}
+            tabs={["Permissions", { key: "People", label: "People", count: role.members }]}
+            actions={tab === "Permissions" ? (
               <>
-                <span className="rp-chip">
-                  <i /> Office or college
-                </span>
-                <span className="rp-chip rp-chip--wide">
-                  <i /> University-wide in the Rankings Office
-                </span>
+                {editable && (editing ? (
+                  <>
+                    {role.universityPermissions && (
+                      <Select className="select select--sm content-tabs__action" aria-label="Permission scope" value={scope} disabled={busy} onChange={(value) => start(value as "unit" | "university")}>
+                        <option value="unit">Office or college</option>
+                        <option value="university">Rankings Office (University-wide)</option>
+                      </Select>
+                    )}
+                    <button type="button" className="content-tabs__action" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+                    <button type="button" className="content-tabs__action" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save permissions"}</button>
+                  </>
+                ) : (
+                  <button type="button" className="content-tabs__action" onClick={() => start()}>Edit permissions</button>
+                ))}
+                <PermissionLegend cell={permissionCell} labels={permissionLabels} />
               </>
+            ) : undefined}
+          />
+          <TabPanel idBase={head} index={tab === "Permissions" ? 0 : 1} className="rp-panel">
+            {tab === "Permissions" ? (
+              <PermissionMatrix
+                caption={role.universityPermissions ? `${role.name} permissions; gold ones are held only University-wide` : `${role.name} permissions`}
+                cell={permissionCell}
+                labels={permissionLabels}
+                showLegend={false}
+                fold={!editing}
+                onToggle={editing && editable ? toggle : undefined}
+                disabled={busy}
+                locked={(m) => role.id === "administrator" && scope === "university" && m === "roles"}
+              />
+            ) : !data.accounts ? (
+              <EmptyNote icon="lock" title="Needs account access" />
+            ) : rows.length ? (
+              <ul className="rp-people">
+                {rows.map(({ a, x }) => (
+                  <li key={x.id}>
+                    <button type="button" className="rp-person" onClick={() => go("accounts", a.id)}>
+                      <Avatar name={a.name} src={a.avatar} size={36} placeholder />
+                      <span className="rp-person__main">
+                        <b>{a.name}</b>
+                        <small>{scopeText(x.scope, data)}</small>
+                      </span>
+                      {x.expires && <Pill tone="review">Until {fmtDate(x.expires)}</Pill>}
+                      {a.status !== "Active" && <Pill tone="missing">{a.status === "Pending Invitation" ? "Invited" : a.status}</Pill>}
+                      <Icon name="chevron" size={16} className="rp-person__go" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <span className="rp-chip">
-                <i /> {role.scopeKind === "custom" ? "Chosen for each guest, with an end date" : where(role)}
-              </span>
+              <EmptyNote icon="users" title="Nobody has this role" />
             )}
-          </p>
+          </TabPanel>
         </div>
-        <Reach role={role} />
-      </header>
-
-      <div className="rp-body">
-        <Tabs label={`${role.name} details`} idBase={head} value={tab} onChange={setTab} tabs={["Permissions", { key: "People", label: "People", count: role.members }]} />
-        <TabPanel idBase={head} index={tab === "Permissions" ? 0 : 1} className="rp-panel">
-          {tab === "Permissions" ? (
-            <PermissionMatrix
-              caption={role.universityPermissions ? `${role.name} permissions; gold ones are held only University-wide` : `${role.name} permissions`}
-              cell={cellOf(role)}
-              labels={role.universityPermissions ? { granted: "Every Administrator", wide: "Rankings Office only" } : { granted: "Allowed", none: "Not allowed" }}
-              fold
-            />
-          ) : !data.accounts ? (
-            <EmptyNote icon="lock" title="Needs account access" />
-          ) : rows.length ? (
-            <ul className="rp-people">
-              {rows.map(({ a, x }) => (
-                <li key={x.id}>
-                  <button type="button" className="rp-person" onClick={() => go("accounts", a.id)}>
-                    <Avatar name={a.name} src={a.avatar} size={36} placeholder />
-                    <span className="rp-person__main">
-                      <b>{a.name}</b>
-                      <small>{scopeText(x.scope, data)}</small>
-                    </span>
-                    {x.expires && <Pill tone="review">Until {fmtDate(x.expires)}</Pill>}
-                    {a.status !== "Active" && <Pill tone="missing">{a.status === "Pending Invitation" ? "Invited" : a.status}</Pill>}
-                    <Icon name="chevron" size={16} className="rp-person__go" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyNote icon="users" title="Nobody has this role" />
-          )}
-        </TabPanel>
       </div>
-    </Tile>
-  );
-}
-
-/** How much of each group the role reaches: ink for every holder, gold for what University-wide holders add. */
-function Reach({ role }: { role: RoleRow }) {
-  return (
-    <dl className="rp-reach">
-      {GROUPS.map((g) => {
-        const t = tally(role, g);
-        return (
-          <div key={g} className="rp-reach__row">
-            <dt>{g}</dt>
-            <dd className="rp-reach__n num">
-              <b>{t.granted + t.wide}</b>/{t.total}
-            </dd>
-            <dd className="rp-reach__bar" aria-hidden="true">
-              <i style={{ width: `${(t.granted / t.total) * 100}%` }} />
-              <i className="is-wide" style={{ width: `${(t.wide / t.total) * 100}%` }} />
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
+    </section>
   );
 }
 

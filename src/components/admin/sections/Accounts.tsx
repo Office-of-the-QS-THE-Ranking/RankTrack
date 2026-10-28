@@ -597,7 +597,8 @@ function RolesTab({ a }: { a: AccountRow }) {
   const act = useAct();
   const v = data.viewer;
   const roleOf = (id: string) => data.roles.find((r) => r.id === id);
-  const current = union(...a.assignments.filter((x) => !x.expires || x.expires > data.day).map((x) => rolePermissions(x.roleId, x.scope)));
+  const roleOverrides = Object.fromEntries(data.roles.map((r) => [r.id, r]));
+  const current = union(...a.assignments.filter((x) => !x.expires || x.expires > data.day).map((x) => rolePermissions(x.roleId, x.scope, roleOverrides)));
   const [adding, setAdding] = useState(false);
   const [roleId, setRoleId] = useState("");
   const [scope, setScope] = useState<Scope>(UNIVERSITY);
@@ -616,7 +617,7 @@ function RolesTab({ a }: { a: AccountRow }) {
     setNote("");
     setExpires("");
   };
-  const after = roleId ? union(current, rolePermissions(roleId, scope)) : current;
+  const after = roleId ? union(current, rolePermissions(roleId, scope, roleOverrides)) : current;
   const needsEnd = roleId === ROLE.external;
 
   return (
