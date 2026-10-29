@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * The post composer, laid out like a publishing tool: the editor on the right (DocEditor: title, subtitle and the
  * story on one page under a formatting ribbon) and the settings on the left: who is posting, the publication
@@ -133,7 +135,7 @@ export function PostComposer({
   const leaveDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const confirmation = leaveDialog.current;
-    if (leaving && confirmation && !confirmation.open) confirmation.showModal();
+    if (leaving && confirmation && !confirmation.open) openModal(confirmation);
   }, [leaving]);
   const [dropping, setDropping] = useState(false);
   const [saving, setSaving] = useState<false | "draft" | "publish">(false);
@@ -158,7 +160,7 @@ export function PostComposer({
 
   useEffect(() => {
     const d = dialog.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
     titleRef.current?.focus();
     aborter.current = new AbortController();
     const root = document.documentElement;
@@ -193,7 +195,7 @@ export function PostComposer({
   const finish = (kept: string[] = []) => {
     const drop = [...fresh.current].filter((s) => !kept.includes(s));
     if (drop.length) void discardUploads(drop);
-    onClose();
+    closeModal(dialog.current, onClose);
   };
 
   const requestClose = () => {
@@ -237,7 +239,7 @@ export function PostComposer({
 
   /** Esc steps back: out of the discard question, out of the panel, then out of the composer. */
   const back = () => {
-    if (leaving) setLeaving(false);
+    if (leaving) closeModal(leaveDialog.current, () => setLeaving(false));
     else if (side) close();
     else requestClose();
   };
@@ -845,7 +847,7 @@ export function PostComposer({
       </form>
 
       {leaving && (
-        <dialog ref={leaveDialog} className="pc-leave" role="alertdialog" aria-modal="true" aria-labelledby={`${ids}-leave`} aria-describedby={`${ids}-leave-text`} onCancel={(event) => { event.preventDefault(); event.stopPropagation(); setLeaving(false); }}>
+        <dialog ref={leaveDialog} className="pc-leave" role="alertdialog" aria-modal="true" aria-labelledby={`${ids}-leave`} aria-describedby={`${ids}-leave-text`} onCancel={(event) => { event.preventDefault(); event.stopPropagation(); closeModal(leaveDialog.current, () => setLeaving(false)); }}>
           <div className="pc-leave__card">
             <h3 id={`${ids}-leave`} className="pc-leave__title">
               {row ? "Discard your changes?" : "Discard this post?"}
@@ -854,7 +856,7 @@ export function PostComposer({
               {row ? "The post stays as it was." : "Nothing you wrote here is saved."}
             </p>
             <div className="pc-leave__actions">
-              <button type="button" className="btn" onClick={() => setLeaving(false)} autoFocus>
+              <button type="button" className="btn" onClick={() => closeModal(leaveDialog.current, () => setLeaving(false))} autoFocus>
                 Keep editing
               </button>
               <button type="button" className="btn btn--danger pc-discard" onClick={() => finish()}>

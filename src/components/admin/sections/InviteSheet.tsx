@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal } from "@/components/ui/modal-motion";
+
 /*
  * Invite someone (Accounts): the Request access form's questions, rules and conditions (RequestAccessForm),
  * asked by an administrator for the person they invite, in three steps. Profile: names and salutation.
@@ -183,7 +185,8 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
         otherSalutation: d.otherSalutation,
         email: d.email,
         affiliation: d.affiliation,
-        organization: thomasian ? "" : d.organization,
+        // A Student names the organization they're the Secretary of; other Thomasians name none.
+        organization: thomasian && d.roleId !== ROLE.student ? "" : d.organization,
         website: website ? d.website : "",
         roleId: thomasian ? d.roleId : "",
         section: thomasian ? d.section : "",
@@ -194,8 +197,10 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
     });
     setSending(false);
     if (!r.ok) return;
-    onClose();
-    if (typeof r.data === "string") onCreated(r.data);
+    closeModal(form.current?.closest<HTMLElement>(".adm-sheet") ?? null, () => {
+      onClose();
+      if (typeof r.data === "string") onCreated(r.data);
+    });
   };
 
   return (
@@ -212,7 +217,7 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
               <Icon name="arrow-left" size={15} /> Back
             </button>
           ) : (
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".adm-sheet"), onClose)}>
               Cancel
             </button>
           )}
@@ -338,6 +343,29 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
                     </option>
                   ))}
                 </Select>
+              </Field>
+            )}
+
+            {thomasian && d.roleId === ROLE.student && (
+              <Field
+                label={
+                  <>
+                    Student Organization <em>They are its Secretary</em>
+                  </>
+                }
+              >
+                <input
+                  className="input"
+                  name="organization"
+                  title=""
+                  value={d.organization}
+                  onChange={(e) => set({ organization: requestText(e.target.value, true) })}
+                  placeholder="E.G. UST CENTRAL STUDENT COUNCIL"
+                  autoComplete="off"
+                  maxLength={160}
+                  required
+                  data-missing="Name the organization, commission or council they are the Secretary of."
+                />
               </Field>
             )}
 

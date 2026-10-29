@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useMemo, useState } from "react";
 import { CLASSIFICATIONS } from "@/lib/governance/catalog";
 import type { DatasetRow, TermRow } from "@/lib/governance/console-types";
@@ -464,7 +466,7 @@ function TermSheet({ t, onClose }: { t: TermRow | null; onClose: () => void }) {
       footer={
         can && (
           <>
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".adm-sheet"), onClose)}>
               Cancel
             </button>
             <button

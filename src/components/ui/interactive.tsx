@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Icon, type IconName } from "./Icon";
@@ -272,16 +274,18 @@ export function Drawer({
   footer?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [present, setPresent] = useState(open);
   const titleId = useId();
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) {
-      d.showModal();
+    if (open && (!d.open || d.dataset.modalClosing)) {
+      setPresent(true);
+      openModal(d);
       document.documentElement.style.overflow = "hidden";
     } else if (!open && d.open) {
-      d.close();
+      closeModal(d);
     }
     return () => {
       document.documentElement.style.overflow = "";
@@ -292,6 +296,7 @@ export function Drawer({
     const d = ref.current;
     if (!d) return;
     const onDialogClose = () => {
+      setPresent(false);
       document.documentElement.style.overflow = "";
       onClose();
     };
@@ -303,9 +308,10 @@ export function Drawer({
     <dialog
       ref={ref}
       className="drawer"
+      onCancel={(event) => { if (event.target !== event.currentTarget) return; event.preventDefault(); closeModal(event.currentTarget); }}
       aria-labelledby={titleId}
       onClick={(e) => {
-        if (e.target === ref.current) ref.current?.close();
+        if (e.target === ref.current) closeModal(ref.current);
       }}
     >
       <header className="drawer__head">
@@ -315,11 +321,11 @@ export function Drawer({
             {title}
           </h2>
         </div>
-        <button type="button" className="btn btn--ghost btn--icon" onClick={() => ref.current?.close()} aria-label="Close panel">
+        <button type="button" className="btn btn--ghost btn--icon" onClick={() => closeModal(ref.current)} aria-label="Close panel">
           <Icon name="close" />
         </button>
       </header>
-      <div className="drawer__body">{open && children}</div>
+      <div className="drawer__body">{present && children}</div>
       {footer && <footer className="drawer__foot">{footer}</footer>}
     </dialog>
   );

@@ -2,13 +2,14 @@
 
 /*
  * One digital form in a full-size window. Its head names it and holds its content tabs and actions.
- * Details: the responder link and response control, the numbers, and a map of the questions it asks with
- * the sign-offs its responses go through. Responses and Analytics are for the people who run it
- * (Responses.tsx, Analytics.tsx); its responses load once, when the window opens.
+ * Details: the responder link (or, for a form filled in as copies, the Student Portal) with the response control
+ * and the Publish to Student Portal switch, the numbers, and a map of the questions it asks with the sign-offs its
+ * responses go through. Responses and Analytics are for the people who may read them (Responses.tsx,
+ * Analytics.tsx); its responses load once, when the window opens. Everything offered follows form.may.
  */
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { closeModal } from "@/components/ui/modal-motion";
 import { loadFormResponses } from "@/app/actions/forms";
-import { Switch } from "@/components/admin/ui";
 import { RowMenu } from "@/components/publications/PostManager";
 import { Icon, isIconName, type IconName } from "@/components/ui/Icon";
 import { TabPanel, Tabs } from "@/components/ui/interactive";
@@ -17,6 +18,7 @@ import { toast } from "@/components/ui/toast";
 import { FolderModal, Sheet } from "@/components/workspace/parts";
 import type { Command, CommandResult } from "@/lib/governance/commands";
 import { isSent, type FormItem, type FormResponseItem, type FormsDesk } from "@/lib/governance/hub-types";
+import { HOLDER_KINDS, PORTAL_KINDS, publishes } from "@/lib/forms/access";
 import { dayLabel, plural } from "@/lib/forms/format";
 import { FORM_KINDS, FORM_LIMITS, MODULE_NAMES, formKindLabel } from "@/lib/forms/kinds";
 import type { FieldType, FormKind } from "@/lib/forms/types";
@@ -59,6 +61,7 @@ export function FormWindow({
   act,
   onRemove,
   onBuild,
+  onPublish,
   onClose,
 }: {
   form: FormItem;
@@ -69,19 +72,23 @@ export function FormWindow({
   onRemove: () => void;
   /** Opens the Forms Builder on a draft's questions. */
   onBuild: () => void;
+  /** Asks before publishing an Evaluation or Registration Form, which fixes it. */
+  onPublish: () => void;
   onClose: () => void;
 }) {
   const tabsId = useId();
+  const dialog = useRef<HTMLDialogElement>(null);
   const [tab, setTab] = useState<Tab>("Details");
   const [responses, setResponses] = useState<FormResponseItem[] | null>(null);
   const [editing, setEditing] = useState(false);
 
+  const reads = form.may.read;
   const load = useCallback(async () => {
-    if (!form.manage) return;
+    if (!reads) return;
     const r = await loadFormResponses(form.id).catch(() => ({ ok: false as const, message: "The server could not be reached. Check your connection and try again." }));
     if (r.ok) setResponses(r.responses);
     else toast(r.message, "error");
-  }, [form.id, form.manage]);
+  }, [form.id, reads]);
 
   useEffect(() => {
     void load();
@@ -90,10 +97,22 @@ export function FormWindow({
   const draft = form.status === "draft";
   // A team copy is a response from the moment it's built; analytics read the sent ones.
   const sent = useMemo(() => responses?.filter(isSent) ?? null, [responses]);
-  const details = <Details form={form} desk={desk} link={link} onCopy={onCopy} onEdit={() => setEditing(true)} onBuild={form.manage && draft ? onBuild : undefined} responses={responses} onStatus={(status) => act({ type: "form.status", id: form.id, status })} />;
+  const details = (
+    <Details
+      form={form}
+      desk={desk}
+      link={link}
+      onCopy={onCopy}
+      onEdit={() => setEditing(true)}
+      onBuild={form.may.edit && draft ? onBuild : undefined}
+      responses={responses}
+      onStatus={(status) => (status === "open" && publishes(form) ? (onPublish(), Promise.resolve({ ok: true, message: "" })) : act({ type: "form.status", id: form.id, status }))}
+      onPortal={(on) => act({ type: "form.portal", id: form.id, on })}
+    />
+  );
 
   return (
-    <FolderModal label={form.title} onClose={onClose} className="fm-window">
+    <FolderModal label={form.title} onClose={onClose} className="fm-window" dialogRef={dialog}>
       <header className="fm-window__head">
         <span className="fm-window__art">
           <FormArt kind={form.kind} size="sm" />
@@ -105,7 +124,7 @@ export function FormWindow({
           </span>
           <h2 className="fm-window__title">{form.title}</h2>
         </div>
-        {form.manage && (
+        {reads && (
           <div className="fm-window__tabs">
             <Tabs<Tab>
               label="Form"
@@ -121,29 +140,29 @@ export function FormWindow({
           </div>
         )}
         <div className="fm-window__actions">
-          {draft && (
+          {(draft || form.copies) && (form.may.edit || reads) && (
             <a className="btn content-tabs__action" href={link} target="_blank" rel="noopener noreferrer">
               <Icon name="arrow-up-right" size={15} /> Preview
             </a>
           )}
-          {form.manage && (
+          {(form.may.edit || form.may.duplicate || form.may.remove) && (
             <RowMenu
               label={`More for ${form.title}`}
               items={[
-                draft && { label: "Edit questions", icon: "layers", onSelect: onBuild },
-                { label: "Edit details", icon: "pen", onSelect: () => setEditing(true) },
-                { label: "Duplicate as a draft", icon: "copy", onSelect: () => void act({ type: "form.duplicate", id: form.id }) },
-                draft && { label: "Delete draft", icon: "trash", danger: true, onSelect: onRemove },
+                form.may.edit && draft && { label: "Edit questions", icon: "layers", onSelect: onBuild },
+                form.may.edit && { label: "Edit details", icon: "pen", onSelect: () => setEditing(true) },
+                form.may.duplicate && { label: "Duplicate as a draft", icon: "copy", onSelect: () => void act({ type: "form.duplicate", id: form.id }) },
+                form.may.remove && { label: "Delete draft", icon: "trash", danger: true, onSelect: onRemove },
               ]}
             />
           )}
-          <button type="button" className="ws-modal__x" aria-label="Close form" onClick={onClose}>
+          <button type="button" className="ws-modal__x" aria-label="Close form" onClick={() => closeModal(dialog.current)}>
             <Icon name="close" size={18} />
           </button>
         </div>
       </header>
 
-      {form.manage ? (
+      {reads ? (
         <TabPanel idBase={tabsId} index={TABS.indexOf(tab)} className="fm-window__body">
           {tab === "Details" && details}
           {tab === "Responses" && <FormResponses form={form} desk={desk} responses={responses} onChange={setResponses} reload={load} link={link} onCopy={onCopy} />}
@@ -160,6 +179,18 @@ export function FormWindow({
 
 /* ---------- Details ---------- */
 
+/** A switch in a tile's row: Taking responses, Student Portal. */
+function SwitchButton({ on, label, children, busy, onClick }: { on: boolean; label: string; children: ReactNode; busy: boolean; onClick: () => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label={label} className="btn btn--sm fm-btn-glass fm-response-control" disabled={busy} aria-busy={busy || undefined} onClick={onClick}>
+      {children}
+      <span className="fm-response-control__switch" aria-hidden="true">
+        <span />
+      </span>
+    </button>
+  );
+}
+
 function Details({
   form,
   desk,
@@ -169,6 +200,7 @@ function Details({
   onBuild,
   responses,
   onStatus,
+  onPortal,
 }: {
   form: FormItem;
   desk: FormsDesk;
@@ -178,19 +210,21 @@ function Details({
   onBuild?: () => void;
   responses: FormResponseItem[] | null;
   onStatus: (status: "open" | "closed") => Promise<CommandResult>;
+  onPortal: (on: boolean) => Promise<CommandResult>;
 }) {
-  const [changingStatus, setChangingStatus] = useState(false);
-  const changeStatus = async (status: "open" | "closed") => {
-    if (changingStatus) return;
-    setChangingStatus(true);
+  const [changing, setChanging] = useState(false);
+  const change = async (run: () => Promise<CommandResult>) => {
+    if (changing) return;
+    setChanging(true);
     try {
-      await onStatus(status);
+      await run();
     } catch {
       toast("Could not update response settings. Try again.", "error");
     } finally {
-      setChangingStatus(false);
+      setChanging(false);
     }
   };
+  const { may } = form;
   const sections = form.schema.sections;
   const questions = sections.reduce((n, s) => n + s.fields.filter((f) => f.type !== "note").length, 0);
   const stages = form.schema.review?.stages ?? [];
@@ -199,44 +233,90 @@ function Details({
   const approved = responses?.filter((r) => r.status === "approved").length ?? 0;
   const last = responses?.[0]?.submittedAt ?? form.responses?.lastAt;
   const draft = form.status === "draft";
+  const portalKind = PORTAL_KINDS.includes(form.kind);
+  const status = may.status && (draft ? (
+    <button type="button" className="btn btn--sm fm-btn-glass" disabled={changing} aria-busy={changing || undefined} onClick={() => void change(() => onStatus("open"))}>
+      <Icon name={publishes(form) ? "send" : "play"} size={14} /> {publishes(form) ? "Publish" : "Open for responses"}
+    </button>
+  ) : (
+    <SwitchButton on={form.status === "open"} label="Taking responses" busy={changing} onClick={() => void change(() => onStatus(form.status === "open" ? "closed" : "open"))}>
+      {form.status === "open" ? "Taking responses" : "Closed"}
+    </SwitchButton>
+  ));
+  const portal = may.portal && (
+    <SwitchButton on={form.students} label="Published to the Student Portal" busy={changing} onClick={() => void change(() => onPortal(!form.students))}>
+      <Icon name="education" size={14} /> Student Portal
+    </SwitchButton>
+  );
+  const portalNote = form.students
+    ? form.status === "open"
+      ? form.kind === "survey"
+        ? "In students’ Assignments"
+        : "Students build copies from it"
+      : "Shows to students once it takes responses"
+    : "Not on the Student Portal";
   return (
     <div className="fm-bento">
-      <section className="fm-tile fm-tile--link" aria-label="Responder link">
-        <span className="fm-tile__label">Responder link</span>
-        <p className="fm-linkbox">
-          <Icon name="link" size={16} />
-          <span className="fm-linkbox__url">{link.replace(/^https?:\/\//, "")}</span>
-        </p>
-        <div className="fm-tile__row">
-          {!draft && (
-            <button type="button" className="btn btn--sm fm-btn-gold" onClick={onCopy}>
-              <Icon name="copy" size={15} /> Copy link
-            </button>
-          )}
-          <a className="btn btn--sm fm-btn-glass" href={link} target="_blank" rel="noopener noreferrer">
-            {draft ? "Preview" : "Open"} <Icon name="arrow-up-right" size={14} />
-          </a>
-          {form.manage && (draft ? (
-            <button type="button" className="btn btn--sm fm-btn-glass" disabled={changingStatus} aria-busy={changingStatus || undefined} onClick={() => void changeStatus("open")}>
-              <Icon name="play" size={14} /> Open for responses
-            </button>
-          ) : (
-            <button type="button" role="switch" aria-checked={form.status === "open"} aria-label="Taking responses" className="btn btn--sm fm-btn-glass fm-response-control" disabled={changingStatus} aria-busy={changingStatus || undefined} onClick={() => void changeStatus(form.status === "open" ? "closed" : "open")}>
-              {form.status === "open" ? "Taking responses" : "Closed"}
-              <span className="fm-response-control__switch" aria-hidden="true"><span /></span>
-            </button>
-          ))}
-        </div>
-        <p className="fm-tile__note">
-          {!form.manage && <StatusMark status={form.status} />}
-          {draft ? "Only the people who run it can open it." : form.status === "open" ? (form.closesOn ? `Until ${dayLabel(form.closesOn)}` : "Anyone with the link") : "Responses are kept"}
-        </p>
-      </section>
+      {form.copies ? (
+        // A Proposal or Terminal Report: Students build its copies from the Student Portal, so its own link is only a preview.
+        <section className="fm-tile fm-tile--link" aria-label="Student Portal">
+          <span className="fm-tile__label">Student Portal</span>
+          <p className="fm-linkbox">
+            <Icon name="education" size={16} />
+            <span className="fm-linkbox__url">{form.students ? "Published: student secretaries build copies from it" : "Not published to students yet"}</span>
+          </p>
+          <div className="fm-tile__row">
+            {portal}
+            {status}
+            <a className="btn btn--sm fm-btn-glass" href={link} target="_blank" rel="noopener noreferrer">
+              Preview <Icon name="arrow-up-right" size={14} />
+            </a>
+          </div>
+          <p className="fm-tile__note">
+            {!may.status && <StatusMark status={form.status} />}
+            {form.closesOn ? `Until ${dayLabel(form.closesOn)}` : "One copy per project, each with its own link"}
+          </p>
+        </section>
+      ) : (
+        <section className="fm-tile fm-tile--link" aria-label="Responder link">
+          <span className="fm-tile__label">Responder link</span>
+          <p className="fm-linkbox">
+            <Icon name="link" size={16} />
+            <span className="fm-linkbox__url">{link.replace(/^https?:\/\//, "")}</span>
+          </p>
+          <div className="fm-tile__row">
+            {!draft && (
+              <button type="button" className="btn btn--sm fm-btn-gold" onClick={onCopy}>
+                <Icon name="copy" size={15} /> Copy link
+              </button>
+            )}
+            <a className="btn btn--sm fm-btn-glass" href={link} target="_blank" rel="noopener noreferrer">
+              {draft ? "Preview" : "Open"} <Icon name="arrow-up-right" size={14} />
+            </a>
+            {status}
+            {portal}
+          </div>
+          <p className="fm-tile__note">
+            {!may.status && <StatusMark status={form.status} />}
+            {draft
+              ? publishes(form)
+                ? "Once published, it’s fixed and its responses reach the Office."
+                : "Only the people who run it can open it."
+              : form.status === "open"
+                ? form.closesOn
+                  ? `Until ${dayLabel(form.closesOn)}`
+                  : portalKind && form.students
+                    ? portalNote
+                    : "Anyone with the link"
+                : "Responses are kept"}
+          </p>
+        </section>
+      )}
 
-      {form.manage && (
+      {may.read && (
         <section className="fm-tile fm-tile--stats" aria-label="Responses at a glance">
           <div className="fm-stat">
-            <span className="fm-stat__label">Responses</span>
+            <span className="fm-stat__label">{form.copies ? "Copies" : "Responses"}</span>
             <span className="fm-stat__value">{total}</span>
           </div>
           {week > 0 && (
@@ -263,7 +343,7 @@ function Details({
       <section className="fm-tile fm-tile--about" aria-labelledby={`about-${form.id}`}>
         <header className="fm-tile__head">
           <h3 id={`about-${form.id}`}>About</h3>
-          {form.manage && (
+          {may.edit && (
             <button type="button" className="btn btn--sm btn--ghost" onClick={onEdit}>
               <Icon name="pen" size={14} /> Edit
             </button>
@@ -289,8 +369,20 @@ function Details({
           )}
           <div>
             <dt>Run by</dt>
-            <dd>{form.shared ? (desk.unitId ? "The Office (shared with every unit)" : "The Office") : "Your unit"}</dd>
+            <dd>{form.shared ? "The Office (shared with every unit)" : form.holder.kind === "office" ? "The Office" : desk.holder === "office" ? form.holder.name : form.holder.kind === "student" ? "You" : "Your unit"}</dd>
           </div>
+          {portalKind && (
+            <div>
+              <dt>Student Portal</dt>
+              <dd>{portalNote}</dd>
+            </div>
+          )}
+          {form.locked && (
+            <div>
+              <dt>Changes</dt>
+              <dd>Fixed since it was published</dd>
+            </div>
+          )}
           {form.closesOn && (
             <div>
               <dt>Closes</dt>
@@ -305,7 +397,7 @@ function Details({
           </div>
           <div>
             <dt>Answered as</dt>
-            <dd>{form.copies ? "Team copies, each with its own link" : "One response at a time"}</dd>
+            <dd>{form.copies ? "Team copies, built in the Student Portal" : "One response at a time"}</dd>
           </div>
           <div>
             <dt>Updated</dt>
@@ -374,7 +466,7 @@ function Details({
 
 /* ---------- Edit details ---------- */
 
-type DetailsFields = { title: string; description: string; kind: FormKind; reference: string; issuerId: string; closesOn: string; prefix: string; copies: boolean };
+type DetailsFields = { title: string; description: string; kind: FormKind; reference: string; issuerId: string; closesOn: string; prefix: string };
 
 export function DetailsSheet({ form, desk, onSave, onClose }: { form: FormItem; desk: FormsDesk; onSave: (f: DetailsFields) => Promise<CommandResult>; onClose: () => void }) {
   const [f, setF] = useState<DetailsFields>({
@@ -385,8 +477,9 @@ export function DetailsSheet({ form, desk, onSave, onClose }: { form: FormItem; 
     issuerId: form.issuer?.id ?? "",
     closesOn: form.closesOn ?? "",
     prefix: form.prefix,
-    copies: form.copies,
   });
+  // The kinds its holder may make; the kind is set while it's a draft (it decides copies and the Student Portal).
+  const kinds = FORM_KINDS.filter((k) => HOLDER_KINDS[form.holder.kind].includes(k.key));
   const [busy, setBusy] = useState(false);
   const sectionId = useId();
   const set = (change: Partial<DetailsFields>) => setF((x) => ({ ...x, ...change }));
@@ -431,8 +524,8 @@ export function DetailsSheet({ form, desk, onSave, onClose }: { form: FormItem; 
                 <h3 className="fm-sheet__section-title" id={`${sectionId}-settings`}>Settings</h3>
                 <label className="field">
                   <span className="field__label">Kind</span>
-                  <Select className="select" value={f.kind} onChange={(v) => set({ kind: v as FormKind })}>
-                    {FORM_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+                  <Select className="select" value={f.kind} onChange={(v) => set({ kind: v as FormKind })} disabled={form.status !== "draft" || kinds.length < 2}>
+                    {kinds.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
                   </Select>
                 </label>
                 <label className="field">
@@ -445,13 +538,6 @@ export function DetailsSheet({ form, desk, onSave, onClose }: { form: FormItem; 
                   <DateField displayFormat="long" className="input" value={f.closesOn} onChange={(d) => set({ closesOn: d })} placeholder="Stays open" aria-label="Closes on" />
                 </label>
                 {f.closesOn && <button type="button" className="fr-link fm-sheet__clear" onClick={() => set({ closesOn: "" })}>Keep it open with no closing day</button>}
-                <div className="fm-sheet__switch">
-                  <span className="fm-sheet__switch-text">
-                    <b>Team copies</b>
-                    <small>Give each team its own copy to fill in together.</small>
-                  </span>
-                  <Switch checked={f.copies} onChange={(on) => set({ copies: on })} label="Team copies" />
-                </div>
               </section>
             </div>
           </div>

@@ -33,7 +33,8 @@ export function isInactive(a: Account, days: number, now: Date) {
 export function workspacesOf(grants: Grant[]): ("office" | "portal")[] {
   const out: ("office" | "portal")[] = [];
   if (canWith(grants, "dashboard", "view")) out.push("office");
-  const canContribute = grants.some((g) => has(g.perms, "evidence", "submit") || has(g.perms, "data", "submit") || has(g.perms, "stories", "create"));
+  // Students file their organization's forms in the portal (the Student Portal pages).
+  const canContribute = grants.some((g) => has(g.perms, "evidence", "submit") || has(g.perms, "data", "submit") || has(g.perms, "stories", "create") || has(g.perms, "forms", "submit"));
   const guestOnly = grants.length > 0 && !out.length && grants.every((g) => has(g.perms, "knowledge", "view"));
   if (canContribute || guestOnly) out.push("portal");
   return out;

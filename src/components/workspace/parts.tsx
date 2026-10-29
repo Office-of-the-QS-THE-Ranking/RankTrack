@@ -1,10 +1,12 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * The Workspace's small pieces: a file's glyph (its type at a glance), a folder's art, sending uploads, and the
  * dialogs for moving and deleting. Workspace.tsx puts them together.
  */
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { startWorkspaceUploads } from "@/app/actions/workspace";
 import { upload } from "@/components/publications/media";
 import { Icon } from "@/components/ui/Icon";
@@ -89,15 +91,16 @@ export function Sheet({
   const titleId = useId();
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
   }, []);
-  const close = () => ref.current?.close();
+  const close = () => closeModal(ref.current);
   return (
     <dialog
       ref={ref}
       className={`ws-sheet ${className}`}
       aria-labelledby={titleId}
-      onClose={onClose}
+      onClose={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onCancel={(event) => { if (event.target !== event.currentTarget) return; event.preventDefault(); closeModal(event.currentTarget); }}
     >
       <header className="ws-sheet__head">
         <h2 id={titleId} className="ws-sheet__title">
@@ -123,19 +126,23 @@ export function FolderModal({
   onClose,
   className = "",
   children,
+  dialogRef,
 }: {
   label: string;
   onClose: () => void;
   className?: string;
   children: ReactNode;
+  dialogRef?: RefObject<HTMLDialogElement | null>;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const ownRef = useRef<HTMLDialogElement>(null);
+  const ref = dialogRef ?? ownRef;
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
   }, []);
   return (
-    <dialog ref={ref} className={`ws-modal ${className}`} aria-label={label} onClose={onClose}>
+    <dialog ref={ref} className={`ws-modal ${className}`} aria-label={label} onClose={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onCancel={(event) => { if (event.target !== event.currentTarget) return; event.preventDefault(); closeModal(event.currentTarget); }}>
       {children}
     </dialog>
   );

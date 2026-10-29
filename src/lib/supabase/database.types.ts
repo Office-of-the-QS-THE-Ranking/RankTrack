@@ -1160,6 +1160,7 @@ export type Database = {
         Row: {
           access: string | null
           access_requests: Json
+          account_id: string | null
           answers: Json
           client: string | null
           created_at: string
@@ -1186,6 +1187,7 @@ export type Database = {
         Insert: {
           access?: string | null
           access_requests?: Json
+          account_id?: string | null
           answers: Json
           client?: string | null
           created_at?: string
@@ -1212,6 +1214,7 @@ export type Database = {
         Update: {
           access?: string | null
           access_requests?: Json
+          account_id?: string | null
           answers?: Json
           client?: string | null
           created_at?: string
@@ -1249,10 +1252,12 @@ export type Database = {
           issuer_id: string | null
           kind: string
           ord: number
+          owner_id: string | null
           prefix: string
           reference: string | null
           schema: Json
           status: string
+          students: boolean
           title: string
           unit_id: string | null
           updated_at: string
@@ -1269,10 +1274,12 @@ export type Database = {
           issuer_id?: string | null
           kind: string
           ord: number
+          owner_id?: string | null
           prefix: string
           reference?: string | null
           schema: Json
           status: string
+          students?: boolean
           title: string
           unit_id?: string | null
           updated_at: string
@@ -1289,10 +1296,12 @@ export type Database = {
           issuer_id?: string | null
           kind?: string
           ord?: number
+          owner_id?: string | null
           prefix?: string
           reference?: string | null
           schema?: Json
           status?: string
+          students?: boolean
           title?: string
           unit_id?: string | null
           updated_at?: string
@@ -3538,6 +3547,7 @@ export type Database = {
       hub_form_copy_create: {
         Args: {
           p_access: string
+          p_account?: string
           p_client: string
           p_form_id: string
           p_label: string
@@ -3598,6 +3608,7 @@ export type Database = {
       }
       hub_form_submit: {
         Args: {
+          p_account?: string
           p_answers: Json
           p_client: string
           p_consent: Json

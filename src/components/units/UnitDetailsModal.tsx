@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
@@ -19,7 +21,7 @@ export function UnitDetailsModal({ labelledBy, children }: { labelledBy: string;
     if (!dialog) return;
     const previousFocus = document.activeElement;
     const previousOverflow = document.documentElement.style.overflow;
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) openModal(dialog);
     document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = previousOverflow;
@@ -36,17 +38,17 @@ export function UnitDetailsModal({ labelledBy, children }: { labelledBy: string;
       aria-labelledby={labelledBy}
       onCancel={(event) => {
         event.preventDefault();
-        router.back();
+        closeModal(ref.current, () => router.back());
       }}
       onPointerDown={(event) => {
         pressedOutside.current = event.target === event.currentTarget;
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget && pressedOutside.current) router.back();
+        if (event.target === event.currentTarget && pressedOutside.current) closeModal(ref.current, () => router.back());
       }}
     >
       <div className="unit-modal__frame">
-        <button type="button" className="unit-modal__close" aria-label="Close" onClick={() => router.back()} autoFocus>
+        <button type="button" className="unit-modal__close" aria-label="Close" onClick={() => closeModal(ref.current, () => router.back())} autoFocus>
           <Icon name="close" size={18} strokeWidth={2} />
         </button>
         <div className="unit-modal__panel">{children}</div>

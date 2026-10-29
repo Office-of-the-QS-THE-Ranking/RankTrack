@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * Automatic sign-out under the session policy. While someone works, a heartbeat keeps the server-side
  * session alive; after the idle period a warning appears, and if nobody answers it the session ends.
@@ -60,8 +62,8 @@ export function IdleGuard({ idleMinutes, warnMinutes }: { idleMinutes: number; w
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
-    if (left !== null && !d.open) d.showModal();
-    if (left === null && d.open) d.close();
+    if (left !== null && !d.open) openModal(d);
+    if (left === null && d.open) closeModal(d);
   }, [left]);
 
   const stay = async () => {

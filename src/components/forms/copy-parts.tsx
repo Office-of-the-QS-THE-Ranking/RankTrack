@@ -97,11 +97,30 @@ export function WhoBox({ who, back, cta = "Continue with Google" }: { who: FormW
   );
 }
 
+/** In a form's hero, the account its pages know you by: your Hub account while you're signed in, else Google's. */
+export function WhoChip({ who }: { who: FormWho }) {
+  return (
+    <span className="fr-who-chip">
+      <span className="sr-only">{who.via === "hub" ? "Signed in to the Hub as" : "Signed in with Google as"}</span>
+      <span className="fr-face" aria-hidden="true">
+        <FaceContent key={who.avatar} name={who.name} src={who.avatar} />
+      </span>
+      <span className="fr-who-chip__text">
+        <b>{who.name}</b>
+        <small>
+          {who.via === "hub" ? <Icon name="shield-check" size={11} /> : <GoogleMark />}
+          <span>{who.email}</span>
+        </small>
+      </span>
+    </span>
+  );
+}
+
 /* ---------- Who can open it ---------- */
 
 const ACCESS: { key: CopyAccess; icon: IconName; label: string; hint: string }[] = [
-  { key: "link", icon: "link", label: "Anyone with the link", hint: "No sign-in. Anonymous Guests can edit." },
   { key: "private", icon: "lock-keyhole", label: "Invitation Only", hint: "Invitation will be sent to email. Google verification is required." },
+  { key: "link", icon: "link", label: "Anyone with the link", hint: "No sign-in. Anonymous Guests can edit." },
 ];
 
 export function AccessChoice({ value, onChange, name }: { value: CopyAccess; onChange: (v: CopyAccess) => void; name: string }) {
@@ -538,44 +557,12 @@ export function SharingSheet({
 
 /* ---------- Copies on this device ---------- */
 
-/** A copy opened on this device, by whom: listed again only for that account, and forgotten when anyone signs out. */
-export type KeptCopy = { code: string; token: string; ref: string; label: string; at: string; by: string };
-const KEPT = "hub-form-copies";
-
-const keptList = () => {
-  const list = JSON.parse(localStorage.getItem(KEPT) ?? "[]") as KeptCopy[];
-  return Array.isArray(list) ? list.filter((c) => c && typeof c.token === "string") : [];
-};
-
-/** The copies `email` opened on this device, newest first. */
-export function keptCopies(code: string, email: string | undefined): KeptCopy[] {
-  if (!email) return [];
-  try {
-    return keptList().filter((c) => c.code === code && c.by === email.toLowerCase());
-  } catch {
-    return [];
-  }
-}
-
-/** Remember a copy opened here by `by`, for the start page's list; a guest's copies aren't listed. */
-export function keepCopy(c: Omit<KeptCopy, "at" | "by">, by: string | undefined) {
-  if (!by) return;
-  try {
-    const list = keptList().filter((x) => x.token !== c.token || x.by !== by.toLowerCase());
-    localStorage.setItem(KEPT, JSON.stringify([{ ...c, by: by.toLowerCase(), at: new Date().toISOString() }, ...list].slice(0, 24)));
-  } catch {}
-}
-
-/** Replace a revoked link in this device's remembered copies. */
-export function replaceKeptCopyToken(code: string, previous: string, next: string) {
-  try {
-    localStorage.setItem(KEPT, JSON.stringify(keptList().map((c) => c.code === code && c.token === previous ? { ...c, token: next } : c)));
-  } catch {}
-}
-
-/** Forget every copy opened on this device: signing out leaves nothing listed for the next person. */
+/**
+ * The form's start page once listed the copies opened on a device (localStorage "hub-form-copies"). It's gone, but
+ * a device may still hold that list of copy links: signing out clears it.
+ */
 export function forgetCopies() {
   try {
-    localStorage.removeItem(KEPT);
+    localStorage.removeItem("hub-form-copies");
   } catch {}
 }

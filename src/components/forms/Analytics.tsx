@@ -278,7 +278,7 @@ export function FormAnalytics({ form, desk, responses, onCopy }: { form: FormIte
           <FormArt kind={form.kind} size="lg" />
         </span>
         <p className="ws-empty__title">{form.copies ? "Analytics start with the first copy sent" : "Analytics start with the first response"}</p>
-        {form.status === "open" && (
+        {form.status === "open" && !form.copies && (
           <button type="button" className="btn btn--dark" onClick={onCopy}>
             <Icon name="copy" size={16} /> Copy responder link
           </button>

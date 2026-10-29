@@ -23,7 +23,8 @@ analyse a form already exists as described below.
 | Analytics engine | `src/lib/forms/analytics.ts` → `analyze()` |
 | CSV export | `src/lib/forms/csv.ts` → `responsesCsv()` |
 | Formatting (pesos, Manila days, nouns) | `src/lib/forms/format.ts` |
-| Kinds, statuses, limits, module names | `src/lib/forms/kinds.ts` |
+| Kinds, statuses, limits, module names, Student Portal pages | `src/lib/forms/kinds.ts` |
+| Who may do what with a form (holders, kinds, rights, reach) | `src/lib/forms/access.ts` → `formRights()`, `creatable()`, `reaches()` |
 | Presets (the Builder's palette: `PRESETS`) | `src/lib/forms/presets.ts` |
 | Forms Builder: new questions, keys, fitting presets, references | `src/lib/forms/builder.ts` |
 | Forms Builder window | `src/components/forms/Builder.tsx` (`fb-*` in `forms.css`) |
@@ -31,30 +32,41 @@ analyse a form already exists as described below.
 | Module inputs | `src/components/forms/fields.tsx`, `blocks.tsx`, `controls.tsx` |
 | Module answers, read back | `src/components/forms/answers.tsx` |
 | Responder page (the responder link) | `src/app/f/[code]/page.tsx`, `src/components/forms/Responder.tsx`, `FormFrame.tsx` (hero with the share card: the link as a QR code, `components/ui/QrCode.tsx` on `uqr`; footer) |
-| Team copies (§11) | `src/lib/forms/copies.ts` (sync book, live helpers), `src/app/f/[code]/[token]/page.tsx`, `src/components/forms/CopyStart.tsx`, `copy-parts.tsx`, `useCopy.ts`, `src/lib/governance/server/form-copies.ts`, `src/app/actions/form-copies.ts`, `supabase/migrations/20261028250000_form_copies.sql`, `20261028260000_form_copies_live.sql` |
-| Workspace shelf, form window, responses, analytics | `src/components/forms/DigitalForms.tsx`, `FormWindow.tsx`, `Responses.tsx`, `Analytics.tsx`, `art.tsx`, `marks.tsx` |
+| Team copies (§11) | `src/lib/forms/copies.ts` (sync book, live helpers), `src/app/f/[code]/[token]/page.tsx`, `src/components/forms/CopyGate.tsx` (the private copy's door; the form link's door to the Student Portal), `copy-parts.tsx`, `useCopy.ts`, `src/lib/governance/server/form-copies.ts`, `src/app/actions/form-copies.ts`, `supabase/migrations/20261028250000_form_copies.sql`, `20261028260000_form_copies_live.sql` |
+| Student Portal (§12) | `src/lib/governance/server/student-portal.ts` (`copyDesk`, `assignmentsOf`, `studentOverview`), `src/components/students/` (`StudentDashboard`, `CopyDesk`, `Assignments`), `src/styles/students.css` (`st-*`), `src/app/portal/{assignments,proposals,evaluations,registrations,terminal-reports}`, `supabase/migrations/20261029100000_student_portal_forms.sql` |
+| Workspace shelf (the Office's with Office · Units · Students tabs; a unit's; a Student's of one kind), form window, responses, analytics | `src/components/forms/DigitalForms.tsx`, `FormWindow.tsx`, `Responses.tsx`, `Analytics.tsx`, `art.tsx`, `marks.tsx` |
 | Styles | `src/styles/forms.css` (`fm-*` modules and Workspace, `fr-*` responder page) |
-| Commands (store) | `src/lib/governance/engine/forms.ts`: `form.save`, `form.status`, `form.duplicate`, `form.delete` |
-| Server data | `src/lib/governance/server/forms.ts` (`formsDesk`, `responderForm`, `responsesOf`, `runsForm`) |
+| Commands (store) | `src/lib/governance/engine/forms.ts`: `form.save`, `form.status`, `form.portal`, `form.duplicate`, `form.delete` |
+| Server data | `src/lib/governance/server/forms.ts` (`formsDesk`, `responderForm`, `responsesOf`, `rightsFor`, `holderName`) |
 | Server actions (responses) | `src/app/actions/forms.ts` (`submitFormResponse`, `loadFormResponses`, `reviewFormResponse`, `deleteFormResponses`, `exportFormResponses`) |
 | Database | `supabase/migrations/20261028190000_digital_forms.sql` |
 | Seeding a template as a live form | `scripts/forms/seed-sql.mts` |
-| Tests | `tests/forms.test.ts`, `tests/forms-builder.test.ts`, `tests/forms-copies.test.ts` |
+| Tests | `tests/forms.test.ts`, `tests/forms-builder.test.ts`, `tests/forms-copies.test.ts`, `tests/student-portal.test.ts` |
 
-Routes: `/admin/workspace/forms` (the Office's forms), `/portal/workspace/forms` (a unit's own forms, with the
-Office's open forms beside them), `/f/<code>` (the responder link, public, no site navigation; for a form with team
-copies, where a copy is built), `/f/<code>/<token>` (a team copy). Old
-`/…/workspace/templates` links redirect to `/…/workspace/forms`.
+Routes: `/admin/workspace/forms` (the Office's forms, with every unit's and Student's published form beside them),
+`/portal/workspace/forms` (a unit's own forms, with the Office's open forms beside them), the Student Portal's
+`/portal/assignments`, `/portal/proposals`, `/portal/evaluations`, `/portal/registrations` and
+`/portal/terminal-reports` (§12), `/f/<code>` (the responder link, public, no site navigation; for a form filled in
+as team copies, a door to the Student Portal, or a preview for the people who run it), `/f/<code>/<token>` (a team
+copy). Old `/…/workspace/templates` links redirect to `/…/workspace/forms`.
 
 ## 2. How it fits together
 
 - **A form** is a row of `forms`, part of the governance store (in `hub_tables`, mapped in `server/db/rows.ts`),
-  changed only through its commands, each authorized and audited. A unit's forms are written by its contributors
-  (`evidence.submit` on the unit); the Office's by Knowledge Center editors (`knowledge.edit`).
+  changed only through its commands, each authorized and audited. It is held by the Office (no unit), a unit
+  (`unit_id`), or a Student (`owner_id`, their own Evaluation or Registration Form, kept under their unit). Who may do
+  what is the `forms` permission module read through `lib/forms/access.ts` (§12).
 - **Lifecycle:** draft → open → closed ↔ open. A form never goes back to draft, so only a draft (which has never
-  taken a response) can be deleted, and its **questions change only while it is a draft**. To change an open form's
-  questions, duplicate it (`form.duplicate` makes a draft copy with a new link). Details (title, description, kind,
-  form number, issuing office, closing day, reference prefix) can change at any time.
+  taken a response) can be deleted, and its **questions and kind change only while it is a draft**. To change an
+  open form's questions, duplicate it (`form.duplicate` makes a draft copy with a new link). Other details (title,
+  description, form number, issuing office, closing day, reference prefix) can change at any time, except on an
+  **Evaluation or Registration Form, which is fixed once published** (opened): no changes, no deleting, because its
+  responses feed the Office's data from then on. Opening one is called Publish and asks first.
+- **Team copies follow the kind:** Proposal and Terminal Report forms are filled in as copies built from the Student
+  Portal (§11, §12); no other kind is (`forms.copies`, set by `form.save`).
+- **Publish to Student Portal** (`form.portal`, `forms.students`): a Proposal or Terminal Report form of the Office's
+  is listed under Create in the Student Portal; a survey (the Office's, or a unit's for its own Students) becomes the
+  Students' assignment. Students see it while it takes responses.
 - **Responses** are rows of `form_responses`, **outside** the store, so a busy form never rewrites it. They are
   numbered per form by `hub_form_submit()` (`CDP-0001`, `CDP-0002`…; the prefix is the form's). Restoring the store
   never touches them (no foreign key, on purpose). They are covered by Supabase's database backups, not by the
@@ -64,9 +76,11 @@ copies, where a copy is built), `/f/<code>/<token>` (a team copy). Old
   field catches bots. The answers are rebuilt by the same module rules the page ran (unknown fields dropped, fixed
   rates and sources forced, hidden fields dropped); the e-signature tick is dated by the response's arrival (older typed signatures were dated on arrival). Not audited: a response is its
   own record.
-- **Running a form** (reading responses, reviewing, removing, exporting) is for the people who may change it.
-  Reviews save only over the version that was read (two reviewers can't overwrite each other), and every review,
-  removal and export is written to the audit trail.
+- **Running a form** (reading responses, reviewing, removing, exporting) needs its own right on the form
+  (`read`, `review`, `clear`, `export` in `formRights`). Reviews save only over the version that was read (two
+  reviewers can't overwrite each other), and every review, removal and export is written to the audit trail.
+- **An assigned survey** keeps the Student account that answered it (`form_responses.account_id`) and takes one
+  answer from each; no other response keeps the account.
 
 ## 3. The schema
 
@@ -242,9 +256,12 @@ change. End the migration by moving `id_counters` (`form`) past the id (for an i
 
 ## 10. The Forms Builder
 
-**Create form** on the Digital Forms shelf (for people who may change the forms run there) opens the Builder: start
-from a blank form or the ComDev proposal template, then build. A draft's window has **Edit questions** (in its
-menu, the shelf's row menu and the "What it asks" tile); open forms are changed by duplicating them.
+**Create form** on the Digital Forms shelf (for people who may make forms there) opens the Builder: start from a
+blank form or, where proposals may be made (the Office), the ComDev proposal template, then build. The Kind picker
+offers only the kinds the shelf's holder makes (`HOLDER_KINDS`): a Student's Evaluation Forms or Registrations page
+has one kind and no Review step (a Student's form has no sign-offs; `form.save` drops any). A draft's window has
+**Edit questions** (in its menu, the shelf's row menu and the "What it asks" tile); open forms are changed by
+duplicating them.
 
 - **Palette** (left): *Questions* lists every module (`PALETTE` in `builder.ts`); *Presets* lists `PRESETS`. Click adds
   after the selected question (or at the end of the selected or last step); drag drops it where the gold line
@@ -275,21 +292,30 @@ notifying the people who run a form when a response arrives.
 
 ## 11. Team copies
 
-A form with **team copies** on (`forms.copies`, the *Team copies* switch in Edit details; on for the ComDev proposal,
-and for new proposals made in the Builder) doesn't open on its questions. Its link builds a copy:
+A Proposal or Terminal Report form is filled in as **team copies** (`forms.copies`, set from the kind). Its own link
+builds nothing (the start page that let anyone build a copy there was removed, 2026-10-29): it shows a door to the
+Student Portal, or a preview for the people who run the form. A copy is built by a **Student** (the Secretary of a
+student organization, commission or council), signed in to the Hub, from the Student Portal's Project Proposals or
+Terminal Reports page, of a form the Office published there (§12):
 
-1. **Sign in** with Google from the form (choose any Google account, without typing an email first; `/auth/verify-email?back=/f/<code>` →
-   `/auth/callback` → back with `?signin=<result>`, told as a toast). The proof is a signed cookie, `hub_form_who`
-   (email and Google's name, 7 days, `server/email-verify.ts`), good only for a form's pages. Someone signed in to
-   the Hub is known by their Hub account instead.
-   The Auth creation hook admits Google identities so the selected email need not be allowlisted in advance.
-   This grants no Hub account or session: the normal sign-in callback still checks registration and policy;
-   the form callback closes the Auth session, removes unregistered Auth users and issues only the form cookie.
-2. **Name** the copy after its event (80 characters), and choose **who can open it**: anyone with its link, or only
+1. **Create proposal** (or terminal report) picks the published form.
+2. **Name** the copy after its project (80 characters), and choose **who can open it**: anyone with its link, or only
    the people the owner adds (by Google email, up to 30).
-3. **Build copy** (`buildFormCopy`): the copy is a row of `form_responses` in status `draft` with the form's next
-   reference (`hub_form_copy_create`, numbered with the responses), a 128-bit token, and the owner. Its link is
-   `/f/<code>/<token>`; the start page lists the copies you own or were added to, and those opened on the device.
+3. **Build Form** (`buildFormCopy`, audited as `form.copy`): the copy is a row of `form_responses` in status `draft`
+   with the form's next reference (`hub_form_copy_create`, numbered with the responses), a 128-bit token, the owner
+   (the Student's email and name) and their account (`account_id`). The sheet then shows its editable link,
+   `/f/<code>/<token>`, to copy and forward to the team; the page lists only the copies the Student built.
+   A copy another Secretary added them to opens through its link, as an editor; it never lists in their portal.
+
+People the Student forwards a private copy to prove who they are with Google on the copy's page (`/auth/verify-email?back=/f/<code>/<token>` →
+`/auth/callback` → back with `?signin=<result>`, told as a toast). The proof is a signed cookie, `hub_form_who`
+(email and Google's name, 7 days, `server/email-verify.ts`), good only for a form's pages. Someone signed in to the
+Hub is always known by their Hub account instead (`formWho` reads the Hub session first): signing in to or out of the
+Hub clears `hub_form_who`, a private copy's door offers a Hub account no other Google account, and every form page
+shows the account it knows you by in the hero's bar (`WhoChip`, beside the form's number). The Auth creation hook admits Google identities so the selected email need
+not be allowlisted in advance. This grants no Hub account or session: the normal sign-in callback still checks
+registration and policy; the form callback closes the Auth session, removes unregistered Auth users and issues only
+the form cookie.
 
 **Filling it in together, live.** The copy's page is the responder over the copy's answers (`useAnswers` in
 `useCopy.ts`). Each change goes to the other open pages as it's typed, over a Supabase Realtime broadcast channel
@@ -336,3 +362,33 @@ sent straight from its link.
 
 Still to come for copies: removing abandoned copies, and editing a returned copy to send it again.
 
+## 12. The Student Portal and who may do what
+
+A **Student** account is the Secretary of a student organization, commission or council (user, 2026-10-29); the
+request form and the invite drawer ask which one (`profile.organization`, the account's title "Secretary, …"). Only
+Students hold `forms` *submit*, so only they see the Student Portal's pages, and nothing of their unit's evidence,
+data, stories or Knowledge Center:
+
+| Page | What it is |
+|---|---|
+| Dashboard (`/portal`) | what's waiting (a copy returned, an assignment to answer, a proposal in progress), then tiles for each page and the copies edited last |
+| Assignments | surveys published to the Student Portal by the Office or the Student's own unit; each answered once from its link while signed in |
+| Project Proposals | copies of the proposal forms the Office published (the ComDev proposal for now); Create builds one and shows its link to forward |
+| Evaluation Forms, Registrations | the Student's own forms, made with the Forms Builder; theirs to change until published, then fixed |
+| Terminal Reports | as Project Proposals, for terminal report forms (the Office makes the form later) |
+
+Rights (`formRights(grants, accountId, form)`, enforced by the engine and the actions, shown by the pages):
+
+| Holder | Who runs it | Who reads its responses | Student Portal |
+|---|---|---|---|
+| The Office | University-wide Administrators (`forms` edit, manage, approve, export) | the same | proposals, terminal reports and surveys, to every Student |
+| A unit | its Coordinators (never the Office, never a Student of the unit) | its Coordinators and Administrators; the Office once published | its surveys, to its own Students |
+| A Student | the Student who made it (evaluations and registrations only, no sign-offs) | the Student; the Office once published | never |
+
+The Office may close (and reopen) any published form and remove its responses; on a fixed Evaluation or
+Registration Form only the Office removes responses. Kinds by holder (`HOLDER_KINDS`): the Office any; a unit
+surveys, registrations, applications and evaluations; a Student evaluations and registrations. A unit's or a
+Student's form names only its own unit (or one within it) as its issuer. The privacy notice names a unit's or a
+student organization's form's maker among those who use the answers (`privacyUsers`, `statementText`;
+`PRIVACY_VERSION` 2026-10-29.1). Form responses are registered in Data Governance as **DS-FORMS** (Confidential,
+personal data).

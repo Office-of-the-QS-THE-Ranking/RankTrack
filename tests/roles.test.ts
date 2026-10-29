@@ -36,11 +36,15 @@ describe("four roles", () => {
     expect(canWith(hubGrants, "config", "edit")).toBe(true);
   });
 
-  it("gives Students nothing to submit", () => {
+  it("gives Students (organization secretaries) the Student Portal's forms and nothing of the unit's", () => {
     const w = world();
     const student = w.person("Student", "student@ust.edu.ph", ROLE.student, w.eng.id);
     const grants = grantsFor(student, w.state.units, new Date().toISOString().slice(0, 10));
-    expect(canWith(grants, "knowledge", "view")).toBe(true);
+    expect(canWith(grants, "forms", "submit", { unitId: w.eng.id })).toBe(true);
+    expect(canWith(grants, "forms", "create")).toBe(true);
+    expect(canWith(grants, "knowledge", "view")).toBe(false);
+    expect(canWith(grants, "reports", "view")).toBe(false);
+    expect(canWith(grants, "evidence", "view", { unitId: w.eng.id })).toBe(false);
     expect(canWith(grants, "evidence", "submit", { unitId: w.eng.id })).toBe(false);
     expect(canWith(grants, "stories", "create", { unitId: w.eng.id })).toBe(false);
   });

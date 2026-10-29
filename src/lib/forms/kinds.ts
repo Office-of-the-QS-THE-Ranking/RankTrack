@@ -27,6 +27,17 @@ export const FORM_CODE = /^[a-z0-9][a-z0-9-]{3,39}$/;
 /** The responder link for a form. */
 export const formPath = (code: string) => `/f/${code}`;
 
+/** The Student Portal's page for each kind a Student works with: copies to build, their own forms, or assignments. */
+export const STUDENT_PAGES: Partial<Record<FormKind, string>> = {
+  survey: "/portal/assignments",
+  proposal: "/portal/proposals",
+  evaluation: "/portal/evaluations",
+  registration: "/portal/registrations",
+  "terminal-report": "/portal/terminal-reports",
+};
+
+export const studentPortalPath = (kind: FormKind) => STUDENT_PAGES[kind] ?? "/portal";
+
 /** What each module is called where people see it: the form's map, and the Forms Builder's palette. */
 export const MODULE_NAMES: Record<FieldType, string> = {
   text: "Short answer",

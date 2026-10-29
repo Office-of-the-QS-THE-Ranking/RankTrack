@@ -22,6 +22,7 @@ import "@/styles/publications.css";
 import "@/styles/workspace.css";
 import "@/styles/shelf.css";
 import "@/styles/forms.css";
+import "@/styles/students.css";
 import "@/styles/signin.css";
 import "@/styles/overview.css";
 import "@/styles/unit-board.css";
@@ -44,6 +45,7 @@ import "@/styles/ranking.css";
 import "@/styles/knowledge.css";
 import "@/styles/deadlines.css";
 import "@/styles/roles.css";
+import "@/styles/modal-motion.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
 const sans = Instrument_Sans({

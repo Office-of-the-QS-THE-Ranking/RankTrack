@@ -513,7 +513,9 @@ function profileRows(a: AccountRow): [string, string][] {
   if (!p) return [];
   return [
     ...(p.salutation ? [["Salutation", p.salutation] as [string, string]] : []),
-    ["Affiliation", `${p.affiliation}${p.organization ? ` · ${p.organization}` : ""}${p.listed ? "" : " (Others)"}`],
+    ["Affiliation", `${p.affiliation}${p.organization && a.assignments.every((r) => r.roleId !== ROLE.student) ? ` · ${p.organization}` : ""}${p.listed ? "" : " (Others)"}`],
+    // A Student is the Secretary of a student organization, commission or council.
+    ...(p.organization && a.assignments.some((r) => r.roleId === ROLE.student) ? [["Secretary of", p.organization] as [string, string]] : []),
     ...(p.website ? [["Organization website", p.website] as [string, string]] : []),
   ];
 }

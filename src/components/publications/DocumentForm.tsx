@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * The research article and report form. On the right, the details in the order a reference is read: title, who
  * wrote it, where and when, the abstract, how to reach it, then what it serves. On the left, what the public
@@ -109,14 +111,14 @@ export function DocumentForm({
 
   useEffect(() => {
     const d = dialog.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
     fit(titleRef.current);
     fit(abstractRef.current);
     if (!row) titleRef.current?.focus();
   }, [row]);
 
   useEffect(() => {
-    if (leaving && leaveDialog.current && !leaveDialog.current.open) leaveDialog.current.showModal();
+    if (leaving && leaveDialog.current && !leaveDialog.current.open) openModal(leaveDialog.current);
   }, [leaving]);
 
   /** Close, clearing uploads the saved document doesn't keep. */
@@ -124,8 +126,7 @@ export function DocumentForm({
     sending.current?.abort();
     for (const src of uploaded.current) if (src !== kept) void discardDocumentUpload(src);
     uploaded.current = [];
-    dialog.current?.close();
-    onClose();
+    closeModal(dialog.current, onClose);
   };
 
   const requestClose = () => (signature() === initial ? finish(row?.file?.src) : setLeaving(true));
@@ -572,7 +573,7 @@ export function DocumentForm({
           onCancel={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            setLeaving(false);
+            closeModal(leaveDialog.current, () => setLeaving(false));
           }}
         >
           <div className="pc-leave__card">
@@ -583,7 +584,7 @@ export function DocumentForm({
               {row ? `The ${noun.one} stays as it was.` : "Nothing you entered here is saved."}
             </p>
             <div className="pc-leave__actions">
-              <button type="button" className="btn" onClick={() => setLeaving(false)} autoFocus>
+              <button type="button" className="btn" onClick={() => closeModal(leaveDialog.current, () => setLeaving(false))} autoFocus>
                 Keep editing
               </button>
               <button type="button" className="btn btn--danger" onClick={() => finish(row?.file?.src)}>

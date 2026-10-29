@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { GUEST_DAYS, checkDomains } from "@/lib/governance/access-requests";
 import { ROLE } from "@/lib/governance/catalog";
@@ -173,6 +175,8 @@ function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]
                 ? [
                     ["Requester", "Thomasian"],
                     ["Office or College/Faculty", a.unitId ? unit(a.unitId) : "Not given"],
+                    // A Student is the Secretary of the organization they named.
+                    ...(a.organization ? [["Secretary of", a.organization]] : []),
                   ]
                 : [
                     ["Requester", "External partner"],
@@ -550,7 +554,7 @@ function NewRequest({ open, onClose, onCreated }: { open: boolean; onClose: () =
       title="New request"
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".adm-sheet"), onClose)}>
             Cancel
           </button>
           <button type="button" className="btn btn--dark" disabled={!ready} onClick={submit}>

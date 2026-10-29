@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal } from "@/components/ui/modal-motion";
+
 /*
  * Working Documents: a unit's documents in progress as links to where they live. One table (title, date, the
  * rankings they serve, status, and an icon per link: Google Docs, Sheets, Slides, Forms, Drive, PDF, Office
@@ -378,7 +380,7 @@ function DocSheet({
 
   const save = async () => {
     setBusy(true);
-    if (await onSave({ title, date, rankings: tags, sdgs, status, links, remarks })) onClose();
+    if (await onSave({ title, date, rankings: tags, sdgs, status, links, remarks })) closeModal(form.current?.closest<HTMLElement>(".adm-sheet") ?? null, onClose);
     else setBusy(false);
   };
 
@@ -405,7 +407,7 @@ function DocSheet({
       }
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".adm-sheet"), onClose)}>
             Cancel
           </button>
           <button type="submit" form={formId} className="btn btn--dark" disabled={busy} aria-busy={busy}>

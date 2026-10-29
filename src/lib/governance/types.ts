@@ -24,6 +24,7 @@ export type ModuleKey =
   | "posts"
   | "reports"
   | "knowledge"
+  | "forms"
   | "accounts"
   | "roles"
   | "directory"
@@ -836,8 +837,10 @@ export interface WorkingDoc {
  */
 export interface FormRecord {
   id: string;
-  /** The unit whose Digital Forms hold it; absent for the Office's, which every unit sees. */
+  /** The unit whose Digital Forms hold it; absent for the Office's, which every unit sees. A Student's own form keeps their unit here too. */
   unitId?: string;
+  /** A Student's own form (an Evaluation Form or a Registration Form): their account holds it, not their unit. */
+  ownerId?: string;
   /** The responder link's code, unique. */
   code: string;
   /** Starts each response's reference: CDP-0007. */
@@ -852,8 +855,10 @@ export interface FormRecord {
   status: FormStatus;
   /** Takes no responses after this day (Manila), YYYY-MM-DD. */
   closesOn?: ISODate;
-  /** Its link builds team copies (lib/forms/copies.ts) instead of opening on the questions. */
+  /** Its link builds team copies (lib/forms/copies.ts) instead of opening on the questions: Proposals and Terminal Reports. */
   copies?: boolean;
+  /** Published to the Student Portal: listed under Create for Proposals and Terminal Reports, assigned for a survey. */
+  students?: boolean;
   schema: FormSchema;
   createdBy: string;
   createdAt: ISOTime;

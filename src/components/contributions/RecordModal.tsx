@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useRef, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 
@@ -32,7 +34,7 @@ export function RecordModal({
     const dialog = ref.current;
     if (!dialog) return;
     const previousOverflow = document.documentElement.style.overflow;
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) openModal(dialog);
     document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = previousOverflow;
@@ -50,18 +52,18 @@ export function RecordModal({
       aria-label={label}
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        closeModal(ref.current, onClose);
       }}
       onPointerDown={(event) => {
         pressedOutside.current = event.target === event.currentTarget;
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget && pressedOutside.current) onClose();
+        if (event.target === event.currentTarget && pressedOutside.current) closeModal(ref.current, onClose);
       }}
     >
       <div className="unit-modal__frame cv-modal__frame">
         <div className="cv-modal__rail">
-          <button type="button" className="unit-modal__close" aria-label="Close" onClick={onClose} autoFocus>
+          <button type="button" className="unit-modal__close" aria-label="Close" onClick={() => closeModal(ref.current, onClose)} autoFocus>
             <Icon name="close" size={18} strokeWidth={2} />
           </button>
           {(onPrev || onNext) && (

@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -243,7 +245,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
   const intent = useRef(0);
   const closeSearch = useCallback(() => setSearch(false), []);
   const closePanel = useCallback(() => setPanel(null), []);
-  const closeSheet = useCallback(() => sheetRef.current?.close(), []);
+  const closeSheet = useCallback(() => closeModal(sheetRef.current), []);
 
   useEffect(() => {
     const header = headerRef.current;
@@ -319,7 +321,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
   // A new page closes whatever was open.
   useEffect(() => {
     setPanel(null);
-    sheetRef.current?.close();
+    closeModal(sheetRef.current);
   }, [pathname]);
 
   // The navigation panel closes on Escape and on a click anywhere outside the header.
@@ -348,7 +350,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
       const typing = e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true]");
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
         e.preventDefault();
-        sheetRef.current?.close();
+        closeModal(sheetRef.current);
         setSearch(true);
       }
     };
@@ -481,7 +483,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
                 /
               </kbd>
             </button>
-            <button type="button" className="w-menubtn" aria-haspopup="dialog" onClick={() => sheetRef.current?.showModal()}>
+            <button type="button" className="w-menubtn" aria-haspopup="dialog" onClick={() => openModal(sheetRef.current)}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
                 <path d="M4 9h16M4 15h16" />
               </svg>
@@ -508,6 +510,7 @@ export function SiteHeader({ menus, hub = null }: { menus?: Menu[]; hub?: HubDat
 
         <dialog
           className="w-sheet"
+          onCancel={(event) => { event.preventDefault(); closeSheet(); }}
           ref={sheetRef}
           aria-label="Menu"
           onClick={(e) => {

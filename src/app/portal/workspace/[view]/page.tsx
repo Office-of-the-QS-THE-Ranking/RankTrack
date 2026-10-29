@@ -30,7 +30,7 @@ export default async function WorkspaceShelfPage({ params }: Props) {
   const sees = !!viewer && viewerCan(viewer, "evidence", "view", { unitId });
   // Working Documents are links; Digital Forms are forms with their responses; the rest hold uploaded files.
   const working = sees && view === "working" ? await workingDesk(viewer) : null;
-  const forms = sees && view === "forms" ? await formsDesk(viewer) : null;
+  const forms = sees && view === "forms" ? await formsDesk(viewer, "unit") : null;
   const desk = sees && view !== "working" && view !== "forms" ? await workspaceDesk(viewer) : null;
   return (
     <Gate path={`/portal/workspace/${view}`} title="Workspace">

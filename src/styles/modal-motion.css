@@ -1,0 +1,60 @@
+/* One motion system for native dialogs and the administration inspector.
+   Individual translate/scale preserve existing positioning transforms. */
+dialog[open] {
+  animation: modal-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+dialog[open]::backdrop {
+  animation: modal-backdrop-enter 360ms ease !important;
+}
+dialog[data-modal-closing] {
+  animation: none !important;
+  pointer-events: none;
+}
+dialog[data-modal-closing]::backdrop {
+  animation: modal-backdrop-exit 240ms ease forwards !important;
+}
+.drawer[open] {
+  animation-name: modal-drawer-enter !important;
+}
+.adm-sheet {
+  animation: modal-drawer-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+.adm-sheet--modal {
+  animation-name: modal-enter !important;
+}
+.adm-sheet__scrim {
+  animation: modal-backdrop-enter 360ms ease !important;
+}
+.adm-sheet[data-modal-closing] {
+  animation: none !important;
+  pointer-events: none;
+}
+.adm-layer:has(.adm-sheet[data-modal-closing]) .adm-sheet__scrim {
+  animation: modal-backdrop-exit 240ms ease forwards !important;
+}
+/* Full-screen modal shells already animate their panel through this shared motion. */
+dialog[open] > .unit-modal__frame {
+  animation: none !important;
+}
+@keyframes modal-enter {
+  from { opacity: 0; translate: 0 12px; scale: 0.985; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes modal-drawer-enter {
+  from { opacity: 0; translate: 24px 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes modal-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-backdrop-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[open], dialog[open]::backdrop, dialog[data-modal-closing]::backdrop,
+  .adm-sheet, .adm-sheet__scrim, .adm-layer:has(.adm-sheet[data-modal-closing]) .adm-sheet__scrim {
+    animation: none !important;
+  }
+}

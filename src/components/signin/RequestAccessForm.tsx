@@ -39,6 +39,7 @@ import {
   requestText,
   salutationText,
 } from "@/lib/governance/access-requests";
+import { ROLE } from "@/lib/governance/catalog";
 import { AffiliationField } from "./AffiliationField";
 
 export type AccessDraft = {
@@ -212,7 +213,8 @@ export function RequestAccessForm({
     start(async () => {
       const r = await requestAccess({
         ...d,
-        organization: thomasian ? "" : d.organization,
+        // A Student names the organization they're the Secretary of; other Thomasians name none.
+        organization: thomasian && d.roleId !== ROLE.student ? "" : d.organization,
         roleId: thomasian ? d.roleId : "",
         section: thomasian ? d.section : "",
         unitId: thomasian ? d.unitId : "",
@@ -493,6 +495,26 @@ export function RequestAccessForm({
                     </option>
                   ))}
                 </Select>
+              </label>
+            )}
+
+            {thomasian && d.roleId === ROLE.student && (
+              <label className="field">
+                <span className="field__label">
+                  Student Organization <em>You are its Secretary</em>
+                </span>
+                <input
+                  className="input"
+                  name="organization"
+                  title=""
+                  value={d.organization}
+                  onChange={(e) => set({ organization: requestText(e.target.value, true) })}
+                  placeholder="E.G. UST CENTRAL STUDENT COUNCIL"
+                  autoComplete="organization"
+                  maxLength={160}
+                  required
+                  data-missing="Name the organization, commission or council you are the Secretary of."
+                />
               </label>
             )}
 

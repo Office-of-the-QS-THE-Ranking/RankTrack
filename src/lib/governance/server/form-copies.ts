@@ -2,12 +2,12 @@ import "server-only";
 
 /*
  * Team copies of a digital form (lib/forms/copies.ts) for the pages that show them: who the browser is on a form's
- * pages, a copy as its link opens it (or that it's private to someone else), and the copies a person started or
- * was added to. Copies are rows of form_responses in status "draft" until they're sent; the actions that build,
- * save, send and share them are in app/actions/form-copies.ts.
+ * pages, and a copy as its link opens it (or that it's private to someone else). Students build copies from the
+ * Student Portal, which lists them (server/student-portal.ts). Copies are rows of form_responses in status "draft"
+ * until they're sent; the actions that build, save, send and share them are in app/actions/form-copies.ts.
  */
 import { cookies } from "next/headers";
-import type { CopyPerson, CopyRequest, CopyStage, CopySummary, CopyView, FormWho } from "../hub-types";
+import type { CopyPerson, CopyRequest, CopyStage, CopyView, FormWho } from "../hub-types";
 import type { FormRecord } from "../types";
 import { FORM_WHO_COOKIE, formWhoOf } from "./email-verify";
 import { getViewer } from "./session";
@@ -18,12 +18,15 @@ import { adminDb } from "@/lib/supabase/server";
 import { mayLookUp, peopleByEmail } from "./people-directory";
 import { readState } from "./store";
 
-/** Who a form's pages know this browser to be: Google sign-in from a form first, then the Hub's own session. */
+/**
+ * Who a form's pages know this browser to be: the Hub account signed in (a Student's portal account) first, so an
+ * account once chosen on a form never stands in for it; otherwise the Google account chosen on a form's page.
+ */
 export async function formWho(): Promise<FormWho | null> {
-  const proof = formWhoOf((await cookies()).get(FORM_WHO_COOKIE)?.value);
-  if (proof) return { ...proof, name: proof.name || proof.email, via: "google" };
   const viewer = await getViewer();
-  return viewer ? { email: viewer.email.toLowerCase(), name: viewer.name, avatar: viewer.avatar, via: "hub" } : null;
+  if (viewer) return { email: viewer.email.toLowerCase(), name: viewer.name, avatar: viewer.avatar, via: "hub" };
+  const proof = formWhoOf((await cookies()).get(FORM_WHO_COOKIE)?.value);
+  return proof ? { ...proof, name: proof.name || proof.email, via: "google" } : null;
 }
 
 export type CopyRow = {
@@ -119,31 +122,4 @@ export async function copyOf(form: FormRecord, token: string, who: FormWho | nul
     live: row.live,
     ...(row.status !== "draft" && { sent: { at: new Date(row.submitted_at).toISOString(), stages: copyStages(form, row.answers ?? {}, row.review) } }),
   };
-}
-
-const SUMMARY = "token, ref, label, access, status, owner_email, edited, created_at";
-
-/** The copies of `form` that `who` started or was added to, last edited first. Empty if they can't be read. */
-export async function copiesOf(form: FormRecord, who: FormWho | null): Promise<CopySummary[]> {
-  if (!who) return [];
-  const db = adminDb();
-  const [own, shared] = await Promise.all([
-    db.from("form_responses").select(SUMMARY).eq("form_id", form.id).eq("owner_email", who.email).order("created_at", { ascending: false }).limit(40),
-    db.from("form_responses").select(SUMMARY).eq("form_id", form.id).not("token", "is", null).contains("members", [who.email]).order("created_at", { ascending: false }).limit(40),
-  ]);
-  for (const r of [own, shared]) if (r.error) console.error(`Form copies: ${r.error.message}`);
-  const seen = new Set<string>();
-  const rows = [...(own.data ?? []), ...(shared.data ?? [])] as unknown as Pick<CopyRow, "token" | "ref" | "label" | "access" | "status" | "owner_email" | "edited" | "created_at">[];
-  return rows
-    .filter((r) => r.token && !seen.has(r.token) && seen.add(r.token))
-    .map((r) => ({
-      token: r.token,
-      ref: r.ref,
-      label: r.label,
-      access: r.access,
-      status: r.status,
-      mine: r.owner_email === who.email,
-      editedAt: new Date(r.edited?.at ?? r.created_at).toISOString(),
-    }))
-    .sort((a, b) => b.editedAt.localeCompare(a.editedAt));
 }

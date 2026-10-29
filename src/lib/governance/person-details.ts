@@ -3,7 +3,8 @@
  * invite drawer (InviteSheet → account.invite) both ask it: the same fields, rules and messages, a requester
  * answering for themselves ("your") and an administrator for the person they invite ("their"). University of
  * Santo Tomas as the affiliation asks for a role, a University Office or College/Faculty and which one, on a UST
- * email; any other affiliation is an External partner's, on an email outside the University.
+ * email (a Student, the Secretary of a student organization, commission or council, also names it); any other
+ * affiliation is an External partner's, on an email outside the University.
  */
 import {
   NO_SALUTATION,
@@ -76,8 +77,13 @@ export function profileOf(p: AccountProfile): AccountProfile {
   };
 }
 
-/** The account's position line: a Thomasian's role, or an External partner's organization. */
-export const personTitle = (p: Person) => (p.roleId ? (UST_ROLES.find((r) => r.id === p.roleId)?.name ?? "") : p.profile.organization || p.profile.affiliation);
+/** The account's position line: a Thomasian's role (a Student's as the Secretary of their organization), or an External partner's organization. */
+export const personTitle = (p: Person) =>
+  p.roleId === ROLE.student && p.profile.organization
+    ? `Secretary, ${p.profile.organization}`
+    : p.roleId
+      ? (UST_ROLES.find((r) => r.id === p.roleId)?.name ?? "")
+      : p.profile.organization || p.profile.affiliation;
 
 /** The answers checked on their own, or what to fix as a sentence. */
 export function readPerson(input: PersonInput, voice: Voice): Person | string {
@@ -101,8 +107,11 @@ export function readPerson(input: PersonInput, voice: Voice): Person | string {
   if (role && !section) return role.id === ROLE.student ? "Students choose a College/Faculty." : "Choose University Office or College/Faculty.";
   if (!thomasian && !validRequestText(answer, true)) return "Enter an affiliation using letters, spaces, hyphens, em dashes, slashes or parentheses only.";
   const listed = thomasian ? undefined : listedAffiliation(answer);
-  const organization = listed === SPECIFY ? clean(input.organization, 160).normalize("NFC").toUpperCase() : "";
+  // Student access is for the Secretary of a student organization, commission or council, named here.
+  const secretary = role?.id === ROLE.student;
+  const organization = listed === SPECIFY || secretary ? clean(input.organization, 160).normalize("NFC").toUpperCase() : "";
   if (listed === SPECIFY && !validRequestText(organization)) return `Name ${your} accreditation organization.`;
+  if (secretary && !validRequestText(organization, true)) return `Name the student organization, commission or council ${voice === "self" ? "you are" : "they are"} the Secretary of.`;
   const website = !thomasian && asksWebsite(answer) ? cleanWebsite(input.website ?? "") : "";
   if (!thomasian && asksWebsite(answer) && input.website?.trim() && !website) return "Enter the website as a full address starting with https://.";
   return {

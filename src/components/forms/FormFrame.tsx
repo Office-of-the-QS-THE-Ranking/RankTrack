@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { FootClock } from "@/components/forms/FootClock";
 import { ClearableFields } from "@/components/forms/ClearableFields";
 import { FormLink } from "@/components/forms/FormLink";
+import { WhoChip } from "@/components/forms/copy-parts";
 import { Lockup, UNIVERSITY } from "@/components/site/Lockup";
 import { Stars } from "@/components/site/Stars";
 import { siteFontVars } from "@/components/site/fonts";
@@ -10,15 +11,15 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { QrCode } from "@/components/ui/QrCode";
 import { dayLabel } from "@/lib/forms/format";
 import { formKindLabel } from "@/lib/forms/kinds";
-import type { ResponderForm } from "@/lib/governance/hub-types";
+import type { FormWho, ResponderForm } from "@/lib/governance/hub-types";
 import { siteOrigin } from "@/lib/governance/server/origin";
 import type { OfficeProfile } from "@/lib/reference";
 
 /**
- * A form's public page around what it shows: the responder, a team copy, or the start of one. The hero is in the
+ * A form's public page around what it shows: the responder, a team copy, or the door to the Student Portal. The hero is in the
  * University's identity (the reverse seal with the issuing unit's mark on the night band: the University in Trajan
  * capitals, the unit in Minion capitals, a department under it in Minion; the form's number in the corner as on the
- * paper), without the site's navigation. Beside the title and lead, a share card holds the link as a QR code to
+ * paper; beside it the account you're signed in as), without the site's navigation. Beside the title and lead, a share card holds the link as a QR code to
  * scan, a note, and the address to copy. The footer is one slim black strip in the hero's night: the University, the
  * issuing office and the Rankings Office, the policies and a contact link, and the time in Manila.
  */
@@ -30,9 +31,13 @@ export async function FormFrame({
   details,
   above,
   note,
+  share = true,
+  who,
   children,
 }: {
   form: ResponderForm;
+  /** Who the page knows you as (server/form-copies.ts formWho), shown in the bar: your Hub account when signed in. */
+  who?: FormWho | null;
   office: Pick<OfficeProfile, "name"> & Partial<Pick<OfficeProfile, "reportsTo" | "email">>;
   /** The link the pill shares: the form's, or a copy's. */
   link: { path?: string; copied?: string };
@@ -42,6 +47,8 @@ export async function FormFrame({
   /** A line over the title, after the form's kind: a copy's reference and name. */
   above?: ReactNode;
   note?: ReactNode;
+  /** The share card (QR code and address); left out where the page offers nothing to fill in. */
+  share?: boolean;
   children: ReactNode;
 }) {
   const url = new URL(link.path ?? `/f/${encodeURIComponent(form.code)}`, await siteOrigin()).href;
@@ -56,9 +63,14 @@ export async function FormFrame({
         <div className="fr-hero__in">
           <div className="fr-hero__bar">
             <Lockup unit={form.issuerUnit ?? issuer ?? office.name} department={form.issuerUnit ? issuer : undefined} reverse preload sizes="(max-width: 700px) 40.8px, 51px" />
-            {form.reference && <span className="fr-hero__ref">{form.reference}</span>}
+            {(who || form.reference) && (
+              <span className="fr-hero__end">
+                {who && <WhoChip who={who} />}
+                {form.reference && <span className="fr-hero__ref">{form.reference}</span>}
+              </span>
+            )}
           </div>
-          <div className="fr-hero__grid">
+          <div className="fr-hero__grid" data-share={share || undefined}>
             <div className="fr-hero__text">
               <p className="fr-hero__kind">
                 {formKindLabel(form.kind)}
@@ -80,6 +92,7 @@ export async function FormFrame({
                 </dl>
               )}
             </div>
+            {share && (
             <aside className="fr-share" aria-label={`Share this ${what}`}>
               <div className="fr-share__main">
                 <div className="fr-qr">
@@ -90,7 +103,7 @@ export async function FormFrame({
                 </div>
                 <div className="fr-share__text">
                   <p className="fr-share__title">Scan to open</p>
-                  <p className="fr-share__hint">This QR Code is specifically for your Proposal Form.</p>
+                  <p className="fr-share__hint">This QR Code is specifically for your {formKindLabel(form.kind)}.</p>
                   <div className="fr-share__note">
                     {note ??
                       (form.closesOn ? (
@@ -107,6 +120,7 @@ export async function FormFrame({
               </div>
               <FormLink url={url} copied={link.copied} />
             </aside>
+            )}
           </div>
         </div>
       </header>

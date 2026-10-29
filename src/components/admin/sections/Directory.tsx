@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal } from "@/components/ui/modal-motion";
+
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { startEmblemUpload, startUnitLogoUpload } from "@/app/actions/emblems";
 import type { UnitRow } from "@/lib/governance/console-types";
@@ -585,7 +587,7 @@ function AddUnit({ parentId, section, onClose, onCreated }: { parentId: string |
       sub={direct ? undefined : "Needs approval before it appears."}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".adm-sheet"), onClose)}>
             Cancel
           </button>
           <button

@@ -28,9 +28,15 @@ export const STATE_COOKIE = SECURE ? "__Host-hub_verify_state" : "hub_verify_sta
 
 export const COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax", path: "/", secure: SECURE } as const;
 
-/** Who a digital form's pages know this browser to be, after Google sign-in from a form: email and name, signed. */
+/**
+ * Who a digital form's pages know this browser to be, after Google sign-in from a form: email and name, signed. A Hub
+ * session outranks it (server/form-copies.ts formWho), and signing in to or out of the Hub clears it (`FORM_WHO_GONE`).
+ */
 export const FORM_WHO_COOKIE = SECURE ? "__Host-hub_form_who" : "hub_form_who";
 export const FORM_WHO_DAYS = 7;
+
+/** The form cookie's options to clear it: `__Host-` cookies are only replaced with Secure and path "/", as set. */
+export const FORM_WHO_GONE = { ...COOKIE_OPTIONS, maxAge: 0 } as const;
 
 /** How hub_auth_allow marks the addresses let through while they verify, and for how long. */
 export const VERIFY_REASON = "Email verification";

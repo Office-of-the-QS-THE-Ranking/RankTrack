@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, STAY_COOKIE } from "@/lib/governance/server/session";
 import { completeSignIn, deviceOf, safeNext } from "@/lib/governance/server/signin";
 import { adminDb, authClient } from "@/lib/supabase/server";
-import { STATE_COOKIE } from "@/lib/governance/server/email-verify";
+import { FORM_WHO_COOKIE, FORM_WHO_GONE, STATE_COOKIE } from "@/lib/governance/server/email-verify";
 import { keepDirectoryTokens } from "@/lib/governance/server/google-directory";
 import { finishVerification } from "./verify";
 
@@ -55,5 +55,7 @@ export async function GET(request: NextRequest) {
   const res = NextResponse.redirect(new URL(r.dest, url));
   res.cookies.set(SESSION_COOKIE, r.token, r.staySeconds ? { ...SESSION_COOKIE_OPTIONS, maxAge: r.staySeconds } : SESSION_COOKIE_OPTIONS);
   res.cookies.delete(STAY_COOKIE);
+  // From now on forms know this browser by its Hub account; a Google account chosen on a form earlier is forgotten.
+  res.cookies.set(FORM_WHO_COOKIE, "", FORM_WHO_GONE);
   return res;
 }

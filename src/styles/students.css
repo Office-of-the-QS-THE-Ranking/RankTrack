@@ -1,0 +1,856 @@
+/*
+ * The Student Portal (components/students): a Student's dashboard, their Project Proposals and Terminal Reports
+ * (copies of the forms the Office published), and their Assignments. Pages sit on the Workspace's shelf (night
+ * header, controls row, table); the dashboard on the Office's bento tiles. House tokens only, so the dark
+ * appearance follows. The build sheet borrows the responder page's access cards and people editor
+ * (components/forms/copy-parts.tsx), whose own tokens it maps onto the workspace's.
+ */
+
+/* ---------- Copies: the table ---------- */
+.st-copies-scroll {
+  overflow-x: auto;
+}
+.st-copies-scroll:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
+}
+/* Keep the columns horizontal, including on narrow screens where the table scrolls. */
+.ws-table.st-copies {
+  display: table;
+  min-width: 740px;
+}
+.st-copies thead {
+  position: static;
+  display: table-header-group;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+}
+.ws-table.st-copies tbody {
+  display: table-row-group;
+}
+.st-copies .ws-row {
+  display: table-row;
+}
+.ws-table.st-copies td {
+  display: table-cell;
+  padding: 16px 14px;
+  border-bottom: 1px solid rgb(var(--hair) / 0.06);
+}
+.ws-table.st-copies td:first-child {
+  padding-left: 20px;
+}
+.ws-table.st-copies td:last-child {
+  padding-right: 12px;
+}
+.st-copies .ws-name {
+  gap: 4px;
+}
+.st-copies .ws-name__link {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.st-copy-form {
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.st-copies .st-col-status {
+  width: 140px;
+}
+.st-copy-status {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.st-copy-progress {
+  --progress-color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.st-copy-progress[data-complete="true"] {
+  --progress-color: var(--ok);
+}
+.st-copy-progress__bar {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  width: 76px;
+  height: 5px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.1);
+  color: var(--progress-color);
+}
+.st-copy-progress__bar::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.1);
+}
+.st-copy-progress__bar::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--progress-color);
+}
+.st-copy-progress__bar::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--progress-color);
+}
+.st-copies .ws-col-date {
+  width: 164px;
+}
+.st-edited {
+  display: grid;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.st-edited__time {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.st-copies .st-ref {
+  font-size: 12px;
+  white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--text-2);
+}
+.st-col-access {
+  width: 120px;
+}
+.st-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.st-access svg {
+  color: var(--text-3);
+}
+.fm-portal-tag {
+  gap: 4px;
+  background: rgb(var(--hair) / 0.06);
+  color: var(--text-2);
+}
+
+/* ---------- Create: the build sheet ---------- */
+.st-sheet {
+  --st-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* The responder page's tokens, as the workspace reads them. */
+  --paper: var(--surface);
+  --fr-fill: var(--bg);
+  --fr-fill-hover: var(--n-100);
+  --fr-edge: var(--border);
+  --fr-edge-strong: var(--border-strong);
+  --gold: var(--gold-500);
+  --gold-deep: var(--gold-ink);
+  --muted: var(--text-3);
+}
+.ws-sheet.st-sheet {
+  width: min(1040px, calc(100vw - 48px));
+}
+.ws-sheet.st-sheet:has(.st-build-steps) {
+  height: min(760px, calc(100dvh - 48px));
+}
+.st-build-steps {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  margin: 0;
+  padding: 8px 32px 24px;
+  list-style: none;
+}
+.st-build-steps button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 13px;
+  cursor: var(--cursor-pointer);
+  transition: color 280ms ease, background-color 280ms ease, transform 360ms var(--st-motion-ease);
+}
+.st-build-steps button:disabled {
+  opacity: 0.5;
+  cursor: var(--cursor-not-allowed);
+}
+.st-build-steps button:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-build-steps button:not(:disabled):hover {
+    background: var(--bg);
+    color: var(--text);
+    transform: translateY(-1px);
+  }
+}
+.st-build-steps button:not(:disabled):active {
+  transform: scale(0.98);
+}
+.st-build-steps button > span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--bg);
+  font-variant-numeric: tabular-nums;
+}
+.st-build-steps button[aria-current="step"] {
+  color: var(--text);
+}
+.st-build-steps button[aria-current="step"] > span {
+  background: var(--text);
+  color: var(--surface);
+}
+.st-build-steps li[data-done] > button > span {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.st-catalog__intro {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 32px 18px;
+}
+.st-catalog__toolbar {
+  flex: none;
+  padding: 0 32px 16px;
+}
+.st-catalog__toolbar .content-tabs__controls {
+  flex: 1;
+  flex-wrap: wrap;
+  width: 100%;
+  margin: 0;
+}
+.st-catalog__toolbar .content-tabs__search {
+  margin-inline-start: auto;
+}
+.st-catalog__toolbar .select {
+  width: auto;
+}
+.st-catalog__scroll {
+  flex: 1;
+  min-height: 0;
+  margin: 0 18px 16px 24px;
+  padding: 8px 10px 16px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-gutter: stable;
+}
+.st-catalog__scroll::-webkit-scrollbar,
+.st-sheet .fm-sheet__scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.st-catalog__scroll::-webkit-scrollbar-thumb,
+.st-sheet .fm-sheet__scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+.st-sheet .fm-sheet__scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.st-sheet .ws-sheet__foot {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+.st-sheet .st-build-back {
+  margin-inline-end: auto;
+}
+.st-sheet :is(.btn, .pick-trigger, .ws-sheet__x, .fr-people__btn, .fr-access__card) {
+  transition:
+    transform 360ms var(--st-motion-ease),
+    background-color 280ms ease,
+    border-color 280ms ease,
+    box-shadow 320ms ease,
+    color 280ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-sheet :is(.btn, .pick-trigger, .ws-sheet__x, .fr-people__btn):not(:disabled):not([aria-disabled="true"]):hover {
+    transform: translate3d(0, -1px, 0);
+  }
+  .st-sheet .fr-access__card:hover {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+.st-sheet :is(.btn, .pick-trigger, .ws-sheet__x, .fr-people__btn):not(:disabled):not([aria-disabled="true"]):active,
+.st-sheet .fr-access__card:active {
+  transform: translate3d(0, 1px, 0) scale(0.99);
+  transition-duration: 160ms;
+}
+.st-catalog__scroll:focus-visible {
+  outline: 1px solid var(--text-3);
+  outline-offset: -1px;
+  border-radius: 12px;
+}
+.st-catalog__empty {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 40px 16px;
+  color: var(--text-3);
+  font-size: 14px;
+  text-align: center;
+}
+.st-catalog__count {
+  margin-inline-end: auto;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.st-selected-form {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg);
+}
+.st-selected-form > div {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.st-selected-form__change {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.st-selected-form > div > span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.st-selected-form b {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .ws-sheet.st-sheet {
+    width: calc(100vw - 24px);
+  }
+  .ws-sheet.st-sheet:has(.st-build-steps) {
+    height: min(760px, calc(100dvh - 24px));
+  }
+  .st-build-steps {
+    gap: 12px 18px;
+    padding-inline: 20px;
+  }
+  .st-catalog__intro,
+  .st-catalog__toolbar {
+    padding-inline: 20px;
+  }
+  .st-catalog__toolbar .content-tabs__actions {
+    flex-wrap: wrap;
+  }
+  .st-catalog__toolbar .content-tabs__search {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .st-catalog__scroll {
+    margin-inline: 12px 8px;
+  }
+}
+/* The people editor's ink button and Owner tag: the workspace's ink flips in the dark appearance, so its text does too. */
+.st-sheet .fr-people__btn,
+.st-sheet .fr-people__role {
+  background: var(--text);
+  color: var(--surface);
+}
+.st-build {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: 26px;
+  padding-top: 8px;
+}
+/* Animate the incoming content; the step navigation and footer stay in place. */
+.st-sheet :is(.st-catalog__intro, .st-catalog__toolbar, .st-catalog__scroll, .st-build) {
+  animation: st-step-enter 380ms var(--st-motion-ease);
+}
+@keyframes st-step-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+.st-build__sec {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+/* The file name's label reads as one of the sheet's section titles. */
+.st-build .field__label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.st-forms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.st-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+  padding: 14px 48px 14px 14px;
+  border-radius: 18px;
+  border: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+  transition:
+    transform 400ms var(--st-motion-ease),
+    background-color 280ms ease,
+    box-shadow 320ms ease;
+}
+@media (hover: hover) {
+  .st-form:not([data-on]):hover {
+    background: var(--n-100);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-form:hover {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: inset 0 0 0 1px var(--border-strong), var(--sh-sm);
+  }
+  .st-form:hover .st-form__tick {
+    transform: translate3d(2px, 0, 0);
+  }
+}
+.st-form:active {
+  transform: translate3d(0, 1px, 0) scale(0.995);
+  transition-duration: 160ms;
+}
+.st-form[data-on] {
+  background: var(--surface);
+  box-shadow:
+    inset 0 0 0 1.5px var(--text),
+    0 14px 30px -20px rgb(0 0 0 / 0.4);
+}
+.st-form:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
+}
+.st-form__art {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.st-form__text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.st-form__text b {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.st-form__text small {
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.st-form__tick {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+  color: var(--text-3);
+  translate: 0 -50%;
+  transition:
+    transform 400ms var(--st-motion-ease),
+    background-color 280ms ease,
+    box-shadow 320ms ease,
+    color 280ms ease;
+}
+.st-form[data-on] .st-form__tick {
+  background: var(--gold-500);
+  box-shadow: none;
+  color: var(--on-gold);
+}
+
+/* Built: the reference, then the editable link to forward. */
+.st-built {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+.st-built__top {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 26px 32px 24px;
+  background: radial-gradient(120% 100% at 50% 0%, var(--gold-tint), transparent 72%);
+  text-align: center;
+}
+.st-built__seal {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--gold-300), var(--gold-500));
+  color: var(--on-gold);
+  box-shadow: 0 16px 34px -14px rgb(242 183 5 / 0.8);
+  animation: st-seal 560ms var(--ease-spring) both;
+}
+.st-built__ref {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.st-built__name {
+  max-width: 46ch;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.st-built__link {
+  display: grid;
+  gap: 12px;
+  padding: 4px 32px 28px;
+}
+.st-built__label {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.st-built .fm-linkbox {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text);
+  font-size: 14px;
+}
+.st-built .fm-linkbox svg {
+  color: var(--gold-600);
+}
+.st-built__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.st-built__note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+@keyframes st-seal {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+/* ---------- Assignments ---------- */
+.st-tasks {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-task {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-sm);
+}
+.st-task[data-done] {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.st-task__art {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--bg);
+}
+.st-task__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.st-task__from {
+  color: var(--gold-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.st-task__title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.st-task__lead {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.st-task__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.st-task__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.st-task__due.is-soon {
+  color: var(--revise);
+  font-weight: 600;
+}
+.st-task__end {
+  display: flex;
+  justify-content: flex-end;
+}
+.st-task__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ok);
+}
+.st-task__done span {
+  display: grid;
+  gap: 2px;
+}
+.st-task__done b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.st-task__done small {
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .st-task {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+  }
+  .st-task__art {
+    width: 46px;
+    height: 46px;
+  }
+  .st-task__end {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+/* ---------- Dashboard ---------- */
+/* Raised over .ov-bento > .ov-tile (overview.css loads after this file). */
+.ov-bento.st-bento {
+  grid-auto-flow: row dense;
+}
+@container content (min-width: 620px) {
+  .ov-bento.st-bento > .st-proposals,
+  .ov-bento.st-bento > .st-tasks-tile,
+  .ov-bento.st-bento > .st-reports,
+  .ov-bento.st-bento > .st-forms-tile {
+    grid-column: span 6;
+  }
+}
+@container content (min-width: 960px) {
+  .ov-bento.st-bento > .st-proposals {
+    grid-column: span 5;
+  }
+  .ov-bento.st-bento > .st-tasks-tile {
+    grid-column: span 4;
+  }
+  .ov-bento.st-bento > .st-reports {
+    grid-column: span 3;
+  }
+  .ov-bento.st-bento > .st-forms-tile {
+    grid-column: span 5;
+  }
+  .ov-bento.st-bento > .st-recent {
+    grid-column: span 7;
+  }
+}
+.st-proposals .ov-tile__core {
+  background:
+    radial-gradient(70% 60% at 0% 0%, var(--gold-tint), transparent 72%),
+    var(--surface);
+}
+.st-mini {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-mini li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+}
+.st-mini li + li {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+.st-mini__name {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-mini__meta {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.st-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: auto 0;
+  color: var(--ok);
+  font-size: 14px;
+  font-weight: 600;
+}
+.st-own {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-own__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--bg);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--t) ease;
+}
+@media (hover: hover) {
+  .st-own__row:hover {
+    background: var(--n-100);
+  }
+  .st-own__row:hover .st-own__go {
+    color: var(--text);
+    transform: translateX(2px);
+  }
+}
+.st-own__row:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
+}
+.st-own__name {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.st-own__name b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.st-own__name small {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.st-own__go {
+  flex: none;
+  color: var(--text-3);
+  transition:
+    color var(--t) ease,
+    transform var(--t) var(--ease-out);
+}
+
+/* ---------- The door on a Proposal or Terminal Report form's own link ---------- */
+.fr-door .w-btn svg {
+  margin-left: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-sheet :is(.st-catalog__intro, .st-catalog__toolbar, .st-catalog__scroll, .st-build) {
+    animation: none;
+  }
+  .st-built__seal {
+    animation: none;
+  }
+  .st-own__go,
+  .st-form,
+  .st-form__tick {
+    transition: none;
+  }
+  .st-sheet :is(.btn, .pick-trigger, .ws-sheet__x, .fr-people__btn, .fr-access__card, .st-form, .st-form__tick, .st-build-steps button) {
+    transform: none !important;
+    transition: none !important;
+  }
+}

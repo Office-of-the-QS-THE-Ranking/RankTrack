@@ -456,8 +456,9 @@ describe("digital forms", () => {
     expect(execute(w.ctxFor(admin), { type: "form.status", id: form.id, status: "draft" }).ok).toBe(false);
     expect(execute(w.ctxFor(admin), { type: "form.delete", id: form.id }).ok).toBe(false);
     expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, ...details, schema }).message).toMatch(/only while a form is a draft/);
-    // Details change at any time; leaving a detail out clears it.
-    expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, title: "ComDev Project Proposal", kind: "application", closesOn: "2026-12-15", prefix: "cdp" }).ok).toBe(true);
+    // Details change at any time (the kind only while it's a draft); leaving a detail out clears it.
+    expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, title: "ComDev Project Proposal", kind: "application", closesOn: "2026-12-15", prefix: "cdp" }).message).toMatch(/kind changes only while/);
+    expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, title: "ComDev Project Proposal", kind: "proposal", closesOn: "2026-12-15", prefix: "cdp" }).ok).toBe(true);
     expect([form.title, form.closesOn, form.prefix, form.reference]).toEqual(["ComDev Project Proposal", "2026-12-15", "CDP", undefined]);
     // A copy starts as a draft, with its own link.
     expect(execute(w.ctxFor(admin), { type: "form.duplicate", id: form.id }).ok).toBe(true);

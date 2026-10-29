@@ -26,6 +26,7 @@ import type {
 import type { UnitEmblem } from "./unit-emblems";
 import type { Answers, FormKind, FormSchema, FormStatus, ResponseStatus, ReviewState, StageSpec, UnitSection } from "@/lib/forms/types";
 import type { CopyAccess } from "@/lib/forms/copies";
+import type { FormHolder, FormRights } from "@/lib/forms/access";
 
 export interface HubUnit extends Unit {
   code: string;
@@ -297,15 +298,21 @@ export interface FormItem {
   issuer?: { id: string; name: string };
   status: FormStatus;
   closesOn?: string;
-  /** Its link builds team copies, each a response with its own reference and link. */
+  /** Its link builds team copies, each a response with its own reference and link: Proposals and Terminal Reports. */
   copies: boolean;
+  /** Published to the Student Portal. */
+  students: boolean;
+  /** Who holds it: the Office, a unit (its name), or a Student (their organization). */
+  holder: { kind: FormHolder; name: string };
   /** The Office's form, in a unit's Workspace: open to fill in and share, not to change. */
   shared: boolean;
-  /** The viewer runs it: details, status, responses and analytics. */
-  manage: boolean;
-  /** Its questions; the review's too for those who run it. */
+  /** An Evaluation or Registration Form once published: fixed for good. */
+  locked: boolean;
+  /** What the viewer may do with it (lib/forms/access.ts). */
+  may: FormRights;
+  /** Its questions; the review's too for those who may review it. */
   schema: FormSchema;
-  /** For those who run it, team copies included from the moment they're built; `drafts` are the ones not sent yet. */
+  /** For those who may read them, team copies included from the moment they're built; `drafts` are the ones not sent yet. */
   responses?: { total: number; week: number; lastAt?: string; drafts: number };
   createdAt: string;
   updatedAt: string;
@@ -321,12 +328,17 @@ export interface FormUnit {
   depth?: number;
 }
 
-/** The Digital Forms of a Workspace: a unit's own with the Office's open forms beside them, or the Office's. */
+/**
+ * The Digital Forms of a page: a unit's own with the Office's open forms beside them, the Office's with every
+ * published unit and Student form beside them, or a Student's own of one kind.
+ */
 export interface FormsDesk {
-  /** Whose forms are run here; null for the Office's. */
+  /** Whose forms are made here. */
+  holder: FormHolder;
+  /** The unit whose forms are run here; null for the Office's and a Student's. */
   unitId: string | null;
-  /** May change the forms run here. */
-  canWrite: boolean;
+  /** The kinds the viewer may make here, for the Forms Builder; none hides Create form. */
+  create: FormKind[];
   /** Where responder links point: https://… */
   origin: string;
   forms: FormItem[];
@@ -372,10 +384,12 @@ export interface ResponderForm {
   /** The sign-offs a response goes through, in order, for the confirmation's "what happens next". */
   stages: StageSpec[];
   units: FormUnit[];
-  /** Opened by someone who runs it, before it takes responses: nothing is sent. */
+  /** Opened by someone who runs it, before it takes responses (or a form filled in as copies): nothing is sent. */
   preview: boolean;
   /** Its link builds team copies (lib/forms/copies.ts) instead of opening on the questions. */
   copies: boolean;
+  /** Made by a unit or a Student's organization rather than the Office: named in the privacy notice as seeing the answers. */
+  maker?: { kind: "unit" | "student"; name: string };
 }
 
 /** Who a form's pages know this browser to be: from Google sign-in on a form, or the Hub's own session. */
@@ -386,16 +400,65 @@ export interface FormWho {
   via: "google" | "hub";
 }
 
-/** A team copy in a list: the start page's "Your copies". */
-export interface CopySummary {
+/* ---------- The Student Portal ---------- */
+
+/** A form the Office published to the Student Portal, to build a copy of. */
+export interface PortalForm {
+  id: string;
+  createdAt: string;
+  code: string;
+  title: string;
+  description: string;
+  kind: FormKind;
+  reference?: string;
+  issuer?: string;
+  closesOn?: string;
+  /** Its responses read as CDP-0001, CDP-0002… */
+  prefix: string;
+  /** Steps and questions, for the picker's card. */
+  steps: number;
+  questions: number;
+}
+
+/** A Student's team copy (a proposal or a terminal report) as their page lists it. */
+export interface StudentCopy {
   token: string;
   ref: string;
   label: string;
   access: CopyAccess;
   status: "draft" | ResponseStatus;
-  /** The viewer started it. */
-  mine: boolean;
-  editedAt: string;
+  /** Completion of the saved answers, from 0 to 100. */
+  progress: number;
+  form: { code: string; title: string; kind: FormKind };
+  /** Who last changed it, and when. */
+  edited: { by: string; at: string };
+  createdAt: string;
+  /** When it was sent, once it has been. */
+  sentAt?: string;
+}
+
+/** Copies to build and the copies built: the Project Proposals or Terminal Reports page. */
+export interface CopyDesk {
+  kind: FormKind;
+  forms: PortalForm[];
+  copies: StudentCopy[];
+  /** Where copy links point: https://… */
+  origin: string;
+}
+
+/** A survey assigned to Students through the Student Portal, and whether this Student answered it. */
+export interface Assignment {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  /** Who assigned it: the Office, or a unit. */
+  from: string;
+  closesOn?: string;
+  /** Takes responses now. */
+  open: boolean;
+  questions: number;
+  answered?: { ref: string; at: string };
 }
 
 /** Someone with a copy open now, by the page they have it open on. */

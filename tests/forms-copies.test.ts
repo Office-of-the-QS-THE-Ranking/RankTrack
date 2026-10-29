@@ -164,21 +164,21 @@ describe("team copies: links and people", () => {
 });
 
 describe("team copies: the form's setting", () => {
-  it("is set with the details, audited, and kept in the store", () => {
+  it("follows the kind (proposals and terminal reports), and is kept in the store", () => {
     const w = world();
     const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
     const details = { title: COMDEV_PROPOSAL.title, kind: COMDEV_PROPOSAL.kind, description: COMDEV_PROPOSAL.description };
-    expect(execute(w.ctxFor(admin), { type: "form.save", ...details, copies: true, schema: COMDEV_PROPOSAL.schema }).ok).toBe(true);
+    expect(execute(w.ctxFor(admin), { type: "form.save", ...details, schema: COMDEV_PROPOSAL.schema }).ok).toBe(true);
     const [form] = w.state.records.forms;
     expect(form.copies).toBe(true);
-    // Leaving it out keeps it; turning it off removes it.
     expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, ...details, closesOn: "2026-12-15" }).ok).toBe(true);
     expect(form.copies).toBe(true);
     expect(fromRows(toRows(w.state)).records.forms).toEqual(w.state.records.forms);
-    const ctx = w.ctxFor(admin);
-    expect(execute(ctx, { type: "form.save", id: form.id, ...details, copies: false }).ok).toBe(true);
+    // A survey is answered one response at a time; a terminal report is copied again.
+    expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, ...details, kind: "survey" }).ok).toBe(true);
     expect(form.copies).toBeUndefined();
-    expect(ctx.drafts.at(-1)?.detail).toMatch(/team copies off$/);
+    expect(execute(w.ctxFor(admin), { type: "form.save", id: form.id, ...details, kind: "terminal-report" }).ok).toBe(true);
+    expect(form.copies).toBe(true);
     expect(fromRows(toRows(w.state)).records.forms).toEqual(w.state.records.forms);
   });
 });

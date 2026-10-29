@@ -58,6 +58,20 @@ export function fieldShows(section: SectionSpec, spec: FieldSpec, answers: Answe
   return holds(section.showIf, answers, fields) && holds(spec.showIf, answers, fields);
 }
 
+/** Completion of visible required questions (all questions when none are required). Notes and review fields don't count. */
+export function formProgress(schema: FormSchema, raw: unknown, ctx: CheckContext): number {
+  const { answers, problems } = checkAnswers(schema.sections, raw, ctx);
+  const fields = fieldMap(schema.sections);
+  const visible = schema.sections.flatMap((s) => s.fields.filter((f) => f.type !== "note" && fieldShows(s, f, answers, fields)));
+  const required = visible.filter((f) => f.required);
+  const counted = required.length ? required : visible;
+  if (!counted.length) return 0;
+  const invalid = new Set(problems.map((p) => p.field));
+  const completed = counted.filter((f) => moduleOf(f).filled(f, answers[f.id]) && !invalid.has(f.id)).length;
+  // Reserve 100% for every counted question being complete, even in very large forms.
+  return completed === counted.length ? 100 : Math.min(99, Math.round((completed / counted.length) * 100));
+}
+
 /** Who a response is from, by the fields the form names: a name and an email. */
 export function respondentOf(schema: FormSchema, answers: Answers): { name: string; email: string } {
   const from = schema.from;

@@ -173,7 +173,8 @@ export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Pro
       .filter((n) => noticeVisible(n.to, viewer.id, viewer.grants) && wantsNotice(viewer.notify, n.templateId, "hub") && (variant === "office" ? !n.to.startsWith("unit:") || n.to === viewer.id : n.to !== "office"))
       .slice(0, 12)
       .map((n) => ({ id: n.id, text: n.text, href: n.href, at: n.at, unread: !n.readBy.includes(viewer.id) })),
-    requirements: variant === "unit" ? h.requirements(viewer.portal.unitId) : [],
+    // A unit's requirements go to the people who work on its evidence (not a Student, who files forms only).
+    requirements: variant === "unit" && canWith(viewer.grants, "evidence", "view", { unitId: viewer.portal.unitId }) ? h.requirements(viewer.portal.unitId) : [],
     values: Object.fromEntries(values.map(([k, v]) => [k, { value: v.value, source: v.source, status: v.status }])),
     publishedReports: h.publishedReports.map((r) => ({ id: r.id, title: r.title, at: r.at })),
     templates: state.config.templates.map((t) => ({ id: t.id, name: t.name, enabled: t.enabled })),

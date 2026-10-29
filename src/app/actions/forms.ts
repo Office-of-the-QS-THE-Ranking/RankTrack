@@ -3,10 +3,12 @@
 /*
  * Digital Forms' responses, kept in form_responses outside the governance store so a busy form never rewrites
  * it. Anyone with a form's responder link may send one: it's rate-limited and checked against the form's own
- * rules (lib/forms), the same ones the page ran. The people who run a form read its responses, record the
- * review's sign-offs and office fields, remove responses and export them; each of those is audited. A response
- * is its own record, so sending one isn't.
+ * rules (lib/forms), the same ones the page ran. A survey assigned through the Student Portal keeps the Student
+ * account that answered it, once. Reading responses, recording the review's sign-offs and office fields, removing
+ * responses and exporting them each need their own right on the form (lib/forms/access.ts); each is audited. A
+ * response is its own record, so sending one isn't.
  */
+import type { FormRights } from "@/lib/forms/access";
 import { FORM_CODE, FORM_LIMITS } from "@/lib/forms/kinds";
 import { checkAnswers, problemText, respondentOf, type CheckContext } from "@/lib/forms/check";
 import { responsesCsv } from "@/lib/forms/csv";
@@ -17,11 +19,13 @@ import { decisionLabel, emptyReview, standing } from "@/lib/forms/review";
 import type { Answers, ReviewState, Signature, StageDecision } from "@/lib/forms/types";
 import { isSent, type FormResponseItem, type SentResponse } from "@/lib/governance/hub-types";
 import { log } from "@/lib/governance/engine/core";
-import { formById, formUnits, responseOf, responsesOf, runsForm, takesResponses } from "@/lib/governance/server/forms";
+import { formById, formUnits, responseOf, responsesOf, rightsFor, takesResponses } from "@/lib/governance/server/forms";
 import { allow, allowAccount, clientKey } from "@/lib/governance/server/limits";
 import { run } from "@/lib/governance/server/run";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
+import { assignedTo } from "@/lib/governance/server/student-portal";
+import { filesForms } from "@/lib/forms/access";
 import type { FormRecord } from "@/lib/governance/types";
 import type { Json } from "@/lib/supabase/database.types";
 import { adminDb } from "@/lib/supabase/server";
@@ -40,13 +44,22 @@ const checkContext = async (): Promise<CheckContext> => ({ units: formUnits((awa
 
 const said = problemText;
 
-/** The form, if the signed-in viewer runs it. */
-async function runFor(formId: unknown): Promise<{ form: FormRecord; viewer: NonNullable<Awaited<ReturnType<typeof getViewer>>> } | Fail> {
+type Need = keyof Pick<FormRights, "read" | "review" | "clear" | "export">;
+
+const REFUSED: Record<Need, string> = {
+  read: "Your role can’t see this form’s responses.",
+  review: "Your role can’t review this form’s responses.",
+  clear: "Your role can’t remove this form’s responses.",
+  export: "Your role can’t export this form’s responses.",
+};
+
+/** The form, if the signed-in viewer may do `need` with it. */
+async function runFor(formId: unknown, need: Need): Promise<{ form: FormRecord; viewer: NonNullable<Awaited<ReturnType<typeof getViewer>>> } | Fail> {
   const viewer = await getViewer();
   if (!viewer) return ENDED;
   const form = typeof formId === "string" ? await formById(formId) : null;
   if (!form) return GONE;
-  if (!runsForm(viewer, form)) return { ok: false, message: "Your role can’t see this form’s responses." };
+  if (!rightsFor(viewer, form)[need]) return { ok: false, message: REFUSED[need] };
   return { form, viewer };
 }
 
@@ -78,8 +91,19 @@ export async function submitFormResponse(input: { code: string; answers: unknown
   const state = await readState();
   const form = state.records.forms.find((f) => f.code === code);
   if (!form || !takesResponses(form)) return { ok: false, message: CLOSED };
-  // A form with team copies is answered through a copy (actions/form-copies.ts).
-  if (form.copies) return { ok: false, message: "Build a copy of this form first. Reload the page to start one." };
+  // A form with team copies is answered through a copy, built from the Student Portal (actions/form-copies.ts).
+  if (form.copies) return { ok: false, message: "This form is filled in as a copy from the Student Portal." };
+  // A survey assigned through the Student Portal keeps the Student who answered it, and takes one answer from each.
+  const viewer = await getViewer();
+  const student = viewer && filesForms(viewer.grants) && (await assignedTo(viewer, form)) ? viewer : null;
+  if (student) {
+    const { data: before, error: seen } = await adminDb().from("form_responses").select("ref").eq("form_id", form.id).eq("account_id", student.id).neq("status", "draft").limit(1);
+    if (seen) {
+      console.error(`Form ${form.id}: ${seen.message}`);
+      return { ok: false, message: "Your response couldn’t be saved. Try again in a moment." };
+    }
+    if (before?.length) return { ok: false, message: `You already answered this survey (${before[0].ref}).` };
+  }
 
   // Anyone may respond, so cap what one network, and everyone together, can send to a form. If the counter can't
   // be reached, nothing is sent.
@@ -105,6 +129,7 @@ export async function submitFormResponse(input: { code: string; answers: unknown
     p_status: standing(form.schema, answers, emptyReview()).status,
     p_client: client,
     p_consent: consent as unknown as Json,
+    ...(student && { p_account: student.id }),
   });
   const row = data?.[0];
   if (error || !row) {
@@ -117,7 +142,7 @@ export async function submitFormResponse(input: { code: string; answers: unknown
 /* ---------- Running a form ---------- */
 
 export async function loadFormResponses(formId: string): Promise<{ ok: true; responses: FormResponseItem[] } | Fail> {
-  const who = await runFor(formId);
+  const who = await runFor(formId, "read");
   if ("ok" in who) return who;
   try {
     return { ok: true, responses: await responsesOf(who.form.id, true) };
@@ -140,7 +165,7 @@ export type ReviewInput = {
 
 /** Record a response's next sign-off (or undo the latest), or its office fields. */
 export async function reviewFormResponse(input: ReviewInput): Promise<{ ok: true; message: string; response: FormResponseItem } | Fail> {
-  const who = await runFor(input?.formId);
+  const who = await runFor(input?.formId, "review");
   if ("ok" in who) return who;
   const { form, viewer } = who;
   if (!(await allowAccount(viewer.id, "command"))) return BUSY;
@@ -211,7 +236,7 @@ export async function reviewFormResponse(input: ReviewInput): Promise<{ ok: true
 
 /** Remove responses for good: test runs, duplicates. */
 export async function deleteFormResponses(input: { formId: string; ids: string[] }): Promise<{ ok: true; message: string } | Fail> {
-  const who = await runFor(input?.formId);
+  const who = await runFor(input?.formId, "clear");
   if ("ok" in who) return who;
   const { form, viewer } = who;
   if (!(await allowAccount(viewer.id, "command"))) return BUSY;
@@ -230,7 +255,7 @@ export async function deleteFormResponses(input: { formId: string; ids: string[]
 
 /** Every response as a CSV file. */
 export async function exportFormResponses(formId: string): Promise<{ ok: true; csv: string; name: string } | Fail> {
-  const who = await runFor(formId);
+  const who = await runFor(formId, "export");
   if ("ok" in who) return who;
   const { form, viewer } = who;
   if (!(await allowAccount(viewer.id, "export"))) return BUSY;

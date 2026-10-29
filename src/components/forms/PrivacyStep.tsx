@@ -2,15 +2,16 @@
 
 /*
  * Step 0 of every Digital Form: the data privacy notice, read at a glance. What the form collects (six tiles), how
- * the Office of the QS/THE Rankings and UST SIMBAHAYAN each use it (an onyx card and a gold one), three promises,
+ * the Office of the QS/THE Rankings and UST SIMBAHAYAN each use it (an onyx card and a gold one; a unit or a student
+ * organization that made the form gets a paper card of its own across them), three promises,
  * the respondent's rights folded away, then the two statements to agree to. Continue opens the first question only
  * when both are ticked (lib/forms/privacy.ts holds the words; the server refuses a response without them).
  */
 import { Icon } from "@/components/ui/Icon";
 import { plural } from "@/lib/forms/format";
-import { PRIVACY_COLLECTS, PRIVACY_CONTACT, PRIVACY_LAW, PRIVACY_PROMISES, PRIVACY_RIGHTS, PRIVACY_STATEMENTS, PRIVACY_USERS, type PrivacyStatement } from "@/lib/forms/privacy";
+import { PRIVACY_COLLECTS, PRIVACY_CONTACT, PRIVACY_LAW, PRIVACY_PROMISES, PRIVACY_RIGHTS, PRIVACY_STATEMENTS, privacyUsers, statementText, type PrivacyMaker, type PrivacyStatement } from "@/lib/forms/privacy";
 
-export function PrivacyStep({ steps, agreed, onChange, onContinue }: { steps: number; agreed: PrivacyStatement[]; onChange: (v: PrivacyStatement[]) => void; onContinue: () => void }) {
+export function PrivacyStep({ steps, agreed, maker, onChange, onContinue }: { steps: number; agreed: PrivacyStatement[]; maker?: PrivacyMaker; onChange: (v: PrivacyStatement[]) => void; onContinue: () => void }) {
   const left = PRIVACY_STATEMENTS.filter((s) => !agreed.includes(s.id)).length;
   return (
     <form
@@ -67,7 +68,7 @@ export function PrivacyStep({ steps, agreed, onChange, onContinue }: { steps: nu
           Who uses it
         </h3>
         <div className="fr-pv-users">
-          {PRIVACY_USERS.map((u) => (
+          {privacyUsers(maker).map((u) => (
             <article key={u.id} className="fr-pv-user" data-office={u.id}>
               <header>
                 <span className="fr-pv-user__mark" aria-hidden="true">
@@ -141,7 +142,7 @@ export function PrivacyStep({ steps, agreed, onChange, onContinue }: { steps: nu
                 />
                 <span>
                   <b>{s.title}</b>
-                  <small>{s.text}</small>
+                  <small>{statementText(s, maker)}</small>
                 </span>
               </label>
             </li>

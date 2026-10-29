@@ -23,7 +23,8 @@ const THOMASIAN: PersonInput = {
   salutation: "Dr.",
   email: "juan@ust.edu.ph",
   affiliation: "University of Santo Tomas",
-  organization: "",
+  // A Student is the Secretary of the organization named here.
+  organization: "Thomasian Engineering Society",
   roleId: ROLE.student,
   section: "academic",
 };
@@ -31,6 +32,7 @@ const THOMASIAN: PersonInput = {
 const PARTNER: Partial<InviteInput> = {
   email: "reviewer@qs.com",
   affiliation: "QS Quacquarelli Symonds (QS)",
+  organization: "",
   roleId: "",
   section: "",
   unitId: "",
@@ -42,10 +44,17 @@ describe("inviting someone", () => {
     const r = w.invite({ unitId: w.eng.id });
     expect(r.message).toBe("Invitation sent to juan@ust.edu.ph.");
     const a = w.state.accounts.find((x) => x.email === "juan@ust.edu.ph")!;
-    expect(a).toMatchObject({ name: "JUAN DELA CRUZ", unitId: w.eng.id, title: "Student", status: "Pending Invitation" });
+    expect(a).toMatchObject({ name: "JUAN DELA CRUZ", unitId: w.eng.id, title: "Secretary, THOMASIAN ENGINEERING SOCIETY", status: "Pending Invitation" });
     expect(a.external).toBeUndefined();
     expect(a.assignments.map((x) => x.roleId)).toEqual([ROLE.student]);
-    expect(a.profile).toEqual({ lastName: "DELA CRUZ", firstName: "JUAN", salutation: "Dr.", affiliation: "UNIVERSITY OF SANTO TOMAS", listed: true });
+    expect(a.profile).toEqual({ lastName: "DELA CRUZ", firstName: "JUAN", salutation: "Dr.", affiliation: "UNIVERSITY OF SANTO TOMAS", listed: true, organization: "THOMASIAN ENGINEERING SOCIETY" });
+  });
+
+  it("asks a Student for the organization they're the Secretary of, and no one else", () => {
+    const w = office();
+    expect(w.invite({ unitId: w.eng.id, organization: "" }).message).toMatch(/organization, commission or council they are the Secretary of/);
+    expect(w.invite({ roleId: ROLE.coordinator, unitId: w.eng.id }).ok).toBe(true);
+    expect(w.state.accounts.find((x) => x.email === "juan@ust.edu.ph")!.profile?.organization).toBeUndefined();
   });
 
   it("lets an Administrator make Coordinators, by invitation or by adding the role", () => {

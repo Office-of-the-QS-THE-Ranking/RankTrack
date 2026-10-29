@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal } from "@/components/ui/modal-motion";
+
 /*
  * The Workspace: a unit's files on the Resource Library and Archives, with the Office's shared folders and
  * files beside the unit's own. A shelf shows folders with files inside them.
@@ -99,6 +101,7 @@ export function Workspace({ desk, view }: { desk: WorkspaceDesk; view: FilesView
   const carried = useRef<Carried | null>(null);
   const depth = useRef(0);
   const browse = useRef<HTMLInputElement>(null);
+  const folderDialog = useRef<HTMLDialogElement>(null);
   /** Escape was pressed in a name field, so the blur that follows keeps nothing. */
   const dropped = useRef(false);
 
@@ -687,7 +690,7 @@ export function Workspace({ desk, view }: { desk: WorkspaceDesk; view: FilesView
       )}
 
       {here && !archive && (
-        <FolderModal label={here.name} onClose={() => go(null)}>
+        <FolderModal label={here.name} onClose={() => go(null)} dialogRef={folderDialog}>
           <header className="ws-modal__head">
             <nav className="ws-crumbs" aria-label="Folder path">
               <ol>
@@ -695,7 +698,7 @@ export function Workspace({ desk, view }: { desk: WorkspaceDesk; view: FilesView
                   <button
                     type="button"
                     className={`ws-crumb${target === "" ? " is-target" : ""}`}
-                    onClick={() => go(null)}
+                    onClick={() => closeModal(folderDialog.current)}
                     {...dropInto("")}
                   >
                     {viewLabel(view)}
@@ -749,7 +752,7 @@ export function Workspace({ desk, view }: { desk: WorkspaceDesk; view: FilesView
                 </>
               )}
               {naming?.id !== here.id && folderMenu(here)}
-              <button type="button" className="ws-modal__x" aria-label="Close folder" onClick={() => go(null)}>
+              <button type="button" className="ws-modal__x" aria-label="Close folder" onClick={() => closeModal(folderDialog.current)}>
                 <Icon name="close" size={18} />
               </button>
             </div>

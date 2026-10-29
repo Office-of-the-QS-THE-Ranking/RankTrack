@@ -29,7 +29,7 @@ export default async function OfficeWorkspaceShelfPage({ params }: Props) {
   const may = !!viewer && viewerCan(viewer, "knowledge", "edit");
   // The Office's Working Documents are links and its forms are Digital Forms; its other shelves hold the files every unit sees.
   const working = may && view === "working" ? await workingDesk(viewer, true) : null;
-  const forms = may && view === "forms" ? await formsDesk(viewer, true) : null;
+  const forms = may && view === "forms" ? await formsDesk(viewer, "office") : null;
   const desk = may && view !== "working" && view !== "forms" ? await workspaceDesk(viewer, true) : null;
   return (
     <Gate path={`/admin/workspace/${view}`} title="Workspace">

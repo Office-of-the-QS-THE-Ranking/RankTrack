@@ -210,10 +210,13 @@ export type Command =
   | { type: "workdoc.save"; id?: string; unitId?: string; title: string; date: string; rankings: string[]; sdgs?: number[]; authors?: string[]; status: WorkingDocStatus; links: string[]; remarks?: string }
   | { type: "workdoc.status"; id: string; status: WorkingDocStatus }
   | { type: "workdoc.delete"; ids: string[] }
-  /* Digital Forms. No id: a new form, which needs its schema. No unitId: the Office's. Responses aren't commands
+  /* Digital Forms (lib/forms/access.ts). No id: a new form, which needs its schema; `own` a Student's own form, else
+     `unitId` a unit's, else the Office's. Team copies follow from the kind. Responses aren't commands
      (app/actions/forms.ts writes them straight to form_responses). */
-  | { type: "form.save"; id?: string; unitId?: string; title: string; description?: string; kind: FormKind; reference?: string; issuerId?: string; closesOn?: string; prefix?: string; copies?: boolean; schema?: FormSchema }
+  | { type: "form.save"; id?: string; unitId?: string; own?: boolean; title: string; description?: string; kind: FormKind; reference?: string; issuerId?: string; closesOn?: string; prefix?: string; schema?: FormSchema }
   | { type: "form.status"; id: string; status: FormStatus }
+  /** Publish to the Student Portal, or take it off. */
+  | { type: "form.portal"; id: string; on: boolean }
   | { type: "form.duplicate"; id: string }
   | { type: "form.delete"; id: string }
   | { type: "innovation.propose"; unitSlug: string; name: string; category: string }

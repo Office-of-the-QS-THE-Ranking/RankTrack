@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { cancelModalClose, closeModal } from "@/components/ui/modal-motion";
 import { Tabs as ContentTabs, type ContentTab } from "@/components/ui/interactive";
 import type { Command, CommandResult } from "@/lib/governance/commands";
 import type { ConsoleData } from "@/lib/governance/console-types";
@@ -264,10 +265,26 @@ export function Layer({ children }: { children: ReactNode }) {
 
 export function Sheet({ open, title, sub, headerContent, onClose, children, footer, wide, modal }: { open: boolean; title: ReactNode; sub?: ReactNode; headerContent?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; modal?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [present, setPresent] = useState(open);
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
+  const lastContent = useRef({ title, sub, headerContent, children, footer });
+  useEffect(() => {
+    if (open) {
+      cancelModalClose(ref.current);
+      lastContent.current = { title, sub, headerContent, children, footer };
+      setPresent(true);
+    } else if (present) closeModal(ref.current, () => setPresent(false));
+  }, [open, present]);
+  useEffect(() => {
+    if (open) lastContent.current = { title, sub, headerContent, children, footer };
+  }, [open, title, sub, headerContent, children, footer]);
+  const content = open ? { title, sub, headerContent, children, footer } : lastContent.current;
+  const dismiss = () => closeModal(ref.current, () => { setPresent(false); onClose(); });
   const titleId = useId();
   const returnTo = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!present) return;
     returnTo.current = document.activeElement as HTMLElement | null;
     requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>(".adm-sheet__close")?.focus());
     const onKey = (e: KeyboardEvent) => {
@@ -276,7 +293,7 @@ export function Sheet({ open, title, sub, headerContent, onClose, children, foot
       if (e.key === "Escape" && !picker && !document.querySelector(".adm-confirm[open]")) {
         e.stopPropagation();
         e.preventDefault();
-        onClose();
+        closeModal(ref.current, () => { setPresent(false); closeRef.current(); });
       }
     };
     document.addEventListener("keydown", onKey, true);
@@ -284,26 +301,26 @@ export function Sheet({ open, title, sub, headerContent, onClose, children, foot
       document.removeEventListener("keydown", onKey, true);
       returnTo.current?.focus?.();
     };
-  }, [open, onClose]);
-  if (!open) return null;
+  }, [present]);
+  if (!open && !present) return null;
   return (
     <Layer>
-      <div className="adm-sheet__scrim" onClick={onClose} aria-hidden="true" />
+      <div className="adm-sheet__scrim" onClick={dismiss} aria-hidden="true" />
       <div ref={ref} className={`adm-sheet${wide ? " adm-sheet--wide" : ""}${modal ? " adm-sheet--modal" : ""}`} role={modal ? "dialog" : "region"} aria-modal={modal || undefined} aria-labelledby={titleId}>
         <header className="adm-sheet__head">
           <div className="adm-sheet__titles">
             <h3 id={titleId} className="adm-sheet__title">
-              {title}
+              {content.title}
             </h3>
-            {sub && <p className="adm-sheet__sub">{sub}</p>}
-            {headerContent}
+            {content.sub && <p className="adm-sheet__sub">{content.sub}</p>}
+            {content.headerContent}
           </div>
-          <button type="button" className="adm-iconbtn adm-sheet__close" onClick={onClose} aria-label={modal ? "Close" : "Close panel"}>
+          <button type="button" className="adm-iconbtn adm-sheet__close" onClick={dismiss} aria-label={modal ? "Close" : "Close panel"}>
             <Icon name="close" size={18} />
           </button>
         </header>
-        <div className="adm-sheet__body">{children}</div>
-        {footer && <footer className="adm-sheet__foot">{footer}</footer>}
+        <div className="adm-sheet__body">{content.children}</div>
+        {content.footer && <footer className="adm-sheet__foot">{content.footer}</footer>}
       </div>
     </Layer>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * Research Articles or Reports & Insights in the Office workspace (Publications): every document of the kind in one
  * table (cover, title, date, how readers reach it, status), filtered by status and searched by text, with a form
@@ -345,24 +347,23 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
           row={deleting}
           busy={pending}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            if (await act({ type: "document.delete", id: deleting.id })) setDeleting(null);
-          }}
+          onConfirm={() => act({ type: "document.delete", id: deleting.id })}
         />
       )}
     </>
   );
 }
 
-function ConfirmDelete({ row, busy, onCancel, onConfirm }: { row: DocumentRow; busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+function ConfirmDelete({ row, busy, onCancel, onConfirm }: { row: DocumentRow; busy: boolean; onCancel: () => void; onConfirm: () => Promise<boolean> }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
   }, []);
   const noun = DOC_NOUN[row.kind].one;
   return (
-    <dialog ref={ref} className="pm-confirm" aria-labelledby="dm-confirm-title" onClose={onCancel}>
+    <dialog ref={ref} className="pm-confirm" aria-labelledby="dm-confirm-title" onClose={onCancel}
+      onCancel={(event) => { event.preventDefault(); closeModal(event.currentTarget); }}>
       <h2 id="dm-confirm-title" className="pm-confirm__title">
         Delete this {noun}?
       </h2>
@@ -371,10 +372,10 @@ function ConfirmDelete({ row, busy, onCancel, onConfirm }: { row: DocumentRow; b
         {row.file ? ", and its PDF with it." : "."}
       </p>
       <div className="pm-confirm__actions">
-        <button type="button" className="btn" onClick={() => ref.current?.close()} autoFocus>
+        <button type="button" className="btn" onClick={() => closeModal(ref.current)} autoFocus>
           Cancel
         </button>
-        <button type="button" className="btn btn--danger" disabled={busy} onClick={onConfirm}>
+        <button type="button" className="btn btn--danger" disabled={busy} onClick={async () => { if (await onConfirm()) closeModal(ref.current); }}>
           <Icon name="trash" size={16} /> Delete
         </button>
       </div>

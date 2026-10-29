@@ -8,7 +8,8 @@
  * own fields) is the canvas's last card. Saving sends the schema with form.save, which checks it with readSchema;
  * the same check runs here as you build, so what's wrong is named before you save.
  */
-import { Component, useId, useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { Component, useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { closeModal } from "@/components/ui/modal-motion";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Icon, isIconName, type IconName } from "@/components/ui/Icon";
 import { TabPanel, Tabs } from "@/components/ui/interactive";
@@ -36,6 +37,7 @@ import {
   withoutField,
 } from "@/lib/forms/builder";
 import { plural } from "@/lib/forms/format";
+import { HOLDER_KINDS } from "@/lib/forms/access";
 import { FORM_KINDS, FORM_LIMITS, MODULE_NAMES } from "@/lib/forms/kinds";
 import { fieldMap, type FormContext } from "@/lib/forms/modules";
 import { PRESETS } from "@/lib/forms/presets";
@@ -86,11 +88,17 @@ class PreviewGuard extends Component<{ children: ReactNode; spec: FieldSpec }, {
 }
 
 export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: FormItem; desk: FormsDesk; act: (cmd: Command) => Promise<CommandResult>; onSaved: (id: string) => void; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
   const { sdgNames } = useViews();
   const paletteTabs = useId();
   const stepTabs = useId();
-  const [started, setStarted] = useState(!!form);
-  const [details, setDetails] = useState<Details>({ title: form?.title ?? "", description: form?.description ?? "", kind: form?.kind ?? "application" });
+  // The kinds this form may be (lib/forms/access.ts): a Student's evaluations and registrations, a unit's all but
+  // the Office's proposals and terminal reports. A Student's form has no sign-offs, so no Review.
+  const kinds = form ? HOLDER_KINDS[form.holder.kind] : desk.create;
+  const reviewed = (form?.holder.kind ?? desk.holder) !== "student";
+  const starts = STARTS.filter((s) => s.key !== "comdev" || kinds.includes("proposal"));
+  const [started, setStarted] = useState(!!form || starts.length < 2);
+  const [details, setDetails] = useState<Details>({ title: form?.title ?? "", description: form?.description ?? "", kind: form?.kind ?? kinds[0] ?? "application" });
   const [schema, setSchema] = useState<FormSchema>(() => (form ? structuredClone(form.schema) : blankSchema()));
   const [pick, setPick] = useState<Pick>(null);
   /** The step on the canvas, by section id, or the review. */
@@ -270,9 +278,8 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
     setBusy(true);
     const r = await act({
       type: "form.save",
-      ...(form ? { id: form.id, reference: form.reference, issuerId: form.issuer?.id, closesOn: form.closesOn } : desk.unitId ? { unitId: desk.unitId } : {}),
-      // A new proposal is filled in by a team: its link builds team copies. Edit details can turn them off.
-      ...(!form && { copies: details.kind === "proposal" }),
+      // A new form is the Student's own, the unit's, or the Office's, as the page it's made on. Team copies follow from the kind.
+      ...(form ? { id: form.id, reference: form.reference, issuerId: form.issuer?.id, closesOn: form.closesOn } : desk.holder === "student" ? { own: true } : desk.unitId ? { unitId: desk.unitId } : {}),
       title: details.title,
       description: details.description,
       kind: details.kind,
@@ -282,16 +289,16 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
     if (!r.ok) return;
     setDirty(false);
     const id = form?.id ?? (r.data && typeof r.data === "object" && "id" in r.data ? String((r.data as { id: string }).id) : null);
-    if (id) onSaved(id);
+    if (id) closeModal(dialog.current, () => onSaved(id));
   };
 
-  const close = () => (dirty ? setLeaving(true) : onClose());
+  const close = () => (dirty ? setLeaving(true) : closeModal(dialog.current));
 
   /* ---------- Start ---------- */
 
   if (!started)
     return (
-      <FolderModal label="Create form" onClose={onClose} className="fm-window fb">
+      <FolderModal label="Create form" onClose={onClose} className="fm-window fb" dialogRef={dialog}>
         <header className="fm-window__head">
           <span className="fm-window__art">
             <FormArt kind={details.kind} size="sm" />
@@ -301,14 +308,14 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
             <h2 className="fm-window__title">Create form</h2>
           </div>
           <div className="fm-window__actions">
-            <button type="button" className="ws-modal__x" aria-label="Close" onClick={onClose}>
+            <button type="button" className="ws-modal__x" aria-label="Close" onClick={() => closeModal(dialog.current)}>
               <Icon name="close" size={18} />
             </button>
           </div>
         </header>
         <div className="fm-window__body fb-start">
           <ul className="fb-start__list">
-            {STARTS.map((s) => (
+            {starts.map((s) => (
               <li key={s.key}>
                 <button
                   type="button"
@@ -338,7 +345,7 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
   const picked = pick?.kind === "field" ? fieldsOf(schema, pick.box)[pick.index] : undefined;
 
   return (
-    <FolderModal label={form ? `Edit questions of ${form.title}` : "Create form"} onClose={onClose} className="fm-window fb">
+    <FolderModal label={form ? `Edit questions of ${form.title}` : "Create form"} onClose={onClose} className="fm-window fb" dialogRef={dialog}>
       <header className="fm-window__head fb-head">
         <span className="fm-window__art">
           <FormArt kind={details.kind} size="sm" />
@@ -392,7 +399,7 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
                     </ul>
                   </section>
                 ))
-              : (["Who", "What", "Where and when", "Money", "Safety", "Sign", "Review"] as const).map((group) => (
+              : (["Who", "What", "Where and when", "Money", "Safety", "Sign", "Review"] as const).filter((group) => reviewed || group !== "Review").map((group) => (
                   <section key={group} className="fb-palette__group">
                     <h3>{group}</h3>
                     <ul>
@@ -427,7 +434,7 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
               idBase={stepTabs}
               tabs={[
                 ...schema.sections.map((s, i) => ({ key: s.id, label: `${i + 1}. ${s.title.trim() || "Untitled step"}`, count: s.fields.filter((f) => f.type !== "note").length || undefined })),
-                { key: "review", label: "Review", count: (schema.review?.stages.length ?? 0) + (schema.review?.fields.length ?? 0) || undefined },
+                ...(reviewed ? [{ key: "review", label: "Review", count: (schema.review?.stages.length ?? 0) + (schema.review?.fields.length ?? 0) || undefined }] : []),
               ]}
               value={box === "review" ? "review" : schema.sections[box].id}
               onChange={(k) => {
@@ -623,7 +630,7 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
               }}
             />
           ) : (
-            <FormSettings details={details} onChange={changeDetails} />
+            <FormSettings details={details} kinds={form && form.status !== "draft" ? [details.kind] : kinds} onChange={changeDetails} />
           )}
         </aside>
       </div>
@@ -637,7 +644,7 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
                 <button type="button" className="btn" onClick={closeSheet} autoFocus>
                   Keep building
                 </button>
-                <button type="button" className="btn btn--danger" onClick={onClose}>
+                <button type="button" className="btn btn--danger" onClick={() => closeModal(dialog.current)}>
                   Leave
                 </button>
               </footer>
@@ -910,7 +917,7 @@ function ConditionEditor({ value, before, fields, sdgNames, onChange, what }: { 
   );
 }
 
-function FormSettings({ details, onChange }: { details: Details; onChange: (d: Partial<Details>) => void }) {
+function FormSettings({ details, kinds, onChange }: { details: Details; kinds: readonly FormKind[]; onChange: (d: Partial<Details>) => void }) {
   return (
     <div className="fb-settings">
       <header className="fb-settings__head">
@@ -922,16 +929,18 @@ function FormSettings({ details, onChange }: { details: Details; onChange: (d: P
       <Group title="About">
         <Text label="Title" value={details.title} onChange={(v) => onChange({ title: v ?? "" })} max={FORM_LIMITS.title} placeholder="Untitled form" />
         <Text label="Description" value={details.description} onChange={(v) => onChange({ description: v ?? "" })} max={FORM_LIMITS.description} area />
-        <label className="field">
-          <span className="field__label">Kind</span>
-          <Select className="select" value={details.kind} onChange={(v) => onChange({ kind: v as FormKind })}>
-            {FORM_KINDS.map((k) => (
-              <option key={k.key} value={k.key}>
-                {k.label}
-              </option>
-            ))}
-          </Select>
-        </label>
+        {kinds.length > 1 && (
+          <label className="field">
+            <span className="field__label">Kind</span>
+            <Select className="select" value={details.kind} onChange={(v) => onChange({ kind: v as FormKind })}>
+              {FORM_KINDS.filter((k) => kinds.includes(k.key)).map((k) => (
+                <option key={k.key} value={k.key}>
+                  {k.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+        )}
       </Group>
       <p className="fb-quiet">Select a step or question to change it. Form number, issuing office and closing day are in Edit details.</p>
     </div>

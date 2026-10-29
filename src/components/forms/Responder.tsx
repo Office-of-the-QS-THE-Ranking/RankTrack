@@ -24,6 +24,7 @@ import { toast } from "@/components/ui/toast";
 import { afterRowRemoved, checkAnswers, fieldShows, shownSections } from "@/lib/forms/check";
 import { dayLabel, plural, stampLabel } from "@/lib/forms/format";
 import { copyPath } from "@/lib/forms/copies";
+import { studentPortalPath } from "@/lib/forms/kinds";
 import { fieldMap, holds, moduleOf, type FormContext } from "@/lib/forms/modules";
 import { PRIVACY_STATEMENTS, PRIVACY_VERSION, type PrivacyStatement } from "@/lib/forms/privacy";
 import { roleWords } from "@/lib/forms/review";
@@ -31,7 +32,7 @@ import type { Answers, FormKind, Value } from "@/lib/forms/types";
 import type { CopyStage, CopyView, FormWho, ResponderForm } from "@/lib/governance/hub-types";
 import { AnswerSections } from "./answers";
 import { useNoEmoji } from "./controls";
-import { Faces, SharingSheet, keepCopy } from "./copy-parts";
+import { Faces, SharingSheet } from "./copy-parts";
 import { FieldInput } from "./fields";
 import { ago } from "./marks";
 import { peerLocation } from "@/lib/forms/copies";
@@ -251,10 +252,6 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
     return () => cancelAnimationFrame(frame);
   }, [jump, at]);
 
-  // A copy opened here is listed on the form's start page.
-  useEffect(() => {
-    if (copy) keepCopy({ code: form.code, token: copy.token, ref: copy.ref, label: sharing?.label ?? copy.label }, who?.email);
-  }, [copy, form.code, sharing?.label, who?.email]);
 
   // And every change goes back to it, a moment after typing stops.
   useEffect(() => {
@@ -385,10 +382,12 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
             <Icon name={live.lost === "gone" ? "x-circle" : "lock-keyhole"} size={22} />
           </span>
           <h2 className="fr-shut__title">{live.lost === "gone" ? "This copy is no longer here" : "This copy is private now"}</h2>
-          <p className="fr-shut__text">{live.lost === "gone" ? "Start a new copy from the form’s link." : "Its owner chose who can open it. Reload to sign in with an account they added."}</p>
-          <a className="w-btn w-btn--ink w-btn--sm" href={live.lost === "gone" ? `/f/${form.code}` : copyPath(form.code, copy!.token)}>
-            {live.lost === "gone" ? "Go to the form" : "Reload"}
-          </a>
+          <p className="fr-shut__text">{live.lost === "gone" ? "Its link changed or it was removed. Ask the person who started it for its link." : "Its owner chose who can open it. Reload to sign in with an account they added."}</p>
+          {live.lost !== "gone" && (
+            <a className="w-btn w-btn--ink w-btn--sm" href={copyPath(form.code, copy!.token)}>
+              Reload
+            </a>
+          )}
         </div>
       </div>
     );
@@ -397,7 +396,7 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
   if (copy && live?.sent) {
     return (
       <div className="fr-body fr-body--single">
-        <CopyLinkActions code={form.code} copy={copy} email={who?.email} beforeReplace={flush} />
+        <CopyLinkActions code={form.code} copy={copy} beforeReplace={flush} />
         <Receipt
           kind={form.kind}
           refNo={live.sent.ref}
@@ -408,9 +407,11 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
               <button type="button" className="w-btn w-btn--ink w-btn--sm" onClick={() => window.print()}>
                 <Icon name="download" size={16} /> Download
               </button>
-              <a className="w-btn w-btn--light w-btn--sm fr-done__again" href={`/f/${form.code}`}>
-                Start another copy
-              </a>
+              {copy.mine && (
+                <a className="w-btn w-btn--light w-btn--sm fr-done__again" href={studentPortalPath(form.kind)}>
+                  Back to the Student Portal
+                </a>
+              )}
             </>
           }
         >
@@ -437,7 +438,7 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
   if (!open) {
     return (
       <div className="fr-body fr-body--single">
-        {copy && <CopyLinkActions code={form.code} copy={copy} email={who?.email} beforeReplace={flush} />}
+        {copy && <CopyLinkActions code={form.code} copy={copy} beforeReplace={flush} />}
         <div className="fr-card fr-shut">
           <span className="fr-shut__icon" aria-hidden="true">
             <Icon name="lock" size={22} />
@@ -492,10 +493,11 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
 
   return (
     <div className="fr-body">
-      {copy && <CopyLinkActions code={form.code} copy={copy} email={who?.email} beforeReplace={flush} />}
+      {copy && <CopyLinkActions code={form.code} copy={copy} beforeReplace={flush} />}
       {form.preview && (
         <p className="fr-preview" role="status">
-          <Icon name="eye" size={15} /> Preview. {form.status === "draft" ? "This draft" : "This form"} isn’t taking responses, so nothing is sent.
+          <Icon name="eye" size={15} /> Preview.{" "}
+          {form.copies && form.status === "open" ? "Copies of this form are built in the Student Portal, so nothing is sent here." : `${form.status === "draft" ? "This draft" : "This form"} isn’t taking responses, so nothing is sent.`}
         </p>
       )}
 
@@ -611,7 +613,7 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
           setField(id);
         }}
       >
-        {at < 0 && <PrivacyStep steps={sections.length} agreed={consent} onChange={setConsent} onContinue={() => go(Math.max(0, step))} />}
+        {at < 0 && <PrivacyStep steps={sections.length} agreed={consent} maker={form.maker} onChange={setConsent} onContinue={() => go(Math.max(0, step))} />}
         {sections.map((s, i) => {
           const shown = s.fields.filter((f) => fieldShows(s, f, answers, fields));
           const questions = shown.filter((f) => f.type !== "note").length;

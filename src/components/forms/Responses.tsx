@@ -158,7 +158,7 @@ export function FormResponses({
                 ]}
               />
             )}
-            {list.some(isSent) && (
+            {form.may.export && list.some(isSent) && (
               <button type="button" className="btn content-tabs__action" onClick={() => void exportAll()} disabled={exporting} aria-busy={exporting || undefined}>
                 <Icon name="download" size={15} /> Export CSV
               </button>
@@ -180,8 +180,8 @@ export function FormResponses({
           <span className="ws-empty__art">
             <FormArt kind={form.kind} size="lg" />
           </span>
-          <p className="ws-empty__title">No responses yet</p>
-          {form.status === "open" ? (
+          <p className="ws-empty__title">{form.copies ? "No copies yet" : "No responses yet"}</p>
+          {form.status === "open" && !form.copies ? (
             <button type="button" className="btn btn--dark" onClick={onCopy}>
               <Icon name="copy" size={16} /> Copy responder link
             </button>
@@ -262,7 +262,7 @@ export function FormResponses({
                       label={`Actions for ${r.ref}`}
                       items={[
                         { label: "Open", icon: "arrow-up-right", onSelect: () => setOpenId(r.id) },
-                        ...(isSent(r) ? [{ label: "Remove", icon: "trash" as const, danger: true, onSelect: () => setRemoving(r) }] : []),
+                        ...(isSent(r) && form.may.clear ? [{ label: "Remove", icon: "trash" as const, danger: true, onSelect: () => setRemoving(r) }] : []),
                       ]}
                     />
                   </td>
@@ -332,7 +332,8 @@ function ResponseView({
   const fields = useMemo(() => fieldMap(form.schema.sections, form.schema.review?.fields), [form.schema]);
   const ctx: FormContext = { units: desk.units, answers: response.answers, fields, sdgNames };
   const sent = isSent(response);
-  const reviewing = !!form.schema.review && sent;
+  // The sign-offs and office fields are for those who may review; others read the answers only.
+  const reviewing = !!form.schema.review && sent && form.may.review;
   return (
     <div className="fm-resp">
       <header className="fm-resp__head">
@@ -371,7 +372,7 @@ function ResponseView({
           <button type="button" className="btn content-tabs__action content-tabs__action--icon" aria-label="Print this response" onClick={() => window.print()}>
             <Icon name="download" size={15} />
           </button>
-          {sent && <RowMenu label={`More for ${response.ref}`} items={[{ label: "Remove", icon: "trash", danger: true, onSelect: onRemove }]} />}
+          {sent && form.may.clear && <RowMenu label={`More for ${response.ref}`} items={[{ label: "Remove", icon: "trash", danger: true, onSelect: onRemove }]} />}
         </div>
       </header>
       <div className={`fm-resp__grid${reviewing ? "" : " fm-resp__grid--single"}`}>

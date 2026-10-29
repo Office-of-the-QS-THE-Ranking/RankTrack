@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useId, useRef, useState } from "react";
 import { DateField, Select } from "@/components/ui/pickers";
 import { Icon } from "@/components/ui/Icon";
@@ -31,22 +33,22 @@ export function NewsFilters({ value, years, onApply, onClose }: {
     const node = dialog.current;
     if (!node) return;
     const previous = document.documentElement.style.overflow;
-    node.showModal();
+    openModal(node);
     document.documentElement.style.overflow = "hidden";
     return () => { node.close(); document.documentElement.style.overflow = previous; };
   }, []);
   return (
     <dialog ref={dialog} className="w-news-filters" aria-labelledby={`${id}-title`}
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onCancel={(event) => { event.preventDefault(); closeModal(dialog.current, onClose); }}
       onPointerDown={(event) => { outside.current = event.target === event.currentTarget; }}
       onClick={(event) => {
         const box = event.currentTarget.getBoundingClientRect();
-        if (outside.current && event.target === event.currentTarget && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) onClose();
+        if (outside.current && event.target === event.currentTarget && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) closeModal(dialog.current, onClose);
       }}>
-      <form onSubmit={(event) => { event.preventDefault(); onApply(draft); onClose(); }}>
+      <form onSubmit={(event) => { event.preventDefault(); onApply(draft); closeModal(dialog.current, onClose); }}>
         <header className="w-news-filters__head">
           <div><h2 id={`${id}-title`}>Filter stories</h2><p>Choose one or more goals and when the story was published.</p></div>
-          <button type="button" className="btn btn--ghost btn--icon" aria-label="Close filters" onClick={onClose}><Icon name="close" /></button>
+          <button type="button" className="btn btn--ghost btn--icon" aria-label="Close filters" onClick={() => closeModal(dialog.current, onClose)}><Icon name="close" /></button>
         </header>
         <div className="w-news-filters__body">
           <fieldset className="w-news-filters__goals">

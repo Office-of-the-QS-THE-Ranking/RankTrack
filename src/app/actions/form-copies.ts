@@ -3,16 +3,19 @@
 /*
  * Team copies of a digital form (lib/forms/copies.ts): building one, saving its answers as people type, keeping each
  * open page up to date, sending it, and choosing who can open it. A copy is a row of form_responses in status
- * "draft" with a link of its own. One open to its link takes anyone who has it; a private one takes only its owner
- * and the people they add, signed in with Google (server/form-copies.ts formWho). Answers are cleaned by the form's
- * module rules as they're saved, so every page reads well-formed answers, and checked in full when the copy is sent,
- * as a response sent straight from a form's link is (actions/forms.ts).
+ * "draft" with a link of its own. Only a Student (the Secretary of a student organization, commission or council)
+ * builds one, from the Student Portal, of a form the Office published there; nobody starts one from the form's own
+ * link. The Student then forwards the copy's link: one open to its link takes anyone who has it; a private one
+ * takes only its owner and the people they add, known by their Hub account or else by Google sign-in on the copy's
+ * page (server/form-copies.ts formWho). Answers are
+ * cleaned by the form's module rules as they're saved, so every page reads well-formed answers, and checked in full
+ * when the copy is sent, as a response sent straight from a form's link is (actions/forms.ts).
  */
 import { randomBytes, randomUUID } from "node:crypto";
-import { cookies } from "next/headers";
 import type { Sent } from "./forms";
 import { checkAnswers, problemText, respondentOf } from "@/lib/forms/check";
-import { COPY_LIMITS, COPY_TOKEN, copyEmail, type CopyAccess } from "@/lib/forms/copies";
+import { filesForms } from "@/lib/forms/access";
+import { COPY_LIMITS, COPY_TOKEN, copyEmail, copyPath, type CopyAccess } from "@/lib/forms/copies";
 import { manilaDay } from "@/lib/forms/format";
 import { FORM_CODE, FORM_LIMITS } from "@/lib/forms/kinds";
 import { noEmoji } from "@/lib/forms/letters";
@@ -21,11 +24,14 @@ import { readConsent } from "@/lib/forms/privacy";
 import { emptyReview, standing } from "@/lib/forms/review";
 import type { Answers, Signature } from "@/lib/forms/types";
 import type { CopyPerson, CopyRequest, CopyStage, CopyView } from "@/lib/governance/hub-types";
-import { COOKIE_OPTIONS, FORM_WHO_COOKIE } from "@/lib/governance/server/email-verify";
+import { log } from "@/lib/governance/engine/core";
 import { COPY_COLUMNS, admits, copyStages, editedOf, formWho, presenceOf, requestsOf, type CopyRow } from "@/lib/governance/server/form-copies";
 import { formUnits, takesResponses } from "@/lib/governance/server/forms";
 import { allow, clientKey } from "@/lib/governance/server/limits";
+import { run } from "@/lib/governance/server/run";
+import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
+import { copyForms } from "@/lib/governance/server/student-portal";
 import { endSession } from "./session";
 import type { Json } from "@/lib/supabase/database.types";
 import { adminDb } from "@/lib/supabase/server";
@@ -88,20 +94,25 @@ async function rowOf(formId: string, token: string): Promise<CopyRow | null> {
 
 /* ---------- Building ---------- */
 
-/** A new copy of a form, owned by the person signed in with Google: its reference and link. */
-export async function buildFormCopy(input: { code: string; label: string; access: CopyAccess; members?: string[] }): Promise<{ ok: true; token: string; ref: string; message: string } | Fail> {
+/**
+ * A new copy of a form the Office published to the Student Portal, built by a Student signed in to the Hub: the
+ * copy is theirs (their account and email), with the form's next reference and a link of its own to forward.
+ */
+export async function buildFormCopy(input: { code: string; label: string; access: CopyAccess; members?: string[] }): Promise<{ ok: true; token: string; ref: string; path: string; message: string } | Fail> {
+  const viewer = await getViewer();
+  if (!viewer) return { ok: false, message: "Your session has ended. Sign in again to continue." };
+  if (!filesForms(viewer.grants)) return { ok: false, message: "Copies are built by student organization secretaries, from the Student Portal." };
   const found = await formFor(input?.code);
-  if (!found || !takesResponses(found.form)) return CLOSED;
+  if (!found || !copyForms([found.form], found.form.kind).length) return { ok: false, message: "This form isn’t open on the Student Portal right now." };
   const { form } = found;
-  const who = await formWho();
-  if (!who) return { ok: false, message: "Sign in with Google first, so the copy is yours." };
-  const sharing = readSharing(input, who.email);
+  const owner = viewer.email.toLowerCase();
+  const sharing = readSharing(input, owner);
   if (typeof sharing === "string") return { ok: false, message: sharing };
 
-  // Anyone may build a copy, so cap what one network and one person can start.
+  // Cap what one network and one account can start.
   const client = await clientKey();
   if (!(await allow(`form-copy:${form.id}:${client}`, 3600, 20, true, false))) return { ok: false, message: "Too many copies were started from your network. Try again in an hour." };
-  if (!(await allow(`form-copy:${form.id}:${who.email}`, 86_400, 40, true, false))) return { ok: false, message: "You’ve started many copies today. Open one you have, or try again tomorrow." };
+  if (!(await allow(`form-copy:${form.id}:${viewer.id}`, 86_400, 40, true, false))) return { ok: false, message: "You’ve started many copies today. Open one you have, or try again tomorrow." };
 
   const token = randomBytes(16).toString("base64url");
   const { data, error } = await adminDb().rpc("hub_form_copy_create", {
@@ -110,17 +121,22 @@ export async function buildFormCopy(input: { code: string; label: string; access
     p_token: token,
     p_label: sharing.label,
     p_access: sharing.access,
-    p_owner_email: who.email,
-    p_owner_name: who.name.slice(0, 120),
+    p_owner_email: owner,
+    p_owner_name: viewer.name.slice(0, 120),
     p_members: sharing.members,
     p_client: client,
+    p_account: viewer.id,
   });
   const row = data?.[0];
   if (error || !row) {
     console.error(`Form ${form.id} copy: ${error ? error.message : "no row"}`);
     return { ok: false, message: "The copy couldn’t be built. Try again in a moment." };
   }
-  return { ok: true, token, ref: row.ref, message: `Copy ${row.ref} is ready. Share its link with your team.` };
+  await run(viewer.id, (ctx) => {
+    log(ctx, "form.copy", "Data", { type: "Form copy", id: row.ref, label: `${form.title} · ${sharing.label}` }, "Success", sharing.access === "private" ? `Private · ${sharing.members.length === 1 ? "1 person added" : `${sharing.members.length} people added`}` : "Anyone with the link");
+    return { ok: true, message: "" };
+  });
+  return { ok: true, token, ref: row.ref, path: copyPath(form.code, token), message: `${row.ref} is ready. Forward its link to your team.` };
 }
 
 /* ---------- Saving ---------- */
@@ -412,9 +428,8 @@ export async function answerFormCopyRequest(input: { code: string; token: string
   return { ok: true, message: input.allow ? `${email} can open this copy now.` : `Request from ${email} declined.`, requests, ...(row && { members: row.members }) };
 }
 
-/** Sign out on a form's page: forget the form's Google sign-in and end the Hub session, if any, so no one is signed in. */
+/** Sign out on a form's page: end the Hub session, if any, and forget the form's Google sign-in, so no one is signed in. */
 export async function signOutOfForm(): Promise<{ ok: true }> {
-  (await cookies()).set(FORM_WHO_COOKIE, "", { ...COOKIE_OPTIONS, maxAge: 0 });
   await endSession();
   return { ok: true };
 }

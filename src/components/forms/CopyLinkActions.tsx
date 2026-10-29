@@ -11,11 +11,10 @@ import { Sheet } from "@/components/workspace/parts";
 import { copyPath } from "@/lib/forms/copies";
 import type { CopyView } from "@/lib/governance/hub-types";
 import { FormLink } from "./FormLink";
-import { keepCopy, replaceKeptCopyToken } from "./copy-parts";
 
 const CONFIRM_WORD = "Generate";
 
-export function CopyLinkActions({ code, copy, email, beforeReplace }: { code: string; copy: CopyView; email?: string; beforeReplace: () => Promise<boolean> }) {
+export function CopyLinkActions({ code, copy, beforeReplace }: { code: string; copy: CopyView; beforeReplace: () => Promise<boolean> }) {
   const router = useRouter();
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -63,8 +62,6 @@ export function CopyLinkActions({ code, copy, email, beforeReplace }: { code: st
       const r = await regenerateFormCopyLink({ code, token: copy.token });
       toast(r.message, r.ok ? "ok" : "error");
       if (!r.ok) return;
-      replaceKeptCopyToken(code, copy.token, r.token);
-      keepCopy({ code, token: r.token, ref: copy.ref, label: copy.label }, email);
       setOpen(false);
       setConfirm(false);
       router.replace(copyPath(code, r.token), { scroll: false });

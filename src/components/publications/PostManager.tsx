@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * Stories & News in the Office workspace (Publications): every post in one table (thumbnail, title, date posted,
  * author, status), filtered by status and searched by text, with a composer for new and existing posts.
@@ -285,9 +287,7 @@ export function PostManager({ desk }: { desk: PostDesk }) {
           row={deleting}
           busy={pending}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            if (await act({ type: "post.delete", id: deleting.id! })) setDeleting(null);
-          }}
+          onConfirm={() => act({ type: "post.delete", id: deleting.id! })}
         />
       )}
     </>
@@ -378,14 +378,15 @@ export function RowMenu({ label, items, disabled }: { label: string; items: (Men
   );
 }
 
-function ConfirmDelete({ row, busy, onCancel, onConfirm }: { row: PostRow; busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+function ConfirmDelete({ row, busy, onCancel, onConfirm }: { row: PostRow; busy: boolean; onCancel: () => void; onConfirm: () => Promise<boolean> }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
   }, []);
   return (
-    <dialog ref={ref} className="pm-confirm" aria-labelledby="pm-confirm-title" onClose={onCancel}>
+    <dialog ref={ref} className="pm-confirm" aria-labelledby="pm-confirm-title" onClose={onCancel}
+      onCancel={(event) => { event.preventDefault(); closeModal(event.currentTarget); }}>
       <h2 id="pm-confirm-title" className="pm-confirm__title">
         Delete this post?
       </h2>
@@ -393,10 +394,10 @@ function ConfirmDelete({ row, busy, onCancel, onConfirm }: { row: PostRow; busy:
         “{row.title}” {row.status === "Published" ? "leaves the public website, and its" : "and its"} pictures are removed for good.
       </p>
       <div className="pm-confirm__actions">
-        <button type="button" className="btn" onClick={() => ref.current?.close()} autoFocus>
+        <button type="button" className="btn" onClick={() => closeModal(ref.current)} autoFocus>
           Cancel
         </button>
-        <button type="button" className="btn btn--danger" disabled={busy} onClick={onConfirm}>
+        <button type="button" className="btn btn--danger" disabled={busy} onClick={async () => { if (await onConfirm()) closeModal(ref.current); }}>
           <Icon name="trash" size={16} /> Delete
         </button>
       </div>

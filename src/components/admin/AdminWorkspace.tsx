@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * Administration: the governance console as a page of its own. Its sections are sub-tabs in the sidebar,
  * one route each. The layout holds the console data and confirmations, so they carry over between
@@ -64,7 +66,7 @@ export function AdminWorkspace({ initial, base, children }: { initial: ConsoleDa
   useEffect(() => {
     const d = confirmRef.current;
     if (!d) return;
-    if (ask && !d.open) d.showModal();
+    if (ask && !d.open) openModal(d);
     if (!ask && d.open) d.close();
   }, [ask]);
 
@@ -74,8 +76,11 @@ export function AdminWorkspace({ initial, base, children }: { initial: ConsoleDa
       setAnswerError(true);
       return;
     }
-    ask.resolve(value);
-    setAsk(null);
+    closeModal(confirmRef.current, () => {
+      confirmRef.current?.close();
+      ask.resolve(value);
+      setAsk(null);
+    });
   };
 
   const go = useCallback(

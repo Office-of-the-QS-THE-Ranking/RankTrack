@@ -15,7 +15,7 @@ import { openRequest } from "@/lib/governance/engine/requests";
 import { allow, clientKey } from "@/lib/governance/server/limits";
 import { run, runSystem } from "@/lib/governance/server/run";
 import { STAY_COOKIE, STAY_COOKIE_OPTIONS, checkSession, clearSessionCookie, sessionIdOf } from "@/lib/governance/server/session";
-import { STATE_COOKIE, verifiedEmail } from "@/lib/governance/server/email-verify";
+import { FORM_WHO_COOKIE, FORM_WHO_GONE, STATE_COOKIE, verifiedEmail } from "@/lib/governance/server/email-verify";
 import { DIRECTORY_SIGNIN } from "@/lib/governance/server/google-directory";
 import { siteOrigin } from "@/lib/governance/server/origin";
 import { safeNext } from "@/lib/governance/server/signin";
@@ -69,6 +69,8 @@ export async function endSession() {
     });
   }
   clearSessionCookie(jar);
+  // Forms stop knowing this browser too: no account chosen on a form earlier comes back in the Hub account's place.
+  jar.set(FORM_WHO_COOKIE, "", FORM_WHO_GONE);
 }
 
 /** The idle timer's ping while someone is working. Returns how the session stands. */

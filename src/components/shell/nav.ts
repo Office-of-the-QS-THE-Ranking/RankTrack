@@ -36,7 +36,9 @@ export interface NavGroup {
 /* Main navigation from the proposal: Dashboard, Rankings, Contributions, Publications, Recognition (a
    Dashboard tab in the office workspace), Workspace (with the Knowledge Center), Reports, About the Office. Rankings, Publications, Workspace and Administration open their own
    sets of tabs in the sidebar. Administration is shown to people who administer something; About the
-   Office sits apart at the foot. */
+   Office sits apart at the foot. A Student (the Secretary of a student organization, commission or council) has
+   the Student Portal's pages only (forms submit is theirs alone): Dashboard, Assignments, Project Proposals,
+   Evaluation Forms, Registrations, Terminal Reports. */
 export const NAV: Record<Variant, NavGroup[]> = {
   public: [
     {
@@ -70,12 +72,18 @@ export const NAV: Record<Variant, NavGroup[]> = {
       label: "Contributions",
       items: [
         { href: "/portal", label: "My dashboard", icon: "dashboard", exact: true },
+        { href: "/portal/assignments", label: "Assignments", icon: "clipboard", need: ["forms", "submit"] },
+        { href: "/portal/proposals", label: "Project Proposals", icon: "pen", need: ["forms", "submit"] },
+        { href: "/portal/evaluations", label: "Evaluation Forms", icon: "data", need: ["forms", "submit"] },
+        { href: "/portal/registrations", label: "Registrations", icon: "user-plus", need: ["forms", "submit"] },
+        { href: "/portal/terminal-reports", label: "Terminal Reports", icon: "reports", need: ["forms", "submit"] },
         { href: "/portal/submit", label: "Submit evidence", icon: "upload", need: ["evidence", "submit"], feature: "submit-evidence" },
         { href: "/portal/story", label: "Propose a story", icon: "pen", need: ["stories", "create"], feature: "story-proposals" },
         { href: "/portal/innovation", label: "Propose an innovation", icon: "innovation", need: ["stories", "create"], feature: "innovation-proposals" },
         { href: "/portal/feedback", label: "Validation comments", icon: "comment", count: "revisions", need: ["evidence", "edit"] },
         { href: "/portal/history", label: "Submission history", icon: "history", need: ["evidence", "view"] },
-        { href: "/portal/assistance", label: "Request assistance", icon: "help", feature: "assistance" },
+        // Only a unit's contributors ask for assistance on its behalf (the command checks the same).
+        { href: "/portal/assistance", label: "Request assistance", icon: "help", need: ["evidence", "submit"], feature: "assistance" },
       ],
     },
     {

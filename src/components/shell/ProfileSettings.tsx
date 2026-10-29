@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -63,12 +65,12 @@ export function ProfileSettings({
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) {
+    if (open && (!d.open || d.dataset.modalClosing)) {
       setSection("overview");
-      d.showModal();
+      openModal(d);
       document.documentElement.style.overflow = "hidden";
     } else if (!open && d.open) {
-      d.close();
+      closeModal(d);
     }
     return () => {
       document.documentElement.style.overflow = "";
@@ -86,12 +88,13 @@ export function ProfileSettings({
     return () => d.removeEventListener("close", onDialogClose);
   }, [onClose]);
 
-  const close = () => ref.current?.close();
+  const close = () => closeModal(ref.current);
 
   return (
     <dialog
       ref={ref}
       className="pfm"
+      onCancel={(event) => { event.preventDefault(); close(); }}
       aria-labelledby={titleId}
       onClick={(e) => {
         if (e.target === ref.current) close();

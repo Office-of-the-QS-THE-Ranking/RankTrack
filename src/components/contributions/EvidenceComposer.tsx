@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 /*
  * Submit evidence, a large dialog in the same four tabs a reviewer reads it in (ContributionRecord.tsx): the
  * Overview (title, background, type, period, result, beneficiaries and SDGs), the Narrative (the post composer's
@@ -322,7 +324,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
 
   useEffect(() => {
     const d = root.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
     titleRef.current?.focus();
     const html = document.documentElement;
     const overflow = html.style.overflow;
@@ -334,13 +336,13 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
 
   useEffect(() => {
     const d = leaveDialog.current;
-    if (leaving && d && !d.open) d.showModal();
+    if (leaving && d && !d.open) openModal(d);
   }, [leaving]);
 
   const requestClose = () => {
     if (busy !== null) return;
     if (!sent && unsaved) setLeaving(true);
-    else onClose();
+    else closeModal(root.current, onClose);
   };
 
   /* ---------- The Hub's field checks, on what stands for each group of choices ---------- */
@@ -525,7 +527,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
 
   useEffect(() => {
     const d = confirmDialog.current;
-    if (confirming && d && !d.open) d.showModal();
+    if (confirming && d && !d.open) openModal(d);
   }, [confirming]);
 
   /**
@@ -593,7 +595,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     if (!r.ok) return toast(r.message, "error");
     const id = typeof r.data === "string" ? r.data : "";
     forget();
-    setConfirming(false);
+    closeModal(confirmDialog.current, () => setConfirming(false));
     setRanks(false);
     setSent({ ref: id, title: title.trim(), rankings: reach.length });
     if (id) onSent?.(id);
@@ -601,9 +603,9 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
 
   /** Esc steps back: out of a question, out of the rankings, then out of the dialog. */
   const back = () => {
-    if (leaving) setLeaving(false);
+    if (leaving) closeModal(leaveDialog.current, () => setLeaving(false));
     else if (confirming) {
-      if (busy === null) setConfirming(false);
+      if (busy === null) closeModal(confirmDialog.current, () => setConfirming(false));
     } else if (ranks) closeRanks();
     else requestClose();
   };
@@ -650,7 +652,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
         onKeyDown={onKeyDown}
         onCancel={(e) => {
           e.preventDefault();
-          onClose();
+          closeModal(root.current, onClose);
         }}
       >
         <div className="pc__form">
@@ -670,7 +672,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
               </p>
               <StageTrack stage={0} status="For review" />
               <div className="ec-sent__actions">
-                <button type="button" className="btn btn--dark" onClick={onClose} autoFocus>
+                <button type="button" className="btn btn--dark" onClick={() => closeModal(root.current, onClose)} autoFocus>
                   Done
                 </button>
                 <button
@@ -1293,7 +1295,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
           onCancel={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (busy === null) setConfirming(false);
+            if (busy === null) closeModal(confirmDialog.current, () => setConfirming(false));
           }}
         >
           <form className="pc-leave__card" onSubmit={send}>
@@ -1334,7 +1336,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
               </span>
             )}
             <div className="pc-leave__actions">
-              <button type="button" className="btn" disabled={busy !== null} onClick={() => setConfirming(false)}>
+              <button type="button" className="btn" disabled={busy !== null} onClick={() => closeModal(confirmDialog.current, () => setConfirming(false))}>
                 Back
               </button>
               <button type="submit" className="btn btn--dark" disabled={busy !== null}>
@@ -1356,7 +1358,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
           onCancel={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setLeaving(false);
+            closeModal(leaveDialog.current, () => setLeaving(false));
           }}
         >
           <div className="pc-leave__card">
@@ -1367,13 +1369,13 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
               {files.length ? "Drafts stay on this device. Files need attaching again." : "Drafts stay on this device until you submit."}
             </p>
             <div className="pc-leave__actions">
-              <button type="button" className="btn btn--danger pc-discard ec-leave__discard" onClick={onClose}>
+              <button type="button" className="btn btn--danger pc-discard ec-leave__discard" onClick={() => closeModal(root.current, onClose)}>
                 Discard
               </button>
-              <button type="button" className="btn" onClick={() => setLeaving(false)}>
+              <button type="button" className="btn" onClick={() => closeModal(leaveDialog.current, () => setLeaving(false))}>
                 Keep editing
               </button>
-              <button type="button" className="btn btn--dark" autoFocus onClick={() => saveDraft() && onClose()}>
+              <button type="button" className="btn btn--dark" autoFocus onClick={() => saveDraft() && closeModal(root.current, onClose)}>
                 Save draft
               </button>
             </div>

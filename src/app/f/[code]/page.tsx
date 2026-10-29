@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CopyStart } from "@/components/forms/CopyStart";
-import { SignInReturn } from "@/components/forms/copy-parts";
+import { CopyDoor } from "@/components/forms/CopyGate";
 import { FormFrame } from "@/components/forms/FormFrame";
 import { Responder } from "@/components/forms/Responder";
-import { Icon } from "@/components/ui/Icon";
 import { FORM_CODE } from "@/lib/forms/kinds";
-import { copiesOf, formWho } from "@/lib/governance/server/form-copies";
-import { formByCode, responderForm } from "@/lib/governance/server/forms";
+import { formWho } from "@/lib/governance/server/form-copies";
+import { formByCode, responderForm, rightsFor } from "@/lib/governance/server/forms";
 import { mayLookUp } from "@/lib/governance/server/people-directory";
 import { getViewer } from "@/lib/governance/server/session";
 import { readState } from "@/lib/governance/server/store";
 import { serverViews } from "@/lib/governance/server/views";
 
-type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ signin?: string }> };
+type Props = { params: Promise<{ code: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { code } = await params;
@@ -23,39 +21,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /**
  * A digital form's responder link (FormFrame has the page around it). Anyone with the link can respond; someone who
- * runs the form can preview it first. A form with team copies opens on building one instead (CopyStart): each copy
- * is a response with its own reference and link, filled in together at /f/<code>/<token>.
+ * runs the form can preview it first. A Proposal or Terminal Report form is filled in as team copies, which student
+ * organization secretaries build from the Student Portal: its own link only previews it for the people who run it,
+ * and points everyone else there (CopyDoor). Each copy has its own link, /f/<code>/<token>.
  */
-export default async function FormPage({ params, searchParams }: Props) {
+export default async function FormPage({ params }: Props) {
   const { code } = await params;
   if (!FORM_CODE.test(code)) notFound();
-  const form = await responderForm(code, await getViewer());
+  const viewer = await getViewer();
+  const form = await responderForm(code, viewer);
   if (!form) notFound();
-  const { office } = await serverViews();
+  const [{ office }, who] = await Promise.all([serverViews(), formWho()]);
 
-  if (form.copies && !form.preview) {
-    const [record, who, { signin }] = await Promise.all([formByCode(code), formWho(), searchParams]);
-    const copies = record ? await copiesOf(record, who) : [];
+  if (form.copies) {
+    // The people who run or read it preview its questions; nothing is sent from here.
+    const record = await formByCode(code);
+    const may = record ? rightsFor(viewer, record) : null;
+    if (!may?.read && !may?.edit) {
+      return (
+        <FormFrame form={form} office={office} link={{}} share={false} who={who}>
+          <CopyDoor kind={form.kind} open={form.status === "open"} />
+        </FormFrame>
+      );
+    }
     return (
-      <FormFrame
-        form={form}
-        office={office}
-        link={{}}
-        note={
-          <>
-            <Icon name="users" size={14} /> One copy per event, filled in together
-          </>
-        }
-      >
-        <SignInReturn result={signin} />
-        <CopyStart form={{ code: form.code, prefix: form.prefix, title: form.title }} who={who} copies={copies} open={form.status === "open"} />
+      <FormFrame form={form} office={office} link={{}} share={false} who={who}>
+        <Responder form={{ ...form, preview: true }} directory={mayLookUp(await readState(), who)} />
       </FormFrame>
     );
   }
 
   return (
-    <FormFrame form={form} office={office} link={{}}>
-      <Responder form={form} directory={mayLookUp(await readState(), await formWho())} />
+    <FormFrame form={form} office={office} link={{}} who={who}>
+      <Responder form={form} directory={mayLookUp(await readState(), who)} />
     </FormFrame>
   );
 }

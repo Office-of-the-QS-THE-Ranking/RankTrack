@@ -160,6 +160,17 @@ const DATASETS: DatasetDraft[] = [
     bodies: [],
     personal: true,
   },
+  {
+    id: "DS-FORMS",
+    name: "Digital form responses",
+    description: "Proposals, terminal reports, evaluations, registrations and surveys sent through Digital Forms, with each review. Read in the Hub by the people who run each form and by the Office.",
+    ownerUnitId: "rankings-office",
+    classification: "Confidential",
+    retention: { years: 5, then: "Review" },
+    exportPolicy: "Approval required",
+    bodies: ["THE"],
+    personal: true,
+  },
 ];
 
 const RULES: QualityRule[] = [

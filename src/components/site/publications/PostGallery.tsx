@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { StoryPicture } from "@/lib/data";
@@ -39,7 +41,7 @@ function Lightbox({ photos, start, title, onClose }: { photos: StoryPicture[]; s
 
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) openModal(d);
     d?.querySelector<HTMLButtonElement>(".w-lightbox__btn--close")?.focus();
   }, []);
 
@@ -47,6 +49,7 @@ function Lightbox({ photos, start, title, onClose }: { photos: StoryPicture[]; s
     <dialog
       ref={ref}
       className="w-lightbox"
+      onCancel={(event) => { event.preventDefault(); closeModal(event.currentTarget); }}
       aria-label={`Photos from “${title}”`}
       onClose={onClose}
       onKeyDown={(e) => {
@@ -55,7 +58,7 @@ function Lightbox({ photos, start, title, onClose }: { photos: StoryPicture[]; s
         go(e.key === "ArrowRight" ? 1 : -1);
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) ref.current?.close();
+        if (e.target === e.currentTarget) closeModal(ref.current);
       }}
       onPointerDown={(e) => {
         swipe.current = e.clientX;
@@ -89,7 +92,7 @@ function Lightbox({ photos, start, title, onClose }: { photos: StoryPicture[]; s
           </button>
         </>
       )}
-      <button type="button" className="w-lightbox__btn w-lightbox__btn--close" aria-label="Close" onClick={() => ref.current?.close()}>
+      <button type="button" className="w-lightbox__btn w-lightbox__btn--close" aria-label="Close" onClick={() => closeModal(ref.current)}>
         <Icon name="close" size={22} />
       </button>
     </dialog>

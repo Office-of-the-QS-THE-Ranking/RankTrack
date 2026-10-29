@@ -29,6 +29,9 @@ export const MODULES: ModuleInfo[] = [
   { key: "posts", label: "Publications", group: "Workspaces", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "reports", label: "Reports", group: "Workspaces", actions: ["view", "create", "export"] },
   { key: "knowledge", label: "Knowledge Center", group: "Workspaces", actions: ["view", "edit"] },
+  // Digital Forms (lib/forms/access.ts): build, publish to the Student Portal (manage), file copies and answers
+  // (submit, Students), record sign-offs (approve), read and export responses.
+  { key: "forms", label: "Digital forms", group: "Contributions", actions: ["view", "create", "edit", "delete", "submit", "approve", "export", "manage"] },
   { key: "evidence", label: "Evidence submissions", group: "Contributions", actions: ["view", "create", "edit", "delete", "submit", "approve", "export"] },
   { key: "data", label: "Reporting-period data", group: "Contributions", actions: ["view", "create", "edit", "delete", "submit", "approve", "export"] },
   { key: "stories", label: "Impact stories and innovations", group: "Contributions", actions: ["view", "create", "edit", "submit", "approve", "export"] },
@@ -66,11 +69,15 @@ export const CLASSIFICATIONS: { key: Classification; note: string }[] = [
 
 const ALL = (): PermissionSet => Object.fromEntries(MODULES.map((m) => [m.key, [...m.actions]])) as PermissionSet;
 
-/** Filing contributions is the units' own work: administrators review and approve, never submit for a unit. */
+/**
+ * Filing contributions is the units' own work: administrators review and approve, never submit for a unit. Filing
+ * a form's copies and answers is the Students' (forms submit).
+ */
 const CONTRIBUTING: Partial<Record<ModuleKey, Action[]>> = {
   evidence: ["create", "edit", "delete", "submit"],
   data: ["create", "edit", "delete", "submit"],
   stories: ["create", "edit", "submit"],
+  forms: ["submit"],
 };
 const OVERSIGHT = (): PermissionSet =>
   Object.fromEntries(Object.entries(ALL()).map(([k, acts]) => [k, acts.filter((a) => !CONTRIBUTING[k as ModuleKey]?.includes(a))])) as PermissionSet;
@@ -101,6 +108,7 @@ const UNIT_OVERSIGHT: PermissionSet = {
   units: ["view", "export"],
   reports: ["view", "export"],
   knowledge: ["view"],
+  forms: ["view", "export"],
   evidence: ["view", "export"],
   data: ["view", "export"],
   stories: ["view", "export"],
@@ -120,12 +128,13 @@ export const ROLES: Role[] = [
   {
     id: ROLE.coordinator,
     name: "Coordinator",
-    description: "Gathers and submits evidence, data and stories for their University Office or College/Faculty.",
+    description: "Gathers and submits evidence, data and stories for their University Office or College/Faculty, and runs its surveys, evaluation and registration forms.",
     tier: 3,
     permissions: {
       units: ["view"],
       reports: ["view", "export"],
       knowledge: ["view"],
+      forms: ["view", "create", "edit", "delete", "approve", "export", "manage"],
       evidence: ["view", "create", "edit", "delete", "submit"],
       data: ["view", "create", "edit", "delete", "submit"],
       stories: ["view", "create", "edit", "submit"],
@@ -135,11 +144,10 @@ export const ROLES: Role[] = [
   {
     id: ROLE.student,
     name: "Student",
-    description: "Views the Knowledge Center and their College/Faculty's reports.",
+    description: "Secretary of a student organization, commission or council: files its project proposals and terminal reports, builds its evaluation and registration forms, and answers the surveys assigned to it.",
     tier: 2,
     permissions: {
-      knowledge: ["view"],
-      reports: ["view"],
+      forms: ["view", "create", "edit", "delete", "submit", "export"],
     },
     scopeKind: "unit",
   },

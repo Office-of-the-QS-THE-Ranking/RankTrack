@@ -1,5 +1,7 @@
 "use client";
 
+import { closeModal, openModal } from "@/components/ui/modal-motion";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -222,15 +224,15 @@ export function SearchPalette({ variant, open, onClose }: { variant: Variant; op
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) {
+    if (open && (!d.open || d.dataset.modalClosing)) {
       setQ("");
       setActive(0);
       setSettled(false);
-      d.showModal();
+      openModal(d);
       requestAnimationFrame(() => inputRef.current?.focus());
       const t = window.setTimeout(() => setSettled(true), 1000);
       return () => window.clearTimeout(t);
-    } else if (!open && d.open) d.close();
+    } else if (!open && d.open) closeModal(d);
   }, [open]);
 
   useEffect(() => {
@@ -269,7 +271,7 @@ export function SearchPalette({ variant, open, onClose }: { variant: Variant; op
     glide.style.opacity = "1";
   }, [open, active, groups, listId]);
 
-  const close = () => ref.current?.close();
+  const close = () => closeModal(ref.current);
 
   const go = (e?: Entry) => {
     if (!e) return;
@@ -282,6 +284,7 @@ export function SearchPalette({ variant, open, onClose }: { variant: Variant; op
     <dialog
       ref={ref}
       className="palette"
+      onCancel={(event) => { event.preventDefault(); close(); }}
       aria-label="Search"
       data-settled={settled || undefined}
       onPointerDown={(e) => {

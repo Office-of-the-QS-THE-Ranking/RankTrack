@@ -260,6 +260,8 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return forms.saveForm(ctx, cmd);
     case "form.status":
       return forms.setFormStatus(ctx, cmd);
+    case "form.portal":
+      return forms.setFormPortal(ctx, cmd);
     case "form.duplicate":
       return forms.duplicateForm(ctx, cmd);
     case "form.delete":

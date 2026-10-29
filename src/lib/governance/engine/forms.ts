@@ -1,23 +1,27 @@
 /*
- * Digital Forms: a unit's own forms and the Office's, which every unit sees. They're written by the same people
- * as the Workspace beside them (a unit's contributors, or for the Office the Knowledge Center's editors). A form
- * starts as a draft, opens to take responses, and closes; it never goes back to draft, so only a draft (which
- * has never taken a response) can be deleted. Its questions change only while it's a draft. Every change is
- * authorized and audited. Responses are written outside the store (app/actions/forms.ts).
+ * Digital Forms: the Office's, a unit's, and a Student's own (lib/forms/access.ts says who may do what). A form
+ * starts as a draft, opens to take responses, and closes; it never goes back to draft, so only a draft (which has
+ * never taken a response) can be deleted, and its questions and kind change only while it's a draft. Evaluation
+ * and Registration Forms are fixed once published. The Office publishes its proposals, terminal reports and
+ * surveys to the Student Portal (and a unit its surveys, to its own Students). Every change is authorized and
+ * audited. Responses are written outside the store (app/actions/forms.ts).
  */
+import { ROLE } from "../catalog";
 import type { Command, CommandResult } from "../commands";
+import { descendants } from "../rbac";
 import type { FormRecord } from "../types";
+import { HOLDER_KINDS, buildsCopies, creatable, formRights, holderOf, isLocked, PORTAL_KINDS, type FormHolder } from "@/lib/forms/access";
 import { FORM_LIMITS, formKindLabel, isFormKind } from "@/lib/forms/kinds";
 import { hasEmoji } from "@/lib/forms/letters";
 import { readSchema } from "@/lib/forms/schema";
-import { can, deny, invalid, log, nextId, ok, unitById, type Ctx } from "./core";
+import { deny, invalid, log, nextId, ok, unitById, type Ctx } from "./core";
 
 const res = (f: { id: string; title: string }) => ({ type: "Digital form", id: f.id, label: f.title });
 
-/** Who may change a form: the unit's contributors, or for the Office's forms the Knowledge Center's editors. */
-const writes = (ctx: Ctx, unitId: string | undefined) => (unitId ? can(ctx, "evidence", "submit", { unitId }) : can(ctx, "knowledge", "edit"));
+const rightsOf = (ctx: Ctx, f: FormRecord) => formRights(ctx.actor.grants, ctx.actor.id, f);
 
 const GONE = "That form is no longer here. Refresh and try again.";
+const FIXED = "This form is published, so it can’t change. Duplicate it to make another.";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const validDay = (v: string) => DAY.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
@@ -42,13 +46,48 @@ const prefixOf = (title: string) =>
     .join("")
     .slice(0, 4) || "R";
 
+/** The unit a Student's forms are kept under: the one their role is held in. */
+const studentUnit = (ctx: Ctx) => ctx.actor.grants.find((g) => g.roleId === ROLE.student && g.scopeUnits !== "all")?.scopeUnits;
+
+/** Where a new form goes, or why it can't be made there. */
+function placeNew(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>): { holder: FormHolder; unitId?: string; ownerId?: string; label: string } | string {
+  if (cmd.own === true) {
+    const scope = studentUnit(ctx);
+    if (!scope || scope === "all" || !scope[0]) return "Only a Student’s role keeps forms of its own.";
+    return { holder: "student", unitId: scope[0], ownerId: ctx.actor.id, label: ctx.actor.name };
+  }
+  if (typeof cmd.unitId === "string" && cmd.unitId) {
+    const unit = unitById(ctx, cmd.unitId);
+    if (!unit) return "That unit no longer exists.";
+    return { holder: "unit", unitId: unit.id, label: unit.name };
+  }
+  return { holder: "office", label: "Office of QS/THE Rankings" };
+}
+
 export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>): CommandResult {
   const form = cmd.id === undefined ? undefined : ctx.state.records.forms.find((f) => f.id === cmd.id);
   if (cmd.id !== undefined && !form) return invalid(GONE);
-  const unitId = form ? form.unitId : typeof cmd.unitId === "string" && cmd.unitId ? cmd.unitId : undefined;
-  if (!form && unitId && !unitById(ctx, unitId)) return invalid("That unit no longer exists.");
-  const target = form ? res(form) : { type: "Digital Forms", id: unitId ?? "office", label: unitId ? (unitById(ctx, unitId)?.name ?? unitId) : "Office of QS/THE Rankings" };
-  if (!writes(ctx, unitId)) return deny(ctx, "form.save", "Data", target, unitId ? "Your role cannot change this unit’s forms." : "Your role cannot change the Office’s forms.");
+
+  let holder: FormHolder;
+  let unitId: string | undefined;
+  let ownerId: string | undefined;
+  if (form) {
+    const rights = rightsOf(ctx, form);
+    if (!rights.edit) {
+      if (isLocked(form) && formRights(ctx.actor.grants, ctx.actor.id, { ...form, status: "draft" }).edit) return invalid(FIXED);
+      return deny(ctx, "form.save", "Data", res(form), "Your role cannot change this form.");
+    }
+    ({ unitId, ownerId } = form);
+    holder = holderOf(form);
+  } else {
+    const place = placeNew(ctx, cmd);
+    if (typeof place === "string") return invalid(place);
+    ({ holder, unitId, ownerId } = place);
+    if (!creatable(ctx.actor.grants, holder, unitId).length) {
+      const why = holder === "office" ? "Your role cannot make the Office’s forms." : holder === "unit" ? "Your role cannot make this unit’s forms." : "Your role cannot make forms of its own.";
+      return deny(ctx, "form.save", "Data", { type: "Digital Forms", id: unitId ?? "office", label: place.label }, why);
+    }
+  }
 
   const title = clean(cmd.title, FORM_LIMITS.title);
   if (!title) return invalid("Give the form a title.");
@@ -56,11 +95,15 @@ export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>)
   const description = clean(cmd.description, FORM_LIMITS.description);
   if (description.length > FORM_LIMITS.description) return invalid(`Keep the description under ${FORM_LIMITS.description} characters.`);
   if (!isFormKind(cmd.kind)) return invalid("Choose what kind of form it is.");
+  if (!HOLDER_KINDS[holder].includes(cmd.kind)) return invalid(holder === "student" ? "Students make Evaluation Forms and Registration Forms." : `${formKindLabel(cmd.kind)}s come from the Office.`);
+  if (form && cmd.kind !== form.kind && form.status !== "draft") return invalid("A form’s kind changes only while it’s a draft.");
   const reference = clean(cmd.reference, FORM_LIMITS.reference);
   if (reference.length > FORM_LIMITS.reference) return invalid(`Keep the form number under ${FORM_LIMITS.reference} characters.`);
   if ([title, description, reference].some(hasEmoji)) return invalid("Take the emoji out of the form’s title, description and number.");
   const issuerId = typeof cmd.issuerId === "string" && cmd.issuerId ? cmd.issuerId : undefined;
   if (issuerId && !unitById(ctx, issuerId)) return invalid("Choose the issuing office from the list.");
+  // A unit's or a Student's form names its own unit (or one within it) as the issuer, never another office.
+  if (issuerId && unitId && !descendants(ctx.state.units, unitId).includes(issuerId) && issuerId !== form?.issuerId) return invalid("Name your own unit as the issuer.");
   const closesOn = typeof cmd.closesOn === "string" ? cmd.closesOn : "";
   if (closesOn && !validDay(closesOn)) return invalid("Choose the day the form closes.");
   const prefix = cmd.prefix === undefined ? (form?.prefix ?? prefixOf(title)) : typeof cmd.prefix === "string" ? cmd.prefix.trim().toUpperCase() : "";
@@ -74,16 +117,23 @@ export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>)
     schema = read;
   }
   if (!schema) return invalid("Add the form’s questions.");
+  // A Student's form has no sign-offs or office fields: nobody signs off on their own evaluation or registration.
+  if (holder === "student" && schema.review) {
+    const { review: _review, ...rest } = schema;
+    void _review;
+    schema = rest;
+  }
 
-  // Team copies: the form's link builds a copy with its own reference and link for a team to fill in together.
-  const copies = cmd.copies === undefined ? !!form?.copies : cmd.copies === true;
-  const fields = { title, description, kind: cmd.kind, prefix, schema, ...(reference && { reference }), ...(issuerId && { issuerId }), ...(closesOn && { closesOn }), ...(copies && { copies }) };
+  // Proposals and Terminal Reports are filled in as team copies; no other kind is. Only those and surveys stay on the Student Portal.
+  const copies = buildsCopies(cmd.kind);
+  const students = !!form?.students && PORTAL_KINDS.includes(cmd.kind);
+  const fields = { title, description, kind: cmd.kind, prefix, schema, ...(reference && { reference }), ...(issuerId && { issuerId }), ...(closesOn && { closesOn }), ...(copies && { copies }), ...(students && { students }) };
   if (form) {
     const changes: string[] = (["title", "description", "kind", "reference", "issuerId", "closesOn", "prefix"] as const).filter((k) => (form[k] ?? "") !== ((fields as Partial<FormRecord>)[k] ?? ""));
-    if (copies !== !!form.copies) changes.push(copies ? "team copies on" : "team copies off");
     if (cmd.schema !== undefined && JSON.stringify(form.schema) !== JSON.stringify(schema)) changes.push("questions");
     if (!changes.length) return ok("No changes.");
-    for (const k of ["reference", "issuerId", "closesOn", "copies"] as const) if (!(k in fields)) delete form[k];
+    if (!students && form.students) changes.push("off the Student Portal");
+    for (const k of ["reference", "issuerId", "closesOn", "copies", "students"] as const) if (!(k in fields)) delete form[k];
     Object.assign(form, fields, { updatedAt: ctx.iso, updatedBy: ctx.actor.id });
     log(ctx, "form.save", "Data", res(form), "Success", `Changed ${changes.join(", ")}`);
     return ok("Form saved.");
@@ -91,6 +141,7 @@ export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>)
   const made: FormRecord = {
     id: nextId(ctx, "form", "FM-", 4),
     ...(unitId && { unitId }),
+    ...(ownerId && { ownerId }),
     code: newCode(ctx),
     status: "draft",
     ...fields,
@@ -100,31 +151,49 @@ export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>)
     updatedBy: ctx.actor.id,
   };
   ctx.state.records.forms.unshift(made);
-  log(ctx, "form.save", "Data", res(made), "Success", `Created · ${formKindLabel(made.kind)}${made.copies ? " · team copies" : ""} · draft`);
+  log(ctx, "form.save", "Data", res(made), "Success", `Created · ${formKindLabel(made.kind)}${holder === "student" ? " · a Student’s own" : ""}${made.copies ? " · team copies" : ""} · draft`);
   return ok("Form created.", { data: { id: made.id } });
 }
 
-/** Draft → open → closed ↔ open. A form never goes back to draft. */
+/** Draft → open → closed ↔ open. A form never goes back to draft; opening an Evaluation or Registration Form publishes it for good. */
 export function setFormStatus(ctx: Ctx, cmd: Extract<Command, { type: "form.status" }>): CommandResult {
   const form = ctx.state.records.forms.find((f) => f.id === cmd.id);
   if (!form) return invalid(GONE);
-  if (!writes(ctx, form.unitId)) return deny(ctx, "form.status", "Data", res(form), "Your role cannot change this form.");
+  if (!rightsOf(ctx, form).status) return deny(ctx, "form.status", "Data", res(form), "Your role cannot change this form.");
   if (cmd.status !== "open" && cmd.status !== "closed") return invalid(cmd.status === "draft" ? "A form that has opened can’t go back to draft. Duplicate it instead." : "Choose open or closed.");
   if (cmd.status === form.status) return ok("No changes.");
   if (form.status === "draft" && cmd.status === "closed") return invalid("Open the form before closing it.");
   if (cmd.status === "open" && !form.schema.sections.some((s) => s.fields.some((f) => f.type !== "note"))) return invalid("Add a question before opening the form.");
-  log(ctx, "form.status", "Data", res(form), "Success", `${form.status} → ${cmd.status}`);
+  const publishing = form.status === "draft" && isLocked({ kind: form.kind, status: "open" });
+  log(ctx, "form.status", "Data", res(form), "Success", `${form.status} → ${cmd.status}${publishing ? " · published, fixed" : ""}`);
   Object.assign(form, { status: cmd.status, updatedAt: ctx.iso, updatedBy: ctx.actor.id });
-  return ok(cmd.status === "open" ? "Taking responses." : "Responses closed.");
+  return ok(publishing ? "Published. Its responses now reach the Office." : cmd.status === "open" ? "Taking responses." : "Responses closed.");
 }
 
-/** A draft copy: same questions, a new link, no responses. */
+/** Publish a form to the Student Portal, or take it off: copies to build for a proposal or terminal report, an assignment for a survey. */
+export function setFormPortal(ctx: Ctx, cmd: Extract<Command, { type: "form.portal" }>): CommandResult {
+  const form = ctx.state.records.forms.find((f) => f.id === cmd.id);
+  if (!form) return invalid(GONE);
+  if (!PORTAL_KINDS.includes(form.kind)) return invalid("Only proposals, terminal reports and surveys go to the Student Portal.");
+  if (!rightsOf(ctx, form).portal) return deny(ctx, "form.portal", "Data", res(form), "Your role cannot publish this form to the Student Portal.");
+  const on = cmd.on === true;
+  if (on === !!form.students) return ok("No changes.");
+  if (on) form.students = true;
+  else delete form.students;
+  Object.assign(form, { updatedAt: ctx.iso, updatedBy: ctx.actor.id });
+  log(ctx, "form.portal", "Data", res(form), "Success", on ? "Published to the Student Portal" : "Taken off the Student Portal");
+  if (!on) return ok("Taken off the Student Portal.");
+  return ok(form.status === "open" ? "Published to the Student Portal." : "Published to the Student Portal. Students see it once it takes responses.");
+}
+
+/** A draft copy: same questions and holder, a new link, no responses, not on the Student Portal. */
 export function duplicateForm(ctx: Ctx, cmd: Extract<Command, { type: "form.duplicate" }>): CommandResult {
   const form = ctx.state.records.forms.find((f) => f.id === cmd.id);
   if (!form) return invalid(GONE);
-  if (!writes(ctx, form.unitId)) return deny(ctx, "form.duplicate", "Data", res(form), "Your role cannot copy this form.");
-  const { closesOn: _closes, ...rest } = form;
+  if (!rightsOf(ctx, form).duplicate) return deny(ctx, "form.duplicate", "Data", res(form), "Your role cannot copy this form.");
+  const { closesOn: _closes, students: _students, ...rest } = form;
   void _closes;
+  void _students;
   const copy: FormRecord = {
     ...structuredClone(rest),
     id: nextId(ctx, "form", "FM-", 4),
@@ -144,8 +213,11 @@ export function duplicateForm(ctx: Ctx, cmd: Extract<Command, { type: "form.dupl
 export function deleteForm(ctx: Ctx, cmd: Extract<Command, { type: "form.delete" }>): CommandResult {
   const form = ctx.state.records.forms.find((f) => f.id === cmd.id);
   if (!form) return invalid(GONE);
-  if (!writes(ctx, form.unitId)) return deny(ctx, "form.delete", "Data", res(form), "Your role cannot delete this form.");
-  if (form.status !== "draft") return invalid("Only a draft can be deleted. Close the form to stop its responses.");
+  if (form.status !== "draft") {
+    if (!rightsOf(ctx, { ...form, status: "draft" }).remove) return deny(ctx, "form.delete", "Data", res(form), "Your role cannot delete this form.");
+    return invalid(isLocked(form) ? FIXED : "Only a draft can be deleted. Close the form to stop its responses.");
+  }
+  if (!rightsOf(ctx, form).remove) return deny(ctx, "form.delete", "Data", res(form), "Your role cannot delete this form.");
   ctx.state.records.forms = ctx.state.records.forms.filter((f) => f !== form);
   log(ctx, "form.delete", "Data", res(form), "Success", "Draft deleted");
   return ok("Draft deleted.");
