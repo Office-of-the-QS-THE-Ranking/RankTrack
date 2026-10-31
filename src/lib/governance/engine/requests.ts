@@ -4,7 +4,7 @@
  * different approver.
  */
 import { GUEST_DAYS } from "../access-requests";
-import { ROLE, roleOf } from "../catalog";
+import { ROLE, STUDENT_HOME, roleOf } from "../catalog";
 import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
 import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
@@ -76,7 +76,8 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
   switch (p.kind) {
     case "account-access": {
       if (ctx.state.accounts.some((a) => a.email.toLowerCase() === p.email.toLowerCase())) return `${p.email} already has an account.`;
-      const unit = p.unitId || unitId || "";
+      // Students belong to no College/Faculty or Office: their accounts are kept with the Office, whatever an older request named.
+      const unit = p.roleId === ROLE.student ? STUDENT_HOME : p.unitId || unitId || "";
       if (!unit) return "Choose the unit this account belongs to.";
       if (unitById(ctx, unit)?.status !== "Active") return "The requested unit is no longer active.";
       if (!invitationUnitMatchesRole(unitById(ctx, unit)!, p.roleId)) return roleUnitHint(p.roleId);

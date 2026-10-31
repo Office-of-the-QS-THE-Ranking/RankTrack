@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { STAGES, formatDate, type EvidenceItem, type EvidenceStatus } from "@/lib/data";
 import { bodyOfMapping } from "@/lib/governance/catalog";
 import { EVIDENCE_FILE_KINDS, type EvidenceFileKind } from "@/lib/governance/evidence-files";
@@ -15,6 +15,7 @@ import { Status, Swatch, cx } from "@/components/ui/primitives";
 import { RichText } from "@/components/ui/RichText";
 import { isRich, plainText } from "@/lib/rich-text";
 import { toast } from "@/components/ui/toast";
+import { uploadEvidence } from "./evidence-upload";
 import { KIND, Mark, SUBMISSION_TABS, fileKind, fileSize, filesOf, hostOf, linksOf, splitReach, splitResult, type ShownFile, type SubmissionTab as Tab } from "./parts";
 
 const STAGE_ICON: IconName[] = ["inbox", "eye", "check", "layers", "flag"];
@@ -133,8 +134,9 @@ function FileCard({ file, locked }: { file: ShownFile; locked: boolean }) {
  * One contribution in full, in four tabs: the Overview (where it stands, its background and its figures), the
  * narrative, the evidence (files by kind, links and how it was verified) and the references it cites. Accepting,
  * returning and remapping go to the server, which checks the reviewer's role and their ranking-body scope, refuses
- * self-review, notifies the unit and writes the decision to the audit log. `locked` is the Overview's preview: the
- * same record with every decision left out.
+ * self-review, notifies the unit and writes the decision to the audit log. The unit answers one sent back for
+ * revision here: a reply and an optional corrected file return it to review. `locked` is the Overview's preview:
+ * the same record with every decision left out.
  */
 export function ContributionRecord({ item: sel, locked = false }: { item: EvidenceItem; locked?: boolean }) {
   const { evidenceLevels, sdgNames, sdgIcons } = useViews();
@@ -158,6 +160,11 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
   const mayReview = can("evidence", "approve", target);
   const own = !!viewer && (sel.submittedById ? sel.submittedById === viewer.id : sel.submittedBy === viewer.name);
   const decide = !locked && mayReview && !own;
+  // The unit's answer to a revision request (the Office reviews; it never edits a unit's evidence).
+  const answer = !locked && !decide && sel.status === "Needs revision" && can("evidence", "edit", target);
+  const [reply, setReply] = useState("");
+  const [fix, setFix] = useState<File>();
+  const [sending, setSending] = useState(false);
   const suggestions = useMemo(() => {
     const all = new Set(sel.sdgs.flatMap((s) => SUGGEST[s] ?? []));
     return [...all].filter((s) => !sel.mappedTo.includes(s) && tracked.has(s.split(" · ")[0]));
@@ -195,6 +202,23 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
     field.setCustomValidity(note.trim() ? "" : "Say what the unit should change.");
     if (!formRef.current.reportValidity()) return;
     void act({ type: "evidence.review", id: sel.id, decision: "revise", note }, () => setNote(""));
+  };
+  /** The unit's reply, with the corrected file uploaded first; the item goes back to review. */
+  const respond = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSending(true);
+    const sent = await uploadEvidence(fix ? [fix] : [], { unitSlug: "", evidenceId: sel.id });
+    if (!sent.ok) {
+      setSending(false);
+      return toast(sent.message, "error");
+    }
+    const r = await run({ type: "evidence.respond", id: sel.id, text: reply.trim(), file: sent.files[0] });
+    setSending(false);
+    toast(r.message, r.ok ? "ok" : "error");
+    if (r.ok) {
+      setReply("");
+      setFix(undefined);
+    }
   };
 
   const tabsId = hid("tabs");
@@ -602,6 +626,39 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
             </button>
             <button type="button" className="btn btn--dark btn--sm" disabled={pending || sel.status === "Validated"} onClick={accept}>
               <Icon name="check" size={16} /> Accept
+            </button>
+          </div>
+        </form>
+      )}
+
+      {answer && (
+        <form className="cv-dock" onSubmit={respond}>
+          <textarea
+            name="reply"
+            className="cv-dock__input"
+            rows={1}
+            value={reply}
+            required
+            minLength={5}
+            maxLength={1000}
+            data-missing="Say what you changed."
+            placeholder="Say what you changed"
+            aria-label="Reply to the reviewer"
+            onChange={(e) => setReply(e.target.value)}
+          />
+          <div className="cv-dock__actions">
+            <label className={cx("btn btn--sm cv-dock__file", fix && "is-set")}>
+              <Icon name="paperclip" size={16} />
+              <span>{fix ? fix.name : "Corrected file"}</span>
+              <input
+                type="file"
+                className="sr-only"
+                accept={(hub?.uploads.types ?? []).map((t) => `.${t.toLowerCase()}`).join(",")}
+                onChange={(e) => setFix(e.target.files?.[0])}
+              />
+            </label>
+            <button type="submit" className="btn btn--dark btn--sm" disabled={pending || sending}>
+              <Icon name="send" size={16} /> {sending ? "Sending…" : "Resubmit"}
             </button>
           </div>
         </form>

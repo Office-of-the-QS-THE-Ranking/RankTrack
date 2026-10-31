@@ -15,8 +15,8 @@
  * and the pages, which only show what's allowed. No server code, so pages can import it.
  */
 import { ROLE } from "@/lib/governance/catalog";
-import { descendants, has, type Grant } from "@/lib/governance/rbac";
-import type { Action, OrgUnit } from "@/lib/governance/types";
+import { has, type Grant } from "@/lib/governance/rbac";
+import type { Action } from "@/lib/governance/types";
 import { FORM_KINDS } from "./kinds";
 import type { FormKind, FormStatus } from "./types";
 
@@ -150,12 +150,7 @@ export function creatable(grants: Grant[], holder: FormHolder, unitId?: string):
 export const filesForms = (grants: Grant[]) => asStudent(grants, "submit");
 
 /**
- * Whether a form published to the Student Portal reaches a Student placed in `home` (their assignment's units):
- * the Office's reach every Student, a unit's the Students in it or beneath it.
+ * Whether a form published to the Student Portal reaches Students: the Office's and a unit's reach every Student,
+ * since Students belong to no College/Faculty or Office (user, 2026-11-01). A Student's own form reaches no one.
  */
-export function reaches(units: OrgUnit[], f: Held, home: string[]): boolean {
-  if (f.ownerId) return false;
-  if (!f.unitId) return true;
-  const under = descendants(units, f.unitId);
-  return home.some((u) => under.includes(u));
-}
+export const reaches = (f: Held): boolean => !f.ownerId;

@@ -100,6 +100,7 @@ export function PostComposer({
   me,
   needsApproval,
   canPublish,
+  canSubmit = false,
   onClose,
 }: {
   /** The post to edit; null writes a new one. */
@@ -107,6 +108,8 @@ export function PostComposer({
   me: { name: string; unit: string; avatar?: string };
   needsApproval: boolean;
   canPublish: boolean;
+  /** A unit's author: the post goes to the Rankings Office for review, and stays as it is while live or waiting. */
+  canSubmit?: boolean;
   onClose: () => void;
 }) {
   const { sdgNames } = useViews();
@@ -415,8 +418,14 @@ export function PostComposer({
   /* ---------- Actions by where the post stands ---------- */
 
   const postLabel = needsApproval ? "Send for approval" : "Publish";
-  const actions: { label: string; busy: string; intent: "draft" | "publish"; primary?: boolean }[] =
-    status === "Published"
+  const actions: { label: string; busy: string; intent: "draft" | "publish"; primary?: boolean }[] = canSubmit
+    ? status === "Published" || status === "In review"
+      ? []
+      : [
+          { label: "Save draft", busy: "Saving…", intent: "draft" },
+          { label: "Send to the Office", busy: "Sending…", intent: "publish", primary: true },
+        ]
+    : status === "Published"
       ? [{ label: "Update", busy: "Updating…", intent: "publish", primary: true }]
       : status === "In review" && row?.requestId
         ? [{ label: "Save changes", busy: "Saving…", intent: "draft", primary: true }]
@@ -761,9 +770,15 @@ export function PostComposer({
             </div>
 
             <footer className="pc-foot">
-              {(uploading > 0 || row?.requestId) && (
+              {(uploading > 0 || row?.requestId || (canSubmit && (status === "Published" || status === "In review"))) && (
                 <span className="pc-actions__note" aria-live="polite">
-                  {uploading ? `Uploading ${plural(uploading, "picture")}…` : "Waiting for approval"}
+                  {uploading
+                    ? `Uploading ${plural(uploading, "picture")}…`
+                    : row?.requestId
+                      ? "Waiting for approval"
+                      : status === "Published"
+                        ? "Live. The Rankings Office changes live posts."
+                        : "With the Rankings Office for review"}
                 </span>
               )}
               <div className="pc-actions">

@@ -151,6 +151,8 @@ export interface PostRow {
   updatedAt?: string;
   /** A publication request waiting on it. */
   requestId?: string;
+  /** Sent by its unit and waiting on the Rankings Office's review. */
+  review?: boolean;
   analytics?: PostAnalyticsData;
 }
 
@@ -194,13 +196,16 @@ export interface DocumentRow extends DocumentView {
   publishedAt?: string;
   /** A publication request waiting on it. */
   requestId?: string;
+  /** Sent by its unit and waiting on the Rankings Office's review. */
+  review?: boolean;
 }
 
 /** The Office's table of research articles or of reports. */
 export interface DocumentDesk {
   kind: DocumentKind;
   rows: DocumentRow[];
-  can: { create: boolean; edit: boolean; delete: boolean; publish: boolean };
+  /** publish: the Rankings Office, which publishes and reviews; submit: a unit, which sends its own to the Office. */
+  can: { create: boolean; edit: boolean; delete: boolean; publish: boolean; submit: boolean };
   /** Publishing goes through the publication workflow for this viewer. */
   needsApproval: boolean;
   /** The public website shows published documents (Publications is switched on). */
@@ -213,7 +218,8 @@ export interface DocumentDesk {
 
 export interface PostDesk {
   rows: PostRow[];
-  can: { create: boolean; edit: boolean; delete: boolean; publish: boolean };
+  /** publish: the Rankings Office, which posts and reviews; submit: a unit, which sends its own to the Office. */
+  can: { create: boolean; edit: boolean; delete: boolean; publish: boolean; submit: boolean };
   /** Posting goes through the publication workflow for this viewer. */
   needsApproval: boolean;
   /** The public website shows published posts (the library is on and its dataset Public). */

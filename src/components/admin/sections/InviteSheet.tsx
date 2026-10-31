@@ -35,7 +35,7 @@ import {
   sectionsFor,
   withRole,
 } from "@/lib/governance/access-requests";
-import { HUB_OFFICE, ROLE } from "@/lib/governance/catalog";
+import { HUB_OFFICE, ROLE, STUDENT_HOME } from "@/lib/governance/catalog";
 import { requestUnits } from "@/lib/governance/directory";
 import { UNIVERSITY, has, permissionsAt, roleScope, unitScope } from "@/lib/governance/rbac";
 import type { Scope } from "@/lib/governance/types";
@@ -142,7 +142,9 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
   const unitLabel = d.section === "offices" ? "Office" : "College/Faculty";
   // an External partner is a guest of the Office, as an approved request makes them
   const roleId = thomasian ? d.roleId : external ? ROLE.external : "";
-  const unitId = thomasian ? d.unitId : external ? HUB_OFFICE : "";
+  // a Student belongs to no College/Faculty or Office; the Office keeps the account
+  const student = thomasian && d.roleId === ROLE.student;
+  const unitId = student ? STUDENT_HOME : thomasian ? d.unitId : external ? HUB_OFFICE : "";
   const role = data.roles.find((r) => r.id === roleId);
   const unit = data.units.find((u) => u.id === unitId);
   const expires = d.expires || (external ? addDays(data.day, GUEST_DAYS) : "");
@@ -448,7 +450,7 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
                 ["Email", d.email.trim().toLowerCase()],
                 ["Affiliation", thomasian ? "University of Santo Tomas" : affiliationText],
                 ["Role", role?.name ?? "—"],
-                [thomasian ? unitLabel : "Sponsored by", unit?.name ?? "—"],
+                student ? ["Secretary of", d.organization.trim() || "—"] : [thomasian ? unitLabel : "Sponsored by", unit?.name ?? "—"],
               ]}
             />
             <Field
@@ -465,6 +467,7 @@ export function InviteSheet({ open, onClose, onCreated }: { open: boolean; onClo
               <DateField className="input" name="expires" min={addDays(data.day, 1)} value={expires} onChange={(x) => set({ expires: x })} aria-label="Access ends" required={external} />
             </Field>
             {role &&
+              !student &&
               (custom ? (
                 <Block
                   title="Access scope"

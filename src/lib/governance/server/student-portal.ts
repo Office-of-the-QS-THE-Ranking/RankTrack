@@ -4,7 +4,7 @@ import "server-only";
  * The Student Portal (user, 2026-10-29): what a Student, the Secretary of a student organization, commission or
  * council, sees. The proposals and terminal reports the Office published there, to build copies of, and the copies
  * they built (only those: a copy another Secretary added them to opens through its link, never in their portal); the
- * surveys assigned to them (the Office's, and their unit's) and whether they answered each; and the figures their
+ * surveys assigned to them (the Office's and the units') and whether they answered each; and the figures their
  * dashboard leads with. Their own Evaluation and Registration Forms come from formsDesk (server/forms.ts). Copies and
  * responses are rows of form_responses, kept by the account that built or sent them (account_id), or for copies built
  * before that, by its email.
@@ -12,7 +12,7 @@ import "server-only";
 import type { Assignment, CopyDesk, PortalForm, StudentCopy } from "../hub-types";
 import type { FormRecord } from "../types";
 import type { Viewer } from "../viewer";
-import { formUnits, holderName, studentUnit, takesResponses } from "./forms";
+import { formUnits, holderName, takesResponses } from "./forms";
 import { siteOrigin } from "./origin";
 import { readState } from "./store";
 import { adminDb } from "@/lib/supabase/server";
@@ -112,14 +112,10 @@ export async function copyDesk(viewer: Viewer, kind: FormKind): Promise<CopyDesk
   };
 }
 
-/** Where a Student is placed: the unit their role is held in. */
-const homeOf = (viewer: Viewer) => [studentUnit(viewer)];
-
-/** The surveys assigned to a Student (published to the Student Portal by the Office or their unit), newest first, and which they answered. */
+/** The surveys assigned to a Student (published to the Student Portal by the Office or a unit), newest first, and which they answered. */
 export async function assignmentsOf(viewer: Viewer): Promise<Assignment[]> {
   const state = await readState();
-  const home = homeOf(viewer);
-  const surveys = state.records.forms.filter((f) => f.kind === "survey" && f.students && f.status !== "draft" && reaches(state.units, f, home));
+  const surveys = state.records.forms.filter((f) => f.kind === "survey" && f.students && f.status !== "draft" && reaches(f));
   if (!surveys.length) return [];
   const { data, error } = await adminDb()
     .from("form_responses")
@@ -147,10 +143,10 @@ export async function assignmentsOf(viewer: Viewer): Promise<Assignment[]> {
     .filter((a) => a.open || a.answered);
 }
 
-/** Whether a survey is assigned to this Student: published to the Student Portal by the Office or their unit. */
+/** Whether a survey is assigned to this Student: published to the Student Portal by the Office or a unit. */
 export async function assignedTo(viewer: Viewer, form: FormRecord) {
   const state = await readState();
-  return form.kind === "survey" && !!form.students && reaches(state.units, form, homeOf(viewer));
+  return form.kind === "survey" && !!form.students && reaches(form);
 }
 
 /** What the Student's dashboard leads with. */

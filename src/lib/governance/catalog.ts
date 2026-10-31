@@ -26,7 +26,8 @@ export const MODULES: ModuleInfo[] = [
   { key: "dashboard", label: "Executive dashboard", group: "Workspaces", actions: ["view", "export"] },
   { key: "rankings", label: "Rankings and indicators", group: "Workspaces", actions: ["view", "edit", "export", "manage"] },
   { key: "units", label: "Unit participation", group: "Workspaces", actions: ["view", "export"] },
-  { key: "posts", label: "Publications", group: "Workspaces", actions: ["view", "create", "edit", "delete", "approve"] },
+  // Publications: units write and submit (send to the Rankings Office); the Office approves and publishes.
+  { key: "posts", label: "Publications", group: "Workspaces", actions: ["view", "create", "edit", "delete", "submit", "approve"] },
   { key: "reports", label: "Reports", group: "Workspaces", actions: ["view", "create", "export"] },
   { key: "knowledge", label: "Knowledge Center", group: "Workspaces", actions: ["view", "edit"] },
   // Digital Forms (lib/forms/access.ts): build, publish to the Student Portal (manage), file copies and answers
@@ -77,6 +78,7 @@ const CONTRIBUTING: Partial<Record<ModuleKey, Action[]>> = {
   evidence: ["create", "edit", "delete", "submit"],
   data: ["create", "edit", "delete", "submit"],
   stories: ["create", "edit", "submit"],
+  posts: ["submit"],
   forms: ["submit"],
 };
 const OVERSIGHT = (): PermissionSet =>
@@ -89,13 +91,16 @@ export const HUB_OFFICE = "rankings-office";
 
 /**
  * Where a role may be held, by the Directory section of the person's unit: Administrators and Coordinators in a
- * University Office or a College/Faculty, Students only in a College/Faculty, External partners only as guests of
- * the Office (a University Office).
+ * University Office or a College/Faculty, External partners only as guests of the Office (a University Office).
+ * Students belong to no College/Faculty or Office (user, 2026-11-01): they are just Students (STUDENT_HOME).
  */
+/** Where a Student's account is kept: with the Office that runs the Hub, as a guest's is. It is never shown as their unit. */
+export const STUDENT_HOME = HUB_OFFICE;
+
 export const ROLE_SECTIONS: Record<RoleId, ("academic" | "offices")[]> = {
   administrator: ["offices", "academic"],
   coordinator: ["offices", "academic"],
-  student: ["academic"],
+  student: [],
   external: ["offices"],
 };
 
@@ -128,7 +133,7 @@ export const ROLES: Role[] = [
   {
     id: ROLE.coordinator,
     name: "Coordinator",
-    description: "Gathers and submits evidence, data and stories for their University Office or College/Faculty, and runs its surveys, evaluation and registration forms.",
+    description: "Gathers and submits evidence, data and publications for their University Office or College/Faculty, and runs its surveys, evaluation and registration forms.",
     tier: 3,
     permissions: {
       units: ["view"],
@@ -138,12 +143,13 @@ export const ROLES: Role[] = [
       evidence: ["view", "create", "edit", "delete", "submit"],
       data: ["view", "create", "edit", "delete", "submit"],
       stories: ["view", "create", "edit", "submit"],
+      posts: ["view", "create", "edit", "delete", "submit"],
     },
     scopeKind: "unit",
   },
   {
     id: ROLE.student,
-    name: "Student",
+    name: "Student Organizer",
     description: "Secretary of a student organization, commission or council: files its project proposals and terminal reports, builds its evaluation and registration forms, and answers the surveys assigned to it.",
     tier: 2,
     permissions: {

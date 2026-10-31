@@ -19,10 +19,10 @@ export const THOMASIAN_AFFILIATION = "UNIVERSITY OF SANTO TOMAS";
 export const UST_ROLES = [
   { id: ROLE.admin, name: "Administrator" },
   { id: ROLE.coordinator, name: "Coordinator" },
-  { id: ROLE.student, name: "Student" },
+  { id: ROLE.student, name: "Student Organizer" },
 ] as const;
 
-/** Where a role is held: Administrators and Coordinators choose a University Office or a College/Faculty; Students have only the second. */
+/** Where a role is held: Administrators and Coordinators choose a University Office or a College/Faculty; Students choose neither. */
 export const SECTIONS = [
   { key: "offices", label: UNIT_CATEGORY_LABELS.offices, name: "University Office" },
   { key: "academic", label: UNIT_CATEGORY_LABELS.academic, name: "College/Faculty" },
@@ -71,7 +71,7 @@ export function emailProblem(email: string, affiliation: string, domains: string
   return ust ? `That is a UST email. Choose University of Santo Tomas as ${your} affiliation.` : "";
 }
 
-/** A new role with the section and unit it can keep: a Student has only College/Faculty, and a unit chosen in another section goes. */
+/** A new role with the section and unit it can keep: a Student has neither, and a unit chosen in another section goes. */
 export function withRole(roleId: string, section: string, unitId: string) {
   const sections = sectionsFor(roleId);
   const next = sections.length === 1 ? sections[0] : sections.includes(section as Section) ? section : "";

@@ -101,7 +101,7 @@ async function rowOf(formId: string, token: string): Promise<CopyRow | null> {
 export async function buildFormCopy(input: { code: string; label: string; access: CopyAccess; members?: string[] }): Promise<{ ok: true; token: string; ref: string; path: string; message: string } | Fail> {
   const viewer = await getViewer();
   if (!viewer) return { ok: false, message: "Your session has ended. Sign in again to continue." };
-  if (!filesForms(viewer.grants)) return { ok: false, message: "Copies are built by student organization secretaries, from the Student Portal." };
+  if (!filesForms(viewer.grants)) return { ok: false, message: "Copies are built by Student Organizers, from the Student Portal." };
   const found = await formFor(input?.code);
   if (!found || !copyForms([found.form], found.form.kind).length) return { ok: false, message: "This form isn’t open on the Student Portal right now." };
   const { form } = found;

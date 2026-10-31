@@ -11,9 +11,8 @@ export type FilterOption = { value: string; label: string };
 
 const key = (s: string) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
 const affiliationValue = (name: string) => `affiliation:${key(name)}`;
-/** The Directory categories a role is held in: Administrators and Coordinators in offices and colleges, Students in colleges. */
-const categoriesFor = (role: string): string[] =>
-  role === ROLE.admin || role === ROLE.coordinator ? ["Administrative Office", "College/Faculty"] : role === ROLE.student ? ["College/Faculty"] : [];
+/** The Directory categories a role is held in: Administrators and Coordinators in offices and colleges; Students in none. */
+const categoriesFor = (role: string): string[] => (role === ROLE.admin || role === ROLE.coordinator ? ["Administrative Office", "College/Faculty"] : []);
 
 function eligibleUnit(unit: UnitRow, role: string, directory: DirectoryEntry[]) {
   const entry = matchDirectoryEntry(unit, directory);

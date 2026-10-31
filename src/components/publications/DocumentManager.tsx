@@ -3,9 +3,10 @@
 import { closeModal, openModal } from "@/components/ui/modal-motion";
 
 /*
- * Research Articles or Reports & Insights in the Office workspace (Publications): every document of the kind in one
- * table (cover, title, date, how readers reach it, status), filtered by status and searched by text, with a form
- * for new and existing ones. Same shape as Stories & News, so the three sections work alike.
+ * Research Articles or Reports & Insights (Publications): every document of the kind in one table (cover, title,
+ * date, how readers reach it, status), filtered by status and searched by text, with a form for new and existing
+ * ones. Same shape as Stories & News, so the three sections work alike, a unit's Coordinators included: they see
+ * their own and send each to the Rankings Office for review.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,7 +23,7 @@ import { toast } from "@/components/ui/toast";
 import { DocCover } from "@/components/site/publications/DocCover";
 import { DocumentForm } from "./DocumentForm";
 import { PostStatusPill } from "./PostComposer";
-import { RowMenu, SortMark } from "./PostManager";
+import { ReturnToUnit, RowMenu, SortMark } from "./PostManager";
 
 type Filter = "Published" | "Unpublished";
 type Sort = { by: "date" | "title"; dir: 1 | -1 };
@@ -46,6 +47,7 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<DocumentRow | "new" | null>(null);
   const [deleting, setDeleting] = useState<DocumentRow | null>(null);
+  const [returning, setReturning] = useState<DocumentRow | null>(null);
 
   // A #slug (links from other pages) opens that document in the form.
   useEffect(() => {
@@ -107,7 +109,11 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
             <InfoTooltip label={`How ${noun.many} reach the public website`}>
               <span style={{ display: "block", width: 300, maxWidth: "calc(100vw - 56px)", fontWeight: 400 }}>
                 Published {noun.many} appear on the public {title} page, with their PDF to download.
-                {desk.needsApproval ? " Publishing needs approval from two other University-wide Administrators." : ""}
+                {can.submit
+                  ? ` The Rankings Office reviews and approves each ${noun.one} before it goes live.`
+                  : desk.needsApproval
+                    ? " Publishing needs approval from two other University-wide Administrators."
+                    : ""}
               </span>
             </InfoTooltip>
           </span>
@@ -271,21 +277,27 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
                       </td>
                       <td className="pm-col-status">
                         <PostStatusPill status={r.status} />
-                        {r.requestId && <span className="pm-note">Awaiting approval</span>}
+                        {r.requestId ? <span className="pm-note">Awaiting approval</span> : r.review && <span className="pm-note">{can.publish ? "To review" : "With the Rankings Office"}</span>}
                       </td>
                       <td className="pm-col-menu" onClick={(e) => e.stopPropagation()}>
                         <RowMenu
                           label={`Actions for ${r.title}`}
                           items={[
-                            can.edit && { label: "Edit", icon: "pen", onSelect: () => setEditing(r) },
+                            can.edit && (can.publish || r.status === "Draft" || r.status === "Unpublished") && { label: "Edit", icon: "pen", onSelect: () => setEditing(r) },
                             r.status === "Published" && desk.live && { label: "View on site", icon: "external", onSelect: () => window.open(documentPublicPath(r.kind, r.slug), "_blank", "noopener") },
                             r.file && { label: "Download PDF", icon: "download", onSelect: () => window.open(r.file!.src, "_blank", "noopener") },
                             !r.file && readerLink(r) && { label: kind === "article" ? "Open at publisher" : "Open link", icon: "external", onSelect: () => window.open(readerLink(r)!, "_blank", "noopener") },
                             kind === "article" && r.authors.length > 0 && { label: "Copy citation", icon: "quote", onSelect: () => void copy(r) },
-                            can.publish && r.status !== "Published" && !r.requestId && { label: desk.needsApproval ? "Send for approval" : "Publish now", icon: "send", onSelect: () => act({ type: "document.status", id: r.id, status: "Published" }) },
+                            can.publish && r.status !== "Published" && !r.requestId && {
+                              label: r.review ? (desk.needsApproval ? "Approve for sign-off" : "Approve and publish") : desk.needsApproval ? "Send for approval" : "Publish now",
+                              icon: r.review ? "check" : "send",
+                              onSelect: () => act({ type: "document.status", id: r.id, status: "Published" }),
+                            },
+                            can.publish && r.review && { label: "Return to unit", icon: "undo", onSelect: () => setReturning(r) },
+                            can.submit && (r.status === "Draft" || r.status === "Unpublished") && { label: "Send to the Rankings Office", icon: "send", onSelect: () => act({ type: "document.status", id: r.id, status: "Published" }) },
                             can.publish && r.status === "Published" && { label: "Unpublish", icon: "eye", onSelect: () => act({ type: "document.status", id: r.id, status: "Unpublished" }) },
-                            can.edit && r.status === "In review" && { label: "Move to drafts", icon: "undo", onSelect: () => act({ type: "document.status", id: r.id, status: "Draft" }) },
-                            can.delete && { label: "Delete", icon: "trash", danger: true, onSelect: () => setDeleting(r) },
+                            can.edit && r.status === "In review" && !(can.publish && r.review) && { label: "Move to drafts", icon: "undo", onSelect: () => act({ type: "document.status", id: r.id, status: "Draft" }) },
+                            can.delete && (can.publish || r.status !== "Published") && { label: "Delete", icon: "trash", danger: true, onSelect: () => setDeleting(r) },
                           ]}
                           disabled={pending}
                         />
@@ -338,7 +350,18 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
           units={desk.units}
           needsApproval={desk.needsApproval}
           canPublish={can.publish}
+          canSubmit={can.submit}
           onClose={close}
+        />
+      )}
+
+      {returning && (
+        <ReturnToUnit
+          title={returning.title}
+          unit={returning.unit}
+          busy={pending}
+          onCancel={() => setReturning(null)}
+          onConfirm={(note) => act({ type: "document.status", id: returning.id, status: "Draft", note })}
         />
       )}
 

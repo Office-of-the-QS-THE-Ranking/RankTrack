@@ -23,7 +23,7 @@ const SPECIAL: Record<string, FocusTarget> = {
   "Evidence and Policies": { kind: "tab", tab: "Evidence" },
   "Institutional Data": { kind: "tab", tab: "Indicators" },
   "Impact Stories": { kind: "link", href: "/admin/publications/stories" },
-  "Submit an Innovation": { kind: "link", href: "/portal/innovation" },
+  "Submit an Innovation": { kind: "link", href: "/admin/publications/stories" },
   "Mentorship and Engagement": { kind: "link", href: "/admin?view=recognition#international" },
   "Innovation Pipeline": { kind: "anchor", id: "wuri-pipeline" },
   "WURI Categories": { kind: "anchor", id: "wuri-categories" },

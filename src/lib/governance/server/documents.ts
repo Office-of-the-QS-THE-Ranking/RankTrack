@@ -9,6 +9,7 @@ import { featureOn } from "../derive";
 import { actorFor, makeCtx, needsApproval } from "../engine";
 import type { DocumentDesk, DocumentRow, DocumentView } from "../hub-types";
 import type { DocumentKind, DocumentRecord, GovernanceState, OrgKind } from "../types";
+import { reach } from "../rbac";
 import type { Viewer } from "../viewer";
 import { viewerCan } from "../viewer";
 import { readState } from "./store";
@@ -59,7 +60,7 @@ export function publishedDocuments(state: GovernanceState, kind?: DocumentKind):
     .sort((a, b) => b.issued.localeCompare(a.issued));
 }
 
-/** The Office's table of articles or reports for this viewer. */
+/** The table of articles or reports for this viewer: all of them for the Rankings Office, a unit's own for its Coordinators. */
 export async function documentDesk(viewer: Viewer, kind: DocumentKind): Promise<DocumentDesk> {
   const [state, ref] = await Promise.all([readState(), reference()]);
   const account = state.accounts.find((a) => a.id === viewer.id);
@@ -68,9 +69,19 @@ export async function documentDesk(viewer: Viewer, kind: DocumentKind): Promise<
   const pending = new Map<string, string>();
   for (const r of state.requests) if (r.status === "Pending" && r.payload.kind === "publication" && r.payload.target === "document") pending.set(r.payload.id, r.id);
   const order = Object.values(UNIT_CATEGORY_LABELS) as string[];
+  const office = viewerCan(viewer, "posts", "approve");
+  const reached = reach(viewer.grants, "posts", "view");
+  const mine = (unitSlug?: string) => office || reached === "all" || (!!unitSlug && reached.includes(unitSlug));
   const rows: DocumentRow[] = state.records.documents
-    .filter((d) => d.kind === kind)
-    .map((d) => ({ ...documentView(state, d), updatedAt: d.updatedAt, updatedBy: nameOf(d.updatedBy), publishedAt: d.publishedAt, requestId: pending.get(d.id) }));
+    .filter((d) => d.kind === kind && mine(d.unitSlug))
+    .map((d) => ({
+      ...documentView(state, d),
+      updatedAt: d.updatedAt,
+      updatedBy: nameOf(d.updatedBy),
+      publishedAt: d.publishedAt,
+      requestId: pending.get(d.id),
+      review: !!d.unitSlug && d.status === "In review" && !pending.has(d.id),
+    }));
   return {
     kind,
     rows,
@@ -78,13 +89,14 @@ export async function documentDesk(viewer: Viewer, kind: DocumentKind): Promise<
       create: viewerCan(viewer, "posts", "create"),
       edit: viewerCan(viewer, "posts", "edit"),
       delete: viewerCan(viewer, "posts", "delete"),
-      publish: viewerCan(viewer, "posts", "approve"),
+      publish: office,
+      submit: !office && viewerCan(viewer, "posts", "submit"),
     },
     needsApproval: !!ctx && needsApproval(ctx, "publication"),
     live: featureOn(state, "public-publications"),
     types: kind === "article" ? ref.articleTypes : ref.insightTypes,
     units: state.units
-      .filter((u) => u.status === "Active" && u.parentId !== null)
+      .filter((u) => u.status === "Active" && u.parentId !== null && (office || mine(u.id)))
       .map((u) => ({ id: u.id, name: u.name, group: GROUP[u.kind] ?? UNIT_CATEGORY_LABELS.offices }))
       .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.name.localeCompare(b.name)),
   };

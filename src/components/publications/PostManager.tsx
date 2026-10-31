@@ -3,9 +3,10 @@
 import { closeModal, openModal } from "@/components/ui/modal-motion";
 
 /*
- * Stories & News in the Office workspace (Publications): every post in one table (thumbnail, title, date posted,
- * author, status), filtered by status and searched by text, with a composer for new and existing posts.
- * Stories and unit proposals from before the composer sit in the same list and become posts when edited.
+ * Stories & News (Publications): every post in one table (thumbnail, title, date posted, author, status), filtered
+ * by status and searched by text, with a composer for new and existing posts. Stories and unit proposals from
+ * before the composer sit in the same list and become posts when edited. The Office sees every post; a unit's
+ * Coordinators see their own and send each to the Rankings Office, which approves it or returns it with a note.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -52,6 +53,7 @@ export function PostManager({ desk }: { desk: PostDesk }) {
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<PostRow | "new" | null>(null);
   const [deleting, setDeleting] = useState<PostRow | null>(null);
+  const [returning, setReturning] = useState<PostRow | null>(null);
 
   // A #slug (search results, links from other pages) opens that post in the composer.
   useEffect(() => {
@@ -107,7 +109,11 @@ export function PostManager({ desk }: { desk: PostDesk }) {
             <InfoTooltip label="How posts reach the public website">
               <span style={{ display: "block", width: 300, maxWidth: "calc(100vw - 56px)", fontWeight: 400 }}>
                 Published posts appear on the public Stories &amp; News page.
-                {desk.needsApproval ? " Posting needs approval from two other University-wide Administrators." : ""}
+                {can.submit
+                  ? " The Rankings Office reviews and approves each post before it goes live."
+                  : desk.needsApproval
+                    ? " Posting needs approval from two other University-wide Administrators."
+                    : ""}
               </span>
             </InfoTooltip>
           </span>
@@ -138,7 +144,9 @@ export function PostManager({ desk }: { desk: PostDesk }) {
               <Icon name="image" size={26} />
             </span>
             <p className="pm-empty__title">No posts yet</p>
-            <p className="pm-empty__text">Share what Thomasians achieved. Published posts appear on the public Stories &amp; News page.</p>
+            <p className="pm-empty__text">
+              {can.submit ? "Share what your unit achieved. The Rankings Office reviews each post before it goes live." : "Share what Thomasians achieved. Published posts appear on the public Stories & News page."}
+            </p>
             {can.create && (
               <button type="button" className="btn btn--dark" onClick={() => setEditing("new")}>
                 <Icon name="plus" size={18} /> Create your first post
@@ -223,18 +231,24 @@ export function PostManager({ desk }: { desk: PostDesk }) {
                       </td>
                       <td className="pm-col-status">
                         <PostStatusPill status={r.status} />
-                        {r.requestId && <span className="pm-note">Awaiting approval</span>}
+                        {r.requestId ? <span className="pm-note">Awaiting approval</span> : r.review && <span className="pm-note">{can.publish ? "To review" : "With the Rankings Office"}</span>}
                       </td>
                       <td className="pm-col-menu" onClick={(e) => e.stopPropagation()}>
                         <RowMenu
                           label={`Actions for ${r.title}`}
                           items={[
-                            can.edit && { label: "Edit", icon: "pen", onSelect: () => setEditing(r) },
+                            can.edit && (can.publish || r.status === "Draft" || r.status === "Unpublished") && { label: "Edit", icon: "pen", onSelect: () => setEditing(r) },
                             r.status === "Published" && desk.live && { label: "View on site", icon: "external", onSelect: () => window.open(storyPath(r.slug), "_blank", "noopener") },
-                            can.publish && r.status !== "Published" && !r.requestId && { label: desk.needsApproval ? "Send for approval" : "Post now", icon: "send", onSelect: () => setLive(r, true) },
+                            can.publish && r.status !== "Published" && !r.requestId && {
+                              label: r.review ? (desk.needsApproval ? "Approve for sign-off" : "Approve and post") : desk.needsApproval ? "Send for approval" : "Post now",
+                              icon: r.review ? "check" : "send",
+                              onSelect: () => setLive(r, true),
+                            },
+                            can.publish && r.review && r.id && { label: "Return to unit", icon: "undo", onSelect: () => setReturning(r) },
+                            can.submit && r.id && (r.status === "Draft" || r.status === "Unpublished") && { label: "Send to the Rankings Office", icon: "send", onSelect: () => setLive(r, true) },
                             can.publish && r.status === "Published" && { label: "Unpublish", icon: "eye", onSelect: () => setLive(r, false) },
-                            can.edit && r.id && r.status === "In review" && { label: "Move to drafts", icon: "undo", onSelect: () => act({ type: "post.status", id: r.id!, status: "Draft" }) },
-                            can.delete && r.id && { label: "Delete", icon: "trash", danger: true, onSelect: () => setDeleting(r) },
+                            can.edit && r.id && r.status === "In review" && !(can.publish && r.review) && { label: "Move to drafts", icon: "undo", onSelect: () => act({ type: "post.status", id: r.id!, status: "Draft" }) },
+                            can.delete && r.id && (can.publish || r.status !== "Published") && { label: "Delete", icon: "trash", danger: true, onSelect: () => setDeleting(r) },
                           ]}
                           disabled={pending}
                         />
@@ -279,7 +293,25 @@ export function PostManager({ desk }: { desk: PostDesk }) {
       </div>
 
       {editing && (
-        <PostComposer key={editing === "new" ? "new" : editing.key} row={editing === "new" ? null : editing} me={desk.me} needsApproval={desk.needsApproval} canPublish={can.publish} onClose={close} />
+        <PostComposer
+          key={editing === "new" ? "new" : editing.key}
+          row={editing === "new" ? null : editing}
+          me={desk.me}
+          needsApproval={desk.needsApproval}
+          canPublish={can.publish}
+          canSubmit={can.submit}
+          onClose={close}
+        />
+      )}
+
+      {returning && (
+        <ReturnToUnit
+          title={returning.title}
+          unit={returning.author.unit}
+          busy={pending}
+          onCancel={() => setReturning(null)}
+          onConfirm={(note) => act({ type: "post.status", id: returning.id!, status: "Draft", note })}
+        />
       )}
 
       {deleting && (
@@ -375,6 +407,54 @@ export function RowMenu({ label, items, disabled }: { label: string; items: (Men
         ))}
       </div>
     </>
+  );
+}
+
+/** The Office hands a unit's post or document back, saying what to change. The unit sees the note. */
+export function ReturnToUnit({ title, unit, busy, onCancel, onConfirm }: { title: string; unit?: string; busy: boolean; onCancel: () => void; onConfirm: (note: string) => Promise<boolean> }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [note, setNote] = useState("");
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) openModal(d);
+  }, []);
+  return (
+    <dialog ref={ref} className="pm-confirm" aria-labelledby="pm-return-title" onClose={onCancel}
+      onCancel={(event) => { event.preventDefault(); closeModal(event.currentTarget); }}>
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (await onConfirm(note.trim())) closeModal(ref.current);
+        }}
+      >
+        <h2 id="pm-return-title" className="pm-confirm__title">
+          Return to {unit || "the unit"}?
+        </h2>
+        <p className="pm-confirm__text">“{title}” goes back to drafts.</p>
+        <label className="field pm-return__field">
+          <span className="field__label">What to change</span>
+          <textarea
+            className="textarea"
+            rows={3}
+            value={note}
+            required
+            minLength={5}
+            maxLength={600}
+            data-missing="Say what the unit should change."
+            onChange={(e) => setNote(e.target.value)}
+            autoFocus
+          />
+        </label>
+        <div className="pm-confirm__actions">
+          <button type="button" className="btn" onClick={() => closeModal(ref.current)}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn--dark" disabled={busy}>
+            <Icon name="undo" size={16} /> Return
+          </button>
+        </div>
+      </form>
+    </dialog>
   );
 }
 

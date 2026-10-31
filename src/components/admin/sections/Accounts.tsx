@@ -100,6 +100,8 @@ export function Accounts() {
   }, [accounts, q, unit, role, data.units, requests, data.day, directory]);
 
   const unitName = (id: string) => data.units.find((u) => u.id === id)?.name ?? id;
+  // Student Organizers belong to no College/Faculty or Office: their unit reads just Student Organizer.
+  const unitOf = (a: AccountRow) => (a.assignments.length && a.assignments.every((x) => x.roleId === ROLE.student) ? "Student Organizer" : unitName(a.unitId));
   const current = accounts.find((a) => a.id === open) ?? null;
   const everywhere = v.grants.some((g) => g.units === "all" && has(g.perms, "accounts", "view"));
 
@@ -155,7 +157,7 @@ export function Accounts() {
                     </button>
                   </td>
                   <td className="adm-muted adm-cell-unit">
-                    <span title={unitName(a.unitId)}>{unitName(a.unitId)}</span>
+                    <span title={unitOf(a)}>{unitOf(a)}</span>
                   </td>
                   <td>
                     <span className="adm-rolelist">
@@ -203,8 +205,8 @@ function AccountFilters({ unit, role, onUnit, onRole }: { unit: string; role: st
   const { data } = useConsole();
   const { directory } = useReference();
   const options = accountFilterOptions(role, data.units, data.accounts ?? [], data.requests, directory);
-  const unitLabel = role === ROLE.student ? "College/Faculty" : role === ROLE.external ? "Affiliation" : role ? "Office or College/Faculty" : "Unit";
-  const allUnits = role === ROLE.student ? "All colleges/faculties" : role === ROLE.external ? "All affiliations" : "All offices and colleges";
+  const unitLabel = role === ROLE.external ? "Affiliation" : role ? "Office or College/Faculty" : "Unit";
+  const allUnits = role === ROLE.external ? "All affiliations" : "All offices and colleges";
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -245,12 +247,13 @@ function AccountFilters({ unit, role, onUnit, onRole }: { unit: string; role: st
             {data.roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </Select>
         </Field>
-        <Field label={unitLabel}>
+        {/* Students belong to no College/Faculty or Office */}
+        {role !== ROLE.student && <Field label={unitLabel}>
           <Select className="select select--sm" value={unit} onChange={onUnit} disabled={!role}>
             <option value="">{role ? allUnits : "Choose a role first"}</option>
             {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </Select>
-        </Field>
+        </Field>}
         {(unit || role) && <button type="button" className="btn btn--sm" onClick={() => { onUnit(""); onRole(""); }}>Clear filters</button>}
       </div>}
     </div>
@@ -633,7 +636,7 @@ function RolesTab({ a }: { a: AccountRow }) {
               <li key={x.id} className={expired ? "is-expired" : undefined}>
                 <div>
                   <b>{r?.name ?? x.roleId}</b>
-                  <span className="adm-muted">{scopeText(x.scope, data)}</span>
+                  {x.roleId !== ROLE.student && <span className="adm-muted">{scopeText(x.scope, data)}</span>}
                   {x.note && <span className="adm-muted small">{x.note}</span>}
                 </div>
                 <span className="adm-inline">
@@ -696,7 +699,8 @@ function RolesTab({ a }: { a: AccountRow }) {
           </div>
           {roleId && (
             <>
-              <ScopeEditor value={scope} onChange={setScope} allowUniversity={universityAdmin} unitFilter={(u) => u.status === "Active" && viewerCan(v, "accounts", "edit", { unitId: u.id })} />
+              {/* a Student belongs to no College/Faculty or Office: the role has no scope to choose */}
+              {roleId !== ROLE.student && <ScopeEditor value={scope} onChange={setScope} allowUniversity={universityAdmin} unitFilter={(u) => u.status === "Active" && viewerCan(v, "accounts", "edit", { unitId: u.id })} />}
               <Field label="Reason (optional)">
                 <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Covering during a colleague's leave" />
               </Field>

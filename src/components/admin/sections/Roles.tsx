@@ -18,7 +18,7 @@ const GLYPH: Record<RoleId, IconName> = { administrator: "shield-check", coordin
 
 /** Where an assignment of the role reaches, in a few words. */
 const where = (r: RoleRow) =>
-  r.universityPermissions ? "Unit or University-wide" : r.scopeKind === "custom" ? "Guests, until an end date" : ROLE_SECTIONS[r.id].includes("offices") ? "Office or college" : "College or faculty";
+  r.universityPermissions ? "Unit or University-wide" : r.scopeKind === "custom" ? "Guests, until an end date" : ROLE_SECTIONS[r.id].includes("offices") ? "Office or college" : "No unit";
 
 /** Ink is what every holder of the role gets; `wide` what only a University-wide holder adds. */
 const cellOf = (r: RoleRow) => (m: ModuleKey, a: Action): CellState =>

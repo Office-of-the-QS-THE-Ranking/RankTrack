@@ -31,3 +31,11 @@ export const OFFICE_PUBLICATIONS_PATH = "/admin/publications";
 export const officePublicationsPath = (section: PublicationSection) => `${OFFICE_PUBLICATIONS_PATH}/${section}`;
 /** A post opened in the Office's composer. */
 export const officeStoryPath = (slug: string) => `${officePublicationsPath("stories")}#${slug}`;
+/** A document opened in the Office's form. */
+export const officeDocumentPath = (kind: DocumentKind, slug: string) => `${officePublicationsPath(SECTION_OF[kind])}#${slug}`;
+
+/* Contributor workspace: a unit's own posts, articles and reports, sent to the Office for review */
+export const PORTAL_PUBLICATIONS_PATH = "/portal/publications";
+export const portalPublicationsPath = (section: PublicationSection) => `${PORTAL_PUBLICATIONS_PATH}/${section}`;
+export const portalStoryPath = (slug: string) => `${portalPublicationsPath("stories")}#${slug}`;
+export const portalDocumentPath = (kind: DocumentKind, slug: string) => `${portalPublicationsPath(SECTION_OF[kind])}#${slug}`;

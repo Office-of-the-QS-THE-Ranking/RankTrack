@@ -89,12 +89,12 @@ describe("research articles and reports", () => {
     expect(execute(w.ctx(), { type: "document.save", kind: "article", input: input({ file: { ...PDF, src: "https://example.org/a.pdf" } }), publish: false }).ok).toBe(false);
   });
 
-  it("are refused to a coordinator", () => {
+  it("are never published by a coordinator: theirs wait for the Office's review (unit-publications.test.ts)", () => {
     const w = office();
     const coordinator = w.person("Own", "own@ust.edu.ph", ROLE.coordinator, w.eng.id);
-    const r = execute(makeCtx(w.state, actorFor(w.state, coordinator), REF), { type: "document.save", kind: "article", input: input(), publish: false });
-    expect(r.ok).toBe(false);
-    expect(w.state.records.documents).toHaveLength(0);
+    const r = execute(makeCtx(w.state, actorFor(w.state, coordinator), REF), { type: "document.save", kind: "article", input: input(), publish: true });
+    expect(r.ok).toBe(true);
+    expect(w.state.records.documents[0]).toMatchObject({ status: "In review", unitSlug: w.eng.id });
   });
 
   it("unpublish and delete, releasing the PDF", () => {

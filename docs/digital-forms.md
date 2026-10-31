@@ -54,7 +54,7 @@ copy). Old `/…/workspace/templates` links redirect to `/…/workspace/forms`.
 
 - **A form** is a row of `forms`, part of the governance store (in `hub_tables`, mapped in `server/db/rows.ts`),
   changed only through its commands, each authorized and audited. It is held by the Office (no unit), a unit
-  (`unit_id`), or a Student (`owner_id`, their own Evaluation or Registration Form, kept under their unit). Who may do
+  (`unit_id`), or a Student (`owner_id`, their own Evaluation or Registration Form; Students belong to no unit, so it is kept under the Office). Who may do
   what is the `forms` permission module read through `lib/forms/access.ts` (§12).
 - **Lifecycle:** draft → open → closed ↔ open. A form never goes back to draft, so only a draft (which has never
   taken a response) can be deleted, and its **questions and kind change only while it is a draft**. To change an
@@ -65,7 +65,7 @@ copy). Old `/…/workspace/templates` links redirect to `/…/workspace/forms`.
 - **Team copies follow the kind:** Proposal and Terminal Report forms are filled in as copies built from the Student
   Portal (§11, §12); no other kind is (`forms.copies`, set by `form.save`).
 - **Publish to Student Portal** (`form.portal`, `forms.students`): a Proposal or Terminal Report form of the Office's
-  is listed under Create in the Student Portal; a survey (the Office's, or a unit's for its own Students) becomes the
+  is listed under Create in the Student Portal; a survey (the Office's or a unit's, for every Student) becomes the
   Students' assignment. Students see it while it takes responses.
 - **Responses** are rows of `form_responses`, **outside** the store, so a busy form never rewrites it. They are
   numbered per form by `hub_form_submit()` (`CDP-0001`, `CDP-0002`…; the prefix is the form's). Restoring the store

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     to.searchParams.set("error", error);
     if (next) to.searchParams.set("next", next);
     const res = NextResponse.redirect(to);
-    res.cookies.delete(STAY_COOKIE);
+    res.cookies.delete({ name: STAY_COOKIE, ...SESSION_COOKIE_OPTIONS });
     return res;
   };
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   if (hd) await keepDirectoryTokens(user.email, data.session?.provider_token, data.session?.provider_refresh_token);
   const res = NextResponse.redirect(new URL(r.dest, url));
   res.cookies.set(SESSION_COOKIE, r.token, r.staySeconds ? { ...SESSION_COOKIE_OPTIONS, maxAge: r.staySeconds } : SESSION_COOKIE_OPTIONS);
-  res.cookies.delete(STAY_COOKIE);
+  res.cookies.delete({ name: STAY_COOKIE, ...SESSION_COOKIE_OPTIONS });
   // From now on forms know this browser by its Hub account; a Google account chosen on a form earlier is forgotten.
   res.cookies.set(FORM_WHO_COOKIE, "", FORM_WHO_GONE);
   return res;

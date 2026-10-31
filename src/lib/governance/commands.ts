@@ -190,13 +190,14 @@ export type Command =
       input: { title: string; challenge: string; response: string; figure: string; figureLabel: string; beneficiaries: string; sdgs: number[]; rankings: string[]; evidence: string[] };
     }
   | { type: "story.state"; slug: string; state: "Published" | "Withdrawn" }
-  /* Stories & News posts. `from` names a story or a unit's proposal the new post takes over. */
+  /* Stories & News posts. `from` names a story or a unit's proposal the new post takes over. `publish` from a unit
+     sends the post to the Rankings Office for review; `note` is the Office's reason when it returns a unit's post. */
   | { type: "post.save"; id?: string; from?: string; input: PostInput; publish: boolean }
-  | { type: "post.status"; id: string; status: "Published" | "Unpublished" | "Draft" }
+  | { type: "post.status"; id: string; status: "Published" | "Unpublished" | "Draft"; note?: string }
   | { type: "post.delete"; id: string }
   /* Research articles and reports */
   | { type: "document.save"; id?: string; kind: DocumentKind; input: DocumentInput; publish: boolean }
-  | { type: "document.status"; id: string; status: "Published" | "Unpublished" | "Draft" }
+  | { type: "document.status"; id: string; status: "Published" | "Unpublished" | "Draft"; note?: string }
   | { type: "document.delete"; id: string }
   /* Workspace files. No unitId: the Office's shared files. Sizes are read from storage on the server. */
   | { type: "workspace.add"; unitId?: string; shelf: WorkspaceShelf; folderId: string; files: { name: string; src: string; bytes?: number }[] }

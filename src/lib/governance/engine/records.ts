@@ -183,8 +183,8 @@ export function review(ctx: Ctx, id: string, decision: "accept" | "revise", text
   ctx.state.records.evidence[e.id] = next;
   const rankings = new Set(next.mappedTo.map((m) => m.split(" · ")[0])).size;
   log(ctx, action, "Approval", evRes(e), "Success", decision === "accept" ? `Accepted · counts in ${rankings} rankings` : `Revision requested: ${t.slice(0, 140)}`);
-  if (decision === "accept") notify(ctx, `unit:${e.unitSlug}`, "tpl-accepted", { title: e.title, count: rankings }, "/portal/history");
-  else notify(ctx, `unit:${e.unitSlug}`, "tpl-revision", { title: e.title, comment: t }, "/portal/feedback");
+  if (decision === "accept") notify(ctx, `unit:${e.unitSlug}`, "tpl-accepted", { title: e.title, count: rankings }, `/portal/submit#${e.id}`);
+  else notify(ctx, `unit:${e.unitSlug}`, "tpl-revision", { title: e.title, comment: t }, `/portal/submit#${e.id}`);
   return ok(decision === "accept" ? `Accepted. ${unit?.name ?? "The unit"} will see where it counts.` : `Revision requested from ${unit?.name ?? "the unit"}.`);
 }
 

@@ -57,14 +57,14 @@ export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
 
   // Next up: revisions first, then requirements (or, without any, the unit's actions) soonest first. Each is
   // answered with evidence, so it opens Submit evidence.
-  const answer = can.submit ? "/portal/submit" : "/portal/history";
+  const answer = "/portal/submit";
   const todo: { key: string; what: string; status: EvidenceStatus | "Not started"; meta: ReactNode; due?: string; href: string }[] = [
     ...revisions.map((e) => ({
       key: e.id,
       what: e.title,
       status: e.status,
       meta: <span>{e.comments[0] ? `${e.comments[0].by} · ${formatDate(e.comments[0].date)}` : rankingsOf(e)[0]}</span>,
-      href: "/portal/feedback",
+      href: `/portal/submit#${e.id}`,
     })),
     ...open.map((r) => ({ key: r.id, what: r.title, status: r.status, meta: <RankingName slug={r.ranking} />, due: r.due, href: answer })),
     ...actions.map((a) => ({ key: a.id, what: a.action, status: a.status, meta: <RankingName slug={a.ranking} />, due: a.due, href: answer })),
@@ -132,7 +132,7 @@ export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
         line={due ? `${work} ${due}` : work}
         action={
           revisions.length && can.respond
-            ? { href: "/portal/feedback", label: "Respond to feedback" }
+            ? { href: "/portal/submit", label: "Respond to feedback" }
             : open.length && can.submit
               ? { href: "/portal/submit", label: "Submit evidence" }
               : undefined

@@ -494,6 +494,15 @@
   font-size: 14px;
   line-height: 1.5;
 }
+.pm-return__field {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+}
+.pm-return__field .textarea {
+  min-height: 84px;
+  resize: vertical;
+}
 .pm-confirm__actions {
   display: flex;
   justify-content: flex-end;

@@ -249,16 +249,18 @@ function EditProfile({ viewer, onDiscard }: { viewer: Viewer; onDiscard: () => v
             <input className="input" name="title" autoComplete="organization-title" placeholder="Your position" defaultValue={viewer.title} maxLength={160} title="" />
           </span>
         </label>
-        <div className="pfm__field">
-          <span className="pfm__label">Organizational unit</span>
-          <span className="pfm__control pfm__control--read">
-            <Icon name="building" size={16} />
-            <span>{viewer.unitName}</span>
-            <InfoTooltip label="About your organizational unit">
-              Your email, unit and roles are managed by the Office.
-            </InfoTooltip>
-          </span>
-        </div>
+        {!actsAsStudent(viewer) && (
+          <div className="pfm__field">
+            <span className="pfm__label">Organizational unit</span>
+            <span className="pfm__control pfm__control--read">
+              <Icon name="building" size={16} />
+              <span>{viewer.unitName}</span>
+              <InfoTooltip label="About your organizational unit">
+                Your email, unit and roles are managed by the Office.
+              </InfoTooltip>
+            </span>
+          </div>
+        )}
         <div className="pfm__field">
           <span className="pfm__label">Email</span>
           <span className="pfm__control pfm__control--read">
@@ -278,8 +280,15 @@ function EditProfile({ viewer, onDiscard }: { viewer: Viewer; onDiscard: () => v
   );
 }
 
-/** "Coordinator · College of Information and Computing Sciences": the active role and what it covers. */
-const roleLine = (viewer: Viewer) => `${viewer.roleName} · ${viewer.roles.find((r) => r.active)?.scope ?? viewer.unitName}`;
+/** "Coordinator · College of Information and Computing Sciences": the active role and what it covers. A Student's is just "Student". */
+const roleLine = (viewer: Viewer) => {
+  const active = viewer.roles.find((r) => r.active);
+  const scope = active ? active.scope : viewer.unitName;
+  return scope ? `${viewer.roleName} · ${scope}` : viewer.roleName;
+};
+
+/** Whether the active role is Student, which belongs to no College/Faculty or Office. */
+const actsAsStudent = (viewer: Viewer) => viewer.roles.some((r) => r.active && r.id === "student");
 
 /** Roles & access: one role is active at a time; the others are a switch away. */
 function Access({ viewer }: { viewer: Viewer }) {
@@ -308,7 +317,7 @@ function Access({ viewer }: { viewer: Viewer }) {
       <div className="pfm__roles-head">
         <h3 className="pfm__label">Your roles</h3>
         <InfoTooltip label="About your roles">
-          {several ? "One role is active at a time. The Hub shows and allows only what the active role covers. " : ""}Ask the Office to change your roles or unit.
+          {several ? "One role is active at a time. The Hub shows and allows only what the active role covers. " : ""}Ask the Office to change your roles{actsAsStudent(viewer) ? "" : " or unit"}.
         </InfoTooltip>
       </div>
       <ul className="pfm__rows pfm__roles">
@@ -317,7 +326,7 @@ function Access({ viewer }: { viewer: Viewer }) {
             <Icon name="key" size={16} />
             <span>
               <b>{r.name}</b>
-              <span>{r.scope}</span>
+              {r.scope && <span>{r.scope}</span>}
             </span>
             {r.expires && <em>Until {DATE_FMT.format(new Date(r.expires + "T00:00:00Z"))}</em>}
             {several &&
@@ -328,7 +337,7 @@ function Access({ viewer }: { viewer: Viewer }) {
                   type="button"
                   className="btn btn--sm pfm__item-control"
                   disabled={busy !== null}
-                  aria-label={`Switch to ${r.name}, ${r.scope}`}
+                  aria-label={r.scope ? `Switch to ${r.name}, ${r.scope}` : `Switch to ${r.name}`}
                   onClick={() => void switchTo(r.assignmentId)}
                 >
                   {busy === r.assignmentId ? "Switching…" : "Switch"}

@@ -35,7 +35,7 @@ export interface NavGroup {
 
 /* Main navigation from the proposal: Dashboard, Rankings, Contributions, Publications, Recognition (a
    Dashboard tab in the office workspace), Workspace (with the Knowledge Center), Reports, About the Office. Rankings, Publications, Workspace and Administration open their own
-   sets of tabs in the sidebar. Administration is shown to people who administer something; About the
+   sets of tabs in the sidebar. A Coordinator's contributions are Submit evidence and their unit's Publications. Administration is shown to people who administer something; About the
    Office sits apart at the foot. A Student (the Secretary of a student organization, commission or council) has
    the Student Portal's pages only (forms submit is theirs alone): Dashboard, Assignments, Project Proposals,
    Evaluation Forms, Registrations, Terminal Reports. */
@@ -77,11 +77,11 @@ export const NAV: Record<Variant, NavGroup[]> = {
         { href: "/portal/evaluations", label: "Evaluation Forms", icon: "data", need: ["forms", "submit"] },
         { href: "/portal/registrations", label: "Registrations", icon: "user-plus", need: ["forms", "submit"] },
         { href: "/portal/terminal-reports", label: "Terminal Reports", icon: "reports", need: ["forms", "submit"] },
-        { href: "/portal/submit", label: "Submit evidence", icon: "upload", need: ["evidence", "submit"], feature: "submit-evidence" },
-        { href: "/portal/story", label: "Propose a story", icon: "pen", need: ["stories", "create"], feature: "story-proposals" },
-        { href: "/portal/innovation", label: "Propose an innovation", icon: "innovation", need: ["stories", "create"], feature: "innovation-proposals" },
-        { href: "/portal/feedback", label: "Validation comments", icon: "comment", count: "revisions", need: ["evidence", "edit"] },
-        { href: "/portal/history", label: "Submission history", icon: "history", need: ["evidence", "view"] },
+        // Validation comments and each submission's history live in the Submit evidence table's records, so anyone
+        // who reads the unit's evidence opens it; only contributors see its Submit evidence button.
+        { href: "/portal/submit", label: "Submit evidence", icon: "upload", count: "revisions", need: ["evidence", "view"], feature: "submit-evidence" },
+        // The unit's own posts, articles and reports, each approved by the Rankings Office before it goes live.
+        { href: "/portal/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/portal/publications" },
         // Only a unit's contributors ask for assistance on its behalf (the command checks the same).
         { href: "/portal/assistance", label: "Request assistance", icon: "help", need: ["evidence", "submit"], feature: "assistance" },
       ],
@@ -142,7 +142,7 @@ export function publicPathFor(path: string): string {
   const m = path.match(/^\/admin\/rankings\/([^/]+)/);
   if (m) return `/rankings/${m[1]}`;
   if (path.startsWith("/admin/rankings")) return "/rankings";
-  const pub = path.match(/^\/admin\/publications\/(stories|research|reports)/);
+  const pub = path.match(/^\/(?:admin|portal)\/publications\/(stories|research|reports)/);
   if (pub) return `/publications/${pub[1]}`;
   if (/^\/(admin|portal)\/workspace\/knowledge/.test(path)) return "/knowledge";
   for (const seg of ["publications", "recognition", "about"]) {

@@ -61,6 +61,7 @@ export function DocumentForm({
   units,
   needsApproval,
   canPublish,
+  canSubmit = false,
   onClose,
 }: {
   kind: DocumentKind;
@@ -69,6 +70,8 @@ export function DocumentForm({
   units: DocumentDesk["units"];
   needsApproval: boolean;
   canPublish: boolean;
+  /** A unit's author: the document is their unit's, goes to the Rankings Office for review, and stays as it is while live or waiting. */
+  canSubmit?: boolean;
   onClose: () => void;
 }) {
   const ids = useId();
@@ -99,7 +102,7 @@ export function DocumentForm({
   const [pdf, setPdf] = useState<Pdf | null>(row?.file ? { name: row.file.name, size: row.file.sizeMB * MB, src: row.file.src } : null);
   const [sdgs, setSdgs] = useState<number[]>(row?.sdgs ?? []);
   const [keywords, setKeywords] = useState<string[]>(row?.keywords ?? []);
-  const [unit, setUnit] = useState(row?.unitSlug ?? "");
+  const [unit, setUnit] = useState(row?.unitSlug ?? (canSubmit ? (units[0]?.id ?? "") : ""));
   const [featured, setFeatured] = useState(row?.featured ?? false);
   const [coverTone, setCoverTone] = useState<DocumentCoverTone | undefined>(row?.coverTone);
   const [saving, setSaving] = useState<false | "draft" | "publish">(false);
@@ -233,8 +236,14 @@ export function DocumentForm({
   const ready = steps.every((s) => s.done);
 
   const publishLabel = needsApproval ? "Send for approval" : "Publish";
-  const actions: { label: string; busy: string; intent: "draft" | "publish"; primary?: boolean }[] =
-    status === "Published"
+  const actions: { label: string; busy: string; intent: "draft" | "publish"; primary?: boolean }[] = canSubmit
+    ? status === "Published" || status === "In review"
+      ? []
+      : [
+          { label: "Save draft", busy: "Saving…", intent: "draft" },
+          { label: "Send to the Office", busy: "Sending…", intent: "publish", primary: true },
+        ]
+    : status === "Published"
       ? [{ label: "Update", busy: "Updating…", intent: "publish", primary: true }]
       : status === "In review" && row?.requestId
         ? [{ label: "Save changes", busy: "Saving…", intent: "draft", primary: true }]
@@ -484,8 +493,8 @@ export function DocumentForm({
                 What it serves
               </h3>
               <Field label="Unit" htmlFor={`${ids}-unit`}>
-                <Select id={`${ids}-unit`} className="select" value={unit} onChange={setUnit} searchable aria-label="Unit">
-                  <option value="">University-wide</option>
+                <Select id={`${ids}-unit`} className="select" value={unit} onChange={setUnit} searchable aria-label="Unit" disabled={canSubmit}>
+                  {!canSubmit && <option value="">University-wide</option>}
                   {groups.map((g) => (
                     <optgroup key={g} label={g}>
                       {units
@@ -507,42 +516,53 @@ export function DocumentForm({
               </Field>
             </section>
 
-            <section className="df__set" aria-labelledby={`${ids}-display`}>
-              <h3 id={`${ids}-display`} className="df__setlabel">Display</h3>
-              {kind === "report" && (
-                <fieldset className="df__cover-colors">
-                  <legend>Book cover color</legend>
-                  <div className="df__cover-options">
-                    {[{ value: undefined, label: "Automatic", color: undefined }, ...DOC_COVER_TONES].map((tone) => (
-                      <label key={tone.value ?? "auto"} className="df__cover-option">
-                        <input type="radio" name={`${ids}-cover-color`} checked={coverTone === tone.value} onChange={() => setCoverTone(tone.value)} />
-                        <span className={`df__cover-swatch${tone.value ? "" : " df__cover-swatch--auto"}`} style={tone.color ? { "--cover-color": tone.color } as CSSProperties : undefined} aria-hidden="true">
-                          {coverTone === tone.value && <Icon name="check" size={14} />}
-                        </span>
-                        <span>{tone.label}</span>
-                      </label>
-                    ))}
+            {(kind === "report" || !canSubmit) && (
+              <section className="df__set" aria-labelledby={`${ids}-display`}>
+                <h3 id={`${ids}-display`} className="df__setlabel">Display</h3>
+                {kind === "report" && (
+                  <fieldset className="df__cover-colors">
+                    <legend>Book cover color</legend>
+                    <div className="df__cover-options">
+                      {[{ value: undefined, label: "Automatic", color: undefined }, ...DOC_COVER_TONES].map((tone) => (
+                        <label key={tone.value ?? "auto"} className="df__cover-option">
+                          <input type="radio" name={`${ids}-cover-color`} checked={coverTone === tone.value} onChange={() => setCoverTone(tone.value)} />
+                          <span className={`df__cover-swatch${tone.value ? "" : " df__cover-swatch--auto"}`} style={tone.color ? { "--cover-color": tone.color } as CSSProperties : undefined} aria-hidden="true">
+                            {coverTone === tone.value && <Icon name="check" size={14} />}
+                          </span>
+                          <span>{tone.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+                {/* Which document leads the page is the Office's call. */}
+                {!canSubmit && (
+                  <div className="df__feature" data-enabled={featured}>
+                    <span>
+                      <b>Lead the page</b>
+                      <span>Shown first on {kind === "article" ? "Research Articles" : "Reports & Insights"}.</span>
+                    </span>
+                    <div className="df__feature-control">
+                      <span className="df__feature-state" aria-hidden="true">{featured ? "On" : "Off"}</span>
+                      <Switch checked={featured} onChange={setFeatured} label="Lead the page" />
+                    </div>
                   </div>
-                </fieldset>
-              )}
-              <div className="df__feature" data-enabled={featured}>
-                <span>
-                  <b>Lead the page</b>
-                  <span>Shown first on {kind === "article" ? "Research Articles" : "Reports & Insights"}.</span>
-                </span>
-                <div className="df__feature-control">
-                  <span className="df__feature-state" aria-hidden="true">{featured ? "On" : "Off"}</span>
-                  <Switch checked={featured} onChange={setFeatured} label="Lead the page" />
-                </div>
-              </div>
-            </section>
+                )}
+              </section>
+            )}
           </div>
         </div>
 
         <footer className="pc-foot">
-          {(pdf?.progress !== undefined || row?.requestId) && (
+          {(pdf?.progress !== undefined || row?.requestId || (canSubmit && (status === "Published" || status === "In review"))) && (
             <span className="pc-actions__note" aria-live="polite">
-              {pdf?.progress !== undefined ? "Uploading the PDF…" : "Waiting for approval"}
+              {pdf?.progress !== undefined
+                ? "Uploading the PDF…"
+                : row?.requestId
+                  ? "Waiting for approval"
+                  : status === "Published"
+                    ? `Live. The Rankings Office changes live ${noun.many}.`
+                    : "With the Rankings Office for review"}
             </span>
           )}
           <div className="pc-actions">

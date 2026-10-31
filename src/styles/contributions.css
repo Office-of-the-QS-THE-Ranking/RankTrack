@@ -1567,6 +1567,12 @@ p.cv-narr__body {
   height: 36px;
   border-radius: 999px;
 }
+.cv-dock__file span {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 @container content (max-width: 620px) {
   .cv-dock {

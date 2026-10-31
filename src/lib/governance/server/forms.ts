@@ -140,7 +140,8 @@ export async function formsDesk(viewer: Viewer, where: DeskOf): Promise<FormsDes
       };
     }),
     units: formUnits(state.units),
-    issuers: issuersFor(state, holder === "office" ? null : unitId),
+    // Students belong to no College/Faculty or Office, so their forms name no issuer.
+    issuers: holder === "student" ? [] : issuersFor(state, holder === "office" ? null : unitId),
   };
 }
 

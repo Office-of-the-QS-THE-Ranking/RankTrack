@@ -10,6 +10,7 @@ import { actorFor, makeCtx, needsApproval } from "../engine";
 import { postUnit } from "../records";
 import type { PostDesk, PostRow } from "../hub-types";
 import type { GovernanceState, PostMedia, PostStatus } from "../types";
+import { reach } from "../rbac";
 import type { Viewer } from "../viewer";
 import { viewerCan } from "../viewer";
 import { readState } from "./store";
@@ -52,6 +53,7 @@ function rows(state: GovernanceState): PostRow[] {
     postedAt: p.publishedAt,
     updatedAt: p.updatedAt,
     requestId: pending.get(p.slug),
+    review: !!p.unitSlug && p.status === "In review" && !pending.has(p.slug),
   }));
   const taken = new Set(posts.map((p) => p.slug));
   const stateOf = (slug: string, fallback: Story["state"]): PostStatus => {
@@ -97,12 +99,18 @@ function rows(state: GovernanceState): PostRow[] {
   return [...posts, ...stories, ...proposals];
 }
 
-/** The post manager's data for this viewer. */
+/**
+ * The post manager's data for this viewer: every post for the Rankings Office, and a unit's own posts for its
+ * Coordinators, who send them to the Office for review.
+ */
 export async function postDesk(viewer: Viewer): Promise<PostDesk> {
   const state = await readState();
   const account = state.accounts.find((a) => a.id === viewer.id);
   const ctx = account ? makeCtx(state, actorFor(state, account), await reference(), new Date()) : null;
-  const list = rows(state);
+  const office = viewerCan(viewer, "posts", "approve");
+  const units = reach(viewer.grants, "posts", "view");
+  const unitOf = new Map(state.records.posts.map((p) => [p.id, p.unitSlug]));
+  const list = rows(state).filter((row) => office || units === "all" || (!!row.id && units.includes(unitOf.get(row.id) ?? "")));
   const counted = await countedViews(list.map((row) => row.slug));
   return {
     rows: list.map((row) => ({ ...row, analytics: postAnalytics(state, row.slug, counted.get(row.slug)) })),
@@ -110,10 +118,11 @@ export async function postDesk(viewer: Viewer): Promise<PostDesk> {
       create: viewerCan(viewer, "posts", "create"),
       edit: viewerCan(viewer, "posts", "edit"),
       delete: viewerCan(viewer, "posts", "delete"),
-      publish: viewerCan(viewer, "posts", "approve"),
+      publish: office,
+      submit: !office && viewerCan(viewer, "posts", "submit"),
     },
     needsApproval: !!ctx && needsApproval(ctx, "publication"),
     live: featureOn(state, "public-publications") && datasetPublic(state, "DS-STORIES"),
-    me: { name: viewer.name, unit: viewer.unitName, avatar: viewer.avatar },
+    me: { name: viewer.name, unit: office ? viewer.unitName : viewer.portal.unitName, avatar: viewer.avatar },
   };
 }

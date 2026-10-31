@@ -18,7 +18,7 @@ export async function finishVerification(request: NextRequest) {
   const back = pack?.back;
   const done = (result: string, proof?: string) => {
     const res = NextResponse.redirect(new URL(back ? `${back}?signin=${result}` : `/signin?verified=${result}`, url));
-    res.cookies.delete(STATE_COOKIE);
+    res.cookies.delete({ name: STATE_COOKIE, ...COOKIE_OPTIONS });
     if (proof) res.cookies.set(back ? FORM_WHO_COOKIE : VERIFIED_COOKIE, proof, { ...COOKIE_OPTIONS, maxAge: back ? FORM_WHO_DAYS * 86_400 : VERIFIED_MINUTES * 60 });
     return res;
   };
