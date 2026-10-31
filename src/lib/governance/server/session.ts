@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { cache } from "react";
-import { ADMIN_MODULES, roleOf } from "../catalog";
+import { ADMIN_MODULES, ROLE, roleOf } from "../catalog";
 import { flagOn, portalScope, workspacesOf } from "../derive";
 import { actingGrants, activeAssignments, canWith, initials, mergedPermissions, scopeLabel, today } from "../rbac";
 import type { Account, GovernanceState, Session } from "../types";
@@ -57,8 +57,8 @@ export function persistSessionCookie(jar: Jar, seconds: number | null) {
 export const staySeconds = (absoluteHours: number, createdAt: string, now = Date.now()) => absoluteHours * 3600 - (now - Date.parse(createdAt)) / 1000;
 
 export function clearSessionCookie(jar: Jar) {
-  jar.delete(SESSION_COOKIE);
-  if (LEGACY_COOKIE !== SESSION_COOKIE) jar.delete(LEGACY_COOKIE);
+  jar.delete({ name: SESSION_COOKIE, ...SESSION_COOKIE_OPTIONS });
+  if (LEGACY_COOKIE !== SESSION_COOKIE) jar.delete({ name: LEGACY_COOKIE, ...SESSION_COOKIE_OPTIONS, secure: false });
 }
 
 export type SessionProblem = "ended" | "expired" | "suspended" | "reauth";
@@ -99,7 +99,8 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
       assignmentId: a.id,
       id: a.roleId,
       name: roleOf(a.roleId)?.name ?? a.roleId,
-      scope: scopeLabel(a.scope, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))),
+      // Students belong to no College/Faculty or Office: their role is just Student.
+      scope: a.roleId === ROLE.student ? "" : scopeLabel(a.scope, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))),
       expires: a.expires,
       active: a.id === acting?.assignmentId,
     })),

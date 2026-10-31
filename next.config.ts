@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
       { source: "/admin/impact", destination: "/admin/publications/stories", permanent: true },
       { source: "/publications", destination: "/publications/stories", permanent: false },
       { source: "/admin/publications", destination: "/admin/publications/stories", permanent: false },
+      { source: "/portal/publications", destination: "/portal/publications/stories", permanent: false },
+      // A Coordinator's stories and innovations are Publications now; comments and history live in Submit evidence.
+      { source: "/portal/story", destination: "/portal/publications/stories", permanent: true },
+      { source: "/portal/innovation", destination: "/portal/publications/stories", permanent: true },
+      { source: "/portal/feedback", destination: "/portal/submit", permanent: true },
+      { source: "/portal/history", destination: "/portal/submit", permanent: true },
     ];
   },
   async headers() {

@@ -5,14 +5,16 @@ import { canWith, grantsFor, roleScope, runsHub, UNIVERSITY } from "@/lib/govern
 import { world } from "./helpers";
 
 describe("four roles", () => {
-  it("lets Administrators and Coordinators work in an office or a college, Students only in a college", () => {
+  it("lets Administrators and Coordinators work in an office or a college, and keeps Students with the Office in neither", () => {
     for (const role of [ROLE.admin, ROLE.coordinator]) {
-      expect(invitationUnitMatchesRole({ kind: "Office" }, role)).toBe(true);
-      expect(invitationUnitMatchesRole({ kind: "Faculty" }, role)).toBe(true);
+      expect(invitationUnitMatchesRole({ id: "x", kind: "Office" }, role)).toBe(true);
+      expect(invitationUnitMatchesRole({ id: "x", kind: "Faculty" }, role)).toBe(true);
     }
-    expect(invitationUnitMatchesRole({ kind: "College" }, ROLE.student)).toBe(true);
-    expect(invitationUnitMatchesRole({ kind: "Office" }, ROLE.student)).toBe(false);
-    expect(invitationUnitMatchesRole({ kind: "Research Centre" }, ROLE.coordinator)).toBe(false);
+    expect(invitationUnitMatchesRole({ id: "x", kind: "College" }, ROLE.student)).toBe(false);
+    expect(invitationUnitMatchesRole({ id: "x", kind: "Office" }, ROLE.student)).toBe(false);
+    expect(invitationUnitMatchesRole({ id: HUB_OFFICE, kind: "Office" }, ROLE.student)).toBe(true);
+    expect(invitationUnitMatchesRole({ id: "x", kind: "Research Centre" }, ROLE.coordinator)).toBe(false);
+    expect(roleScope(ROLE.student, "faculty-of-engineering").units).toEqual([HUB_OFFICE]);
   });
 
   it("gives an Administrator the whole University only in the Rankings Office", () => {
@@ -40,7 +42,7 @@ describe("four roles", () => {
     const w = world();
     const student = w.person("Student", "student@ust.edu.ph", ROLE.student, w.eng.id);
     const grants = grantsFor(student, w.state.units, new Date().toISOString().slice(0, 10));
-    expect(canWith(grants, "forms", "submit", { unitId: w.eng.id })).toBe(true);
+    expect(canWith(grants, "forms", "submit")).toBe(true);
     expect(canWith(grants, "forms", "create")).toBe(true);
     expect(canWith(grants, "knowledge", "view")).toBe(false);
     expect(canWith(grants, "reports", "view")).toBe(false);

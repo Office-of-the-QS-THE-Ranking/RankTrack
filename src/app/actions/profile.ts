@@ -109,7 +109,7 @@ export async function clearCookiesAndSignOut() {
       return { ok: true, message: "Signed out" };
     }).catch(() => null);
   }
-  for (const c of jar.getAll()) jar.delete(c.name);
+  for (const c of jar.getAll()) jar.delete({ name: c.name, path: "/", secure: c.name.startsWith("__Host-") || c.name.startsWith("__Secure-") });
   clearSessionCookie(jar);
   redirect("/signin?ended=cleared");
 }

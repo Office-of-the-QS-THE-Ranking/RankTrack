@@ -1,9 +1,11 @@
 /*
  * Stories & News posts (Publications). The Office writes them in the composer; a unit's story proposal, or one of the
  * Hub's own stories, becomes a post the first time the Office edits it. Posting goes through the publication
- * workflow whenever enough other administrators can decide it. Every change is authorized and audited.
+ * workflow whenever enough other administrators can decide it. A Coordinator writes posts for their own unit, and
+ * the Rankings Office reviews each before it is posted (unit-publications.ts). Every change is authorized and audited.
  */
 import { STORIES } from "@/lib/data";
+import { officeStoryPath, portalStoryPath } from "@/lib/publications";
 import type { Command, CommandResult, PostInput } from "../commands";
 import { cleanRich, isRich, plainText } from "@/lib/rich-text";
 import { hashtag, isPostLayout, isPostMediaSrc, POST_LIMITS, postPictures, slugify } from "../posts";
@@ -11,6 +13,7 @@ import type { PostMedia, PostRecord, PostStatus } from "../types";
 import { can, clean, cleanText, deny, invalid, log, nextId, ok, type Ctx } from "./core";
 import { publishPost } from "./mutations";
 import { needsApproval, openRequest } from "./requests";
+import { authorUnit, awaitingOffice, publishes, returnToUnit, sendToOffice, unitBlock } from "./unit-publications";
 
 type Fields = Pick<PostRecord, "title" | "subtitle" | "sdgs" | "themes" | "hashtags" | "layout" | "thumbnail" | "body" | "photos">;
 
@@ -117,6 +120,13 @@ function release(ctx: Ctx, post: PostRecord): CommandResult {
   return ok(`Sent for approval (${req.id}).`, { data: post.id, requestId: req.id });
 }
 
+/** A unit's post goes to the Rankings Office for review. */
+function submit(ctx: Ctx, post: PostRecord): CommandResult {
+  sendToOffice(ctx, post, officeStoryPath(post.slug));
+  log(ctx, "post.submit", "Approval", res(post), "Success", "Sent to the Rankings Office for review");
+  return ok("Sent to the Rankings Office for review.", { data: post.id });
+}
+
 /** A unit's proposal or one of the Hub's own stories becoming a post: its address, proposer and standing carry over. */
 function takeOver(ctx: Ctx, slug: string): Pick<PostRecord, "slug" | "authorId" | "unitSlug" | "createdAt" | "status" | "publishedAt"> | null {
   const r = ctx.state.records;
@@ -145,7 +155,13 @@ export function savePost(ctx: Ctx, cmd: Extract<Command, { type: "post.save" }>)
   if (cmd.id && !existing) return invalid("That post no longer exists.");
   const target = existing ? res(existing) : { type: "Post", id: "new", label: clean(cmd.input?.title) || "Untitled post" };
   if (!can(ctx, "posts", existing ? "edit" : "create")) return deny(ctx, existing ? "post.update" : "post.create", "Data", target, "Your role cannot write stories.");
-  if (cmd.publish && !can(ctx, "posts", "approve")) return deny(ctx, "post.publish", "Approval", target, "Your role cannot publish posts.");
+  const office = publishes(ctx);
+  if (cmd.publish && !office && !can(ctx, "posts", "submit")) return deny(ctx, "post.publish", "Approval", target, "Your role cannot publish posts.");
+  const home = authorUnit(ctx);
+  if (!office) {
+    const why = cmd.from ? "Only the Rankings Office takes over a story." : existing ? unitBlock(ctx, existing, "change") : home ? null : "Your role has no unit to write for.";
+    if (why) return deny(ctx, existing ? "post.update" : "post.create", "Data", target, why);
+  }
   const checked = read(cmd.input, cmd.publish, ctx.ref.storyThemes);
   if ("problem" in checked) return invalid(checked.problem);
   const f = checked.fields;
@@ -159,7 +175,7 @@ export function savePost(ctx: Ctx, cmd: Extract<Command, { type: "post.save" }>)
     const kept = new Set(postPictures(existing).map((m) => m.src));
     const gone = before.filter((src) => !kept.has(src));
     if (gone.length) ctx.effects.push({ kind: "delete-media", srcs: gone });
-    if (cmd.publish && existing.status !== "Published" && !pendingFor(ctx, existing.slug)) return release(ctx, existing);
+    if (cmd.publish && existing.status !== "Published" && !pendingFor(ctx, existing.slug)) return office ? release(ctx, existing) : submit(ctx, existing);
     return ok(existing.status === "Published" ? "Post updated." : existing.status === "Draft" ? "Draft saved." : "Saved.", { data: existing.id });
   }
 
@@ -175,7 +191,7 @@ export function savePost(ctx: Ctx, cmd: Extract<Command, { type: "post.save" }>)
     ...f,
     status: base?.status ?? "Draft",
     authorId: base?.authorId ?? ctx.actor.id,
-    unitSlug: base?.unitSlug,
+    unitSlug: base?.unitSlug ?? home,
     createdAt: base?.createdAt ?? ctx.iso,
     updatedAt: ctx.iso,
     updatedBy: ctx.actor.id,
@@ -184,16 +200,21 @@ export function savePost(ctx: Ctx, cmd: Extract<Command, { type: "post.save" }>)
   r.posts.unshift(post);
   const detail = [cmd.from && `From ${cmd.from}`, count(post.photos.length, "photo"), post.sdgs.length ? `SDG ${post.sdgs.join(", ")}` : "No SDGs yet"];
   log(ctx, "post.create", "Data", res(post), "Success", detail.filter(Boolean).join(" · "));
-  if (cmd.publish && post.status !== "Published" && !pendingFor(ctx, post.slug)) return release(ctx, post);
+  if (cmd.publish && post.status !== "Published" && !pendingFor(ctx, post.slug)) return office ? release(ctx, post) : submit(ctx, post);
   return ok(post.status === "Published" ? "Post updated." : "Draft saved.", { data: post.id });
 }
 
-export function setPostStatus(ctx: Ctx, id: string, to: "Published" | "Unpublished" | "Draft"): CommandResult {
+export function setPostStatus(ctx: Ctx, id: string, to: "Published" | "Unpublished" | "Draft", note?: string): CommandResult {
   const post = ctx.state.records.posts.find((p) => p.id === id);
   if (!post) return invalid("That post no longer exists.");
   const action = to === "Published" ? "post.publish" : to === "Unpublished" ? "post.unpublish" : "post.draft";
-  if (!can(ctx, "posts", to === "Draft" ? "edit" : "approve"))
+  const office = publishes(ctx);
+  // A unit sends its post to the Office rather than posting it.
+  const need = to === "Draft" ? "edit" : to === "Published" && !office ? "submit" : "approve";
+  if (!can(ctx, "posts", need))
     return deny(ctx, action, "Approval", res(post), to === "Draft" ? "Your role cannot edit posts." : "Your role cannot publish or unpublish posts.");
+  const why = unitBlock(ctx, post, to === "Draft" ? "withdraw" : "submit");
+  if (why) return deny(ctx, to === "Published" ? "post.submit" : action, "Approval", res(post), why);
   const touched = () => Object.assign(post, { updatedAt: ctx.iso, updatedBy: ctx.actor.id });
   if (to === "Published") {
     if (post.status === "Published") return ok("Already posted.");
@@ -202,7 +223,7 @@ export function setPostStatus(ctx: Ctx, id: string, to: "Published" | "Unpublish
     if (!plainText(post.body).trim() && !post.photos.length) return invalid("Write the story or add photos before posting.");
     if (!post.sdgs.length) return invalid("Tag at least one SDG before posting.");
     touched();
-    return release(ctx, post);
+    return office ? release(ctx, post) : submit(ctx, post);
   }
   if (to === "Unpublished") {
     if (post.status !== "Published") return invalid("Only a live post can be unpublished.");
@@ -212,9 +233,18 @@ export function setPostStatus(ctx: Ctx, id: string, to: "Published" | "Unpublish
     return ok("Unpublished.");
   }
   if (post.status !== "In review") return invalid("Only a post waiting for review can move back to drafts.");
+  // The Office hands a unit's post back with what to change; the unit sees the note.
+  const returning = office && !!post.unitSlug && post.authorId !== ctx.actor.id && awaitingOffice(post, pendingFor(ctx, post.slug));
+  const said = cleanText(note, 600);
+  if (returning && said.length < 5) return invalid("Say what the unit should change; they see your note.");
   dropRequest(ctx, post.slug, "The post moved back to drafts");
   post.status = "Draft";
   touched();
+  if (returning) {
+    returnToUnit(ctx, post, said, portalStoryPath(post.slug));
+    log(ctx, "post.return", "Approval", res(post), "Success", `Returned to the unit: ${said.slice(0, 140)}`);
+    return ok("Returned to the unit.");
+  }
   log(ctx, "post.draft", "Data", res(post), "Success", "Moved back to drafts");
   return ok("Moved to drafts.");
 }
@@ -224,6 +254,8 @@ export function deletePost(ctx: Ctx, id: string): CommandResult {
   const post = r.posts.find((p) => p.id === id);
   if (!post) return invalid("That post no longer exists.");
   if (!can(ctx, "posts", "delete")) return deny(ctx, "post.delete", "Data", res(post), "Your role cannot delete posts.");
+  const why = unitBlock(ctx, post, "delete");
+  if (why) return deny(ctx, "post.delete", "Data", res(post), why);
   dropRequest(ctx, post.slug, "The post was deleted");
   r.posts = r.posts.filter((p) => p !== post);
   const pictures = postPictures(post).map((m) => m.src);

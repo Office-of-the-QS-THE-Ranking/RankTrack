@@ -837,7 +837,7 @@ export interface WorkingDoc {
  */
 export interface FormRecord {
   id: string;
-  /** The unit whose Digital Forms hold it; absent for the Office's, which every unit sees. A Student's own form keeps their unit here too. */
+  /** The unit whose Digital Forms hold it; absent for the Office's, which every unit sees. A Student's own form keeps the Office that holds Student accounts here. */
   unitId?: string;
   /** A Student's own form (an Evaluation Form or a Registration Form): their account holds it, not their unit. */
   ownerId?: string;

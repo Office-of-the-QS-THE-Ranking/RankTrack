@@ -3,7 +3,7 @@
  * starts as a draft, opens to take responses, and closes; it never goes back to draft, so only a draft (which has
  * never taken a response) can be deleted, and its questions and kind change only while it's a draft. Evaluation
  * and Registration Forms are fixed once published. The Office publishes its proposals, terminal reports and
- * surveys to the Student Portal (and a unit its surveys, to its own Students). Every change is authorized and
+ * surveys to the Student Portal (and a unit its surveys, to every Student). Every change is authorized and
  * audited. Responses are written outside the store (app/actions/forms.ts).
  */
 import { ROLE } from "../catalog";
@@ -53,7 +53,7 @@ const studentUnit = (ctx: Ctx) => ctx.actor.grants.find((g) => g.roleId === ROLE
 function placeNew(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>): { holder: FormHolder; unitId?: string; ownerId?: string; label: string } | string {
   if (cmd.own === true) {
     const scope = studentUnit(ctx);
-    if (!scope || scope === "all" || !scope[0]) return "Only a Student’s role keeps forms of its own.";
+    if (!scope || scope === "all" || !scope[0]) return "Only a Student Organizer’s role keeps forms of its own.";
     return { holder: "student", unitId: scope[0], ownerId: ctx.actor.id, label: ctx.actor.name };
   }
   if (typeof cmd.unitId === "string" && cmd.unitId) {
@@ -95,14 +95,16 @@ export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>)
   const description = clean(cmd.description, FORM_LIMITS.description);
   if (description.length > FORM_LIMITS.description) return invalid(`Keep the description under ${FORM_LIMITS.description} characters.`);
   if (!isFormKind(cmd.kind)) return invalid("Choose what kind of form it is.");
-  if (!HOLDER_KINDS[holder].includes(cmd.kind)) return invalid(holder === "student" ? "Students make Evaluation Forms and Registration Forms." : `${formKindLabel(cmd.kind)}s come from the Office.`);
+  if (!HOLDER_KINDS[holder].includes(cmd.kind)) return invalid(holder === "student" ? "Student Organizers make Evaluation Forms and Registration Forms." : `${formKindLabel(cmd.kind)}s come from the Office.`);
   if (form && cmd.kind !== form.kind && form.status !== "draft") return invalid("A form’s kind changes only while it’s a draft.");
   const reference = clean(cmd.reference, FORM_LIMITS.reference);
   if (reference.length > FORM_LIMITS.reference) return invalid(`Keep the form number under ${FORM_LIMITS.reference} characters.`);
   if ([title, description, reference].some(hasEmoji)) return invalid("Take the emoji out of the form’s title, description and number.");
   const issuerId = typeof cmd.issuerId === "string" && cmd.issuerId ? cmd.issuerId : undefined;
   if (issuerId && !unitById(ctx, issuerId)) return invalid("Choose the issuing office from the list.");
-  // A unit's or a Student's form names its own unit (or one within it) as the issuer, never another office.
+  // A Student belongs to no College/Faculty or Office, so their form names no issuer (an older one keeps its own).
+  if (issuerId && holder === "student" && issuerId !== form?.issuerId) return invalid("Student Organizers’ forms name no issuing office.");
+  // A unit's form names its own unit (or one within it) as the issuer, never another office.
   if (issuerId && unitId && !descendants(ctx.state.units, unitId).includes(issuerId) && issuerId !== form?.issuerId) return invalid("Name your own unit as the issuer.");
   const closesOn = typeof cmd.closesOn === "string" ? cmd.closesOn : "";
   if (closesOn && !validDay(closesOn)) return invalid("Choose the day the form closes.");
@@ -151,7 +153,7 @@ export function saveForm(ctx: Ctx, cmd: Extract<Command, { type: "form.save" }>)
     updatedBy: ctx.actor.id,
   };
   ctx.state.records.forms.unshift(made);
-  log(ctx, "form.save", "Data", res(made), "Success", `Created · ${formKindLabel(made.kind)}${holder === "student" ? " · a Student’s own" : ""}${made.copies ? " · team copies" : ""} · draft`);
+  log(ctx, "form.save", "Data", res(made), "Success", `Created · ${formKindLabel(made.kind)}${holder === "student" ? " · a Student Organizer’s own" : ""}${made.copies ? " · team copies" : ""} · draft`);
   return ok("Form created.", { data: { id: made.id } });
 }
 
@@ -183,7 +185,7 @@ export function setFormPortal(ctx: Ctx, cmd: Extract<Command, { type: "form.port
   Object.assign(form, { updatedAt: ctx.iso, updatedBy: ctx.actor.id });
   log(ctx, "form.portal", "Data", res(form), "Success", on ? "Published to the Student Portal" : "Taken off the Student Portal");
   if (!on) return ok("Taken off the Student Portal.");
-  return ok(form.status === "open" ? "Published to the Student Portal." : "Published to the Student Portal. Students see it once it takes responses.");
+  return ok(form.status === "open" ? "Published to the Student Portal." : "Published to the Student Portal. Student Organizers see it once it takes responses.");
 }
 
 /** A draft copy: same questions and holder, a new link, no responses, not on the Student Portal. */

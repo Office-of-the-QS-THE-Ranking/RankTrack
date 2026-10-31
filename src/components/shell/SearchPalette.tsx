@@ -109,7 +109,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
     group: "Evidence",
     label: e.title,
     sub: `${e.id} · ${e.status}`,
-    href: variant === "office" ? `/admin/contributions?item=${e.id}` : `/portal/history#${e.id}`,
+    href: variant === "office" ? `/admin/contributions?item=${e.id}` : `/portal/submit#${e.id}`,
     icon: "evidence",
   }));
   return [...pages, ...rankings, ...indicators, ...units, ...evidence, ...(variant === "office" ? stories : []), ...terms];

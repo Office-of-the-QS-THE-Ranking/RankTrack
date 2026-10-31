@@ -153,7 +153,7 @@ export function StoryLibrary({ mode }: { mode: "internal" | "public" }) {
       ) : (
         <div className="card">
           <Empty icon="newspaper" title="No stories in this section yet">
-            {internal ? "Units can propose a story from the contributor workspace." : "New stories are published as reviews are completed."}
+            {internal ? "Units write stories in their Publications, and the Office reviews each one." : "New stories are published as reviews are completed."}
           </Empty>
         </div>
       )}

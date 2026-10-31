@@ -174,7 +174,8 @@ function describe(p: RequestPayload, data: ReturnType<typeof useConsole>["data"]
               ...(a.thomasian
                 ? [
                     ["Requester", "Thomasian"],
-                    ["Office or College/Faculty", a.unitId ? unit(a.unitId) : "Not given"],
+                    // Students belong to no College/Faculty or Office.
+                    ...(p.roleId === ROLE.student ? [] : [["Office or College/Faculty", a.unitId ? unit(a.unitId) : "Not given"]]),
                     // A Student is the Secretary of the organization they named.
                     ...(a.organization ? [["Secretary of", a.organization]] : []),
                   ]
@@ -279,7 +280,8 @@ export function RequestSheet({ r, onClose }: { r: RequestRow | null; onClose: ()
     ? `${applicant.lastName}, ${[applicant.firstName, applicant.middleName].filter(Boolean).join(" ")}`
     : account?.name;
   // an account request that came without a unit (from the sign-in page) takes one at its last step
-  const needsUnit = r.payload.kind === "account-access" && !r.payload.unitId && r.step === r.steps.length - 1;
+  // Students belong to no unit: the Office keeps their accounts.
+  const needsUnit = r.payload.kind === "account-access" && !r.payload.unitId && r.payload.roleId !== ROLE.student && r.step === r.steps.length - 1;
   return (
     <Sheet
       open

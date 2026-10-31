@@ -1,16 +1,19 @@
 /*
  * Research articles and reports in Publications. The Office enters them in the workspace's form; publishing goes
  * through the publication workflow whenever enough other administrators can decide it, as posts do. A PDF is an
- * upload in the private bucket; it reaches the public one only while its document is published. Every change is
- * authorized and audited.
+ * upload in the private bucket; it reaches the public one only while its document is published. A Coordinator enters
+ * their own unit's documents, and the Rankings Office reviews each before it is published (unit-publications.ts).
+ * Every change is authorized and audited.
  */
 import type { Command, CommandResult, DocumentInput } from "../commands";
 import { cleanDoi, cleanUrl, DOC_COVER_TONES, DOC_LIMITS, DOC_NOUN, documentPath } from "../documents";
 import { slugify } from "../posts";
+import { officeDocumentPath, portalDocumentPath } from "@/lib/publications";
 import type { DocumentFile, DocumentKind, DocumentRecord } from "../types";
 import { can, clean, cleanText, deny, invalid, isDay, log, nextId, ok, type Ctx } from "./core";
 import { publishDocument } from "./mutations";
 import { needsApproval, openRequest } from "./requests";
+import { authorUnit, awaitingOffice, publishes, returnToUnit, sendToOffice, unitBlock } from "./unit-publications";
 
 type Fields = Pick<DocumentRecord, "title" | "authors" | "venue" | "type" | "abstract" | "issued" | "doi" | "url" | "file" | "sdgs" | "keywords" | "unitSlug" | "featured" | "coverTone">;
 
@@ -152,6 +155,13 @@ function release(ctx: Ctx, doc: DocumentRecord): CommandResult {
   return ok(`Sent for approval (${req.id}).`, { data: doc.id, requestId: req.id });
 }
 
+/** A unit's document goes to the Rankings Office for review. */
+function submit(ctx: Ctx, doc: DocumentRecord): CommandResult {
+  sendToOffice(ctx, doc, officeDocumentPath(doc.kind, doc.slug));
+  log(ctx, "document.submit", "Approval", res(doc), "Success", "Sent to the Rankings Office for review");
+  return ok("Sent to the Rankings Office for review.", { data: doc.id });
+}
+
 const missingForPublish = (d: DocumentRecord) =>
   !d.authors.length
     ? d.kind === "article"
@@ -174,10 +184,18 @@ export function saveDocument(ctx: Ctx, cmd: Extract<Command, { type: "document.s
   const noun = DOC_NOUN[cmd.kind];
   const target = existing ? res(existing) : { type: "Document", id: "new", label: clean(cmd.input?.title) || `Untitled ${noun.one}` };
   if (!can(ctx, "posts", existing ? "edit" : "create")) return deny(ctx, existing ? "document.update" : "document.create", "Data", target, `Your role cannot write ${noun.many}.`);
-  if (cmd.publish && !can(ctx, "posts", "approve")) return deny(ctx, "document.publish", "Approval", target, `Your role cannot publish ${noun.many}.`);
+  const office = publishes(ctx);
+  if (cmd.publish && !office && !can(ctx, "posts", "submit")) return deny(ctx, "document.publish", "Approval", target, `Your role cannot publish ${noun.many}.`);
+  const home = authorUnit(ctx);
+  if (!office) {
+    const why = existing ? unitBlock(ctx, existing, "change", noun.one) : home ? null : "Your role has no unit to write for.";
+    if (why) return deny(ctx, existing ? "document.update" : "document.create", "Data", target, why);
+  }
   const checked = read(ctx, cmd.kind, cmd.input, cmd.publish);
   if ("problem" in checked) return invalid(checked.problem);
   const f = checked.fields;
+  // A unit's document stays its own, and which document leads a page is the Office's call.
+  if (!office) Object.assign(f, { unitSlug: existing?.unitSlug ?? home, featured: existing?.featured });
 
   if (existing) {
     const before = existing.file?.src;
@@ -187,7 +205,7 @@ export function saveDocument(ctx: Ctx, cmd: Extract<Command, { type: "document.s
     feature(ctx, existing);
     log(ctx, "document.update", "Data", res(existing), "Success", changed.length ? `Changed the ${changed.join(", ")}` : "Saved without changes");
     if (before && before !== existing.file?.src) ctx.effects.push({ kind: "delete-media", srcs: [before] });
-    if (cmd.publish && existing.status !== "Published" && !pendingFor(ctx, existing.id)) return release(ctx, existing);
+    if (cmd.publish && existing.status !== "Published" && !pendingFor(ctx, existing.id)) return office ? release(ctx, existing) : submit(ctx, existing);
     return ok(existing.status === "Published" ? `${noun.one[0].toUpperCase()}${noun.one.slice(1)} updated.` : existing.status === "Draft" ? "Draft saved." : "Saved.", { data: existing.id });
   }
 
@@ -218,17 +236,22 @@ export function saveDocument(ctx: Ctx, cmd: Extract<Command, { type: "document.s
   r.documents.unshift(doc);
   feature(ctx, doc);
   log(ctx, "document.create", "Data", res(doc), "Success", [doc.type, doc.issued.slice(0, 4), doc.file ? "PDF attached" : doc.doi ? `DOI ${doc.doi}` : "No file"].join(" · "));
-  if (cmd.publish) return release(ctx, doc);
+  if (cmd.publish) return office ? release(ctx, doc) : submit(ctx, doc);
   return ok("Draft saved.", { data: doc.id });
 }
 
-export function setDocumentStatus(ctx: Ctx, id: string, to: "Published" | "Unpublished" | "Draft"): CommandResult {
+export function setDocumentStatus(ctx: Ctx, id: string, to: "Published" | "Unpublished" | "Draft", note?: string): CommandResult {
   const doc = ctx.state.records.documents.find((d) => d.id === id);
   if (!doc) return invalid("That document no longer exists.");
   const noun = DOC_NOUN[doc.kind];
   const action = to === "Published" ? "document.publish" : to === "Unpublished" ? "document.unpublish" : "document.draft";
-  if (!can(ctx, "posts", to === "Draft" ? "edit" : "approve"))
+  const office = publishes(ctx);
+  // A unit sends its document to the Office rather than publishing it.
+  const need = to === "Draft" ? "edit" : to === "Published" && !office ? "submit" : "approve";
+  if (!can(ctx, "posts", need))
     return deny(ctx, action, "Approval", res(doc), to === "Draft" ? `Your role cannot edit ${noun.many}.` : `Your role cannot publish or unpublish ${noun.many}.`);
+  const why = unitBlock(ctx, doc, to === "Draft" ? "withdraw" : "submit", noun.one);
+  if (why) return deny(ctx, to === "Published" ? "document.submit" : action, "Approval", res(doc), why);
   const touched = () => Object.assign(doc, { updatedAt: ctx.iso, updatedBy: ctx.actor.id });
   if (to === "Published") {
     if (doc.status === "Published") return ok("Already published.");
@@ -237,7 +260,7 @@ export function setDocumentStatus(ctx: Ctx, id: string, to: "Published" | "Unpub
     const missing = missingForPublish(doc);
     if (missing) return invalid(missing);
     touched();
-    return release(ctx, doc);
+    return office ? release(ctx, doc) : submit(ctx, doc);
   }
   if (to === "Unpublished") {
     if (doc.status !== "Published") return invalid(`Only a published ${noun.one} can be unpublished.`);
@@ -247,9 +270,18 @@ export function setDocumentStatus(ctx: Ctx, id: string, to: "Published" | "Unpub
     return ok("Unpublished.");
   }
   if (doc.status !== "In review") return invalid(`Only a ${noun.one} waiting for review can move back to drafts.`);
+  // The Office hands a unit's document back with what to change; the unit sees the note.
+  const returning = office && !!doc.unitSlug && doc.createdBy !== ctx.actor.id && awaitingOffice(doc, pendingFor(ctx, doc.id));
+  const said = cleanText(note, 600);
+  if (returning && said.length < 5) return invalid("Say what the unit should change; they see your note.");
   dropRequest(ctx, doc.id, `The ${noun.one} moved back to drafts`);
   doc.status = "Draft";
   touched();
+  if (returning) {
+    returnToUnit(ctx, doc, said, portalDocumentPath(doc.kind, doc.slug));
+    log(ctx, "document.return", "Approval", res(doc), "Success", `Returned to the unit: ${said.slice(0, 140)}`);
+    return ok("Returned to the unit.");
+  }
   log(ctx, "document.draft", "Data", res(doc), "Success", "Moved back to drafts");
   return ok("Moved to drafts.");
 }
@@ -260,6 +292,8 @@ export function deleteDocument(ctx: Ctx, id: string): CommandResult {
   if (!doc) return invalid("That document no longer exists.");
   const noun = DOC_NOUN[doc.kind];
   if (!can(ctx, "posts", "delete")) return deny(ctx, "document.delete", "Data", res(doc), `Your role cannot delete ${noun.many}.`);
+  const why = unitBlock(ctx, doc, "delete", noun.one);
+  if (why) return deny(ctx, "document.delete", "Data", res(doc), why);
   dropRequest(ctx, doc.id, `The ${noun.one} was deleted`);
   r.documents = r.documents.filter((d) => d !== doc);
   log(ctx, "document.delete", "Data", res(doc), "Success", `Was ${doc.status.toLowerCase()}${doc.file ? " · PDF released" : ""}`);

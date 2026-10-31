@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { navPages } from "@/components/shell/nav";
-import { ROLE } from "@/lib/governance/catalog";
+import { HUB_OFFICE, ROLE } from "@/lib/governance/catalog";
 import { workspacesOf } from "@/lib/governance/derive";
 import { execute } from "@/lib/governance/engine";
 import { UNIVERSITY, canWith } from "@/lib/governance/rbac";
@@ -59,8 +59,8 @@ describe("a Student's own forms", () => {
     expect(run(sec, { type: "form.save", own: true, title: "Outreach day registration", kind: "survey", schema }).message).toMatch(/Evaluation Forms and Registration Forms/);
     expect(run(sec, { type: "form.save", own: true, title: "Outreach day registration", kind: "registration", schema: reviewed }).ok).toBe(true);
     const [form] = w.state.records.forms;
-    // Held by the Student's account, kept under their unit, with no sign-offs.
-    expect([form.ownerId, form.unitId, form.schema.review, form.copies]).toEqual([sec.id, w.eng.id, undefined, undefined]);
+    // Held by the Student's account, kept under the Office (Students belong to no unit), with no sign-offs.
+    expect([form.ownerId, form.unitId, form.schema.review, form.copies]).toEqual([sec.id, HUB_OFFICE, undefined, undefined]);
     expect(run(sec, { type: "form.save", id: form.id, title: "Outreach day sign-up", kind: "registration", schema }).ok).toBe(true);
     // Not anyone else's: another Student, the unit's Coordinator, nor the Office while it's a draft.
     expect(formRights(grants(other), other.id, form)).toMatchObject({ edit: false, read: false });
@@ -86,10 +86,10 @@ describe("a Student's own forms", () => {
     expect(fromRows(toRows(w.state)).records.forms).toEqual(w.state.records.forms);
   });
 
-  it("names only the Student's own unit as the issuer", () => {
+  it("names no issuing office, since a Student belongs to no unit", () => {
     const { w, sec, run } = people();
-    expect(run(sec, { type: "form.save", own: true, title: "Seminar evaluation", kind: "evaluation", issuerId: w.sci.id, schema }).message).toMatch(/your own unit/);
-    expect(run(sec, { type: "form.save", own: true, title: "Seminar evaluation", kind: "evaluation", issuerId: w.eng.id, schema }).ok).toBe(true);
+    expect(run(sec, { type: "form.save", own: true, title: "Seminar evaluation", kind: "evaluation", issuerId: w.eng.id, schema }).message).toMatch(/name no issuing office/);
+    expect(run(sec, { type: "form.save", own: true, title: "Seminar evaluation", kind: "evaluation", schema }).ok).toBe(true);
   });
 });
 
@@ -115,15 +115,14 @@ describe("a unit's forms", () => {
     expect(formRights(grants(admin), admin.id, evaluation)).toMatchObject({ clear: true });
   });
 
-  it("goes to the unit's own Students when a survey is published to the Student Portal", () => {
+  it("goes to every Student when a unit publishes a survey to the Student Portal", () => {
     const { w, coord, sec, far, run } = people();
     expect(run(coord, { type: "form.save", unitId: w.eng.id, title: "Org survey", kind: "survey", schema }).ok).toBe(true);
     const [survey] = w.state.records.forms;
     expect(run(sec, { type: "form.portal", id: survey.id, on: true }).ok).toBe(false);
     expect(run(coord, { type: "form.portal", id: survey.id, on: true }).ok).toBe(true);
     expect(survey.students).toBe(true);
-    expect(reaches(w.state.units, survey, [sec.unitId])).toBe(true);
-    expect(reaches(w.state.units, survey, [far.unitId])).toBe(false);
+    expect(reaches(survey)).toBe(true);
     expect(fromRows(toRows(w.state)).records.forms).toEqual(w.state.records.forms);
   });
 });
@@ -137,9 +136,9 @@ describe("the Office's forms on the Student Portal", () => {
     expect(run(coord, { type: "form.portal", id: proposal.id, on: true }).ok).toBe(false);
     const ctx = w.ctxFor(admin);
     const r = execute(ctx, { type: "form.portal", id: proposal.id, on: true });
-    expect([r.ok, r.message]).toEqual([true, "Published to the Student Portal. Students see it once it takes responses."]);
+    expect([r.ok, r.message]).toEqual([true, "Published to the Student Portal. Student Organizers see it once it takes responses."]);
     expect(ctx.drafts.at(-1)).toMatchObject({ action: "form.portal", outcome: "Success" });
-    expect(reaches(w.state.units, proposal, [far.unitId])).toBe(true);
+    expect(reaches(proposal)).toBe(true);
     // A Student never changes the Office's form, nor reads its responses.
     expect(formRights(grants(sec), sec.id, proposal)).toEqual({ edit: false, remove: false, status: false, portal: false, duplicate: false, read: false, review: false, export: false, clear: false });
     expect(run(sec, { type: "form.save", id: proposal.id, title: "Mine", kind: "proposal" }).ok).toBe(false);

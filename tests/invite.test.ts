@@ -39,12 +39,12 @@ const PARTNER: Partial<InviteInput> = {
 };
 
 describe("inviting someone", () => {
-  it("adds a Thomasian to the college chosen, with the role chosen and the profile given", () => {
+  it("adds a Thomasian with the role chosen and the profile given; a Student goes to the Office, in no college", () => {
     const w = office();
     const r = w.invite({ unitId: w.eng.id });
     expect(r.message).toBe("Invitation sent to juan@ust.edu.ph.");
     const a = w.state.accounts.find((x) => x.email === "juan@ust.edu.ph")!;
-    expect(a).toMatchObject({ name: "JUAN DELA CRUZ", unitId: w.eng.id, title: "Secretary, THOMASIAN ENGINEERING SOCIETY", status: "Pending Invitation" });
+    expect(a).toMatchObject({ name: "JUAN DELA CRUZ", unitId: w.hub.id, title: "Secretary, THOMASIAN ENGINEERING SOCIETY", status: "Pending Invitation" });
     expect(a.external).toBeUndefined();
     expect(a.assignments.map((x) => x.roleId)).toEqual([ROLE.student]);
     expect(a.profile).toEqual({ lastName: "DELA CRUZ", firstName: "JUAN", salutation: "Dr.", affiliation: "UNIVERSITY OF SANTO TOMAS", listed: true, organization: "THOMASIAN ENGINEERING SOCIETY" });
@@ -74,9 +74,12 @@ describe("inviting someone", () => {
     expect(w.invite({ ...PARTNER, email: "juan@ust.edu.ph", expires: "2999-01-01" }).message).toBe("That is a UST email. Choose University of Santo Tomas as their affiliation.");
   });
 
-  it("keeps a Student to a College/Faculty and needs a unit from the section chosen", () => {
+  it("gives a Student no College/Faculty or Office, and needs a unit from the section chosen for other roles", () => {
     const w = office();
-    expect(w.invite({ roleId: ROLE.student, section: "offices", unitId: w.hub.id }).message).toBe("Students choose a College/Faculty.");
+    expect(w.invite({ email: "ana@ust.edu.ph", roleId: ROLE.student, section: "", unitId: "", organization: "UST CENTRAL STUDENT COUNCIL" }).ok).toBe(true);
+    const student = w.state.accounts.find((x) => x.email === "ana@ust.edu.ph")!;
+    expect(student.unitId).toBe(w.hub.id);
+    expect(student.assignments[0].scope.units).toEqual([w.hub.id]);
     expect(w.invite({ roleId: ROLE.admin, section: "offices", unitId: w.eng.id }).message).toBe("Choose their office.");
     expect(w.invite({ roleId: ROLE.admin, section: "offices", unitId: w.hub.id }).ok).toBe(true);
   });
@@ -121,6 +124,6 @@ describe("inviting someone", () => {
 describe("the request form's own checks", () => {
   it("speak to the requester", () => {
     expect(readPerson({ ...THOMASIAN, lastName: "" }, "self")).toBe("Enter your last name.");
-    expect(readPerson({ ...THOMASIAN, roleId: "" }, "self")).toBe("Choose your role: Administrator, Coordinator or Student.");
+    expect(readPerson({ ...THOMASIAN, roleId: "" }, "self")).toBe("Choose your role: Administrator, Coordinator or Student Organizer.");
   });
 });

@@ -15,7 +15,7 @@ import { openRequest } from "@/lib/governance/engine/requests";
 import { allow, clientKey } from "@/lib/governance/server/limits";
 import { run, runSystem } from "@/lib/governance/server/run";
 import { STAY_COOKIE, STAY_COOKIE_OPTIONS, checkSession, clearSessionCookie, sessionIdOf } from "@/lib/governance/server/session";
-import { FORM_WHO_COOKIE, FORM_WHO_GONE, STATE_COOKIE, verifiedEmail } from "@/lib/governance/server/email-verify";
+import { COOKIE_OPTIONS, FORM_WHO_COOKIE, FORM_WHO_GONE, STATE_COOKIE, verifiedEmail } from "@/lib/governance/server/email-verify";
 import { DIRECTORY_SIGNIN } from "@/lib/governance/server/google-directory";
 import { siteOrigin } from "@/lib/governance/server/origin";
 import { safeNext } from "@/lib/governance/server/signin";
@@ -28,7 +28,8 @@ import { authClient } from "@/lib/supabase/server";
 export async function startGoogleSignIn(next?: string, stay = false): Promise<{ ok: false; message: string }> {
   const jar = await cookies();
   // an email check left unfinished would otherwise take over this sign-in at /auth/callback
-  jar.delete(STATE_COOKIE);
+  // with its own options: a __Host- cookie is only cleared by a Secure, path "/" Set-Cookie
+  jar.delete({ name: STATE_COOKIE, ...COOKIE_OPTIONS });
   jar.set(STAY_COOKIE, stay === true ? "1" : "0", STAY_COOKIE_OPTIONS);
   const back = new URL("/auth/callback", await siteOrigin());
   const to = safeNext(next);
@@ -150,18 +151,19 @@ export async function requestAccess(input: {
         kind: "account-access",
         name,
         email,
-        unitId: external && office ? office.id : "",
+        // Students belong to no College/Faculty or Office: like guests, the Office keeps them
+        unitId: (external || person.roleId === ROLE.student) && office ? office.id : "",
         roleId: person.roleId ?? ROLE.external,
         title: personTitle(person),
         applicant: {
-          ...(thomasian ? { thomasian: true, unitId: unit!.id } : {}),
+          ...(thomasian ? { thomasian: true, ...(person.roleId === ROLE.student ? {} : { unitId: unit!.id }) } : {}),
           ...profile,
           birthday: input.birthday,
           agreedAt: ctx.iso,
         },
         ...(external ? { external: true } : {}),
       },
-      `Account for ${name}, ${unit?.name ?? (profile.organization || profile.affiliation)}`,
+      `Account for ${name}, ${(person.roleId !== ROLE.student && unit?.name) || profile.organization || profile.affiliation}`,
       "",
     );
     return { ok: true, message: req.id };

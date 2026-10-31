@@ -4,7 +4,7 @@
 import { HUB_OFFICE, ROLE, roleOf } from "../catalog";
 import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
 import type { CommandResult, InviteInput } from "../commands";
-import { descendants, grantCheck, grantsFor, runsHub, scopeLabel, topTier } from "../rbac";
+import { descendants, grantCheck, grantsFor, roleScope, runsHub, scopeLabel, topTier } from "../rbac";
 import { personTitle, placePerson, readPerson, type Person } from "../person-details";
 import type { Account, OrgUnit, RoleId, Scope } from "../types";
 import {
@@ -68,7 +68,8 @@ export function invite(ctx: Ctx, input: InviteInput): CommandResult {
   if (!can(ctx, "accounts", "create", { unitId: unit.id })) return deny(ctx, "account.invite", "Account", target, `You cannot add accounts to ${unit.name}.`);
   // Outside collaborators are sponsored by the Office, not by individual units.
   if (external && !can(ctx, "accounts", "manage")) return deny(ctx, "account.invite", "Account", target, "Only University-wide Administrators can invite guests.");
-  const scope = input.scope ?? defaultScope(role.id, unit.id);
+  // a Student holds the role as just Student, never scoped to a unit
+  const scope = (role.id !== ROLE.student && input.scope) || defaultScope(role.id, unit.id);
   const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units);
   if (!check.ok) return deny(ctx, "account.invite", "Access", target, check.reason);
   const account = createAccount(ctx, {
@@ -221,6 +222,8 @@ export function addRole(ctx: Ctx, accountId: string, roleId: string, scope: Scop
   const a = accountById(ctx, accountId);
   const role = roleOf(roleId, ctx.state.config.rolePermissions);
   if (!a || !role) return invalid("Choose a role.");
+  // a Student holds the role as just Student, never scoped to a unit
+  if (role.id === ROLE.student) scope = roleScope(role.id, a.unitId);
   if (a.status === "Deactivated") return invalid(`${a.name} is deactivated. Reactivate the account first.`);
   const blocked = guard(ctx, a, "edit", "assignment.add");
   if (blocked) return blocked;
@@ -233,7 +236,7 @@ export function addRole(ctx: Ctx, accountId: string, roleId: string, scope: Scop
     return invalid(`${a.name} already holds ${role.name} with this scope.`);
   const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units);
   if (!check.ok) return deny(ctx, "assignment.add", "Access", res(a), check.reason);
-  const label = `${role.name} · ${scopeLabel(scope, ctx.state.units)}${expires ? ` · until ${expires}` : ""}`;
+  const label = `${role.name}${role.id === ROLE.student ? "" : ` · ${scopeLabel(scope, ctx.state.units)}`}${expires ? ` · until ${expires}` : ""}`;
   // Raising an existing account above the role it already holds goes through privilege escalation.
   if (a.status !== "Pending Invitation" && role.tier > topTier(grantsOf(ctx, a)) && needsApproval(ctx, "privilege-escalation")) {
     const req = openRequest(ctx, "privilege-escalation", { kind: "privilege-escalation", accountId: a.id, roleId: role.id, scope, expires }, `${role.name} for ${a.name}`, cleanText(note, 300) || `Requested by ${ctx.actor.name}`);

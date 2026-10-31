@@ -2,10 +2,11 @@
 
 /*
  * Submit evidence: the unit's submissions as a table (title, SDGs, date and status) under status tabs and a
- * search, with the Submit evidence button that opens the composer. A row opens the record, read-only, in the
- * modal the Office uses; a new submission lands in the table marked.
+ * search, with the Submit evidence button that opens the composer. A row opens the record in the modal the Office
+ * uses, with its validation comments and history, and a reply for one sent back for revision; a #id (notifications,
+ * search, the dashboard) opens it directly. A new submission lands in the table marked.
  */
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { formatDate, type EvidenceItem } from "@/lib/data";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Tile } from "@/components/dashboard/Tile";
@@ -48,12 +49,24 @@ export function MySubmissions({ rows, canSubmit, note }: { rows: EvidenceItem[];
   );
   const counts = Object.fromEntries(TABS.map((t) => [t, t === "All" ? rows.length : rows.filter((e) => e.status === t).length])) as Record<Tab, number>;
 
+  // A #id opens that submission's record.
+  useEffect(() => {
+    const sync = () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (id && rows.some((e) => e.id === id)) setOpen(id);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [rows]);
+
   const record = open ? rows.find((e) => e.id === open) : undefined;
   const at = open ? shown.findIndex((e) => e.id === open) : -1;
   const step = (d: 1 | -1) => (at >= 0 && shown[at + d] ? () => setOpen(shown[at + d].id) : undefined);
   const close = () => {
     const id = open;
     setOpen(null);
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
     if (!id) return;
     setLast(id);
     // Back on the table at the row just read.

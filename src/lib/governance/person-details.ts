@@ -3,7 +3,7 @@
  * invite drawer (InviteSheet → account.invite) both ask it: the same fields, rules and messages, a requester
  * answering for themselves ("your") and an administrator for the person they invite ("their"). University of
  * Santo Tomas as the affiliation asks for a role, a University Office or College/Faculty and which one, on a UST
- * email (a Student, the Secretary of a student organization, commission or council, also names it); any other
+ * email (a Student, the Secretary of a student organization, commission or council, names it instead); any other
  * affiliation is an External partner's, on an email outside the University.
  */
 import {
@@ -26,7 +26,7 @@ import {
   type Section,
   type Voice,
 } from "./access-requests";
-import { ROLE } from "./catalog";
+import { ROLE, STUDENT_HOME } from "./catalog";
 import { requestUnits } from "./directory";
 import { clean, isEmail } from "./engine/core";
 import type { AccountProfile, OrgUnit, RoleId } from "./types";
@@ -102,9 +102,9 @@ export function readPerson(input: PersonInput, voice: Voice): Person | string {
     return "Choose a salutation, or Prefer not to specify.";
   if (!isEmail(email)) return thomasian ? `Enter ${your} UST email address.` : `Enter ${your} institution email address.`;
   const role = thomasian ? UST_ROLES.find((r) => r.id === input.roleId) : undefined;
-  if (thomasian && !role) return `Choose ${your} role: Administrator, Coordinator or Student.`;
+  if (thomasian && !role) return `Choose ${your} role: Administrator, Coordinator or Student Organizer.`;
   const section = role ? sectionsFor(role.id).find((x) => x === input.section) : undefined;
-  if (role && !section) return role.id === ROLE.student ? "Students choose a College/Faculty." : "Choose University Office or College/Faculty.";
+  if (role && sectionsFor(role.id).length && !section) return "Choose University Office or College/Faculty.";
   if (!thomasian && !validRequestText(answer, true)) return "Enter an affiliation using letters, spaces, hyphens, em dashes, slashes or parentheses only.";
   const listed = thomasian ? undefined : listedAffiliation(answer);
   // Student access is for the Secretary of a student organization, commission or council, named here.
@@ -130,7 +130,7 @@ export function readPerson(input: PersonInput, voice: Voice): Person | string {
     }),
     roleId: role?.id,
     section,
-    unitId: thomasian ? clean(input.unitId) : "",
+    unitId: thomasian && section ? clean(input.unitId) : "",
   };
 }
 
@@ -144,6 +144,11 @@ export function placePerson(p: Person, { domains, units, voice }: { domains: str
   if (p.thomasian && !university) return `Use ${your} UST email (${domains.map((d) => `@${d}`).join(" or ")}).`;
   if (!p.thomasian && university) return `That is a UST email. Choose University of Santo Tomas as ${your} affiliation.`;
   if (!p.roleId) return {};
+  // Students belong to no College/Faculty or Office; their accounts are kept with the Office.
+  if (p.roleId === ROLE.student) {
+    const home = units.find((u) => u.id === STUDENT_HOME && u.status === "Active");
+    return home ? { unit: home } : "Student Organizer accounts are kept with the Office, which isn't an active unit in the Directory.";
+  }
   const label = SECTIONS.find((x) => x.key === p.section)?.label;
   const allowed = label ? (requestUnits(units).find((g) => g.label === label)?.units ?? []) : [];
   const unit = allowed.some((u) => u.id === p.unitId) ? units.find((u) => u.id === p.unitId) : undefined;

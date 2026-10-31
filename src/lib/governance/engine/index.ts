@@ -229,13 +229,13 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
     case "post.save":
       return posts.savePost(ctx, cmd);
     case "post.status":
-      return posts.setPostStatus(ctx, cmd.id, cmd.status);
+      return posts.setPostStatus(ctx, cmd.id, cmd.status, cmd.note);
     case "post.delete":
       return posts.deletePost(ctx, cmd.id);
     case "document.save":
       return documents.saveDocument(ctx, cmd);
     case "document.status":
-      return documents.setDocumentStatus(ctx, cmd.id, cmd.status);
+      return documents.setDocumentStatus(ctx, cmd.id, cmd.status, cmd.note);
     case "document.delete":
       return documents.deleteDocument(ctx, cmd.id);
     case "workspace.add":

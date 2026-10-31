@@ -251,9 +251,9 @@ function Details({
   const portalNote = form.students
     ? form.status === "open"
       ? form.kind === "survey"
-        ? "In students’ Assignments"
-        : "Students build copies from it"
-      : "Shows to students once it takes responses"
+        ? "In Student Organizers’ Assignments"
+        : "Student Organizers build copies from it"
+      : "Shows to Student Organizers once it takes responses"
     : "Not on the Student Portal";
   return (
     <div className="fm-bento">
@@ -512,13 +512,15 @@ export function DetailsSheet({ form, desk, onSave, onClose }: { form: FormItem; 
                   <span className="field__label">Form number <em>· optional</em></span>
                   <input className="input" title="" value={f.reference} maxLength={FORM_LIMITS.reference} placeholder="UST:S040-00-FO21" onChange={(e) => set({ reference: e.target.value })} />
                 </label>
-                <label className="field">
-                  <span className="field__label">Issued by <em>· optional</em></span>
-                  <Select className="select" value={f.issuerId} onChange={(v) => set({ issuerId: v })} searchable placeholder="No office named">
-                    <option value="">No office named</option>
-                    {desk.issuers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </Select>
-                </label>
+                {desk.holder !== "student" && (
+                  <label className="field">
+                    <span className="field__label">Issued by <em>· optional</em></span>
+                    <Select className="select" value={f.issuerId} onChange={(v) => set({ issuerId: v })} searchable placeholder="No office named">
+                      <option value="">No office named</option>
+                      {desk.issuers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </Select>
+                  </label>
+                )}
               </section>
               <section className="fm-sheet__settings" aria-labelledby={`${sectionId}-settings`}>
                 <h3 className="fm-sheet__section-title" id={`${sectionId}-settings`}>Settings</h3>

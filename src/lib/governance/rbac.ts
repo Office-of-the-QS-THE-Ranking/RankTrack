@@ -3,7 +3,7 @@
  * uses them to decide what to show). A role decides what a user can do; the scope of each assignment
  * decides which records they can reach.
  */
-import { HUB_OFFICE, MODULES, ROLE, roleOf } from "./catalog";
+import { HUB_OFFICE, MODULES, ROLE, STUDENT_HOME, roleOf } from "./catalog";
 import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Role, RoleId, RolePermissions, Scope } from "./types";
 
 export const today = (now = new Date()) => now.toISOString().slice(0, 10);
@@ -95,8 +95,12 @@ export const UNIVERSITY: Scope = { units: "all", rankingBodies: "all", years: "a
 
 export const unitScope = (unitId: string): Scope => ({ units: [unitId], rankingBodies: "all", years: "all", datasets: "all" });
 
-/** The scope a role starts with in a unit: University-wide for an Administrator of the Rankings Office, else the unit. */
-export const roleScope = (roleId: string, unitId: string): Scope => (roleId === ROLE.admin && unitId === HUB_OFFICE ? UNIVERSITY : unitScope(unitId));
+/**
+ * The scope a role starts with in a unit: University-wide for an Administrator of the Rankings Office, else the unit.
+ * A Student belongs to no College/Faculty or Office, so theirs is always the Office that keeps Student accounts.
+ */
+export const roleScope = (roleId: string, unitId: string): Scope =>
+  roleId === ROLE.student ? unitScope(STUDENT_HOME) : roleId === ROLE.admin && unitId === HUB_OFFICE ? UNIVERSITY : unitScope(unitId);
 
 /** Whether an assignment runs the Hub: an Administrator held University-wide. */
 export const runsHub = (a: Pick<Assignment, "roleId" | "scope">) => a.roleId === ROLE.admin && a.scope.units === "all";

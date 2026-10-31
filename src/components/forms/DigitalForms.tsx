@@ -39,7 +39,7 @@ const STATUS_ORDER: Record<FormStatus, number> = { open: 0, draft: 1, closed: 2 
 const SOURCES: { key: FormHolder; label: string }[] = [
   { key: "office", label: "Office" },
   { key: "unit", label: "Units" },
-  { key: "student", label: "Students" },
+  { key: "student", label: "Student Organizers" },
 ];
 
 /** What a form card or row offers, by the viewer's rights on it. */
@@ -177,7 +177,7 @@ export function DigitalForms({ desk, kind: only, title = "Digital Forms" }: { de
         <FormArt kind={only ?? "application"} size="lg" />
       </span>
       <p className="ws-empty__title">
-        {sourced && source !== "office" ? (source === "unit" ? "No published unit forms yet" : "No published student forms yet") : `No ${only ? FORM_KINDS.find((k) => k.key === only)!.plural.toLowerCase() : "digital forms"} yet`}
+        {sourced && source !== "office" ? (source === "unit" ? "No published unit forms yet" : "No published Student Organizer forms yet") : `No ${only ? FORM_KINDS.find((k) => k.key === only)!.plural.toLowerCase() : "digital forms"} yet`}
       </p>
       {canCreate && (
         <button type="button" className="btn btn--dark btn--sm" onClick={() => setBuilding("new")}>
