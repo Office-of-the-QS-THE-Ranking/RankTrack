@@ -20,6 +20,8 @@ export interface NavLink {
   /** Base path for the Workspace sub-menu (its shelves, Digital Forms, Archives and the Knowledge Center), and the
       permission its shelves need. The row shows when any of its pages does. */
   workspace?: { base: string; office?: boolean; need: [ModuleKey, Action] };
+  /** Base path for the Analytics sub-menu (Scorecard, Indicators, Data requests, Activities, Benchmarks, Imports, Methodology). */
+  analytics?: { base: string };
   /** The permission the row needs. Rows the viewer cannot use are not shown. */
   need?: [ModuleKey, Action];
   /** The System Configuration feature the row depends on. */
@@ -57,6 +59,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
       items: [
         { href: "/admin", label: "Dashboard", icon: "dashboard", exact: true, need: ["dashboard", "view"] },
         { href: "/admin/rankings", label: "Rankings", icon: "rankings", rankingsBase: "/admin/rankings", need: ["rankings", "view"] },
+        { href: "/admin/analytics", label: "Analytics", icon: "activity", analytics: { base: "/admin/analytics" }, need: ["rankings", "view"] },
         { href: "/admin/contributions", label: "Contributions", icon: "contributions", count: "review", need: ["evidence", "view"] },
         { href: "/admin/units", label: "Units", icon: "units", need: ["units", "view"] },
         { href: "/admin/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/admin/publications" },
@@ -80,6 +83,8 @@ export const NAV: Record<Variant, NavGroup[]> = {
         // Validation comments and each submission's history live in the Submit evidence table's records, so anyone
         // who reads the unit's evidence opens it; only contributors see its Submit evidence button.
         { href: "/portal/submit", label: "Submit evidence", icon: "upload", count: "revisions", need: ["evidence", "view"], feature: "submit-evidence" },
+        // What the Office's data requests ask of the unit: values and evidence per indicator, and its activities.
+        { href: "/portal/requests", label: "Data requests", icon: "inbox", need: ["data", "view"] },
         // The unit's own posts, articles and reports, each approved by the Rankings Office before it goes live.
         { href: "/portal/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/portal/publications" },
         // Only a unit's contributors ask for assistance on its behalf (the command checks the same).
@@ -121,7 +126,21 @@ export interface SubLink {
   label: string;
   icon: IconName;
   need: [ModuleKey, Action];
+  /** Active only on this exact path (a section's landing page). */
+  exact?: boolean;
 }
+
+/* The Analytics pages: the scorecard first, then the evidence warehouse, the Office's data requests, the activity
+   register, peer benchmarks, data imports and the methodologies. */
+export const analyticsSubnav = (base: string): SubLink[] => [
+  { href: base, label: "Scorecard", icon: "grid", need: ["rankings", "view"], exact: true },
+  { href: `${base}/indicators`, label: "Indicators", icon: "target", need: ["rankings", "view"] },
+  { href: `${base}/collection`, label: "Data requests", icon: "send", need: ["rankings", "view"] },
+  { href: `${base}/activities`, label: "Activities", icon: "collaboration", need: ["rankings", "view"] },
+  { href: `${base}/benchmarks`, label: "Benchmarks", icon: "trend-up", need: ["rankings", "view"] },
+  { href: `${base}/imports`, label: "Data imports", icon: "upload", need: ["rankings", "manage"] },
+  { href: `${base}/methodology`, label: "Methodology", icon: "layers", need: ["rankings", "manage"] },
+];
 
 /* The Workspace pages: its shelves, Digital Forms, Archives, then the Knowledge Center. Each keeps its own
    permission, so someone who may read the Knowledge Center but not the shelves still finds it here. */
@@ -135,7 +154,7 @@ export const knowledgeHref = (variant: Variant) => (variant === "office" ? "/adm
 
 /** Every page the navigation guards, the Workspace's own pages included, for the server-side Gate. */
 export const navPages = (variant: Variant): Pick<NavLink, "href" | "need" | "feature">[] =>
-  NAV[variant].flatMap((g) => g.items.flatMap((i) => [i, ...(i.workspace ? workspaceSubnav(i.workspace) : [])]));
+  NAV[variant].flatMap((g) => g.items.flatMap((i) => [...(i.analytics ? [] : [i]), ...(i.workspace ? workspaceSubnav(i.workspace) : []), ...(i.analytics ? analyticsSubnav(i.analytics.base) : [])]));
 
 /* Public/Internal view switch keeps the reader on the equivalent page. */
 export function publicPathFor(path: string): string {
