@@ -42,6 +42,7 @@ import "@/styles/content-tabs.css";
 import "@/styles/contributions.css";
 import "@/styles/evidence-composer.css";
 import "@/styles/ranking.css";
+import "@/styles/analytics.css";
 import "@/styles/knowledge.css";
 import "@/styles/deadlines.css";
 import "@/styles/roles.css";

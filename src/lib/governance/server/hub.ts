@@ -23,6 +23,8 @@ import { noticeVisible } from "../engine";
 import { wantsNotice } from "../notification-prefs";
 import { readState } from "./store";
 import { reference } from "./reference";
+import type { RankingAnalytics } from "@/lib/analytics/desk-types";
+import { summariesNow } from "@/lib/analytics/server/summary";
 
 /** The unit an evidence record is credited to, by its current directory name; archived units say so. */
 function unitLabel(state: GovernanceState, slug: string, programId?: string) {
@@ -36,6 +38,11 @@ function unitLabel(state: GovernanceState, slug: string, programId?: string) {
 function withDeadline(state: GovernanceState, r: Ranking): Ranking {
   const c = state.config.rankings.find((x) => x.slug === r.slug);
   return c && c.deadline !== r.deadline ? { ...r, deadline: c.deadline } : r;
+}
+
+/** A ranking with an active analytics edition takes its readiness and what is still to go from the engine. */
+function withAnalytics(r: Ranking, a: RankingAnalytics | undefined): Ranking {
+  return a ? { ...r, readiness: Math.round(a.readiness), pending: a.toGo } : r;
 }
 
 function buildDictionary(state: GovernanceState, ref: Reference): DictionaryEntry[] {
@@ -54,12 +61,12 @@ function buildRequirements(state: GovernanceState, evidence: EvidenceItem[], uni
   });
 }
 
-function build(state: GovernanceState, ref: Reference) {
+function build(state: GovernanceState, ref: Reference, analytics: Map<string, RankingAnalytics> = new Map()) {
   const evidence: EvidenceItem[] = evidenceList(state).map((e) => ({ ...e, unit: unitLabel(state, e.unitSlug, e.programId) }));
   const stories = storyList(state);
   const storiesPublic = featureOn(state, "public-publications") && datasetPublic(state, "DS-STORIES");
   const units = buildUnits(state, evidence, ref);
-  const rankings = ref.rankings.filter((r) => rankingActive(state, ref, r.slug)).map((r) => withDeadline(state, r));
+  const rankings = ref.rankings.filter((r) => rankingActive(state, ref, r.slug)).map((r) => withAnalytics(withDeadline(state, r), analytics.get(r.slug)));
   const publicRankings = ref.rankings.filter((r) => rankingPublic(state, ref, r.slug)).map((r) => withDeadline(state, r));
   const current = state.config.cycles.find((c) => c.status === "Current")?.id ?? state.config.cycles[0]?.id ?? "";
   return {
@@ -90,6 +97,8 @@ function build(state: GovernanceState, ref: Reference) {
     feature: (id: string) => featureOn(state, id),
     publishedReports: state.records.publishedReports,
     requirements: (unitSlug: string) => buildRequirements(state, evidence, unitSlug),
+    /** Each ranking's active analytics edition in brief. */
+    analytics: (slug: string) => analytics.get(slug),
   };
 }
 
@@ -98,7 +107,8 @@ export type Hub = ReturnType<typeof build>;
 /** Governed data for this request. */
 export const hub = cache(async (): Promise<Hub> => {
   const [state, ref] = await Promise.all([readState(), reference()]);
-  return build(state, ref);
+  // Never waits on the analytics engine: pages that need its latest figures await rankingSummaries() first.
+  return build(state, ref, summariesNow());
 });
 
 /** The Office's view of the deadline check: what waits, what each source last said, and each ranking's other dates. */

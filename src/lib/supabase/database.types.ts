@@ -312,6 +312,866 @@ export type Database = {
           },
         ]
       }
+      analytics_actions: {
+        Row: {
+          action: string
+          due: string | null
+          edition_id: string
+          id: string
+          indicator_code: string | null
+          note: string
+          owner_unit: string | null
+          progress: number
+          status: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          action: string
+          due?: string | null
+          edition_id: string
+          id?: string
+          indicator_code?: string | null
+          note?: string
+          owner_unit?: string | null
+          progress?: number
+          status?: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          action?: string
+          due?: string | null
+          edition_id?: string
+          id?: string
+          indicator_code?: string | null
+          note?: string
+          owner_unit?: string | null
+          progress?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_actions_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_activities: {
+        Row: {
+          academic_year: string
+          added_at: string
+          added_by: string
+          beneficiaries: number | null
+          community: string
+          ends_on: string | null
+          id: string
+          kind: string
+          mou: string | null
+          partner: string
+          proponent: string
+          proposal_ref: string | null
+          report_ref: string | null
+          reported: boolean
+          sdgs: number[]
+          source: string
+          source_ref: string | null
+          starts_on: string | null
+          tags: string[]
+          title: string
+          unit_id: string | null
+          unit_label: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year: string
+          added_at?: string
+          added_by: string
+          beneficiaries?: number | null
+          community?: string
+          ends_on?: string | null
+          id?: string
+          kind: string
+          mou?: string | null
+          partner?: string
+          proponent?: string
+          proposal_ref?: string | null
+          report_ref?: string | null
+          reported?: boolean
+          sdgs?: number[]
+          source?: string
+          source_ref?: string | null
+          starts_on?: string | null
+          tags?: string[]
+          title: string
+          unit_id?: string | null
+          unit_label?: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year?: string
+          added_at?: string
+          added_by?: string
+          beneficiaries?: number | null
+          community?: string
+          ends_on?: string | null
+          id?: string
+          kind?: string
+          mou?: string | null
+          partner?: string
+          proponent?: string
+          proposal_ref?: string | null
+          report_ref?: string | null
+          reported?: boolean
+          sdgs?: number[]
+          source?: string
+          source_ref?: string | null
+          starts_on?: string | null
+          tags?: string[]
+          title?: string
+          unit_id?: string | null
+          unit_label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      analytics_aliases: {
+        Row: {
+          alias: string
+          unit_id: string
+        }
+        Insert: {
+          alias: string
+          unit_id: string
+        }
+        Update: {
+          alias?: string
+          unit_id?: string
+        }
+        Relationships: []
+      }
+      analytics_benchmarks: {
+        Row: {
+          entered_at: string
+          entered_by: string
+          id: string
+          label: string | null
+          metric: string
+          note: string | null
+          peer_id: string
+          ranking_slug: string
+          source: string
+          value: number | null
+          year: number
+        }
+        Insert: {
+          entered_at?: string
+          entered_by: string
+          id?: string
+          label?: string | null
+          metric: string
+          note?: string | null
+          peer_id?: string
+          ranking_slug: string
+          source?: string
+          value?: number | null
+          year: number
+        }
+        Update: {
+          entered_at?: string
+          entered_by?: string
+          id?: string
+          label?: string | null
+          metric?: string
+          note?: string | null
+          peer_id?: string
+          ranking_slug?: string
+          source?: string
+          value?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_benchmarks_ranking_slug_fkey"
+            columns: ["ranking_slug"]
+            isOneToOne: false
+            referencedRelation: "ranking_frameworks"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      analytics_campaign_units: {
+        Row: {
+          campaign_id: string
+          codes: string[]
+          escalated_at: string | null
+          reminded_at: string | null
+          reminders: number
+          thanked_at: string | null
+          unit_id: string
+        }
+        Insert: {
+          campaign_id: string
+          codes?: string[]
+          escalated_at?: string | null
+          reminded_at?: string | null
+          reminders?: number
+          thanked_at?: string | null
+          unit_id: string
+        }
+        Update: {
+          campaign_id?: string
+          codes?: string[]
+          escalated_at?: string | null
+          reminded_at?: string | null
+          reminders?: number
+          thanked_at?: string | null
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_campaign_units_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_campaigns: {
+        Row: {
+          closed_at: string | null
+          code: string
+          due: string
+          edition_id: string
+          escalate_days: number
+          id: string
+          memo: string
+          message: string
+          opened_at: string
+          opened_by: string
+          remind_days: number
+          status: string
+          title: string
+        }
+        Insert: {
+          closed_at?: string | null
+          code: string
+          due: string
+          edition_id: string
+          escalate_days?: number
+          id?: string
+          memo?: string
+          message?: string
+          opened_at?: string
+          opened_by: string
+          remind_days?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          closed_at?: string | null
+          code?: string
+          due?: string
+          edition_id?: string
+          escalate_days?: number
+          id?: string
+          memo?: string
+          message?: string
+          opened_at?: string
+          opened_by?: string
+          remind_days?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_campaigns_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_cases: {
+        Row: {
+          abstract: string
+          added_at: string
+          added_by: string
+          category: string
+          checks: Json
+          edition_id: string
+          id: string
+          source: string
+          source_ref: string | null
+          title: string
+          unit_id: string | null
+        }
+        Insert: {
+          abstract?: string
+          added_at?: string
+          added_by: string
+          category: string
+          checks?: Json
+          edition_id: string
+          id?: string
+          source?: string
+          source_ref?: string | null
+          title: string
+          unit_id?: string | null
+        }
+        Update: {
+          abstract?: string
+          added_at?: string
+          added_by?: string
+          category?: string
+          checks?: Json
+          edition_id?: string
+          id?: string
+          source?: string
+          source_ref?: string | null
+          title?: string
+          unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_cases_edition_id_category_fkey"
+            columns: ["edition_id", "category"]
+            isOneToOne: false
+            referencedRelation: "analytics_indicators"
+            referencedColumns: ["edition_id", "code"]
+          },
+        ]
+      }
+      analytics_editions: {
+        Row: {
+          aggregate: string
+          closes_on: string | null
+          id: string
+          label: string
+          methodology: string
+          notes: string
+          opens_on: string | null
+          options: Json
+          period: string
+          ranking_slug: string
+          scale: number
+          sources: string[]
+          status: string
+          updated_at: string
+          updated_by: string
+          year: number
+          years: number[]
+        }
+        Insert: {
+          aggregate?: string
+          closes_on?: string | null
+          id: string
+          label: string
+          methodology?: string
+          notes?: string
+          opens_on?: string | null
+          options?: Json
+          period?: string
+          ranking_slug: string
+          scale?: number
+          sources?: string[]
+          status?: string
+          updated_at?: string
+          updated_by?: string
+          year: number
+          years?: number[]
+        }
+        Update: {
+          aggregate?: string
+          closes_on?: string | null
+          id?: string
+          label?: string
+          methodology?: string
+          notes?: string
+          opens_on?: string | null
+          options?: Json
+          period?: string
+          ranking_slug?: string
+          scale?: number
+          sources?: string[]
+          status?: string
+          updated_at?: string
+          updated_by?: string
+          year?: number
+          years?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_editions_ranking_slug_fkey"
+            columns: ["ranking_slug"]
+            isOneToOne: false
+            referencedRelation: "ranking_frameworks"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      analytics_groups: {
+        Row: {
+          code: string
+          edition_id: string
+          mandatory: boolean
+          name: string
+          points: number | null
+          position: number
+          weight: number | null
+        }
+        Insert: {
+          code: string
+          edition_id: string
+          mandatory?: boolean
+          name: string
+          points?: number | null
+          position: number
+          weight?: number | null
+        }
+        Update: {
+          code?: string
+          edition_id?: string
+          mandatory?: boolean
+          name?: string
+          points?: number | null
+          position?: number
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_groups_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_imports: {
+        Row: {
+          academic_year: string | null
+          at: string
+          breakdowns: Json | null
+          by: string
+          bytes: number
+          edition_id: string | null
+          file_name: string
+          id: string
+          kind: string
+          profile: string | null
+          rows: number
+          sha256: string
+          summary: Json
+          totals: Json | null
+          unit_id: string | null
+        }
+        Insert: {
+          academic_year?: string | null
+          at?: string
+          breakdowns?: Json | null
+          by: string
+          bytes: number
+          edition_id?: string | null
+          file_name: string
+          id?: string
+          kind: string
+          profile?: string | null
+          rows?: number
+          sha256: string
+          summary?: Json
+          totals?: Json | null
+          unit_id?: string | null
+        }
+        Update: {
+          academic_year?: string | null
+          at?: string
+          breakdowns?: Json | null
+          by?: string
+          bytes?: number
+          edition_id?: string | null
+          file_name?: string
+          id?: string
+          kind?: string
+          profile?: string | null
+          rows?: number
+          sha256?: string
+          summary?: Json
+          totals?: Json | null
+          unit_id?: string | null
+        }
+        Relationships: []
+      }
+      analytics_indicators: {
+        Row: {
+          code: string
+          edition_id: string
+          evidence: Json
+          feeds: Json | null
+          group_code: string
+          guidance: string
+          input: Json
+          name: string
+          owner_labels: string[]
+          owners: string[]
+          parent_code: string | null
+          position: number
+          ref: string | null
+          rollup: string
+          score: Json | null
+          tags: string[]
+          unit: string | null
+        }
+        Insert: {
+          code: string
+          edition_id: string
+          evidence?: Json
+          feeds?: Json | null
+          group_code: string
+          guidance?: string
+          input?: Json
+          name: string
+          owner_labels?: string[]
+          owners?: string[]
+          parent_code?: string | null
+          position: number
+          ref?: string | null
+          rollup?: string
+          score?: Json | null
+          tags?: string[]
+          unit?: string | null
+        }
+        Update: {
+          code?: string
+          edition_id?: string
+          evidence?: Json
+          feeds?: Json | null
+          group_code?: string
+          guidance?: string
+          input?: Json
+          name?: string
+          owner_labels?: string[]
+          owners?: string[]
+          parent_code?: string | null
+          position?: number
+          ref?: string | null
+          rollup?: string
+          score?: Json | null
+          tags?: string[]
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_indicators_edition_id_group_code_fkey"
+            columns: ["edition_id", "group_code"]
+            isOneToOne: false
+            referencedRelation: "analytics_groups"
+            referencedColumns: ["edition_id", "code"]
+          },
+        ]
+      }
+      analytics_links: {
+        Row: {
+          added_at: string
+          added_by: string
+          assessed_at: string | null
+          assessed_by: string | null
+          edition_id: string
+          evidence_id: string | null
+          id: string
+          indicator_code: string
+          label: string
+          public: boolean | null
+          relevance: string | null
+          self_contained: boolean | null
+          unit_id: string
+          url: string | null
+          year: number | null
+        }
+        Insert: {
+          added_at?: string
+          added_by: string
+          assessed_at?: string | null
+          assessed_by?: string | null
+          edition_id: string
+          evidence_id?: string | null
+          id?: string
+          indicator_code: string
+          label?: string
+          public?: boolean | null
+          relevance?: string | null
+          self_contained?: boolean | null
+          unit_id?: string
+          url?: string | null
+          year?: number | null
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          assessed_at?: string | null
+          assessed_by?: string | null
+          edition_id?: string
+          evidence_id?: string | null
+          id?: string
+          indicator_code?: string
+          label?: string
+          public?: boolean | null
+          relevance?: string | null
+          self_contained?: boolean | null
+          unit_id?: string
+          url?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_links_edition_id_indicator_code_fkey"
+            columns: ["edition_id", "indicator_code"]
+            isOneToOne: false
+            referencedRelation: "analytics_indicators"
+            referencedColumns: ["edition_id", "code"]
+          },
+        ]
+      }
+      analytics_peers: {
+        Row: {
+          added_at: string
+          added_by: string
+          band: string
+          country: string
+          id: string
+          name: string
+        }
+        Insert: {
+          added_at?: string
+          added_by: string
+          band?: string
+          country?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          band?: string
+          country?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      analytics_profiles: {
+        Row: {
+          description: string
+          key: string
+          name: string
+          owner_unit: string | null
+          position: number
+          spec: Json
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          description?: string
+          key: string
+          name: string
+          owner_unit?: string | null
+          position?: number
+          spec: Json
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          description?: string
+          key?: string
+          name?: string
+          owner_unit?: string | null
+          position?: number
+          spec?: Json
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      analytics_reviews: {
+        Row: {
+          at: string
+          case_id: string
+          id: string
+          note: string
+          reviewer_id: string
+          scores: Json
+          total: number
+        }
+        Insert: {
+          at?: string
+          case_id: string
+          id?: string
+          note?: string
+          reviewer_id: string
+          scores: Json
+          total: number
+        }
+        Update: {
+          at?: string
+          case_id?: string
+          id?: string
+          note?: string
+          reviewer_id?: string
+          scores?: Json
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_reviews_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_snapshots: {
+        Row: {
+          at: string
+          by: string
+          edition_id: string
+          id: string
+          kind: string
+          summary: Json
+        }
+        Insert: {
+          at?: string
+          by: string
+          edition_id: string
+          id?: string
+          kind: string
+          summary: Json
+        }
+        Update: {
+          at?: string
+          by?: string
+          edition_id?: string
+          id?: string
+          kind?: string
+          summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_snapshots_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_value_history: {
+        Row: {
+          action: string
+          at: string
+          by: string
+          id: number
+          note: string
+          status: string
+          value: Json
+          value_id: string
+        }
+        Insert: {
+          action: string
+          at?: string
+          by: string
+          id?: never
+          note?: string
+          status: string
+          value: Json
+          value_id: string
+        }
+        Update: {
+          action?: string
+          at?: string
+          by?: string
+          id?: never
+          note?: string
+          status?: string
+          value?: Json
+          value_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_value_history_value_id_fkey"
+            columns: ["value_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_values"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_values: {
+        Row: {
+          edition_id: string
+          entered_at: string
+          entered_by: string
+          id: string
+          indicator_code: string
+          note: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          source_ref: string | null
+          status: string
+          unit_id: string
+          value: Json
+        }
+        Insert: {
+          edition_id: string
+          entered_at?: string
+          entered_by: string
+          id?: string
+          indicator_code: string
+          note?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: string
+          unit_id?: string
+          value: Json
+        }
+        Update: {
+          edition_id?: string
+          entered_at?: string
+          entered_by?: string
+          id?: string
+          indicator_code?: string
+          note?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: string
+          unit_id?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_values_edition_id_indicator_code_fkey"
+            columns: ["edition_id", "indicator_code"]
+            isOneToOne: false
+            referencedRelation: "analytics_indicators"
+            referencedColumns: ["edition_id", "code"]
+          },
+        ]
+      }
       approval_decisions: {
         Row: {
           at: string

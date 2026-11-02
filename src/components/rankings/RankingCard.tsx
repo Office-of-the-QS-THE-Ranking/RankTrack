@@ -63,7 +63,7 @@ export async function RankingCard({ ranking: r, mode }: { ranking: Ranking; mode
             <span>
               <Icon name="evidence" size={15} />
               <span>
-                <b className="num">{r.pending}</b> evidence items pending
+                <b className="num">{r.pending}</b> {r.pending === 1 ? "item" : "items"} to go
               </span>
             </span>
           </span>

@@ -18,6 +18,8 @@ import { Bullet, EmptyArt, HeatGrid, PeerLadder, Quiet, Spark, StatusDonut, Weig
 import { IndicatorDrawer } from "./IndicatorDrawer";
 import { SpecialDashboard } from "./SpecialDashboard";
 import { actionIcon, resolveFocus, type FocusTarget } from "./focus";
+import type { RankingAnalytics } from "@/lib/analytics/desk-types";
+import { pct, pts } from "@/lib/analytics/format";
 
 /* Keys stay as the ranking menus (focus.ts) and earlier links (#indicators, #methodology) name them. */
 type Tab = "Overview" | "Indicators" | "Evidence" | "Contributors" | "Action Plan" | "Methodology";
@@ -79,7 +81,41 @@ function StatusLegend({ parts }: { parts: Part[] }) {
   );
 }
 
-export function RankingView({ ranking }: { ranking: Ranking }) {
+/** The analytics engine's headline for the ranking's active edition: its figure, readiness, and the fixes worth most. */
+function AnalyticsTile({ a }: { a: RankingAnalytics }) {
+  const figure = a.kind === "readiness" ? pct(a.claimed) : a.kind === "results" ? `${a.claimed}` : pts(a.claimed);
+  const label = a.kind === "readiness" ? "ready" : a.kind === "results" ? "ranked" : `of ${pts(a.max)} claimed · ${pts(a.secured)} secured`;
+  return (
+    <Tile id="rk-analytics" title={`Analytics · ${a.label}`} className="rk-s12" href={`/admin/analytics/indicators?edition=${a.edition}`}>
+      <div className="rk-an">
+        <p className="rk-an__fig">
+          <b>{figure}</b>
+          <span>{label}</span>
+        </p>
+        <p className="rk-an__fig">
+          <b>{Math.round(a.readiness)}%</b>
+          <span>ready</span>
+        </p>
+        <p className="rk-an__fig">
+          <b>{a.forReview}</b>
+          <span>for review</span>
+        </p>
+        {a.fixes.length > 0 && (
+          <ol className="rk-an__fixes">
+            {a.fixes.map((f) => (
+              <li key={`${f.code}-${f.title}`}>
+                <span>{f.title}</span>
+                <span className="an-gain">+{pts(f.gain)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </Tile>
+  );
+}
+
+export function RankingView({ ranking, analytics }: { ranking: Ranking; analytics?: RankingAnalytics }) {
   const { latestEdition, reportTypes } = useViews();
   const fam = familyOf(useReference(), ranking.family);
   // Evidence and units come from the governance store: review states, directory names and archives.
@@ -134,7 +170,11 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
 
   const countBy = <T,>(items: T[], statusOf: (x: T) => EvidenceStatus): Part[] =>
     PARTS.map((p) => ({ key: p.status, label: p.label, tone: TONE[p.status]!, n: items.filter((x) => statusOf(x) === p.status).length }));
-  const indicatorParts = countBy(ranking.indicators, (i) => i.status);
+  // With an active analytics edition, the ring counts its indicators, as "to go" does.
+  const engine: Record<string, number> | null = analytics?.states
+    ? { Validated: analytics.states.validated, "For review": analytics.states.forReview, "Needs revision": analytics.states.revisions, "Not yet submitted": analytics.states.notStarted }
+    : null;
+  const indicatorParts = engine ? PARTS.map((p) => ({ key: p.status, label: p.label, tone: TONE[p.status]!, n: engine[p.status] ?? 0 })) : countBy(ranking.indicators, (i) => i.status);
   const evidenceParts = countBy(evidence, (e) => e.status);
 
   const top = drivers(ranking);
@@ -322,6 +362,8 @@ export function RankingView({ ranking }: { ranking: Ranking }) {
                   <Quiet icon="layers">Nothing to explore yet</Quiet>
                 )}
               </Tile>
+
+              {analytics && <AnalyticsTile a={analytics} />}
             </div>
 
             <SpecialDashboard ranking={ranking} onIndicator={openIndicator} />
