@@ -2154,6 +2154,95 @@ html:has(.app) {
   }
 }
 
+/* The assistant's dock: the bar swells into a round socket at its right end, joined by soft curves, and the orb rests
+   in it, as tight to the right edge as to the top. The glass and its hairline move to two masked layers so they can
+   take that outline; the bar's content keeps clear of the socket. The socket's centre sits --dock-cy in from both. The outline's numbers are worked out in the masks; --dock-r and --dock-cy must match them. */
+.top--dock {
+  --dock-r: 38.5px;
+  --dock-cy: 38px;
+  --dock-w: 78.5px;
+  --dock-h: 79px;
+  --dock-fill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78.5' height='79'%3E%3Cpath d='M4.05 59V60A10 10 0 0 1 11.57 63.4A38.5 38.5 0 0 0 69.43 63.4A10 10 0 0 1 76.95 60H78.5V59Z'/%3E%3C/svg%3E");
+  --dock-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78.5' height='79'%3E%3Cpath d='M0 59.5H4.05A10.5 10.5 0 0 1 11.95 63.07A38 38 0 0 0 69.05 63.07A10.5 10.5 0 0 1 76.95 59.5H78.5' fill='none' stroke='%23000'/%3E%3C/svg%3E");
+  padding-right: calc(var(--dock-cy) + var(--dock-r) + 12px);
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: 0;
+}
+.top--dock::before,
+.top--dock::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--dock-h);
+  z-index: -1;
+  pointer-events: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.top--dock::before {
+  background: rgb(var(--bg-rgb) / 0.78);
+  -webkit-backdrop-filter: saturate(1.8) blur(20px);
+  backdrop-filter: saturate(1.8) blur(20px);
+  -webkit-mask-image: linear-gradient(#000 0 0), var(--dock-fill);
+  mask-image: linear-gradient(#000 0 0), var(--dock-fill);
+  -webkit-mask-size: 100% var(--top-h), var(--dock-w) var(--dock-h);
+  mask-size: 100% var(--top-h), var(--dock-w) var(--dock-h);
+  -webkit-mask-position: 0 0, 100% 0;
+  mask-position: 0 0, 100% 0;
+}
+.top--dock::after {
+  background: rgb(var(--hair) / 0.08);
+  -webkit-mask-image: linear-gradient(#000 0 0), var(--dock-line);
+  mask-image: linear-gradient(#000 0 0), var(--dock-line);
+  -webkit-mask-size: calc(100% - var(--dock-w)) 1px, var(--dock-w) var(--dock-h);
+  mask-size: calc(100% - var(--dock-w)) 1px, var(--dock-w) var(--dock-h);
+  -webkit-mask-position: 0 calc(var(--top-h) - 1px), 100% 0;
+  mask-position: 0 calc(var(--top-h) - 1px), 100% 0;
+}
+/* The empty socket, while the orb is away. A click calls it home. */
+.top__dock {
+  position: absolute;
+  top: calc(var(--dock-cy) - var(--dock-r) + 3px);
+  right: calc(var(--dock-cy) - var(--dock-r) + 3px);
+  width: calc(2 * var(--dock-r) - 6px);
+  height: calc(2 * var(--dock-r) - 6px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.04);
+  box-shadow:
+    inset 0 1px 3px rgb(0 0 0 / 0.1),
+    inset 0 0 0 1px rgb(var(--hair) / 0.08);
+  cursor: var(--cursor-pointer);
+  transition: opacity 240ms ease, background-color var(--t) ease;
+}
+.top__dock:hover {
+  background: rgb(var(--hair) / 0.08);
+}
+.top__dock[data-filled] {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Phones carry a smaller orb, in a smaller socket */
+@media (max-width: 719px) {
+  .top--dock {
+    --dock-r: 33px;
+    --dock-cy: 36px;
+    --dock-w: 66px;
+    --dock-h: 71px;
+    --dock-fill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='66' height='71'%3E%3Cpath d='M4.02 59V60A9 9 0 0 1 9.59 61.93A33 33 0 0 0 50.41 61.93A9 9 0 0 1 55.98 60H66V59Z'/%3E%3C/svg%3E");
+    --dock-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='66' height='71'%3E%3Cpath d='M0 59.5H4.02A9.5 9.5 0 0 1 9.9 61.54A32.5 32.5 0 0 0 50.1 61.54A9.5 9.5 0 0 1 55.98 59.5H66' fill='none' stroke='%23000'/%3E%3C/svg%3E");
+  }
+}
+/* The mobile menu hides the orb: its socket goes with it */
+.app--menu .top__dock {
+  visibility: hidden;
+}
+
 .top__clock {
   display: inline-flex;
   align-items: center;

@@ -428,7 +428,7 @@ Opens from the sidebar profile with tabs: Overview, Edit profile, Roles & access
 - **Outputs:** An updated calendar; an audit entry.
 - **Validation:** Requires `config: edit`. Valid dates only. At most 20 entries per ranking. Labels required (120 characters at most), unique, and may not reuse the deadline's label.
 
-**FR-4.7.7 Automatic deadline check. [Built]** The system shall read ranking bodies' public pages and report changed dates without applying them.
+**FR-4.7.7 Automatic deadline check (web scraping). [Built]** The system shall scrape ranking bodies' public pages and report changed dates without applying them. FR-4.31.6 extends scraping to other public data.
 - **Inputs:** Configured sources with fixed reading rules; triggered daily or by "Check now".
 - **Processing:** Fetches each page with a named user agent and a 15-second timeout, and signs in nowhere. Records each source's status (Read, Waiting, Failed, Manual). Creates a finding for a date that differs from the Hub's and notifies the Office. Notes when a watched page changes.
 - **Outputs:** Findings with the source quote and link; "page changed" notices.
@@ -1702,7 +1702,15 @@ Today, figures enter by hand or through files. These connections reduce re-keyin
 
 **FR-4.31.5 Connection management. [Planned]** The system shall list each connection's owner, last run, status and failures, store its secrets on the server only, and alert on failure.
 
+**FR-4.31.6 Web scraping of public ranking data. [Planned]** The system shall scrape public pages for published results, peer figures, and methodology or template changes, and hold what it finds for the Office to review, as FR-4.7.7 does for dates.
+- **Inputs:** Source records, each with an owner, page address, reading rule, target (such as a ranking, edition or peer) and schedule; triggered by the daily job or "Check now".
+- **Processing:** Fetches each page with a named user agent and a timeout, and signs in nowhere. Reads only the fields its rule names. Records each source's status (Read, Waiting, Failed, Manual). Creates a finding when a value differs from the Hub's, or a notice when a watched page changes. On approval, the value is saved through FR-4.8.19 or FR-4.8.20 with its source link and date.
+- **Outputs:** Findings with the source quote, link and time read; updated benchmarks and results once approved; an audit entry for each decision.
+- **Validation:** A source is added only after its terms of use and `robots.txt` are checked and the check is recorded. A site that refuses the request is reported, never worked around. Scraped values never change a figure, score or public page without the Office's approval, and they stay separate from claimed and secured points until then. A value already raised is not raised again. No personal data is collected. "Check now" requires `config: edit` and is rate-limited. A page whose layout no longer matches its rule is marked Failed and alerts the Office (FR-4.31.5).
+
 **Scaling provisions**
+- Add new scraping sources by adding source records and reading rules, with no code change where an existing rule type fits.
+- Run scraping on the job queue in section 4.32, with limited requests per site.
 - Add a documented read-only API for University systems, with keys scoped by dataset and classification.
 - Add webhooks for events such as a validated value or a published result.
 
@@ -1796,5 +1804,5 @@ Every item below is specified above. The grouping suggests a sensible order, but
 | Overdue requests; named approvers | FR-4.24.5, FR-4.24.6 |
 | Reference data management | FR-4.27.11 |
 | Reputation survey contacts | FR-4.30.1–FR-4.30.5 |
-| External data connections | FR-4.31.1–FR-4.31.5 |
+| External data connections, including web scraping | FR-4.31.1–FR-4.31.6 |
 | Digests; reports on a schedule; report-to-publication link; guided tours | FR-4.18.4, FR-4.17.7, FR-4.17.6, FR-4.19.10 |
