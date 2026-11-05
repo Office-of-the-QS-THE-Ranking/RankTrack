@@ -26,6 +26,9 @@ import { ProfileSettings } from "./ProfileSettings";
 import { SECTIONS as ADMIN_SECTIONS, sectionHref } from "@/components/admin/sections";
 import { Select } from "@/components/ui/pickers";
 
+/* Loaded after the page: it is WebGL and physics, and nothing on the page waits for it. */
+const Assistant = dynamic(() => import("@/components/assistant/Assistant"), { ssr: false });
+
 type Theme = "light" | "dark";
 // Applies the saved (or system) appearance before the first paint, so dark mode never flashes light.
 const WIPE_MS = 620;
@@ -255,6 +258,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const at = going?.from === pathname ? going.href : pathname;
   const goTo = (href: string) => () => setGoing({ href, from: pathname });
   const [menu, setMenu] = useState(false);
+  /** The assistant lives in the signed-in workspaces only, and docks in the bar. */
+  const assistant = !!viewer && variant !== "public";
   // The last row that opened a set of sub-tabs, so focus returns to it.
   const [opened, setOpened] = useState<Exclude<Drill, null>>("rankings");
   const [search, setSearch] = useState(false);
@@ -391,7 +396,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
       if (profileOpen) return;
       const t = e.target as HTMLElement;
       const typing = t.closest("input, textarea, select, [contenteditable=true]");
-      if (document.querySelector(".adm-confirm[open]")) return;
+      if (document.querySelector(".adm-confirm[open], .assist-panel[aria-modal='true']")) return;
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
         e.preventDefault();
         setSearch(true);
@@ -806,7 +811,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
             <span>{hub.site.notice}</span>
           </div>
         )}
-        <header className="top">
+        <header className={assistant ? "top top--dock" : "top"}>
           <button
             ref={menuBtn}
             type="button"
@@ -905,6 +910,10 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
               Sign in
             </Link>
           )}
+
+          {/* The assistant's socket. The orb finds it here, and a click on it while the orb is away calls it home. The
+              orb answers Home on the keyboard, so this needs no stop of its own. */}
+          {assistant && <button type="button" className="top__dock" data-orb-dock tabIndex={-1} aria-hidden="true" />}
         </header>
 
         <main id="content" className="content" tabIndex={-1}>
@@ -921,6 +930,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         </Suspense>
       )}
       {viewer && <IdleGuard idleMinutes={viewer.session.idleMinutes} warnMinutes={viewer.session.warnMinutes} />}
+      {assistant && viewer && <Assistant name={viewer.name} />}
     </div>
   );
 }

@@ -45,6 +45,8 @@ function step(now: number) {
     const cy = box.top + box.height / 2;
     const lit =
       !!p &&
+      // A page shut behind something modal doesn't react to the pointer.
+      !rim.el.closest("[inert]") &&
       p.x > box.left - rim.proximity &&
       p.x < box.right + rim.proximity &&
       p.y > box.top - rim.proximity &&

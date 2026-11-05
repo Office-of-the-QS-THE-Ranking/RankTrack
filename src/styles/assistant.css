@@ -1,0 +1,728 @@
+/* ---------- The assistant: the orb, the light round the screen and the chat box (components/assistant) ---------- */
+
+/* ---------- Orb ---------- */
+.assist-orb {
+  --orb: 65px;
+  --u: calc(var(--orb) / 72);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-orb);
+  width: var(--orb);
+  height: var(--orb);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  visibility: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+}
+.assist-orb:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 5px;
+}
+.assist-orb > *,
+.assist-orb__body > * {
+  pointer-events: none;
+}
+.assist-orb__shadow {
+  position: absolute;
+  inset: 14% 4% -14%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.46), rgb(0 0 0 / 0.2) 58%, transparent);
+  transform-origin: 50% 60%;
+}
+:root[data-theme="dark"] .assist-orb__shadow {
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.36) 58%, transparent);
+}
+.assist-orb__body {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.assist-orb__gl {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--orb) * 2);
+  height: calc(var(--orb) * 2);
+  translate: -50% -50%;
+}
+
+/* Without WebGL2: a plain ball of the same glass and colours (the engine sets --glow-spectrum on the orb) */
+.assist-orb--flat .assist-orb__gl {
+  display: none;
+}
+.assist-orb--flat .assist-orb__body {
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 24%, #2a2a33, #08080c 62%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12);
+}
+:root[data-theme="dark"] .assist-orb--flat .assist-orb__body {
+  background: radial-gradient(circle at 34% 24%, #3a3a42, var(--surface) 62%);
+}
+.assist-orb--flat .assist-orb__body::before {
+  content: "";
+  position: absolute;
+  inset: 26% 12%;
+  border-radius: 30%;
+  background: repeating-conic-gradient(var(--glow-spectrum));
+  filter: blur(calc(var(--u) * 3));
+}
+.assist-orb--flat[aria-expanded="true"] .assist-orb__body::before {
+  display: none;
+}
+
+/* The eyes: two bars jointed in the middle, so a pill can fold into a chevron and back */
+.assist-orb__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 12);
+}
+.assist-eye {
+  position: relative;
+  width: calc(var(--u) * 5);
+  height: calc(var(--u) * 15);
+  transition:
+    transform 130ms var(--ease-out),
+    opacity 180ms ease,
+    scale 260ms var(--ease-spring);
+}
+/* With the chat open the eyes close and are gone, and an X takes their place: the orb is the way out */
+.assist-orb__x {
+  position: absolute;
+  inset: 0;
+}
+.assist-orb__x::before,
+.assist-orb__x::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--u) * 24);
+  height: calc(var(--u) * 3);
+  margin: calc(var(--u) * -1.5) 0 0 calc(var(--u) * -12);
+  border-radius: calc(var(--u) * 2);
+  background: #fff;
+  box-shadow: 0 0 calc(var(--u) * 5) rgb(255 255 255 / 0.7);
+  opacity: 0;
+  transform: rotate(0deg) scaleX(0.2);
+  transition:
+    opacity 160ms ease,
+    transform 360ms var(--ease-spring);
+}
+.assist-orb[aria-expanded="true"] .assist-orb__x::before,
+.assist-orb[aria-expanded="true"] .assist-orb__x::after {
+  opacity: 1;
+  transition-delay: 90ms;
+}
+.assist-orb[aria-expanded="true"] .assist-orb__x::before {
+  transform: rotate(45deg);
+}
+.assist-orb[aria-expanded="true"] .assist-orb__x::after {
+  transform: rotate(-45deg);
+}
+/* With the chat open the eyes close and are gone */
+.assist-orb[aria-expanded="true"] .assist-eye {
+  opacity: 0;
+  scale: 1 0.1;
+}
+.assist-eye i {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: calc(var(--u) * 10);
+  border-radius: calc(var(--u) * 3);
+  background: #fff;
+  box-shadow: 0 0 calc(var(--u) * 4) rgb(255 255 255 / 0.85);
+  transition: transform 190ms var(--ease-spring);
+}
+.assist-eye i:first-child {
+  top: 0;
+  transform-origin: 50% calc(100% - var(--u) * 2.5);
+}
+.assist-eye i:last-child {
+  bottom: 0;
+  transform-origin: 50% calc(var(--u) * 2.5);
+}
+[data-mood="blink"] .assist-eye {
+  transform: scaleY(0.1);
+  transition-duration: 70ms, 180ms, 260ms;
+}
+[data-mood="wide"] .assist-eye {
+  transform: scale(1.14, 1.22);
+}
+/* A wink: | < */
+[data-mood="wink"] .assist-eye:last-child i:first-child,
+[data-mood="squeeze"] .assist-eye:last-child i:first-child {
+  transform: rotate(50deg);
+}
+[data-mood="wink"] .assist-eye:last-child i:last-child,
+[data-mood="squeeze"] .assist-eye:last-child i:last-child {
+  transform: rotate(-50deg);
+}
+/* A hard knock: > < */
+[data-mood="squeeze"] .assist-eye:first-child i:first-child {
+  transform: rotate(-50deg);
+}
+[data-mood="squeeze"] .assist-eye:first-child i:last-child {
+  transform: rotate(50deg);
+}
+/* Pleased: ^ ^ */
+[data-mood="happy"] .assist-eye i:first-child {
+  transform: rotate(-130deg);
+}
+[data-mood="happy"] .assist-eye i:last-child {
+  transform: rotate(-50deg);
+}
+
+/* ---------- The light round the screen ---------- */
+.assist-edge {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-orb) - 2);
+  display: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  pointer-events: none;
+}
+.assist-edge[data-on] {
+  display: block;
+}
+/* Softened like the blurred page under it, so the light reads as part of that layer rather than a line drawn on top */
+.assist-edge:not(.assist-edge--flat) {
+  filter: blur(3px);
+}
+/* Without WebGL2: the same colours, still */
+.assist-edge--flat {
+  padding: 3px;
+  background: repeating-conic-gradient(var(--glow-spectrum));
+  filter: blur(6px);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* ---------- The page behind an open chat: blurred, dimmed and out of reach ---------- */
+.assist-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-orb) - 3);
+  background: rgb(18 17 16 / 0.4);
+  opacity: 0;
+  visibility: hidden;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  transition:
+    opacity 340ms ease,
+    visibility 0s linear 340ms;
+}
+.assist-scrim[data-on] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 340ms ease;
+}
+:root[data-theme="dark"] .assist-scrim {
+  background: rgb(0 0 0 / 0.55);
+}
+/* The page can't scroll behind it, and doesn't shift when its scrollbar goes */
+html:has(.assist-scrim[data-on]) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* ---------- Chat: full screen over the blurred page, opened out of the orb ---------- */
+.assist-panel {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-orb) - 1);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  color: var(--text);
+  opacity: 0;
+  visibility: hidden;
+  will-change: transform, opacity;
+}
+.assist-panel:focus {
+  outline: 0;
+}
+/* Its own bar, under the orb's socket: what this is, and a fresh start once there is a conversation */
+.assist-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--top-h);
+  padding: 0 var(--gutter);
+}
+.assist-top__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.assist-top__chip {
+  font-size: 11px;
+}
+.assist-tool {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--hair) / 0.06);
+  color: var(--text-2);
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+@media (hover: hover) {
+  .assist-tool:hover {
+    background: rgb(var(--hair) / 0.12);
+    color: var(--text);
+  }
+}
+
+/* The column everything sits in: centred on a fresh start, the conversation above the input once it begins */
+.assist-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 26px;
+  width: min(720px, calc(100% - 32px));
+  margin: 0 auto;
+  padding-bottom: var(--top-h);
+}
+.assist-panel[data-started] .assist-stage {
+  justify-content: flex-end;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+
+.assist-hello {
+  text-align: center;
+}
+.assist-hello p {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+}
+.assist-hello__ask {
+  color: var(--text-3);
+}
+
+/* ---------- Conversation ---------- */
+.assist-log {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -12px;
+  padding: 20px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--hair) / 0.18) transparent;
+  -webkit-mask: linear-gradient(transparent, #000 24px, #000 calc(100% - 16px), transparent);
+  mask: linear-gradient(transparent, #000 24px, #000 calc(100% - 16px), transparent);
+}
+.assist-log:focus-visible {
+  outline: none;
+}
+.assist-log__in {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 100%;
+}
+.assist-msg {
+  flex: none;
+  max-width: 82%;
+  margin: 0;
+  padding: 11px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: assist-rise 340ms var(--ease-spring) both;
+}
+.assist-msg--me {
+  align-self: flex-end;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--ink);
+  color: var(--on-ink);
+  transform-origin: 100% 100%;
+}
+.assist-msg--assistant {
+  align-self: flex-start;
+  border-radius: 20px 20px 20px 6px;
+  background: rgb(var(--bg-rgb) / 0.72);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.08);
+  color: var(--text);
+  transform-origin: 0 100%;
+}
+@keyframes assist-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+}
+.assist-msg--dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+}
+.assist-msg--dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  animation: assist-dot 1.15s ease-in-out infinite;
+}
+.assist-msg--dots i:nth-child(2) {
+  animation-delay: 0.14s;
+}
+.assist-msg--dots i:nth-child(3) {
+  animation-delay: 0.28s;
+}
+@keyframes assist-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.4;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ---------- The input: dark glass in a slowly turning ring of the dashboard's spectrum, with its glow behind ----------
+   A conic gradient turned on a box this wide pinches the whole spectrum into the middle of the long edges, so the
+   ring is two strips instead: the top flows right, the bottom (mirrored) flows left, and they meet at the round ends,
+   so the colour travels evenly round the rim. Each tile is twice the width (half the spectrum along each strip, so
+   each colour is wide), so the strips always match at both ends; the input is a container so the flow can measure it.
+   The colours are the dashboard's --glow-spectrum (components.css), as lengths along the strip. */
+@keyframes assist-flow {
+  to {
+    background-position: 200cqw 0, -200cqw 100%;
+  }
+}
+.assist-ask {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-height: 66px;
+  padding: 11px 11px 11px 24px;
+  border-radius: 22px;
+  /* Its own layer, so the glow sits behind the glass and the glass behind the text */
+  isolation: isolate;
+  container-type: inline-size;
+}
+.assist-ask__glass {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgb(var(--bg-rgb) / 0.86);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 22px 48px -20px rgb(0 0 0 / 0.45);
+  pointer-events: none;
+}
+.glow.assist-ask__rim,
+.glow.assist-ask__bloom {
+  --assist-ring: #ffb800, #ff7a00 8.333%, #ff2d55 16.667%, #e83cf0 25%, #8b5cf6 33.333%, #3d5afe 41.667%, #00b2ff 50%,
+    #3d5afe 58.333%, #8b5cf6 66.667%, #e83cf0 75%, #ff2d55 83.333%, #ff7a00 91.667%, #ffb800;
+  background:
+    linear-gradient(90deg, var(--assist-ring)) 0 0 / 200cqw 50% repeat-x,
+    linear-gradient(270deg, var(--assist-ring)) 0 100% / 200cqw 50% repeat-x;
+  animation: assist-flow 28s linear infinite;
+}
+:root[data-theme="dark"] :is(.glow.assist-ask__rim, .glow.assist-ask__bloom) {
+  --assist-ring: #ffd84d, #ff9f40 8.333%, #ff4d6d 16.667%, #ff5ce1 25%, #b06bff 33.333%, #5a8bff 41.667%, #3ddcff 50%,
+    #5a8bff 58.333%, #b06bff 66.667%, #ff5ce1 75%, #ff4d6d 83.333%, #ff9f40 91.667%, #ffd84d;
+}
+.glow.assist-ask__rim {
+  padding: 1.5px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.85;
+}
+.glow.assist-ask__bloom {
+  inset: 3px;
+  z-index: -1;
+  filter: blur(16px);
+  opacity: 0.45;
+}
+:root[data-theme="dark"] .glow.assist-ask__bloom {
+  opacity: 0.55;
+}
+.assist-ask__input {
+  flex: 1;
+  align-self: center;
+  min-width: 0;
+  max-height: 160px;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 24px;
+  resize: none;
+  scrollbar-width: thin;
+}
+.assist-ask__input:focus-visible {
+  outline: 0;
+}
+.assist-ask__input::placeholder {
+  color: var(--text-3);
+}
+/* The model switcher: a quiet pill, like the keys in the reference */
+.select.assist-model {
+  flex: none;
+  width: auto;
+  height: 40px;
+  padding-left: 14px;
+  padding-right: 32px;
+  border: 0;
+  border-radius: 999px;
+  background-color: rgb(var(--hair) / 0.07);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.1);
+  color: var(--text-2);
+  font-size: 13px;
+}
+@media (hover: hover) {
+  .select.assist-model:hover {
+    background-color: rgb(var(--hair) / 0.12);
+  }
+}
+.assist-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color var(--t-fast) ease,
+    color var(--t-fast) ease,
+    transform 220ms var(--ease-spring);
+}
+.assist-send:disabled {
+  background: rgb(var(--hair) / 0.08);
+  color: var(--text-3);
+  cursor: var(--cursor-default);
+  transform: scale(0.92);
+}
+@media (hover: hover) {
+  .assist-send:not(:disabled):hover {
+    transform: scale(1.06);
+  }
+}
+.assist-send:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+}
+.assist-send__stop {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+/* ---------- First questions: glass rows that fade as they go down, like the reference's recent list ---------- */
+.assist-ideas__head {
+  margin: 0 6px 12px;
+  font-size: 14px;
+  color: var(--text-3);
+}
+.assist-ideas ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.assist-idea {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  height: 58px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 16px;
+  background: rgb(var(--bg-rgb) / 0.55);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.08);
+  color: var(--text-2);
+  font-size: 15px;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color var(--t-fast) ease,
+    color var(--t-fast) ease,
+    opacity var(--t) ease;
+}
+.assist-idea svg {
+  flex: none;
+  color: var(--text-3);
+}
+.assist-idea span {
+  flex: 1;
+  min-width: 0;
+}
+.assist-idea__go {
+  opacity: 0;
+  transition: opacity var(--t-fast) ease, transform var(--t-fast) ease;
+}
+.assist-ideas li:nth-child(2) .assist-idea {
+  opacity: 0.78;
+}
+.assist-ideas li:nth-child(3) .assist-idea {
+  opacity: 0.56;
+}
+.assist-ideas li:nth-child(4) .assist-idea {
+  opacity: 0.36;
+}
+@media (hover: hover) {
+  .assist-ideas li .assist-idea:hover {
+    opacity: 1;
+    background: rgb(var(--bg-rgb) / 0.8);
+    color: var(--text);
+  }
+  .assist-idea:hover .assist-idea__go {
+    opacity: 1;
+    transform: translate(1px, -1px);
+  }
+}
+.assist-idea:focus-visible {
+  opacity: 1;
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+}
+
+/* Opening: the greeting, the input and the first questions rise in turn */
+.assist-panel[data-open] :is(.assist-hello, .assist-ask, .assist-ideas__head, .assist-ideas li) {
+  animation: assist-enter 560ms var(--ease-out) both;
+}
+.assist-panel[data-open] .assist-ask {
+  animation-delay: 70ms;
+}
+.assist-panel[data-open] .assist-ideas__head {
+  animation-delay: 140ms;
+}
+.assist-panel[data-open] .assist-ideas li:nth-child(1) {
+  animation-delay: 170ms;
+}
+.assist-panel[data-open] .assist-ideas li:nth-child(2) {
+  animation-delay: 210ms;
+}
+.assist-panel[data-open] .assist-ideas li:nth-child(3) {
+  animation-delay: 250ms;
+}
+.assist-panel[data-open] .assist-ideas li:nth-child(4) {
+  animation-delay: 290ms;
+}
+@keyframes assist-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* ---------- Phones: a smaller orb, and a narrower column ---------- */
+@media (max-width: 719px) {
+  .assist-orb {
+    --orb: 54px;
+  }
+  .assist-stage {
+    width: calc(100% - 24px);
+  }
+  .assist-hello p {
+    font-size: 28px;
+  }
+  .assist-ask {
+    padding-left: 18px;
+  }
+  .assist-ask__input {
+    font-size: 16px;
+  }
+}
+
+/* The mobile menu covers the page, and takes the assistant with it */
+.app--menu .assist-orb {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assist-eye,
+  .assist-eye i,
+  .assist-send,
+  .assist-scrim,
+  .assist-scrim[data-on] {
+    transition: none;
+  }
+  .assist-msg,
+  .assist-msg--dots i,
+  .glow.assist-ask__rim,
+  .glow.assist-ask__bloom,
+  .assist-panel[data-open] :is(.assist-hello, .assist-ask, .assist-ideas__head, .assist-ideas li) {
+    animation: none;
+  }
+  .assist-orb__x::before,
+  .assist-orb__x::after {
+    transition: none;
+  }
+}
+@media print {
+  .assist-orb,
+  .assist-panel,
+  .assist-edge,
+  .assist-scrim {
+    display: none !important;
+  }
+}
+@media (forced-colors: active) {
+  .assist-edge {
+    display: none !important;
+  }
+  .assist-orb__gl {
+    display: none;
+  }
+  .assist-orb__body {
+    border-radius: 50%;
+    background: ButtonFace;
+    outline: 1px solid ButtonText;
+  }
+  .assist-eye i {
+    background: ButtonText;
+    box-shadow: none;
+  }
+}

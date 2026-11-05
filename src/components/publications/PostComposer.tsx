@@ -26,6 +26,7 @@ import { toast } from "@/components/ui/toast";
 import { recheckField } from "@/components/ui/validation";
 import { Dropzone, HashtagList, LayoutPicker, Panel, SdgPicker, UploadRow, sizeOf, sizePair, timeLeft } from "./ComposerPanels";
 import { DocEditor } from "./DocEditor";
+import { firstName } from "@/lib/first-name";
 import { postPickProblem, preparePostPicture, upload, type Prepared } from "./media";
 import { PostAnalytics } from "./PostAnalytics";
 import { useViews } from "@/components/reference/ReferenceProvider";
@@ -73,12 +74,6 @@ function fit(el: HTMLTextAreaElement | null) {
   if (!el) return;
   el.style.height = "auto";
   el.style.height = `${el.scrollHeight}px`;
-}
-
-/** The first name as people write it: directory names often arrive in capitals. */
-function firstName(name: string) {
-  const first = name.trim().split(/\s+/)[0] ?? "";
-  return first === first.toUpperCase() ? first.toLowerCase().replace(/(^|[-'’])(\p{L})/gu, (_, mark: string, letter: string) => mark + letter.toUpperCase()) : first;
 }
 
 /** Enter in a one-line field moves on instead of submitting the whole post. */
