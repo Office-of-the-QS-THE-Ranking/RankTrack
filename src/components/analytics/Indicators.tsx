@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Indicators: the evidence warehouse the Office's procedures ask for. One edition at a time, every
+ * A ranking's Indicators tab: the evidence warehouse the Office's procedures ask for. One edition at a time, every
  * indicator with its value, points, state and readiness; a row opens its panel to enter the University's figure,
  * review each unit's, link and assess evidence, and see the formula, bands and checks behind its points. WURI
  * editions add their cases and rubric reviews; results-only editions their published results.
@@ -74,7 +74,7 @@ export function Indicators({ desk }: { desk: IndicatorsDesk }) {
     const u = new URLSearchParams(params.toString());
     if (code) u.set("code", code);
     else u.delete("code");
-    history.replaceState(null, "", `?${u.toString()}`);
+    history.replaceState(null, "", `${location.pathname}?${u.toString()}${location.hash}`);
   };
   const t = desk.total;
 
@@ -83,7 +83,7 @@ export function Indicators({ desk }: { desk: IndicatorsDesk }) {
       <div className="an-top">
         <label className="an-top__edition">
           <span className="sr-only">Edition</span>
-          <Select className="select" value={desk.edition.id} onChange={(v) => router.push(`/admin/analytics/indicators?edition=${v}`)} aria-label="Edition">
+          <Select className="select" value={desk.edition.id} onChange={(v) => router.push(`/admin/rankings/${desk.edition.ranking}?edition=${v}#indicators`)} aria-label="Edition">
             {desk.editions.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.label}

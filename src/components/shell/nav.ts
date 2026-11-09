@@ -15,13 +15,13 @@ export interface NavLink {
   count?: "review" | "revisions";
   /** Base path for the ranking sub-menu (THE / QS / UI GreenMetric / WURI groups). */
   rankingsBase?: string;
+  /** Base path of the overview whose content tabs work across rankings (Scorecard, Positions, Data requests and so on). */
+  overviewTabs?: string;
   /** Base path for the Publications sub-menu (Stories & News, Research Articles, Reports & Insights). */
   publicationsBase?: string;
   /** Base path for the Workspace sub-menu (its shelves, Digital Forms, Archives and the Knowledge Center), and the
       permission its shelves need. The row shows when any of its pages does. */
   workspace?: { base: string; office?: boolean; need: [ModuleKey, Action] };
-  /** Base path for the Analytics sub-menu (Scorecard, Indicators, Data requests, Activities, Benchmarks, Imports, Methodology). */
-  analytics?: { base: string };
   /** The permission the row needs. Rows the viewer cannot use are not shown. */
   need?: [ModuleKey, Action];
   /** The System Configuration feature the row depends on. */
@@ -36,9 +36,12 @@ export interface NavGroup {
 }
 
 /* Main navigation from the proposal: Dashboard, Rankings, Contributions, Publications, Recognition (a
-   Dashboard tab in the office workspace), Workspace (with the Knowledge Center), Reports, About the Office. Rankings, Publications, Workspace and Administration open their own
-   sets of tabs in the sidebar. A Coordinator's contributions are Submit evidence and their unit's Publications. Administration is shown to people who administer something; About the
-   Office sits apart at the foot. A Student (the Secretary of a student organization, commission or council) has
+   Dashboard tab in the office workspace), Workspace (with the Knowledge Center), Reports, About the Office. Each has
+   one job: the Dashboard summarises and links on, Rankings holds how the University scores (a ranking's page, plus an
+   overview whose tabs work across rankings), Units is who contributes, and Reports produces the documents. Rankings,
+   Publications, Workspace and Administration open their own sets of tabs in the sidebar. A Coordinator's contributions
+   are Submit evidence and their unit's Publications. Administration is shown to people who administer something; About
+   the Office sits apart at the foot. A Student (the Secretary of a student organization, commission or council) has
    the Student Portal's pages only (forms submit is theirs alone): Dashboard, Assignments, Project Proposals,
    Evaluation Forms, Registrations, Terminal Reports. */
 export const NAV: Record<Variant, NavGroup[]> = {
@@ -58,8 +61,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
     {
       items: [
         { href: "/admin", label: "Dashboard", icon: "dashboard", exact: true, need: ["dashboard", "view"] },
-        { href: "/admin/rankings", label: "Rankings", icon: "rankings", rankingsBase: "/admin/rankings", need: ["rankings", "view"] },
-        { href: "/admin/analytics", label: "Analytics", icon: "activity", analytics: { base: "/admin/analytics" }, need: ["rankings", "view"] },
+        { href: "/admin/rankings", label: "Rankings", icon: "rankings", rankingsBase: "/admin/rankings", overviewTabs: "/admin/rankings", need: ["rankings", "view"] },
         { href: "/admin/contributions", label: "Contributions", icon: "contributions", count: "review", need: ["evidence", "view"] },
         { href: "/admin/units", label: "Units", icon: "units", need: ["units", "view"] },
         { href: "/admin/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/admin/publications" },
@@ -102,8 +104,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
   ],
 };
 
-/* The ranking pages, by group, limited to the rankings System Configuration tracks. The overview is a
-   view of the dashboard, so it has no entry here. */
+/* The ranking pages, by group, limited to the rankings System Configuration tracks. */
 export const rankingSubnav = (ref: Reference, base: string, active?: string[]) =>
   ref.groups.map((g) => ({
     group: g.label,
@@ -126,20 +127,18 @@ export interface SubLink {
   label: string;
   icon: IconName;
   need: [ModuleKey, Action];
-  /** Active only on this exact path (a section's landing page). */
-  exact?: boolean;
 }
 
-/* The Analytics pages: the scorecard first, then the evidence warehouse, the Office's data requests, the activity
-   register, peer benchmarks, data imports and the methodologies. */
-export const analyticsSubnav = (base: string): SubLink[] => [
-  { href: base, label: "Scorecard", icon: "grid", need: ["rankings", "view"], exact: true },
-  { href: `${base}/indicators`, label: "Indicators", icon: "target", need: ["rankings", "view"] },
-  { href: `${base}/collection`, label: "Data requests", icon: "send", need: ["rankings", "view"] },
+/* The Rankings overview's content tabs, which work across rankings rather than on one: each edition's scorecard, where
+   the University stands, the Office's data requests, the activity register, peer benchmarks and data imports. A
+   ranking's own indicators, plan and methodology are tabs on its page. */
+export const rankingOverviewTabs = (base: string): SubLink[] => [
+  { href: base, label: "Scorecard", icon: "grid", need: ["rankings", "view"] },
+  { href: `${base}/positions`, label: "Positions", icon: "rankings", need: ["rankings", "view"] },
+  { href: `${base}/data-requests`, label: "Data requests", icon: "send", need: ["rankings", "view"] },
   { href: `${base}/activities`, label: "Activities", icon: "collaboration", need: ["rankings", "view"] },
   { href: `${base}/benchmarks`, label: "Benchmarks", icon: "trend-up", need: ["rankings", "view"] },
   { href: `${base}/imports`, label: "Data imports", icon: "upload", need: ["rankings", "manage"] },
-  { href: `${base}/methodology`, label: "Methodology", icon: "layers", need: ["rankings", "manage"] },
 ];
 
 /* The Workspace pages: its shelves, Digital Forms, Archives, then the Knowledge Center. Each keeps its own
@@ -154,10 +153,14 @@ export const knowledgeHref = (variant: Variant) => (variant === "office" ? "/adm
 
 /** Every page the navigation guards, the Workspace's own pages included, for the server-side Gate. */
 export const navPages = (variant: Variant): Pick<NavLink, "href" | "need" | "feature">[] =>
-  NAV[variant].flatMap((g) => g.items.flatMap((i) => [...(i.analytics ? [] : [i]), ...(i.workspace ? workspaceSubnav(i.workspace) : []), ...(i.analytics ? analyticsSubnav(i.analytics.base) : [])]));
+  NAV[variant].flatMap((g) => g.items.flatMap((i) => [i, ...(i.workspace ? workspaceSubnav(i.workspace) : []), ...(i.overviewTabs ? rankingOverviewTabs(i.overviewTabs).filter((t) => t.href !== i.href) : [])]));
+
+/** Whether a path is one of the Rankings overview's tabs, rather than a ranking's own page. */
+export const isOverviewTab = (base: string, path: string) => rankingOverviewTabs(base).some((t) => t.href === path);
 
 /* Public/Internal view switch keeps the reader on the equivalent page. */
 export function publicPathFor(path: string): string {
+  if (isOverviewTab("/admin/rankings", path)) return "/rankings";
   const m = path.match(/^\/admin\/rankings\/([^/]+)/);
   if (m) return `/rankings/${m[1]}`;
   if (path.startsWith("/admin/rankings")) return "/rankings";

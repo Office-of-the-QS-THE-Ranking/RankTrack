@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import { ACTION_PLAN, COMPARISON, EVIDENCE as STATIC_EVIDENCE, STAGES, daysUntil, formatDate, type EvidenceStatus, type Indicator, type Ranking } from "@/lib/data";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { COMPARISON, EVIDENCE as STATIC_EVIDENCE, STAGES, daysUntil, formatDate, type EvidenceStatus, type Indicator, type Ranking } from "@/lib/data";
 import { familyOf } from "@/lib/reference";
 import { Tile } from "@/components/dashboard/Tile";
 import { UnitMark } from "@/components/units/UnitMark";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { PlanStatus, Ring, Status, cx } from "@/components/ui/primitives";
-import { Drawer, InfoTooltip, Segmented, TabPanel, Tabs, type ContentTab } from "@/components/ui/interactive";
+import { InfoTooltip, Segmented, TabPanel, Tabs, type ContentTab } from "@/components/ui/interactive";
 import { toast } from "@/components/ui/toast";
 import { Select } from "@/components/ui/pickers";
 import { useHub } from "@/components/hub/HubProvider";
@@ -18,8 +18,9 @@ import { Bullet, EmptyArt, HeatGrid, PeerLadder, Quiet, Spark, StatusDonut, Weig
 import { IndicatorDrawer } from "./IndicatorDrawer";
 import { SpecialDashboard } from "./SpecialDashboard";
 import { actionIcon, resolveFocus, type FocusTarget } from "./focus";
-import type { RankingAnalytics } from "@/lib/analytics/desk-types";
-import { pct, pts } from "@/lib/analytics/format";
+import { ActionSheet, draftOf, newAction, type ActionDraft } from "@/components/analytics/ActionSheet";
+import type { RankingAnalytics, RankingDesk } from "@/lib/analytics/desk-types";
+import { day, pct, pts } from "@/lib/analytics/format";
 
 /* Keys stay as the ranking menus (focus.ts) and earlier links (#indicators, #methodology) name them. */
 type Tab = "Overview" | "Indicators" | "Evidence" | "Contributors" | "Action Plan" | "Methodology";
@@ -52,16 +53,6 @@ const PLAN = ["Complete", "On track", "At risk", "Not started"] as const;
 
 const FOCUS_ICON: Record<FocusTarget["kind"], IconName> = { tab: "layers", indicator: "target", link: "arrow-up-right", anchor: "arrow-down" };
 
-function downloadCsv(name: string, rows: (string | number | null)[][]) {
-  const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 /** Counts of items by evidence status, as legend rows. */
 function StatusLegend({ parts }: { parts: Part[] }) {
   return (
@@ -81,20 +72,25 @@ function StatusLegend({ parts }: { parts: Part[] }) {
   );
 }
 
-/** The analytics engine's headline for the ranking's active edition: its figure, readiness, and the fixes worth most. */
-function AnalyticsTile({ a }: { a: RankingAnalytics }) {
+/** The scorecard for the ranking's active edition: its figure, what waits for review, and the fixes worth most. */
+function ScoreTile({ a, onOpen }: { a: RankingAnalytics; onOpen: () => void }) {
   const figure = a.kind === "readiness" ? pct(a.claimed) : a.kind === "results" ? `${a.claimed}` : pts(a.claimed);
   const label = a.kind === "readiness" ? "ready" : a.kind === "results" ? "ranked" : `of ${pts(a.max)} claimed · ${pts(a.secured)} secured`;
   return (
-    <Tile id="rk-analytics" title={`Analytics · ${a.label}`} className="rk-s12" href={`/admin/analytics/indicators?edition=${a.edition}`}>
+    <Tile
+      id="rk-analytics"
+      title={`Scorecard · ${a.label}`}
+      className="rk-s12"
+      aside={
+        <button type="button" className="rk-more" onClick={onOpen} aria-label="Open indicators">
+          <Icon name="chevron" size={16} />
+        </button>
+      }
+    >
       <div className="rk-an">
         <p className="rk-an__fig">
           <b>{figure}</b>
           <span>{label}</span>
-        </p>
-        <p className="rk-an__fig">
-          <b>{Math.round(a.readiness)}%</b>
-          <span>ready</span>
         </p>
         <p className="rk-an__fig">
           <b>{a.forReview}</b>
@@ -115,8 +111,22 @@ function AnalyticsTile({ a }: { a: RankingAnalytics }) {
   );
 }
 
-export function RankingView({ ranking, analytics }: { ranking: Ranking; analytics?: RankingAnalytics }) {
-  const { latestEdition, reportTypes } = useViews();
+export function RankingView({
+  ranking,
+  analytics,
+  desk,
+  indicators,
+  methodology,
+}: {
+  ranking: Ranking;
+  analytics?: RankingAnalytics;
+  desk: RankingDesk;
+  /** The edition's indicators, when the ranking has an edition. They stream in, so the page doesn't wait for them. */
+  indicators?: ReactNode;
+  /** The ranking's editions and catalog, for those who manage methodologies. */
+  methodology?: ReactNode;
+}) {
+  const { latestEdition } = useViews();
   const fam = familyOf(useReference(), ranking.family);
   // Evidence and units come from the governance store: review states, directory names and archives.
   const hub = useHub();
@@ -124,19 +134,17 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
   const UNITS = hub?.units.filter((u) => u.status === "Active") ?? [];
   const [tab, setTabState] = useState<Tab>("Overview");
   const [ind, setInd] = useState<Indicator | null>(null);
-  const [reports, setReports] = useState(false);
-  const [made, setMade] = useState<string[]>([]);
+  const [editing, setEditing] = useState<ActionDraft | null>(null);
   const [evFilter, setEvFilter] = useState<"All" | "Needs attention" | "Reused">("All");
 
   const setTab = useCallback((t: Tab) => {
     setTabState(t);
-    history.replaceState(null, "", t === "Overview" ? location.pathname : `#${slugOf(t)}`);
+    history.replaceState(null, "", `${location.pathname}${location.search}${t === "Overview" ? "" : `#${slugOf(t)}`}`);
   }, []);
 
   useEffect(() => {
     const fromHash = () => {
       const h = location.hash.slice(1);
-      if (h === "reports") return setReports(true);
       const t = TABS.find((x) => slugOf(x.key) === h)?.key ?? MOVED[h];
       if (t) setTabState(t);
     };
@@ -178,7 +186,7 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
   const evidenceParts = countBy(evidence, (e) => e.status);
 
   const top = drivers(ranking);
-  const act = nextAction(ranking);
+  const act = nextAction(ranking, desk.actions);
   const more = actions.filter(({ a }) => a !== act?.action).slice(0, 3);
   const actDays = act?.due ? daysUntil(act.due) : null;
   const sgo = [
@@ -199,7 +207,7 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
       return h && h > 0 && i.target ? Math.round((h / i.target) * 100) : null;
     }),
   }));
-  const plan = PLAN.map((s) => ({ status: s, n: ACTION_PLAN.filter((a) => a.status === s).length })).filter((p) => p.n);
+  const plan = PLAN.map((s) => ({ status: s, n: desk.actions.filter((a) => a.status === s).length })).filter((p) => p.n);
   const totalWeight = ranking.indicators.reduce((s, i) => s + weightOf(i), 0);
 
   return (
@@ -214,9 +222,9 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
         idBase={`rk-${ranking.slug}`}
         counts={{ Evidence: ranking.pending || undefined }}
         actions={
-          <button type="button" className="content-tabs__action" onClick={() => setReports(true)} aria-haspopup="dialog">
+          <Link href={`/admin/reports?ranking=${encodeURIComponent(ranking.short)}`} className="btn content-tabs__action">
             <Icon name="reports" size={16} /> Reports
-          </button>
+          </Link>
         }
       />
 
@@ -224,6 +232,8 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
         {tab === "Overview" && (
           <>
             <div className="ov-bento rk-bento">
+              {analytics && <ScoreTile a={analytics} onOpen={() => setTab("Indicators")} />}
+
               <Tile
                 id="rk-drivers"
                 title="What drives it"
@@ -363,16 +373,17 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
                 )}
               </Tile>
 
-              {analytics && <AnalyticsTile a={analytics} />}
             </div>
 
             <SpecialDashboard ranking={ranking} onIndicator={openIndicator} />
           </>
         )}
 
+        {tab === "Indicators" && indicators}
+
         {tab === "Indicators" && (
           <div className="ov-bento rk-bento">
-            <Tile id="rk-score" title="Scorecard" className="rk-s12">
+            {!indicators && <Tile id="rk-score" title="Indicators" className="rk-s12">
               {ranking.indicators.length ? (
                 <div className="rk-score">
                   <p className="rk-score__head" aria-hidden="true">
@@ -412,7 +423,7 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
               ) : (
                 <EmptyArt kind="start">No indicators yet</EmptyArt>
               )}
-            </Tile>
+            </Tile>}
 
             <Tile id="rk-heat" title="Share of target by year" className="rk-s7">
               {span > 1 && heatRows.some((r) => r.values.some((v) => v !== null)) ? (
@@ -631,43 +642,66 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
               title="Action plan"
               className="rk-s12"
               aside={
-                plan.length > 0 && (
-                  <ul className="rk-plan__sum" aria-label="Actions by status">
-                    {plan.map((p) => (
-                      <li key={p.status}>
-                        <PlanStatus status={p.status} />
-                        <b>{p.n}</b>
-                      </li>
-                    ))}
-                  </ul>
-                )
+                <span className="rk-plan__head">
+                  {plan.length > 0 && (
+                    <ul className="rk-plan__sum" aria-label="Actions by status">
+                      {plan.map((p) => (
+                        <li key={p.status}>
+                          <PlanStatus status={p.status} />
+                          <b>{p.n}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {desk.can.edit && desk.editions[0] && (
+                    <button type="button" className="btn btn--sm" onClick={() => setEditing(newAction(desk.editions[0].id))}>
+                      <Icon name="plus" size={15} /> Add
+                    </button>
+                  )}
+                </span>
               }
             >
-              {ACTION_PLAN.length ? (
+              {desk.actions.length ? (
                 <ul className="rk-plan">
-                  {ACTION_PLAN.map((a) => (
-                    <li key={a.action} className={cx("rk-plan__row", a.status === "At risk" && "is-risk")}>
-                      <span className="rk-plan__main">
-                        <b>{a.action}</b>
-                        <small>
-                          <Icon name="target" size={12} /> {a.kpi}
-                        </small>
-                      </span>
-                      <span className="rk-plan__who">
-                        <Icon name="building" size={13} />
-                        {a.owner}
-                      </span>
-                      <span className="rk-plan__when">
-                        <Icon name="calendar" size={13} />
-                        {a.timeline}
-                      </span>
-                      <span className="rk-plan__prog">
-                        <Bullet share={a.progress} label={`${a.action} progress`} />
-                        <b>{a.progress}%</b>
-                      </span>
-                      <PlanStatus status={a.status} />
-                    </li>
-                  ))}
+                  {desk.actions.map((a) => {
+                    const body = (
+                      <>
+                        <span className="rk-plan__main">
+                          <b>{a.action}</b>
+                          {(a.code || a.editionLabel) && (
+                            <small>
+                              <Icon name="target" size={12} /> {a.code ? `${a.editionLabel} · ${a.code}` : a.editionLabel}
+                            </small>
+                          )}
+                        </span>
+                        <span className="rk-plan__who">
+                          <Icon name="building" size={13} />
+                          {a.ownerName ?? "No unit"}
+                        </span>
+                        <span className="rk-plan__when">
+                          <Icon name="calendar" size={13} />
+                          {a.due ? day(a.due) : "No date"}
+                        </span>
+                        <span className="rk-plan__prog">
+                          <Bullet share={a.progress} label={`${a.action} progress`} />
+                          <b>{a.progress}%</b>
+                        </span>
+                        <PlanStatus status={a.status} />
+                      </>
+                    );
+                    const risk = a.status === "At risk" && "is-risk";
+                    return (
+                      <li key={a.id} className="rk-plan__item">
+                        {desk.can.edit && a.edition ? (
+                          <button type="button" className={cx("rk-plan__row rk-plan__row--btn", risk)} onClick={() => setEditing(draftOf(a))}>
+                            {body}
+                          </button>
+                        ) : (
+                          <div className={cx("rk-plan__row", risk)}>{body}</div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <EmptyArt kind="start">No plan yet</EmptyArt>
@@ -769,53 +803,11 @@ export function RankingView({ ranking, analytics }: { ranking: Ranking; analytic
             </Tile>
           </div>
         )}
+
+        {tab === "Methodology" && methodology}
       </TabPanel>
 
-      <Drawer open={reports} onClose={() => setReports(false)} eyebrow={`${ranking.short}${hub?.currentCycle ? ` · ${hub.currentCycle}` : ""}`} title="Reports">
-        <ul className="rk-reports">
-          {reportTypes.map((r) => (
-            <li key={r.name} className="rk-report">
-              <span className="rk-report__icon">
-                <Icon name="reports" size={18} />
-              </span>
-              <span className="rk-report__name">
-                <b>{r.name}</b>
-                <small>{r.note}</small>
-              </span>
-              {made.includes(r.name) ? (
-                <span className="rk-report__get">
-                  <button
-                    type="button"
-                    className="btn btn--sm"
-                    onClick={() =>
-                      downloadCsv(`${ranking.slug}-${r.name.toLowerCase().replace(/\s+/g, "-")}.csv`, [
-                        ["Indicator", "Weight", "Current", "Target", "Trend", "Evidence status", "Owner"],
-                        ...ranking.indicators.map((i) => [i.name, i.weight, i.current, i.target, i.trend, i.status, i.owner]),
-                      ])
-                    }
-                  >
-                    <Icon name="download" size={16} /> CSV
-                  </button>
-                  <button type="button" className="btn btn--sm" onClick={() => window.print()}>
-                    <Icon name="reports" size={16} /> PDF
-                  </button>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn--dark btn--sm"
-                  onClick={() => {
-                    setMade((m) => [...m, r.name]);
-                    toast(`${r.name} is ready.`);
-                  }}
-                >
-                  Generate
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Drawer>
+      {editing && <ActionSheet draft={editing} editions={desk.editions} units={desk.units} onClose={() => setEditing(null)} />}
 
       <IndicatorDrawer ranking={ranking} indicator={ind} onClose={() => setInd(null)} />
     </div>

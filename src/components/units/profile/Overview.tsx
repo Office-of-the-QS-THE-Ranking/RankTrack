@@ -4,7 +4,7 @@ import { daysUntil, formatDate, type EvidenceItem } from "@/lib/data";
 import type { UnitProfileData } from "@/lib/governance/hub-types";
 import { ROMAN, metalOf, meritOf, rankingsOf, type AchievementState, type Season } from "@/lib/merit";
 import { Icon } from "@/components/ui/Icon";
-import { Card, Due, Empty, Meter, RankingName, Ring, SdgList, Status } from "@/components/ui/primitives";
+import { Card, Due, Empty, Meter, PlanStatus, RankingName, Ring, SdgList, Status } from "@/components/ui/primitives";
 import { StageTrack } from "@/components/contributions/StageTrack";
 import { CountUp, HonourDial, Medal } from "./Medal";
 import { ItemTitle, SectionTitle, useSectionLevel, type ProfileTab } from "./shared";
@@ -233,10 +233,16 @@ export function Overview({
               <li key={a.id}>
                 <span className="list__main">{a.action}</span>
                 <span className="list__aside">
-                  <Status status={a.status} />
+                  <PlanStatus status={a.status} />
                 </span>
                 <span className="list__sub row" style={gap(6)}>
-                  <RankingName slug={a.ranking} /> · <Due iso={a.due} withDays />
+                  <RankingName slug={a.ranking} />
+                  {a.due && (
+                    <>
+                      {" "}
+                      · <Due iso={a.due} withDays />
+                    </>
+                  )}
                 </span>
               </li>
             ))}

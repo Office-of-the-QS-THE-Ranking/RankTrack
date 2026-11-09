@@ -3,11 +3,10 @@
 import { useRouter } from "next/navigation";
 import { Tabs } from "@/components/ui/interactive";
 
-export type DashboardView = "submissions" | "rankings" | "recognition";
+export type DashboardView = "submissions" | "recognition";
 
 export const DASHBOARD_VIEWS = [
   { key: "submissions", label: "Submissions" },
-  { key: "rankings", label: "Rankings" },
   { key: "recognition", label: "Recognition" },
 ] as const;
 

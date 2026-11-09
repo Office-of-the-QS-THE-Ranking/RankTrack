@@ -44,6 +44,10 @@
   outline: 2px solid var(--gold-500);
   outline-offset: 2px;
 }
+/* Fields show focus with their own neutral edge, never the gold outline. */
+.adm :is(input:not([type="checkbox"], [type="radio"]), textarea, select, .input, .select, .textarea, .pick-trigger):focus-visible {
+  outline: none;
+}
 .adm .block {
   display: block;
 }
@@ -112,14 +116,12 @@
 .adm .btn--ghost {
   --btn-bg: transparent;
 }
-.btn--danger {
-  --btn-bg: rgb(200 0 26 / 0.08);
-  --btn-fg: var(--danger);
-  --btn-bg-h: rgb(200 0 26 / 0.14);
-}
-:root[data-theme="dark"] .btn--danger {
-  --btn-bg: rgb(255 107 107 / 0.12);
-  --btn-bg-h: rgb(255 107 107 / 0.2);
+.btn.btn--danger {
+  --btn-bg: var(--danger-fill);
+  --btn-fg: #ffffff;
+  --btn-bd: var(--danger-fill);
+  --btn-bg-h: var(--danger-fill-h);
+  --btn-bd-h: var(--danger-fill-h);
 }
 .adm .choice {
   background: transparent;
@@ -263,6 +265,13 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+.adm-actions--split {
+  justify-content: space-between;
+}
+.adm-actions__end {
+  display: flex;
+  gap: 8px;
 }
 .adm-actions--wrap {
   justify-content: flex-start;
@@ -2993,21 +3002,6 @@
 .wizard__for b {
   font-weight: 600;
   color: var(--text);
-}
-
-/* Report builder: export approval and publication requests sit above the table. */
-.report-gate {
-  padding: 12px 20px 0;
-}
-.report-gate__form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  margin-top: 10px;
-}
-.report-gate__form .field {
-  min-width: 180px;
 }
 
 /* ---------- Refinements ---------- */

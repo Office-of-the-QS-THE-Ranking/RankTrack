@@ -33,7 +33,8 @@ export type ModuleKey =
   | "audit"
   | "workflows"
   | "config"
-  | "backup";
+  | "backup"
+  | "ai";
 
 export type Action = "view" | "create" | "edit" | "delete" | "submit" | "approve" | "export" | "manage";
 

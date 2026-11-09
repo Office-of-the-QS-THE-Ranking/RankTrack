@@ -2020,59 +2020,6 @@ a.matrix__col:hover {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* ---------- Reports ---------- */
-.report-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-4);
-  align-items: start;
-}
-@container content (min-width: 980px) {
-  .report-layout {
-    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
-  }
-}
-.report-menu-body {
-  padding: 8px 10px 10px !important;
-}
-.report-menu button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: none;
-  color: var(--text-2);
-  font-size: var(--fs-14);
-  font-weight: 500;
-  text-align: left;
-  transition: background-color var(--t) ease, color var(--t) ease;
-}
-.report-menu button svg {
-  color: var(--text-3);
-}
-.report-menu button[aria-checked="true"] {
-  background: var(--ink);
-  color: var(--on-ink);
-}
-.report-menu button[aria-checked="true"] svg {
-  color: var(--gold-500);
-}
-@media (hover: hover) {
-  .report-menu button:hover:not([aria-checked="true"]) {
-    background: var(--surface-3);
-    color: var(--text);
-  }
-}
-.report-scope {
-  padding: 0 var(--s-5) var(--s-3);
-  font-size: var(--fs-13);
-  font-weight: 600;
-}
-
 /* ---------- About ---------- */
 .office {
   display: grid;

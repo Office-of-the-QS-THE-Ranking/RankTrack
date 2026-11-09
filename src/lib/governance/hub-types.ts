@@ -3,7 +3,8 @@
  * directory's units, records with their review and publication state, and configuration.
  */
 import type { CalendarItem } from "@/lib/calendar";
-import type { ActionItem, DictionaryEntry, EvidenceItem, EvidenceStatus, Requirement, Story, Unit } from "@/lib/data";
+import type { RankingAction } from "@/lib/analytics/desk-types";
+import type { DictionaryEntry, EvidenceItem, EvidenceStatus, Requirement, Story, Unit } from "@/lib/data";
 import type { DeadlineSource } from "@/lib/reference";
 import type {
   AccountStatus,
@@ -55,7 +56,7 @@ export interface UnitProfileData {
   evidence: EvidenceItem[];
   /** This cycle's requirements. */
   requirements: Requirement[];
-  actions: ActionItem[];
+  actions: RankingAction[];
   recognition: { award: string; reason: string }[];
   /** Indicators this unit owns. */
   owned: { ranking: string; name: string; status: EvidenceStatus }[];
@@ -103,6 +104,8 @@ export interface HubData {
   activeSlugs: string[];
   publicSlugs: string[];
   deadlines: Record<string, string>;
+  /** Each tracked ranking's readiness and what is still to go, from the analytics engine when it has an active edition. */
+  scores: Record<string, { readiness: number; pending: number }>;
   /** Each tracked ranking's deadline and other dates, soonest first. */
   calendar: CalendarItem[];
   /** Only for people who may change deadlines. */

@@ -44,7 +44,7 @@ export async function analyticsDaily(now = new Date()): Promise<{ ok: boolean; m
         mine++;
       } else {
         await db.from("analytics_campaign_units").update({ escalated_at: now.toISOString() }).eq("campaign_id", c.id).eq("unit_id", step.unit);
-        notices.push({ to: "office", template: "tpl-data-escalated", vars: { unit: unitName(step.unit), ranking: r.bundle.catalog.edition.label, open, count: s.requested, due: c.due }, href: `/admin/analytics/collection?request=${c.id}` });
+        notices.push({ to: "office", template: "tpl-data-escalated", vars: { unit: unitName(step.unit), ranking: r.bundle.catalog.edition.label, open, count: s.requested, due: c.due }, href: `/admin/rankings/data-requests?request=${c.id}` });
         entries.push({ action: "analytics.campaign.escalate", id: c.code, label: c.title, detail: `${unitName(step.unit)}: ${open} of ${s.requested} items past due ${c.due}` });
         escalated++;
       }

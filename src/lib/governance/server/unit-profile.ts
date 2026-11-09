@@ -4,7 +4,8 @@ import "server-only";
  * What a unit's profile in the Office workspace needs: the unit, its coordinator, every cycle's records
  * within the viewer's reach, and whether the viewer may edit the unit's account settings.
  */
-import { ACTIONS, RECOGNITION } from "@/lib/data";
+import { RECOGNITION } from "@/lib/data";
+import { unitActions } from "@/lib/analytics/server/desk";
 import { recordReach } from "../derive";
 import type { UnitProfileData } from "../hub-types";
 import { descendants } from "../rbac";
@@ -50,7 +51,7 @@ export async function unitProfile(slug: string): Promise<UnitProfileData | null>
     coordinators,
     evidence,
     requirements,
-    actions: ACTIONS.filter((a) => a.unit === unit.name),
+    actions: viewerCan(viewer, "rankings", "view") ? await unitActions(unit) : [],
     recognition: RECOGNITION.filter((r) => r.unit === unit.name).map(({ award, reason }) => ({ award, reason })),
     owned,
     deadlines: h.rankings

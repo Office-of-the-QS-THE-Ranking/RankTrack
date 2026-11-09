@@ -68,6 +68,8 @@ export async function publicHub(): Promise<HubData> {
     activeSlugs: site.rankings.map((r) => r.slug),
     publicSlugs: site.rankings.map((r) => r.slug),
     deadlines: Object.fromEntries(site.rankings.map((r) => [r.slug, r.deadline])),
+    // The public website shows published results; the engine's working figures stay inside.
+    scores: {},
     calendar: site.calendar,
     deadlineDesk: null,
     bodies: h.state.config.bodies.map((b) => ({ key: b.key, name: b.name, short: b.short, enabled: b.enabled })),

@@ -4,11 +4,9 @@
  */
 import type {
   ActionItem,
-  Dimension,
   EvidenceItem,
   EvidenceStatus,
   Indicator,
-  PlanStatus,
   Quadrant,
   RankPoint,
   Ranking,
@@ -369,10 +367,6 @@ export const demo = {
   pipeline: [64, 52, 41, 36, 28, 12],
   wuriPipeline: [38, 26, 17, 12, 8, 4, 2],
   wuriPlacements: ["Social Responsibility", "Industrial Application", "Value Creation", "Crisis Management"],
-  dimensionScores: [
-    ["Research", 58, 70], ["Teaching and learning", 62, 70], ["Reputation", 47, 60], ["Employability", 71, 78], ["Internationalization", 39, 55],
-    ["Sustainability", 74, 80], ["Social impact", 81, 85], ["Innovation", 52, 65], ["Campus operations", 69, 75],
-  ].map(([dimension, current, target]) => ({ dimension: dimension as Dimension, current: current as number, target: target as number })),
   actions: [
     { id: "A-01", action: "Re-submit faculty FTE with part-time staff as fractions", ranking: "qs-wur", unit: "Human Resource Department", due: "2026-12-15", status: "Needs revision" },
     { id: "A-02", action: "Add approval dates to heritage policies", ranking: "the-impact", unit: unitName.architecture, due: "2026-11-15", status: "Not started" },
@@ -401,13 +395,6 @@ export const demo = {
     { award: "Impact champion", unit: unitName.simbahayan, reason: "Tahanan programme recognised in WURI Social Responsibility." },
     { award: "Evidence excellence", unit: unitName.medicine, reason: "Every SDG 3 submission validated on first review." },
   ],
-  plan: [
-    { action: "Raise international co-authorship", kpi: "Co-authored papers 412 → 500", owner: "OVRRI", timeline: "Jun 2027", progress: 62, status: "On track" },
-    { action: "Clean faculty FTE reporting", kpi: "One FTE source for QS and THE", owner: "HRD", timeline: "Dec 2026", progress: 35, status: "At risk" },
-    { action: "Public evidence links for all SDGs", kpi: "100% of SDG evidence public", owner: "Rankings Office", timeline: "Nov 2026", progress: 88, status: "On track" },
-    { action: "Pharmacy publication push", kpi: "Reach the QS paper threshold", owner: unitName.pharmacy, timeline: "Mar 2027", progress: 20, status: "Not started" },
-    { action: "Water recycling baseline", kpi: "Metered reuse volumes", owner: unitName.fmo, timeline: "Oct 2026", progress: 100, status: "Complete" },
-  ] satisfies { action: string; kpi: string; owner: string; timeline: string; progress: number; status: PlanStatus }[],
   comparison: [
     { name: "University of the Philippines", value: "335", own: false },
     { name: "Ateneo de Manila University", value: "481–490", own: false },

@@ -75,6 +75,9 @@
   --missing-bg: #f0f0f3;
   --danger: #c8001a;
   --danger-bg: #fdecee;
+  /* Filled red buttons, in both themes. */
+  --danger-fill: #9b1c2e;
+  --danger-fill-h: #861726;
 
   /* Ranking families (validated set; see lib/data.ts) */
   --the: #c42a2a;

@@ -457,13 +457,13 @@
 
 /* ---------- Delete confirmation ---------- */
 .btn.pc-discard {
-  background: #c81e1e;
-  border-color: #c81e1e;
+  background: var(--danger-fill);
+  border-color: var(--danger-fill);
   color: #ffffff;
 }
 .btn.pc-discard:hover:not(:disabled) {
-  background: #a61919;
-  border-color: #a61919;
+  background: var(--danger-fill-h);
+  border-color: var(--danger-fill-h);
   color: #ffffff;
 }
 .pm-confirm {

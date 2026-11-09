@@ -82,9 +82,6 @@ export type EvidenceStatus =
 /** A dimension measured across the rankings (ranking_dimensions). */
 export type Dimension = string;
 
-/* Executive dashboard dimension performance (0–100 index), once the Office scores each dimension. */
-export const DIMENSION_SCORES: { dimension: Dimension; current: number; target: number }[] = DEMO_ON ? demo.dimensionScores : [];
-
 /* Units */
 export type UnitKind = "Faculty or college" | "Research centre" | "Office";
 export interface Unit {
@@ -239,7 +236,6 @@ export interface DictionaryEntry {
 }
 
 export type PlanStatus = "On track" | "At risk" | "Not started" | "Complete";
-export const ACTION_PLAN: { action: string; kpi: string; owner: string; timeline: string; progress: number; status: PlanStatus }[] = DEMO_ON ? demo.plan : [];
 
 /** Peer positions beside UST's in QS WUR, for the comparison panel. */
 export const COMPARISON: { name: string; value: string; own: boolean }[] = DEMO_ON ? demo.comparison : [];

@@ -2121,3 +2121,22 @@
     animation: w-rise 0.9s var(--ease-out) calc(var(--intro) + 0.35s) forwards;
   }
 }
+
+/* Policy pages: long running text beside its heading */
+.w-policy dd p,
+.w-policy dd ul {
+  margin-block: 0;
+}
+.w-policy dd :is(p, ul) + :is(p, ul) {
+  margin-top: 0.9em;
+}
+.w-policy dd ul {
+  display: grid;
+  gap: 0.6em;
+  padding-left: 1.2em;
+  list-style: disc;
+}
+.w-policy dd a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -166,6 +166,7 @@ export async function clientHub(viewer: Viewer, variant: "office" | "unit"): Pro
     activeSlugs: h.rankings.map((r) => r.slug),
     publicSlugs: h.publicRankings.map((r) => r.slug),
     deadlines: Object.fromEntries(state.config.rankings.map((r) => [r.slug, r.deadline])),
+    scores: Object.fromEntries(h.rankings.map((r) => [r.slug, { readiness: r.readiness, pending: r.pending }])),
     calendar: calendarOf(h.rankings, state.config.calendar),
     deadlineDesk: variant === "office" && canWith(viewer.grants, "config", "edit") ? deadlineDesk(state, h.ref) : null,
     bodies: state.config.bodies.map((b) => ({ key: b.key, name: b.name, short: b.short, enabled: b.enabled })),

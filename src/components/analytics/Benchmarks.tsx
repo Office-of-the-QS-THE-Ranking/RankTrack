@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Benchmarks: published figures, the University's and its peers', by ranking and year. Portal exports
+ * Rankings › Benchmarks: published figures, the University's and its peers', by ranking and year. Portal exports
  * or the Office's own sheets come in as tables; single figures are typed in. The gap matrix sets the University's
  * latest figures against the median of each peer band: Philippine competitors, ASEAN comparators and aspirational
  * peers. Normalised ratios (THE's proportions) are projected from the same peers' figures.

@@ -104,7 +104,7 @@
   display: block;
   font-size: var(--fs-14);
   font-weight: 700;
-  color: var(--white);
+  color: var(--on-dark);
   font-variant-numeric: tabular-nums;
 }
 .tip__label {
@@ -120,7 +120,7 @@
 }
 .tip__row b {
   margin-left: auto;
-  color: var(--white);
+  color: var(--on-dark);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

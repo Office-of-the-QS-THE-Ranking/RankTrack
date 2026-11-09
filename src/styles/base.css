@@ -257,12 +257,16 @@ input[type="search"]::-webkit-search-decoration {
   .viewtoggle {
     display: none !important;
   }
+  /* shell.css loads later and draws .app as sidebar + main; without the sidebar, main would sit in its narrow column. */
   .app {
-    display: block;
+    display: block !important;
+  }
+  .app::before {
+    display: none;
   }
   .content {
     max-width: none;
-    padding: 0;
+    padding: 0 !important;
   }
   .content > * {
     animation: none !important;

@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Data imports. Templates: the Registrar's, HR's, the Health Service's and FMO's files, counted in this
+ * Rankings › Data imports. Templates: the Registrar's, HR's, the Health Service's and FMO's files, counted in this
  * browser under their profile; only the counts are sent, never a row. Unit files: a unit's THE data-collection
  * workbook (its answers and links, for review), GreenMetric evidence files (their figures, confirmed one by one) and
  * WURI case files. Unit names: how registers name units. Log: every file read, with its fingerprint.

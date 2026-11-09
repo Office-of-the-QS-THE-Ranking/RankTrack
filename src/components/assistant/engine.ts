@@ -131,7 +131,6 @@ export class OrbEngine {
   private edgeReveal = spring();
   private energy = spring();
   private flare = 0;
-  private wave = 0;
   private edgeShown = false;
 
   private mood: Mood = "open";
@@ -214,7 +213,6 @@ export class OrbEngine {
     if (open) {
       this.parts.panel.style.visibility = "visible";
       this.flare = this.still ? 0 : 1;
-      this.wave = this.still ? 0 : 0.0001;
       this.edgeReveal.v = 1.1;
       this.addRipple(0, 0, 1, 0.8);
       this.setMood("open", 0, now);
@@ -725,10 +723,6 @@ export class OrbEngine {
       pull(this.energy, this.status === "thinking" ? 1 : this.status === "streaming" ? 0.72 : 0.26, 12, 1, dt);
     }
     this.flare *= Math.exp(-dt * 1.7);
-    if (this.wave > 0) {
-      this.wave += dt / 1.15;
-      if (this.wave >= 1) this.wave = 0;
-    }
     const reveal = this.edgeReveal.x;
     const shown = this.open || reveal > 0.006;
     if (shown !== this.edgeShown) {
@@ -752,7 +746,6 @@ export class OrbEngine {
       orbAngle: Math.atan2(-y / (this.vh / 2), x / (this.vw / 2)),
       energy: clamp(this.energy.x, 0, 1.4),
       flare: this.flare,
-      wave: this.wave,
       dark: document.documentElement.dataset.theme === "dark",
     });
   }

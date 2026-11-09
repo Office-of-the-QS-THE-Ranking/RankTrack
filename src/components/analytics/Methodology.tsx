@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Methodology: each ranking's editions as data. An edition's status decides whether units can send to it
+ * A ranking's Methodology tab, for those who manage it: its editions as data. An edition's status decides whether units can send to it
  * (Active), whether it is being prepared (Draft) or kept for comparison (Closed, Archived). A new year starts as a copy
  * of the last one; a methodology pack (JSON) creates or updates an edition in one go, checked indicator by indicator.
  * Each indicator's details, owners and evidence rules are edited here; its input and scoring rule too, as JSON.
@@ -266,7 +266,7 @@ export function Methodology({ desk }: { desk: MethodologyDesk }) {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     const sha256 = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
     const r = await run(() => importPack({ text, meta: { fileName: f.name, sha256, bytes: f.size } }));
-    if (r.ok && r.data) router.push(`/admin/analytics/methodology?edition=${r.data.id}`);
+    if (r.ok && r.data) router.push(`/admin/rankings/${r.data.ranking}?edition=${r.data.id}#methodology`);
     if (file.current) file.current.value = "";
   };
 
@@ -303,7 +303,7 @@ export function Methodology({ desk }: { desk: MethodologyDesk }) {
             </thead>
             <tbody>
               {desk.editions.map((e) => (
-                <tr key={e.id} className={`ws-row an-click${sel?.edition.id === e.id ? " is-picked" : ""}`} onClick={() => router.push(`/admin/analytics/methodology?edition=${e.id}`)}>
+                <tr key={e.id} className={`ws-row an-click${sel?.edition.id === e.id ? " is-picked" : ""}`} onClick={() => router.push(`/admin/rankings/${e.ranking}?edition=${e.id}#methodology`)}>
                   <td>
                     <span className="an-ind__name">
                       <span className="an-dot" style={{ background: e.color }} aria-hidden="true" /> {e.label}
@@ -411,7 +411,7 @@ export function Methodology({ desk }: { desk: MethodologyDesk }) {
                 const r = await run(() => cloneEdition({ id: cloning.e.id, year: cloning.year }));
                 if (r.ok && r.data) {
                   close();
-                  router.push(`/admin/analytics/methodology?edition=${r.data.id}`);
+                  router.push(`/admin/rankings/${cloning.e.ranking}?edition=${r.data.id}#methodology`);
                 }
               }}
             >

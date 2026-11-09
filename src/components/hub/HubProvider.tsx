@@ -46,13 +46,13 @@ export function useFeature(id: string) {
   return feature(useViewer(), id);
 }
 
-/** Rankings tracked in the workspaces, with configured deadlines. Outside a workspace: all of them. */
+/** Rankings tracked in the workspaces, with configured deadlines and the engine's readiness. Outside a workspace: all of them. */
 export function useRankings(): Ranking[] {
   const hub = useHub();
   const { rankings } = useReference();
   return useMemo(() => {
     if (!hub) return rankings;
-    return rankings.filter((r) => hub.activeSlugs.includes(r.slug)).map((r) => (hub.deadlines[r.slug] && hub.deadlines[r.slug] !== r.deadline ? { ...r, deadline: hub.deadlines[r.slug] } : r));
+    return rankings.filter((r) => hub.activeSlugs.includes(r.slug)).map((r) => ({ ...r, deadline: hub.deadlines[r.slug] || r.deadline, ...hub.scores[r.slug] }));
   }, [hub, rankings]);
 }
 

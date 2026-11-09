@@ -218,11 +218,10 @@
   position: fixed;
   inset: 0;
   z-index: calc(var(--z-orb) - 3);
-  background: rgb(18 17 16 / 0.4);
+  /* Solid while the chat is open, so nothing of the page shows: white, or jet black in dark */
+  background: #fff;
   opacity: 0;
   visibility: hidden;
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  backdrop-filter: blur(16px) saturate(1.2);
   transition:
     opacity 340ms ease,
     visibility 0s linear 340ms;
@@ -233,7 +232,7 @@
   transition: opacity 340ms ease;
 }
 :root[data-theme="dark"] .assist-scrim {
-  background: rgb(0 0 0 / 0.55);
+  background: #1d1d1f;
 }
 /* The page can't scroll behind it, and doesn't shift when its scrollbar goes */
 html:has(.assist-scrim[data-on]) {
@@ -253,9 +252,242 @@ html:has(.assist-scrim[data-on]) {
   opacity: 0;
   visibility: hidden;
   will-change: transform, opacity;
+  /* Light: solid white surfaces lifted by soft shadows, so nothing behind tints them */
+  --assist-glass: var(--surface);
+  --assist-glass-lift: 0 0 0 1px rgb(0 0 0 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.22);
+  --assist-row: var(--surface);
+  --assist-row-lift: inset 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 24px -16px rgb(0 0 0 / 0.16);
+}
+:root[data-theme="dark"] .assist-panel {
+  --assist-glass: rgb(var(--bg-rgb) / 0.86);
+  --assist-glass-lift: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 22px 48px -20px rgb(0 0 0 / 0.45);
+  --assist-row: rgb(var(--bg-rgb) / 0.55);
+  --assist-row-lift: inset 0 0 0 1px rgb(var(--hair) / 0.08);
 }
 .assist-panel:focus {
   outline: 0;
+}
+/* Settings: a sheet floating on the left, a layer on top of the chat. The chat underneath doesn't move or resize. */
+.assist-panel {
+  --assist-side: 340px;
+  --assist-side-gap: 12px;
+}
+.assist-side {
+  position: absolute;
+  inset: var(--assist-side-gap) auto var(--assist-side-gap) var(--assist-side-gap);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: var(--assist-side);
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.05),
+    0 2px 6px rgb(0 0 0 / 0.04),
+    0 28px 64px -20px rgb(0 0 0 / 0.28);
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(calc(-100% - var(--assist-side-gap) - 8px));
+  transition:
+    transform 380ms var(--ease-out),
+    opacity 240ms ease,
+    visibility 0s linear 380ms;
+}
+.assist-side[data-on] {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    transform 380ms var(--ease-out),
+    opacity 240ms ease;
+}
+/* Solid in both themes: the conversation runs behind it, and dark glass would let it show through */
+:root[data-theme="dark"] .assist-side {
+  background: #2a2a2d;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--hair) / 0.1),
+    0 28px 64px -20px rgb(0 0 0 / 0.7);
+}
+.assist-side__top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 10px 20px;
+}
+.assist-side__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.assist-side__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 4px 10px calc(14px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--hair) / 0.18) transparent;
+}
+.assist-tier {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.assist-tier__name {
+  margin: 0;
+  padding: 0 10px 6px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.assist-tier__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.assist-side__empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+/* One model: its maker's logo, its name, and on the right whether it can be used */
+.assist-model {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  transition: background-color var(--t-fast) ease;
+}
+.assist-model--pick {
+  cursor: var(--cursor-pointer);
+}
+@media (hover: hover) {
+  .assist-model--pick:hover {
+    background: rgb(var(--hair) / 0.05);
+  }
+}
+.assist-model--pick[data-on] {
+  background: rgb(var(--hair) / 0.07);
+}
+.assist-model--pick:has(input:focus-visible) {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: -1px;
+}
+.assist-model__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.1);
+  color: var(--text);
+}
+:root[data-theme="dark"] .assist-model__mark {
+  background: rgb(var(--hair) / 0.08);
+}
+.assist-model__text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.assist-model__name {
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.assist-model__maker {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.assist-model--off .assist-model__mark svg {
+  opacity: 0.5;
+}
+.assist-model--off .assist-model__name {
+  color: var(--text-3);
+}
+/* Selected or not: a ring that fills with a tick */
+.assist-model__tick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px rgb(var(--hair) / 0.22);
+  color: transparent;
+  transition:
+    background-color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+.assist-model[data-on] .assist-model__tick {
+  background: var(--text);
+  box-shadow: none;
+  color: var(--surface);
+}
+.assist-model__badge,
+.assist-model__ask {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.assist-model__badge {
+  background: rgb(var(--hair) / 0.06);
+  color: var(--text-3);
+}
+.assist-model__ask {
+  border: 0;
+  background: rgb(var(--hair) / 0.08);
+  color: var(--text);
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t-fast) ease;
+}
+@media (hover: hover) {
+  .assist-model__ask:hover {
+    background: rgb(var(--hair) / 0.14);
+  }
+}
+.assist-model__ask:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 1px;
+}
+.assist-model__blank {
+  height: 54px;
+  margin-bottom: 2px;
+  border-radius: 14px;
+  background: rgb(var(--hair) / 0.05);
+}
+.assist-side[data-on] .assist-tier {
+  animation: assist-tier-in 420ms var(--ease-out) both;
+}
+.assist-side[data-on] .assist-tier + .assist-tier {
+  animation-delay: 70ms;
+}
+@keyframes assist-tier-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
 }
 /* Its own bar, under the orb's socket: what this is, and a fresh start once there is a conversation */
 .assist-top {
@@ -270,9 +502,6 @@ html:has(.assist-scrim[data-on]) {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-}
-.assist-top__chip {
-  font-size: 11px;
 }
 .assist-tool {
   display: grid;
@@ -294,25 +523,24 @@ html:has(.assist-scrim[data-on]) {
   }
 }
 
-/* The column everything sits in: centred on a fresh start, the conversation above the input once it begins */
+/* The column everything sits in: the input always at the bottom, the greeting or the conversation filling the space above */
 .assist-stage {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 26px;
-  width: min(720px, calc(100% - 32px));
-  margin: 0 auto;
-  padding-bottom: var(--top-h);
-}
-.assist-panel[data-started] .assist-stage {
-  justify-content: flex-end;
   gap: 14px;
-  padding-bottom: 24px;
+  width: min(960px, calc(100% - 32px));
+  margin: 0 auto;
+  /* The input sits clear of the bottom edge, with its note under it */
+  padding-bottom: calc(clamp(8px, calc(7vh - 12px), 60px) + env(safe-area-inset-bottom));
 }
 
 .assist-hello {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  align-content: center;
   text-align: center;
 }
 .assist-hello p {
@@ -331,13 +559,34 @@ html:has(.assist-scrim[data-on]) {
   flex: 1;
   min-height: 0;
   margin: 0 -12px;
-  padding: 20px 12px;
+  /* The bottom is the room between the conversation and the input */
+  padding: 20px 12px 54px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--hair) / 0.18) transparent;
-  -webkit-mask: linear-gradient(transparent, #000 24px, #000 calc(100% - 16px), transparent);
-  mask: linear-gradient(transparent, #000 24px, #000 calc(100% - 16px), transparent);
+  -webkit-mask: linear-gradient(transparent, #000 24px, #000 calc(100% - 36px), transparent);
+  mask: linear-gradient(transparent, #000 24px, #000 calc(100% - 36px), transparent);
+}
+/* Chrome, Edge and Safari can go thinner than `thin`, but ignore these rules while the standard properties are set */
+@supports selector(::-webkit-scrollbar) {
+  .assist-log {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .assist-log::-webkit-scrollbar {
+    width: 4px;
+  }
+  .assist-log::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .assist-log::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgb(var(--hair) / 0.24);
+  }
+  .assist-log::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--hair) / 0.38);
+  }
 }
 .assist-log:focus-visible {
   outline: none;
@@ -346,7 +595,7 @@ html:has(.assist-scrim[data-on]) {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 24px;
   min-height: 100%;
 }
 .assist-msg {
@@ -354,10 +603,8 @@ html:has(.assist-scrim[data-on]) {
   max-width: 82%;
   margin: 0;
   padding: 11px 16px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
   animation: assist-rise 340ms var(--ease-spring) both;
 }
 .assist-msg--me {
@@ -365,15 +612,19 @@ html:has(.assist-scrim[data-on]) {
   border-radius: 20px 20px 6px 20px;
   background: var(--ink);
   color: var(--on-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   transform-origin: 100% 100%;
 }
+/* Answers run across the column with no bubble; only what the person wrote sits in one */
 .assist-msg--assistant {
-  align-self: flex-start;
-  border-radius: 20px 20px 20px 6px;
-  background: rgb(var(--bg-rgb) / 0.72);
-  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.08);
+  min-width: 0;
+  align-self: stretch;
+  max-width: none;
+  padding: 0;
   color: var(--text);
-  transform-origin: 0 100%;
+  line-height: 1.65;
+  animation-name: assist-rise-text;
 }
 @keyframes assist-rise {
   from {
@@ -381,23 +632,57 @@ html:has(.assist-scrim[data-on]) {
     transform: translateY(8px) scale(0.94);
   }
 }
-.assist-msg--dots {
+/* Scaling a full-width block of text makes it swim, so answers only rise */
+@keyframes assist-rise-text {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.assist-think {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+}
+.assist-think__dots {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 44px;
 }
-.assist-msg--dots i {
+.assist-think__phrase {
+  background: linear-gradient(100deg, var(--text-3) 35%, var(--text) 50%, var(--text-3) 65%) 100% 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 14px;
+  animation:
+    assist-think-in 320ms var(--ease-out) both,
+    assist-think-sheen 1800ms linear infinite;
+}
+@keyframes assist-think-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes assist-think-sheen {
+  to {
+    background-position: 0 0;
+  }
+}
+.assist-think__dots i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--text-3);
   animation: assist-dot 1.15s ease-in-out infinite;
 }
-.assist-msg--dots i:nth-child(2) {
+.assist-think__dots i:nth-child(2) {
   animation-delay: 0.14s;
 }
-.assist-msg--dots i:nth-child(3) {
+.assist-think__dots i:nth-child(3) {
   animation-delay: 0.28s;
 }
 @keyframes assist-dot {
@@ -413,7 +698,7 @@ html:has(.assist-scrim[data-on]) {
   }
 }
 
-/* ---------- The input: dark glass in a slowly turning ring of the dashboard's spectrum, with its glow behind ----------
+/* ---------- The input: glass (white in light, dark in dark) in a slowly turning ring of the dashboard's spectrum, with its glow behind ----------
    A conic gradient turned on a box this wide pinches the whole spectrum into the middle of the long edges, so the
    ring is two strips instead: the top flows right, the bottom (mirrored) flows left, and they meet at the round ends,
    so the colour travels evenly round the rim. Each tile is twice the width (half the spectrum along each strip, so
@@ -428,11 +713,10 @@ html:has(.assist-scrim[data-on]) {
   position: relative;
   flex: none;
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  min-height: 66px;
-  padding: 11px 11px 11px 24px;
-  border-radius: 22px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 24px;
   /* Its own layer, so the glow sits behind the glass and the glass behind the text */
   isolation: isolate;
   container-type: inline-size;
@@ -442,10 +726,11 @@ html:has(.assist-scrim[data-on]) {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: rgb(var(--bg-rgb) / 0.86);
+  background: var(--assist-glass);
+  /* At rest the box is only this hairline: the colour below is for when someone's typing */
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 22px 48px -20px rgb(0 0 0 / 0.45);
+    inset 0 0 0 1px rgb(var(--hair) / 0.14),
+    var(--assist-glass-lift);
   pointer-events: none;
 }
 .glow.assist-ask__rim,
@@ -455,7 +740,14 @@ html:has(.assist-scrim[data-on]) {
   background:
     linear-gradient(90deg, var(--assist-ring)) 0 0 / 200cqw 50% repeat-x,
     linear-gradient(270deg, var(--assist-ring)) 0 100% / 200cqw 50% repeat-x;
-  animation: assist-flow 28s linear infinite;
+  opacity: 0;
+  /* The pause keeps it lit through a click on a button in the box that hands focus straight back */
+  transition: opacity 240ms ease 120ms;
+  animation: assist-flow 28s linear infinite paused;
+}
+.assist-ask:has(.assist-ask__input:focus) :is(.glow.assist-ask__rim, .glow.assist-ask__bloom) {
+  transition: opacity 200ms ease;
+  animation-play-state: running;
 }
 :root[data-theme="dark"] :is(.glow.assist-ask__rim, .glow.assist-ask__bloom) {
   --assist-ring: #ffd84d, #ff9f40 8.333%, #ff4d6d 16.667%, #ff5ce1 25%, #b06bff 33.333%, #5a8bff 41.667%, #3ddcff 50%,
@@ -467,23 +759,28 @@ html:has(.assist-scrim[data-on]) {
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
+}
+.assist-ask:has(.assist-ask__input:focus) .glow.assist-ask__rim {
+  opacity: 1;
+}
+:root[data-theme="dark"] .assist-ask:has(.assist-ask__input:focus) .glow.assist-ask__rim {
   opacity: 0.85;
 }
 .glow.assist-ask__bloom {
   inset: 3px;
   z-index: -1;
   filter: blur(16px);
+}
+.assist-ask:has(.assist-ask__input:focus) .glow.assist-ask__bloom {
   opacity: 0.45;
 }
-:root[data-theme="dark"] .glow.assist-ask__bloom {
+:root[data-theme="dark"] .assist-ask:has(.assist-ask__input:focus) .glow.assist-ask__bloom {
   opacity: 0.55;
 }
 .assist-ask__input {
-  flex: 1;
-  align-self: center;
-  min-width: 0;
+  width: 100%;
   max-height: 160px;
-  padding: 10px 0;
+  padding: 6px 10px;
   border: 0;
   outline: 0;
   background: transparent;
@@ -499,31 +796,94 @@ html:has(.assist-scrim[data-on]) {
 .assist-ask__input::placeholder {
   color: var(--text-3);
 }
-/* The model switcher: a quiet pill, like the keys in the reference */
-.select.assist-model {
+/* The third row: settings and suggestion on the left, send on the right */
+.assist-ask__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.assist-ask__row .assist-send {
+  margin-left: auto;
+}
+.assist-pill {
   flex: none;
-  width: auto;
-  height: 40px;
-  padding-left: 14px;
-  padding-right: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 12px;
   border: 0;
   border-radius: 999px;
-  background-color: rgb(var(--hair) / 0.07);
-  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.1);
+  background: rgb(var(--hair) / 0.06);
   color: var(--text-2);
   font-size: 13px;
+  cursor: var(--cursor-pointer);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    box-shadow 220ms ease,
+    transform 320ms var(--ease-spring);
 }
+.assist-pill__icon {
+  display: grid;
+  place-items: center;
+  transition: transform 420ms var(--ease-spring);
+}
+/* Hover: the pill lifts and its icon turns */
 @media (hover: hover) {
-  .select.assist-model:hover {
-    background-color: rgb(var(--hair) / 0.12);
+  .assist-pill:hover {
+    background: rgb(var(--hair) / 0.11);
+    color: var(--text);
+    box-shadow: 0 8px 16px -10px rgb(0 0 0 / 0.4);
+    transform: translateY(-1px);
   }
+  .assist-pill:hover .assist-pill__icon {
+    transform: rotate(45deg) scale(1.1);
+  }
+}
+/* Active: Settings stays filled, its gear turned, while the sheet is open */
+.assist-pill[aria-expanded="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: 0 8px 16px -10px rgb(0 0 0 / 0.4);
+  transform: none;
+}
+.assist-pill[aria-expanded="true"] .assist-pill__icon {
+  transform: rotate(90deg);
+}
+/* Click: pressed in at once, then the spring above lets it go */
+.assist-pill:active {
+  box-shadow: none;
+  transform: scale(0.94);
+  transition-duration: 180ms, 180ms, 80ms, 80ms;
+}
+.assist-pill:active .assist-pill__icon {
+  transform: scale(0.86);
+  transition-duration: 80ms;
+}
+/* Suggestion has no state to hold, so its spark bursts each time it fills the box */
+.assist-pill__icon[data-fired] {
+  animation: assist-spark 560ms var(--ease-out);
+}
+@keyframes assist-spark {
+  40% {
+    color: var(--text);
+    transform: rotate(135deg) scale(1.4);
+  }
+  to {
+    transform: rotate(180deg) scale(1);
+  }
+}
+.assist-pill:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
 }
 .assist-send {
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -557,98 +917,42 @@ html:has(.assist-scrim[data-on]) {
   background: currentColor;
 }
 
-/* ---------- First questions: glass rows that fade as they go down, like the reference's recent list ---------- */
-.assist-ideas__head {
-  margin: 0 6px 12px;
-  font-size: 14px;
-  color: var(--text-3);
-}
-.assist-ideas ul {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.assist-idea {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  height: 58px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 16px;
-  background: rgb(var(--bg-rgb) / 0.55);
-  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.08);
-  color: var(--text-2);
-  font-size: 15px;
-  text-align: left;
-  cursor: var(--cursor-pointer);
-  transition:
-    background-color var(--t-fast) ease,
-    color var(--t-fast) ease,
-    opacity var(--t) ease;
-}
-.assist-idea svg {
+/* What using the chat means: small, under the input */
+.assist-note {
   flex: none;
+  margin: 12px 0 0;
+  padding: 0;
   color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
 }
-.assist-idea span {
-  flex: 1;
-  min-width: 0;
-}
-.assist-idea__go {
-  opacity: 0;
-  transition: opacity var(--t-fast) ease, transform var(--t-fast) ease;
-}
-.assist-ideas li:nth-child(2) .assist-idea {
-  opacity: 0.78;
-}
-.assist-ideas li:nth-child(3) .assist-idea {
-  opacity: 0.56;
-}
-.assist-ideas li:nth-child(4) .assist-idea {
-  opacity: 0.36;
+.assist-note a {
+  color: var(--text-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: var(--cursor-pointer);
 }
 @media (hover: hover) {
-  .assist-ideas li .assist-idea:hover {
-    opacity: 1;
-    background: rgb(var(--bg-rgb) / 0.8);
+  .assist-note a:hover {
     color: var(--text);
   }
-  .assist-idea:hover .assist-idea__go {
-    opacity: 1;
-    transform: translate(1px, -1px);
-  }
 }
-.assist-idea:focus-visible {
-  opacity: 1;
+.assist-note a:focus-visible {
+  border-radius: 2px;
   outline: 1px solid rgb(var(--hair) / 0.5);
   outline-offset: 2px;
 }
 
-/* Opening: the greeting, the input and the first questions rise in turn */
-.assist-panel[data-open] :is(.assist-hello, .assist-ask, .assist-ideas__head, .assist-ideas li) {
+/* Opening: the greeting, then the input and its note, rise in turn */
+.assist-panel[data-open] :is(.assist-hello, .assist-ask, .assist-note) {
   animation: assist-enter 560ms var(--ease-out) both;
 }
 .assist-panel[data-open] .assist-ask {
   animation-delay: 70ms;
 }
-.assist-panel[data-open] .assist-ideas__head {
+.assist-panel[data-open] .assist-note {
   animation-delay: 140ms;
-}
-.assist-panel[data-open] .assist-ideas li:nth-child(1) {
-  animation-delay: 170ms;
-}
-.assist-panel[data-open] .assist-ideas li:nth-child(2) {
-  animation-delay: 210ms;
-}
-.assist-panel[data-open] .assist-ideas li:nth-child(3) {
-  animation-delay: 250ms;
-}
-.assist-panel[data-open] .assist-ideas li:nth-child(4) {
-  animation-delay: 290ms;
 }
 @keyframes assist-enter {
   from {
@@ -665,11 +969,15 @@ html:has(.assist-scrim[data-on]) {
   .assist-stage {
     width: calc(100% - 24px);
   }
+  .assist-log {
+    padding-bottom: 34px;
+  }
+  .assist-panel {
+    --assist-side: min(340px, calc(100% - 40px));
+    --assist-side-gap: 8px;
+  }
   .assist-hello p {
     font-size: 28px;
-  }
-  .assist-ask {
-    padding-left: 18px;
   }
   .assist-ask__input {
     font-size: 16px;
@@ -685,20 +993,53 @@ html:has(.assist-scrim[data-on]) {
   .assist-eye,
   .assist-eye i,
   .assist-send,
+  .assist-pill,
+  .assist-pill__icon,
+  .assist-side,
+  .assist-side[data-on],
+  .assist-model,
+  .assist-model__tick,
   .assist-scrim,
   .assist-scrim[data-on] {
     transition: none;
   }
   .assist-msg,
-  .assist-msg--dots i,
+  .assist-think__dots i,
+  .assist-think__phrase,
   .glow.assist-ask__rim,
   .glow.assist-ask__bloom,
-  .assist-panel[data-open] :is(.assist-hello, .assist-ask, .assist-ideas__head, .assist-ideas li) {
+  .assist-side[data-on] .assist-tier,
+  .assist-pill__icon[data-fired],
+  .assist-panel[data-open] :is(.assist-hello, .assist-ask, .assist-note) {
     animation: none;
   }
   .assist-orb__x::before,
   .assist-orb__x::after {
     transition: none;
+  }
+}
+/* No sheen to carry it, so the phrase is plain text */
+@media (prefers-reduced-motion: reduce) {
+  .assist-think__phrase {
+    background: none;
+    color: var(--text-2);
+  }
+}
+@media (forced-colors: active) {
+  .assist-think__phrase {
+    background: none;
+    color: CanvasText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .assist-pill,
+  .assist-pill:hover,
+  .assist-pill:active,
+  .assist-pill .assist-pill__icon,
+  .assist-pill:hover .assist-pill__icon,
+  .assist-pill:active .assist-pill__icon,
+  .assist-pill[aria-expanded="true"] .assist-pill__icon {
+    transform: none;
   }
 }
 @media print {
@@ -724,5 +1065,432 @@ html:has(.assist-scrim[data-on]) {
   .assist-eye i {
     background: ButtonText;
     box-shadow: none;
+  }
+}
+
+/* An answer's citations, and the pages they point to */
+.assist-cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  margin: 0 1px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.1);
+  color: var(--text-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-decoration: none;
+  vertical-align: 1px;
+  cursor: var(--cursor-pointer);
+}
+a.assist-cite:focus-visible,
+.assist-sources a:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+}
+.assist-sources {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid rgb(var(--hair) / 0.12);
+  list-style: none;
+  font-size: 13px;
+  white-space: normal;
+}
+.assist-sources a {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  color: var(--text-2);
+  text-decoration: none;
+  cursor: var(--cursor-pointer);
+}
+.assist-sources__from {
+  color: var(--text-3);
+  font-size: 12px;
+}
+@media (hover: hover) {
+  .assist-sources a:hover {
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+/* ---------- An answer's Markdown ---------- */
+.assist-md {
+  /* Graph series, in fixed order: validated for colour-blind separation on #fff and #1d1d1f */
+  --assist-series-1: #a87a00;
+  --assist-series-2: #2a78d6;
+  --assist-series-3: #eb6834;
+  --assist-series-4: #6250d6;
+  --assist-series-5: #e87ba4;
+  --assist-series-6: #008300;
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-wrap: break-word;
+}
+:root[data-theme="dark"] .assist-md {
+  --assist-series-1: #c98500;
+  --assist-series-2: #3987e5;
+  --assist-series-3: #d95926;
+  --assist-series-4: #9085e9;
+  --assist-series-5: #d55181;
+  --assist-series-6: #008300;
+}
+/* Zero weight, so the spacing rules after these always win */
+.assist-md :where(p, ul, ol, blockquote, pre, h3, h4, h5) {
+  margin: 0;
+}
+.assist-md > * + * {
+  margin-top: 14px;
+}
+.assist-md blockquote > * + *,
+.assist-md li > * + * {
+  margin-top: 8px;
+}
+/* A comfortable line length for reading. Tables, code and graphs can use the whole column. */
+.assist-md > :is(p, ul, ol, h3, h4, h5, blockquote) {
+  max-width: 72ch;
+}
+.assist-md :is(h3, h4, h5) {
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  text-transform: none;
+}
+.assist-md h3 {
+  font-size: 19px;
+}
+.assist-md h4 {
+  font-size: 17px;
+}
+.assist-md h5 {
+  font-size: 16px;
+}
+.assist-md > * + :is(h3, h4, h5) {
+  margin-top: 26px;
+}
+.assist-md > :is(h3, h4, h5) + * {
+  margin-top: 8px;
+}
+.assist-md strong {
+  font-weight: 600;
+}
+.assist-md a:not(.assist-cite) {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--hair) / 0.35);
+  text-underline-offset: 2px;
+  cursor: var(--cursor-pointer);
+}
+@media (hover: hover) {
+  .assist-md a:not(.assist-cite):hover {
+    text-decoration-color: currentColor;
+  }
+}
+.assist-md a:not(.assist-cite):focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+}
+.assist-md__site {
+  color: var(--text-3);
+  font-size: 0.875em;
+}
+
+/* Lists */
+.assist-md :is(ul, ol) {
+  padding: 0 0 0 26px;
+}
+.assist-md ul {
+  list-style: disc;
+}
+.assist-md ol {
+  list-style: decimal;
+}
+.assist-md ul ul {
+  list-style: circle;
+}
+.assist-md li {
+  padding-left: 2px;
+}
+.assist-md li + li {
+  margin-top: 6px;
+}
+.assist-md li::marker {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.assist-md li.task-list-item {
+  margin-left: -26px;
+  list-style: none;
+}
+.assist-md li.task-list-item input {
+  margin: 0 8px 0 0;
+  accent-color: var(--ink);
+  vertical-align: -1px;
+}
+
+/* Quotes and rules */
+.assist-md blockquote {
+  padding-left: 14px;
+  border-left: 2px solid rgb(var(--hair) / 0.18);
+  color: var(--text-2);
+}
+.assist-md hr {
+  margin: 22px 0;
+  border: 0;
+  border-top: 1px solid rgb(var(--hair) / 0.12);
+}
+
+/* Code */
+.assist-md code {
+  padding: 0.12em 0.38em;
+  border-radius: 6px;
+  background: rgb(var(--hair) / 0.07);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875em;
+}
+.assist-md pre {
+  padding: 12px 14px;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: rgb(var(--hair) / 0.05);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: normal;
+  scrollbar-width: thin;
+  white-space: pre;
+}
+.assist-md pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+.assist-md pre:focus-visible,
+.assist-md__table:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 1px;
+}
+
+/* Tables scroll inside their own frame, so a wide one never pushes the page sideways */
+.assist-md__table {
+  overflow-x: auto;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.1);
+  scrollbar-width: thin;
+}
+.assist-md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  overflow-wrap: normal;
+}
+.assist-md th,
+.assist-md td {
+  min-width: 72px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgb(var(--hair) / 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+.assist-md th {
+  background: rgb(var(--hair) / 0.03);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.assist-md tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Graphs: the Hub's chart frame, sized for a conversation */
+.assist-md .assist-chart {
+  box-shadow: var(--assist-row-lift);
+}
+.assist-chart .card__head {
+  gap: 12px;
+  padding: 16px 18px 0;
+}
+.assist-chart .card__title {
+  font-size: 15px;
+}
+.assist-chart .card__sub {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.assist-chart .card__body {
+  padding: 14px 18px 16px;
+}
+.assist-chart .tip {
+  max-width: 220px;
+  white-space: normal;
+}
+.assist-chart .tip__row {
+  white-space: nowrap;
+}
+.assist-chart code {
+  background: none;
+}
+.assist-chart .chart__label {
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+/* These are lists to a screen reader only: none of an answer's list styling applies */
+.assist-md :is(.assist-bars, .assist-ring__parts) {
+  padding: 0;
+  list-style: none;
+}
+.assist-md :is(.assist-bars__group, .assist-ring__parts li),
+.assist-md :is(.assist-bars__group, .assist-ring__parts li) > * {
+  margin: 0;
+  padding: 0;
+}
+.assist-bars {
+  display: grid;
+  gap: 12px;
+}
+.assist-bars__group {
+  display: grid;
+  gap: 4px;
+}
+.assist-bars__label {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.assist-bars__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.assist-bars__row .bars__val {
+  min-width: 3.25rem;
+}
+.assist-ring {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+}
+.assist-ring__plot {
+  position: relative;
+  flex: none;
+  width: 176px;
+  height: 176px;
+}
+.assist-ring__plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.assist-ring__plot svg:focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+.assist-ring__middle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 44px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.25;
+  pointer-events: none;
+  text-align: center;
+}
+.assist-ring__middle b {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+}
+.assist-ring__middle span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.assist-ring__parts {
+  flex: 1 1 220px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.assist-ring__parts li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 120ms ease;
+}
+.assist-ring__parts li[data-dim] {
+  opacity: 0.45;
+}
+.assist-ring__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.assist-ring__value span {
+  margin-left: 8px;
+  color: var(--text-3);
+  font-weight: 400;
+}
+.assist-chart-wait {
+  display: grid;
+  place-items: center;
+  height: 240px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--assist-row-lift);
+  color: var(--text-3);
+  font-size: 13px;
+  animation: assist-chart-wait 1600ms ease-in-out infinite alternate;
+}
+@keyframes assist-chart-wait {
+  from {
+    opacity: 0.5;
+  }
+}
+.assist-chart-failed {
+  color: var(--text-3);
+  font-size: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .assist-chart-wait {
+    animation: none;
+  }
+}
+@media (max-width: 719px) {
+  .assist-chart .card__head {
+    padding: 14px 14px 0;
+  }
+  .assist-chart .card__body {
+    padding: 12px 14px 14px;
+  }
+  .assist-md th,
+  .assist-md td {
+    min-width: 120px;
+    padding: 8px 12px;
   }
 }

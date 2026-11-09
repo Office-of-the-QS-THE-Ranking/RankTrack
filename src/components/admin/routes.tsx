@@ -1,10 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { managesAssistant } from "@/lib/assistant/server/chat";
+import { assistantDesk } from "@/lib/assistant/server/desk";
 import { consoleData } from "@/lib/governance/server/console";
 import { getViewer } from "@/lib/governance/server/session";
 import { AdminSection } from "./AdminSection";
 import { AdminWorkspace } from "./AdminWorkspace";
 import { SECTIONS, sectionInfo } from "./sections";
+import { AssistantAdmin } from "./sections/AssistantAdmin";
 
 /* The Administration page and its subtabs, shared by the Office and contributor workspaces. */
 
@@ -30,5 +33,10 @@ export async function AdministrationSection({ params }: { params: Promise<{ sect
   const { section } = await params;
   const info = sectionInfo(section);
   if (!info || info.key === "overview") notFound();
+  if (info.key === "ai") {
+    const viewer = await getViewer();
+    if (!viewer || !managesAssistant(viewer)) notFound();
+    return <AssistantAdmin initial={await assistantDesk()} />;
+  }
   return <AdminSection section={info.key} />;
 }

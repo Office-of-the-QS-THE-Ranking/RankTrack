@@ -1,27 +1,8 @@
-import { Gate } from "@/components/hub/Gate";
-import { Indicators } from "@/components/analytics/Indicators";
-import { EmptyState } from "@/components/analytics/parts";
-import { PageHeader } from "@/components/ui/primitives";
-import { indicatorsDesk } from "@/lib/analytics/server/desk";
-import { getViewer } from "@/lib/governance/server/session";
+import { redirect } from "next/navigation";
+import { editionHref } from "@/lib/analytics/server/old-links";
 
-export const metadata = { title: "Indicators" };
-
-async function Body({ edition }: { edition?: string }) {
-  const desk = await indicatorsDesk((await getViewer())!, edition);
-  return (
-    <>
-      <PageHeader title="Indicators" />
-      {desk ? <Indicators desk={desk} /> : <EmptyState icon="layers" title="No editions yet">Import a methodology pack on the Methodology page.</EmptyState>}
-    </>
-  );
-}
-
-export default async function IndicatorsPage({ searchParams }: { searchParams: Promise<{ edition?: string }> }) {
-  const { edition } = await searchParams;
-  return (
-    <Gate path="/admin/analytics/indicators" title="Indicators">
-      <Body edition={edition} />
-    </Gate>
-  );
+/* Indicators moved onto each ranking's page. Notifications sent before the move still point here. */
+export default async function OldIndicators({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const { edition, code, view } = await searchParams;
+  redirect(await editionHref("indicators", edition, { code, view }));
 }

@@ -970,10 +970,10 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. The administrator opens Dashboard, which starts on the configured default view.
-2. The system shows the welcome tile, submission workload, ranking readiness, deadlines and standings.
-3. The administrator switches between Submissions, Rankings and Recognition.
-4. The administrator follows a tile to Contributions, a ranking, a unit or Reports.
+1. The administrator opens Dashboard, which starts on Submissions.
+2. The system shows the welcome tile, readiness, the next deadline, units engaged, open data requests, readiness by ranking and open action items.
+3. The administrator switches between Submissions and Recognition.
+4. The administrator follows a tile to the page that holds its detail: Rankings, a ranking's Action plan, Data requests, Units or Contributions.
 
 **Alternative flows:**
 
@@ -1108,7 +1108,7 @@ These apply throughout and are not repeated in each narrative.
 1. The administrator opens Rankings and sees cards with position, readiness and items to go.
 2. The administrator opens a ranking.
 3. The system shows the hero (rank curve, readiness dial) and tabs: Overview, Indicators, Evidence, Units, Action plan, Methodology.
-4. The administrator reads the tabs, opens the Analytics tile or opens Reports in its drawer.
+4. The administrator reads the tabs, or follows Reports to the Reports page with this ranking chosen.
 
 **Alternative flows:**
 
@@ -1225,7 +1225,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. The administrator opens Analytics, which starts on the Scorecard.
+1. The administrator opens Rankings, whose overview starts on the Scorecard.
 2. The system computes each edition from its catalogue and facts: claimed points (For review plus Validated), secured points (Validated with assessed links), readiness and the fixes worth most.
 3. The administrator reads the standing, the movement since the last snapshot and the top fixes.
 4. The administrator chooses Open indicators to act on one.
@@ -3151,8 +3151,8 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. The administrator opens Reports and chooses Executive Reports, Management Review, Ranking Performance, Evidence Readiness, Unit Participation, Risk and Opportunity, Action Plan Progress or Custom Report Builder.
-2. The administrator filters by ranking, cycle, unit, indicator, SDG, status, quality or plan status.
+1. The administrator opens Reports and chooses Rankings, Evidence, Risks or Action plan. Unit participation is exported from the Units page.
+2. The administrator searches, or filters by what that report offers: ranking, unit, indicator, SDG, status, quality or plan status.
 3. The system shows the report, limited to the viewer's scope.
 
 **Postconditions:** Nothing changes. Coordinators, Unit Administrators and External guests hold `reports: view` but have no Reports page in the Portal.

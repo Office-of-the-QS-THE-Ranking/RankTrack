@@ -1613,16 +1613,7 @@ body:has(> .nf) {
   letter-spacing: -0.045em;
 }
 
-/* ---------- Reports, wizard ---------- */
-.report-menu button {
-  border-radius: 12px;
-}
-.report-menu button[aria-checked="true"] {
-  background: var(--ink);
-}
-.report-menu button[aria-checked="true"] svg {
-  color: var(--gold-400);
-}
+/* ---------- Wizard ---------- */
 .stepper button {
   border-radius: 12px;
 }
@@ -1766,7 +1757,7 @@ body:has(> .nf) {
 }
 
 /* ---------- Loading state ----------
-   The outline a tab shows while its page renders (PageSkeleton). It fades in after a beat, so a quick
+   The outline a tab shows while its page renders (PageSkeleton, PanelSkeleton). It fades in after a beat, so a quick
    response goes straight to the page without a flash of placeholders. */
 .skel {
   display: flex;
@@ -1810,7 +1801,8 @@ body:has(> .nf) {
 .skel__card .skel__bar:nth-child(4) { width: 92%; }
 .skel__card .skel__bar:nth-child(5) { width: 68%; }
 @media (prefers-reduced-motion: no-preference) {
-  .content > .skel {
+  .content > .skel,
+  [role="tabpanel"] > .skel {
     animation: skel-in 200ms ease 160ms both;
   }
   .skel__bar {

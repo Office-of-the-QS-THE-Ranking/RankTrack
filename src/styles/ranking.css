@@ -1416,7 +1416,30 @@
   gap: 18px;
   padding: 14px 2px;
 }
-.rk .rk-plan__row + .rk-plan__row {
+.rk .rk-plan__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.rk .rk-plan__row--btn {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-pointer, pointer);
+  border-radius: 8px;
+  transition: background-color var(--t) ease;
+}
+@media (hover: hover) {
+  .rk .rk-plan__row--btn:hover {
+    background: rgb(var(--hair) / 0.04);
+  }
+}
+.rk .rk-plan__item + .rk-plan__item {
   border-top: 1px solid var(--border);
 }
 .rk .rk-plan__main {
@@ -1603,49 +1626,6 @@
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--text-2);
-}
-
-/* ---------- Reports drawer ---------- */
-.rk .rk-reports {
-  display: grid;
-  gap: 8px;
-}
-.rk .rk-report {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgb(var(--hair) / 0.035);
-}
-.rk .rk-report__icon {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: var(--sh-xs);
-  color: var(--text-2);
-}
-.rk .rk-report__name {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.rk .rk-report__name b {
-  font-size: 14px;
-  font-weight: 600;
-}
-.rk .rk-report__name small {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-3);
-}
-.rk .rk-report__get {
-  display: flex;
-  gap: 6px;
 }
 
 /* ---------- Ranking boards: shared marks ---------- */
