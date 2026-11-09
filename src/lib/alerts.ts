@@ -13,7 +13,7 @@ const QUIET_MS = 10 * 60_000;
 const g = globalThis as typeof globalThis & { __hubAlerts?: Map<string, number> };
 const sent = (g.__hubAlerts ??= new Map());
 
-export type AlertEvent = "store-save" | "recovery-point" | "media-sync" | "audit-anchor" | "reference-data" | "request-error";
+export type AlertEvent = "store-save" | "recovery-point" | "media-sync" | "audit-anchor" | "reference-data" | "request-error" | "assistant";
 
 export async function alert(event: AlertEvent, message: string, detail: Record<string, string | number | undefined> = {}) {
   console.error(JSON.stringify({ level: "error", alert: event, message, ...detail, at: new Date().toISOString() }));

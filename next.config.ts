@@ -28,6 +28,13 @@ const nextConfig: NextConfig = {
       { source: "/portal/innovation", destination: "/portal/publications/stories", permanent: true },
       { source: "/portal/feedback", destination: "/portal/submit", permanent: true },
       { source: "/portal/history", destination: "/portal/submit", permanent: true },
+      // Analytics became part of Rankings. Its Indicators and Methodology moved onto each ranking's page, so those two
+      // old addresses (notifications still carry them) look up the edition's ranking in src/app/admin/analytics/.
+      { source: "/admin/analytics", destination: "/admin/rankings", permanent: true },
+      { source: "/admin/analytics/collection", destination: "/admin/rankings/data-requests", permanent: true },
+      { source: "/admin/analytics/activities", destination: "/admin/rankings/activities", permanent: true },
+      { source: "/admin/analytics/benchmarks", destination: "/admin/rankings/benchmarks", permanent: true },
+      { source: "/admin/analytics/imports", destination: "/admin/rankings/imports", permanent: true },
     ];
   },
   async headers() {

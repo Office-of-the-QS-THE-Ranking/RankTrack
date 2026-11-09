@@ -6,6 +6,9 @@ import "server-only";
  * values) and rankings: manage (methodologies, campaigns, imports). A unit's Data requests page shows only that
  * unit's requests, and only someone who may submit its data can send them.
  */
+import { cache } from "react";
+import { ACTIONS } from "@/lib/data";
+import { rankingActive } from "@/lib/governance/derive";
 import { directorySection } from "@/lib/governance/directory";
 import { evidenceList } from "@/lib/governance/records";
 import { reference } from "@/lib/governance/server/reference";
@@ -28,12 +31,16 @@ import type {
   IndicatorsDesk,
   LinkView,
   MethodologyDesk,
+  RankingAction,
+  RankingDesk,
+  RequestsBrief,
   RequestsDesk,
   ScorecardDesk,
   UnitRef,
+  ReportAction,
 } from "../desk-types";
 import { refsOf } from "../expr";
-import { valueText } from "../format";
+import { day, valueText } from "../format";
 import { gapMatrix, metricLabel } from "../gap";
 import { isDriveLink, isFolderLink } from "../links";
 import type { Campaign, Catalog, CatalogIndicator, Edition, EditionReport, Facts, LinkRow, ValueRow } from "../types";
@@ -157,21 +164,117 @@ async function campaignCards(ctx: Ctx, list: Campaign[]): Promise<CampaignCard[]
 
 export async function scorecardDesk(viewer: Viewer): Promise<ScorecardDesk> {
   const ctx = await context();
-  const list = ordered((await catalogs()).filter((c) => c.edition.status !== "Archived"), ctx.ref);
-  const [snapshots, campaigns, actions] = await Promise.all([readSnapshots(), readCampaigns(), readActions()]);
+  // A ranking switched off in System Configuration has no page to open, so its editions wait until it is back on.
+  const list = ordered((await catalogs()).filter((c) => c.edition.status !== "Archived" && rankingActive(ctx.state, ctx.ref, c.edition.ranking)), ctx.ref);
+  const [snapshots, campaigns, actions] = await Promise.all([readSnapshots(), readCampaigns(), rankingActions()]);
   const editions: EditionCard[] = [];
   for (const c of list) {
     const r = await reportFor(c.edition.id);
     if (r) editions.push(card(c, r.report, ctx.ref, snapshots));
   }
-  const labels = new Map(list.map((c) => [c.edition.id, c.edition.label]));
   return {
     editions,
     campaigns: await campaignCards(ctx, campaigns.filter((c) => c.status === "Open" || Date.now() - Date.parse(c.closedAt ?? c.at) < 60 * 86_400_000)),
-    actions: actions.map((a) => ({ ...a, editionLabel: labels.get(a.edition) ?? a.edition, ...(a.owner && { ownerName: ctx.unitName(a.owner) }) })),
+    actions,
     units: ctx.units,
     can: canOf(viewer),
   };
+}
+
+/* Presentation data has no editions, so its actions stand in for the plan. See lib/demo.ts. */
+const DEMO_PLAN: Record<string, { status: RankingAction["status"]; progress: number }> = {
+  Validated: { status: "Complete", progress: 100 },
+  "For review": { status: "On track", progress: 70 },
+  "Needs revision": { status: "At risk", progress: 35 },
+};
+
+/**
+ * Every action item on a tracked ranking, in plan order: soonest first, undated last. This is the one list; each
+ * page filters it to its ranking or unit. Reading it never fails a page: without it, a page simply shows no actions.
+ */
+export const rankingActions = cache(async (): Promise<RankingAction[]> => {
+  try {
+    const [ctx, list, rows] = await Promise.all([context(), catalogs(), readActions()]);
+    const byId = new Map(list.map((c) => [c.edition.id, c.edition]));
+    const actions: RankingAction[] = rows.flatMap((a) => {
+      const edition = byId.get(a.edition);
+      if (!edition || !rankingActive(ctx.state, ctx.ref, edition.ranking)) return [];
+      return [
+        {
+          id: a.id,
+          ranking: edition.ranking,
+          edition: a.edition,
+          editionLabel: edition.label,
+          ...(a.code && { code: a.code }),
+          action: a.action,
+          ...(a.owner && { owner: a.owner, ownerName: ctx.unitName(a.owner) }),
+          ...(a.due && { due: a.due }),
+          status: a.status,
+          progress: a.progress,
+          note: a.note,
+        },
+      ];
+    });
+    const shown = actions.length
+      ? actions
+      : ACTIONS.filter((a) => rankingActive(ctx.state, ctx.ref, a.ranking)).map((a) => {
+          const plan = DEMO_PLAN[a.status] ?? { status: "Not started" as const, progress: 0 };
+          return { id: a.id, ranking: a.ranking, edition: "", editionLabel: "", action: a.action, ownerName: a.unit, due: a.due, ...plan, note: "" };
+        });
+    return [...shown].sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"));
+  } catch (e) {
+    console.error("Action items:", e);
+    return [];
+  }
+});
+
+/** A unit's open action items, for its dashboard and profile. */
+export async function unitActions(unit: { slug: string; name: string }): Promise<RankingAction[]> {
+  return (await rankingActions()).filter((a) => (a.owner ? a.owner === unit.slug : a.ownerName === unit.name) && a.status !== "Complete");
+}
+
+/** The action items as the Reports page lists them. */
+export async function reportActions(): Promise<ReportAction[]> {
+  return (await rankingActions()).map((a) => ({
+    action: a.action,
+    kpi: a.code ? `${a.editionLabel} · ${a.code}` : a.editionLabel,
+    owner: a.ownerName ?? "No unit",
+    timeline: a.due ? day(a.due) : "No date",
+    progress: a.progress,
+    status: a.status,
+  }));
+}
+
+/** What a ranking's page needs beside its summary. */
+export async function rankingDesk(viewer: Viewer, ranking: string): Promise<RankingDesk> {
+  const [ctx, list, actions] = await Promise.all([context(), catalogs(), rankingActions()]);
+  return {
+    actions: actions.filter((a) => a.ranking === ranking),
+    editions: ordered(list.filter((c) => c.edition.ranking === ranking && c.edition.status !== "Archived"), ctx.ref).map((c) => ({ id: c.edition.id, label: c.edition.label, status: c.edition.status })),
+    units: ctx.units,
+    can: canOf(viewer),
+  };
+}
+
+/** The open data requests in brief, for the Dashboard. */
+export async function requestsBrief(): Promise<RequestsBrief> {
+  const none = { open: 0, requested: 0, sent: 0, overdue: 0 };
+  try {
+    const ctx = await context();
+    const open = await campaignCards(ctx, (await readCampaigns()).filter((c) => c.status === "Open"));
+    return open.reduce(
+      (t, c) => ({
+        open: t.open + 1,
+        requested: t.requested + c.units.reduce((s, u) => s + u.requested, 0),
+        sent: t.sent + c.units.reduce((s, u) => s + u.submitted, 0),
+        overdue: t.overdue + c.units.filter((u) => u.overdue > 0).length,
+      }),
+      none,
+    );
+  } catch (e) {
+    console.error("Data requests:", e);
+    return none;
+  }
 }
 
 function linkView(ctx: Ctx, l: LinkRow): LinkView {
@@ -260,9 +363,10 @@ function indicatorView(ctx: Ctx, ind: CatalogIndicator, report: EditionReport, f
   };
 }
 
-export async function indicatorsDesk(viewer: Viewer, editionId?: string): Promise<IndicatorsDesk | null> {
+/** One ranking's indicators: the edition asked for, else its active one. */
+export async function indicatorsDesk(viewer: Viewer, ranking: string, editionId?: string): Promise<IndicatorsDesk | null> {
   const ctx = await context();
-  const list = ordered(await catalogs(), ctx.ref);
+  const list = ordered((await catalogs()).filter((c) => c.edition.ranking === ranking), ctx.ref);
   const chosen = list.find((c) => c.edition.id === editionId) ?? list.find((c) => c.edition.status === "Active") ?? list[0];
   if (!chosen) return null;
   const r = await reportFor(chosen.edition.id);
@@ -371,10 +475,11 @@ export async function importsDesk(viewer: Viewer): Promise<ImportsDesk> {
   };
 }
 
-export async function methodologyDesk(viewer: Viewer, editionId?: string): Promise<MethodologyDesk> {
+/** One ranking's editions and, open on its page, the edition asked for or its active one. */
+export async function methodologyDesk(viewer: Viewer, ranking: string, editionId?: string): Promise<MethodologyDesk> {
   const ctx = await context();
-  const list = ordered(await catalogs(), ctx.ref);
-  const chosen = list.find((c) => c.edition.id === editionId) ?? list[0];
+  const list = ordered((await catalogs()).filter((c) => c.edition.ranking === ranking), ctx.ref);
+  const chosen = list.find((c) => c.edition.id === editionId) ?? list.find((c) => c.edition.status === "Active") ?? list[0];
   const facts = await readEditionFacts(list.map((c) => c.edition.id));
   return {
     editions: list.map((c) => {

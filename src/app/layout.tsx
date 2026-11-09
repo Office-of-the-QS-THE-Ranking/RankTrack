@@ -48,6 +48,7 @@ import "@/styles/deadlines.css";
 import "@/styles/roles.css";
 import "@/styles/modal-motion.css";
 import "@/styles/assistant.css";
+import "@/styles/assistant-admin.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
 const sans = Instrument_Sans({

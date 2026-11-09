@@ -97,12 +97,58 @@ export interface CampaignCard {
   units: (UnitStanding & { name: string; codes: string[]; remindedAt?: string; escalatedAt?: string; thankedAt?: string })[];
 }
 
+/**
+ * An action item, as every page that lists one receives it: the Scorecard, a ranking's Action plan, the Dashboard,
+ * a unit's dashboard and profile, and the Action plan report. There is one list, kept per edition.
+ */
+export interface RankingAction {
+  id: string;
+  ranking: string;
+  edition: string;
+  editionLabel: string;
+  code?: string;
+  action: string;
+  owner?: string;
+  ownerName?: string;
+  due?: string;
+  status: ActionRow["status"];
+  progress: number;
+  note: string;
+}
+
+/** An action item as the Reports page lists it. */
+export interface ReportAction {
+  action: string;
+  kpi: string;
+  owner: string;
+  timeline: string;
+  progress: number;
+  status: ActionRow["status"];
+}
+
 export interface ScorecardDesk {
   editions: EditionCard[];
   campaigns: CampaignCard[];
-  actions: (ActionRow & { editionLabel: string; ownerName?: string })[];
+  actions: RankingAction[];
   units: UnitRef[];
   can: Can;
+}
+
+/** What a ranking's page needs from the engine beside its summary: its plan, its editions and what the viewer may do. */
+export interface RankingDesk {
+  actions: RankingAction[];
+  editions: { id: string; label: string; status: EditionStatus }[];
+  units: UnitRef[];
+  can: Can;
+}
+
+/** The open data requests in brief, for the Dashboard. */
+export interface RequestsBrief {
+  open: number;
+  requested: number;
+  sent: number;
+  /** Units past due with items still to send. */
+  overdue: number;
 }
 
 export interface LinkView {

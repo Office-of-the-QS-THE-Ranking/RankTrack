@@ -1302,6 +1302,258 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_chunks: {
+        Row: {
+          action: string | null
+          content: string
+          embedding: string
+          fts: unknown
+          hash: string
+          href: string
+          id: string
+          level: string
+          module: string | null
+          source_id: string
+          title: string
+          unit_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action?: string | null
+          content: string
+          embedding: string
+          hash: string
+          href: string
+          id: string
+          level: string
+          module?: string | null
+          source_id: string
+          title: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action?: string | null
+          content?: string
+          embedding?: string
+          hash?: string
+          href?: string
+          id?: string
+          level?: string
+          module?: string | null
+          source_id?: string
+          title?: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assistant_credits: {
+        Row: {
+          amount_usd: number
+          id: number
+          note: string | null
+          provider: string
+          recorded_at: string
+          recorded_by: string
+        }
+        Insert: {
+          amount_usd: number
+          note?: string | null
+          provider: string
+          recorded_at?: string
+          recorded_by: string
+        }
+        Update: {
+          amount_usd?: number
+          note?: string | null
+          provider?: string
+          recorded_at?: string
+          recorded_by?: string
+        }
+        Relationships: []
+      }
+      assistant_model_access: {
+        Row: {
+          account_id: string
+          decided_at: string | null
+          decided_by: string | null
+          model_id: string
+          requested_at: string
+          status: string
+        }
+        Insert: {
+          account_id: string
+          decided_at?: string | null
+          decided_by?: string | null
+          model_id: string
+          requested_at?: string
+          status?: string
+        }
+        Update: {
+          account_id?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          model_id?: string
+          requested_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      assistant_models: {
+        Row: {
+          access: string
+          daily_limit: number | null
+          enabled: boolean
+          id: string
+          input_usd: number
+          is_default: boolean
+          label: string
+          output_usd: number
+          position: number
+          provider: string
+        }
+        Insert: {
+          access?: string
+          daily_limit?: number | null
+          enabled?: boolean
+          id: string
+          input_usd: number
+          is_default?: boolean
+          label: string
+          output_usd: number
+          position: number
+          provider: string
+        }
+        Update: {
+          access?: string
+          daily_limit?: number | null
+          enabled?: boolean
+          id?: string
+          input_usd?: number
+          is_default?: boolean
+          label?: string
+          output_usd?: number
+          position?: number
+          provider?: string
+        }
+        Relationships: []
+      }
+      assistant_providers: {
+        Row: {
+          account_ref: string | null
+          connected_at: string | null
+          connected_by: string | null
+          id: string
+          key_hint: string | null
+          key_sealed: string | null
+          low_credit_usd: number
+          monthly_budget_usd: number | null
+          plan: string
+          position: number
+          status: string
+          status_at: string | null
+        }
+        Insert: {
+          account_ref?: string | null
+          connected_at?: string | null
+          connected_by?: string | null
+          id: string
+          key_hint?: string | null
+          key_sealed?: string | null
+          low_credit_usd?: number
+          monthly_budget_usd?: number | null
+          plan?: string
+          position: number
+          status?: string
+          status_at?: string | null
+        }
+        Update: {
+          account_ref?: string | null
+          connected_at?: string | null
+          connected_by?: string | null
+          id?: string
+          key_hint?: string | null
+          key_sealed?: string | null
+          low_credit_usd?: number
+          monthly_budget_usd?: number | null
+          plan?: string
+          position?: number
+          status?: string
+          status_at?: string | null
+        }
+        Relationships: []
+      }
+      assistant_settings: {
+        Row: {
+          fallback_model: string | null
+          id: number
+          index_built_at: string | null
+          index_chunks: number
+          index_error: string | null
+          paused: boolean
+          updated_at: string
+        }
+        Insert: {
+          fallback_model?: string | null
+          id?: number
+          index_built_at?: string | null
+          index_chunks?: number
+          index_error?: string | null
+          paused?: boolean
+          updated_at?: string
+        }
+        Update: {
+          fallback_model?: string | null
+          id?: number
+          index_built_at?: string | null
+          index_chunks?: number
+          index_error?: string | null
+          paused?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assistant_usage: {
+        Row: {
+          account_id: string
+          at: string
+          cost_usd: number
+          id: number
+          input_tokens: number
+          model_id: string | null
+          outcome: string
+          output_tokens: number
+          provider: string | null
+          role_id: string | null
+          unit_id: string | null
+        }
+        Insert: {
+          account_id: string
+          at?: string
+          cost_usd?: number
+          input_tokens?: number
+          model_id?: string | null
+          outcome: string
+          output_tokens?: number
+          provider?: string | null
+          role_id?: string | null
+          unit_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          at?: string
+          cost_usd?: number
+          input_tokens?: number
+          model_id?: string | null
+          outcome?: string
+          output_tokens?: number
+          provider?: string | null
+          role_id?: string | null
+          unit_id?: string | null
+        }
+        Relationships: []
+      }
       audit_events: {
         Row: {
           action: string
@@ -4361,6 +4613,50 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assistant_provider_spend: {
+        Args: { p_month_start: string }
+        Returns: {
+          month_usd: number
+          provider: string
+          total_usd: number
+        }[]
+      }
+      assistant_search: {
+        Args: {
+          p_embedding: string
+          p_levels: string[]
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          action: string | null
+          content: string
+          href: string
+          id: string
+          level: string
+          module: string | null
+          similarity: number
+          source_id: string
+          text_match: boolean
+          title: string
+          unit_id: string | null
+        }[]
+      }
+      assistant_usage_rollup: {
+        Args: { p_since: string }
+        Returns: {
+          cost_usd: number
+          day: string
+          input_tokens: number
+          messages: number
+          model_id: string
+          outcome: string
+          output_tokens: number
+          provider: string
+          role_id: string
+          unit_id: string
+        }[]
+      }
       hub_before_user_created: { Args: { event: Json }; Returns: Json }
       hub_columns: {
         Args: { p_keys: boolean; p_table: string }

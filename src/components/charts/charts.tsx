@@ -18,6 +18,7 @@ export function ChartFrame({
   actions,
   className,
   id,
+  headingLevel,
 }: {
   title: string;
   sub?: ReactNode;
@@ -27,6 +28,7 @@ export function ChartFrame({
   actions?: ReactNode;
   className?: string;
   id?: string;
+  headingLevel?: 2 | 3;
 }) {
   const [view, setView] = useState<"Chart" | "Table">("Chart");
   return (
@@ -35,6 +37,7 @@ export function ChartFrame({
       sub={sub}
       id={id}
       className={className}
+      headingLevel={headingLevel}
       actions={
         <>
           {actions}
@@ -55,7 +58,7 @@ export function ChartFrame({
 }
 
 /* Arrow-key stepping for a focusable chart. */
-function useStepper(count: number) {
+export function useStepper(count: number) {
   const [active, setActive] = useState<number | null>(null);
   const onKeyDown = (e: KeyboardEvent) => {
     if (!["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;

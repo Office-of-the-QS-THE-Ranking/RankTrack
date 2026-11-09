@@ -17,8 +17,6 @@ export type EdgeFrame = {
   energy: number;
   /** A brief flare as it lights, 0 to 1. */
   flare: number;
-  /** A wave crossing the screen from the edge as it lights: 0 to 1, then done. */
-  wave: number;
   dark: boolean;
 };
 
@@ -40,7 +38,7 @@ void main() {
 const FS = /* glsl */ `#version 300 es
 precision highp float;
 uniform vec2 uSize;
-uniform float uRatio, uTime, uLevel, uReveal, uOrb, uEnergy, uFlare, uWave, uDark;
+uniform float uRatio, uTime, uLevel, uReveal, uOrb, uEnergy, uFlare, uDark;
 uniform vec3 uSpectrum[13];
 out vec4 o;
 
@@ -63,7 +61,7 @@ void main() {
   // Distance in from the screen's edge, in CSS pixels.
   float d = max(corner - length(max(q, 0.)) - min(max(q.x, q.y), 0.), 0.);
   float reach = 75. + uFlare * 60.;
-  if (d > reach && uWave <= 0.) {
+  if (d > reach) {
     o = vec4(0.);
     return;
   }
@@ -99,13 +97,6 @@ void main() {
 
   c = mix(c, vec3(1.), (front * .28 + glint * .75 * shown) * fall(9., 0., d));
 
-  // A faint ring running in across the page as it lights.
-  if (uWave > 0.) {
-    float run = uWave * min(half_.x, half_.y) * 1.05;
-    float wave = exp(-sq((d - run) / (46. + uWave * 180.))) * (1. - uWave) * (1. - uWave) * (uDark > .5 ? .1 : .16);
-    a += wave;
-  }
-
   a = clamp(a * uLevel, 0., 1.);
   // Dither: a soft gradient over a whole screen would otherwise show bands.
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(.06711056, .00583715))));
@@ -114,7 +105,7 @@ void main() {
 }
 `;
 
-const NAMES = ["uSize", "uRatio", "uTime", "uLevel", "uReveal", "uOrb", "uEnergy", "uFlare", "uWave", "uDark", "uSpectrum"] as const;
+const NAMES = ["uSize", "uRatio", "uTime", "uLevel", "uReveal", "uOrb", "uEnergy", "uFlare", "uDark", "uSpectrum"] as const;
 
 export function createEdgeRenderer(canvas: HTMLCanvasElement): EdgeRenderer | null {
   const gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, powerPreference: "low-power", failIfMajorPerformanceCaveat: true });
@@ -201,7 +192,6 @@ export function createEdgeRenderer(canvas: HTMLCanvasElement): EdgeRenderer | nu
       ctx.uniform1f(u.uOrb, f.orbAngle);
       ctx.uniform1f(u.uEnergy, f.energy);
       ctx.uniform1f(u.uFlare, f.flare);
-      ctx.uniform1f(u.uWave, f.wave);
       ctx.uniform1f(u.uDark, f.dark ? 1 : 0);
       ctx.uniform3fv(u.uSpectrum, spectrum);
       ctx.bindVertexArray(state.vao);

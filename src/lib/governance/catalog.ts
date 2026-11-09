@@ -45,11 +45,13 @@ export const MODULES: ModuleInfo[] = [
   { key: "workflows", label: "Approval workflows", group: "Administration", actions: ["view", "approve", "manage"] },
   { key: "config", label: "System configuration", group: "Administration", actions: ["view", "edit", "manage"] },
   { key: "backup", label: "Backup and recovery", group: "Administration", actions: ["view", "manage"] },
+  // The assistant: providers, costs, models. Effective only University-wide (lib/assistant/server/chat.ts, managesAssistant).
+  { key: "ai", label: "AI assistant", group: "Administration", actions: ["view", "manage"] },
 ];
 
 export const moduleInfo = (key: ModuleKey) => MODULES.find((m) => m.key === key)!;
 
-export const ADMIN_MODULES: ModuleKey[] = ["accounts", "roles", "directory", "governance", "security", "audit", "workflows", "config", "backup"];
+export const ADMIN_MODULES: ModuleKey[] = ["accounts", "roles", "directory", "governance", "security", "audit", "workflows", "config", "backup", "ai"];
 
 /** "THE Impact · SDG 3" → THE, from the short names used in evidence mappings. */
 export function bodyOfMapping(mapping: string): BodyKey | null {
@@ -176,9 +178,10 @@ export const roleOf = (id: string, overrides?: RolePermissions): Role | undefine
   const custom = overrides?.[base.id];
   if (!custom) return base;
   const role = { ...base, ...custom };
-  // The Office's authority to configure roles cannot be removed by its own permission edits.
+  // The Office's authority to configure roles cannot be removed by its own permission edits. Permissions saved before
+  // the assistant existed don't name it either, and only the Office can run it.
   if (role.id === ROLE.admin && role.universityPermissions) {
-    role.universityPermissions = { ...role.universityPermissions, roles: MODULES.find((m) => m.key === "roles")!.actions };
+    role.universityPermissions = { ...role.universityPermissions, roles: MODULES.find((m) => m.key === "roles")!.actions, ai: MODULES.find((m) => m.key === "ai")!.actions };
   }
   return role;
 };

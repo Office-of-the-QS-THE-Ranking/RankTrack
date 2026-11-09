@@ -13,7 +13,8 @@ import { Workflows } from "./sections/Workflows";
 import { Config } from "./sections/Config";
 import { Backup } from "./sections/Backup";
 
-const VIEWS: Record<SectionKey, () => ReactNode> = {
+/** The AI Assistant section loads its own data on the server (routes.tsx). */
+const VIEWS: Record<Exclude<SectionKey, "ai">, () => ReactNode> = {
   overview: () => <Overview />,
   accounts: () => <Accounts />,
   roles: () => <Roles />,
@@ -27,6 +28,6 @@ const VIEWS: Record<SectionKey, () => ReactNode> = {
 };
 
 /** One Administration subtab. The surrounding layout checks the viewer's role for it. */
-export function AdminSection({ section }: { section: SectionKey }) {
+export function AdminSection({ section }: { section: Exclude<SectionKey, "ai"> }) {
   return VIEWS[section]();
 }
