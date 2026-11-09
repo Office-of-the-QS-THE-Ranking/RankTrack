@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Scorecard: every edition the Office is collecting for, as a tile: the headline figure on the body's own
+ * The Rankings overview's Scorecard: every edition the Office is collecting for, as a tile: the headline figure on the body's own
  * scale (claimed and secured), readiness, how each group stands, the fixes worth most, data errors, and what moved
  * since the snapshot about a quarter ago. Beside them, the open data requests and the action items.
  */
@@ -11,13 +11,11 @@ import { Tile } from "@/components/dashboard/Tile";
 import { RowMenu } from "@/components/publications/PostManager";
 import { download } from "@/components/admin/ui";
 import { Icon } from "@/components/ui/Icon";
-import { Select, DateField, NumberField } from "@/components/ui/pickers";
-import { Sheet } from "@/components/workspace/parts";
 import { exportBrief, exportIndicators, exportQuarterly } from "@/app/actions/analytics-admin";
-import { deleteAction, saveAction, takeSnapshot } from "@/app/actions/analytics";
+import { takeSnapshot } from "@/app/actions/analytics";
 import type { EditionCard, ScorecardDesk } from "@/lib/analytics/desk-types";
 import { count, day, daysTo, pct, pts } from "@/lib/analytics/format";
-import { PLAN_STATUSES, type PlanState } from "@/lib/analytics/types";
+import { ActionSheet, draftOf, newAction, type ActionDraft } from "./ActionSheet";
 import { EmptyState, Figure, PointsBar, ReadyRing, useRun } from "./parts";
 
 const KIND_LABEL: Record<string, string> = { sum: "points", "the-impact": "annual score", "best-per-group": "best cases", readiness: "readiness", results: "ranked" };
@@ -48,7 +46,7 @@ function EditionTile({ e, can }: { e: EditionCard; can: ScorecardDesk["can"] }) 
           label={`Actions for ${e.label}`}
           disabled={pending}
           items={[
-            { label: "Open indicators", icon: "target", onSelect: () => location.assign(`/admin/analytics/indicators?edition=${e.id}`) },
+            { label: "Open indicators", icon: "target", onSelect: () => location.assign(`/admin/rankings/${e.ranking}?edition=${e.id}#indicators`) },
             can.edit && { label: "Take a snapshot", icon: "photo-stack", onSelect: () => void run(() => takeSnapshot({ edition: e.id })) },
             can.export && { label: "Positioning brief", icon: "reports", onSelect: () => void fileOut(exportBrief, "text/markdown;charset=utf-8") },
             can.export && { label: "Quarterly review (CSV)", icon: "download", onSelect: () => void fileOut(exportQuarterly) },
@@ -104,7 +102,7 @@ function EditionTile({ e, can }: { e: EditionCard; can: ScorecardDesk["can"] }) 
           <ol>
             {e.fixes.slice(0, 3).map((f) => (
               <li key={`${f.code}-${f.kind}`}>
-                <Link href={`/admin/analytics/indicators?edition=${e.id}&code=${encodeURIComponent(f.code)}`}>{f.title}</Link>
+                <Link href={`/admin/rankings/${e.ranking}?edition=${e.id}&code=${encodeURIComponent(f.code)}#indicators`}>{f.title}</Link>
                 <span className="an-gain">+{pts(f.gain)}</span>
               </li>
             ))}
@@ -113,7 +111,7 @@ function EditionTile({ e, can }: { e: EditionCard; can: ScorecardDesk["can"] }) 
       )}
       <div className="an-ed__foot">
         {(e.issues.errors > 0 || e.issues.warnings > 0) && (
-          <Link className="an-issues" href={`/admin/analytics/indicators?edition=${e.id}&view=checks`}>
+          <Link className="an-issues" href={`/admin/rankings/${e.ranking}?edition=${e.id}&view=checks#indicators`}>
             {e.issues.errors > 0 && (
               <span className="an-issues__n an-issues__n--error">
                 <Icon name="alert" size={13} /> {e.issues.errors}
@@ -143,21 +141,18 @@ function EditionTile({ e, can }: { e: EditionCard; can: ScorecardDesk["can"] }) 
   );
 }
 
-type Draft = { id?: string; edition: string; code: string; action: string; owner: string; due: string; status: PlanState; progress: number; note: string };
-
 export function Scorecard({ desk }: { desk: ScorecardDesk }) {
-  const { run, pending } = useRun();
-  const [editing, setEditing] = useState<Draft | null>(null);
+  const [editing, setEditing] = useState<ActionDraft | null>(null);
   const open = desk.campaigns.filter((c) => c.status === "Open");
   if (!desk.editions.length)
-    return <EmptyState icon="layers" title="No editions yet">Import a methodology pack on the Methodology page to start.</EmptyState>;
+    return <EmptyState icon="layers" title="No editions yet">Import a methodology pack on a ranking’s Methodology tab to start.</EmptyState>;
   return (
     <div className="an">
       <div className="an-bento">
         {desk.editions.map((e) => (
           <EditionTile key={e.id} e={e} can={desk.can} />
         ))}
-        <Tile id="an-requests" className="an-side" title="Data requests" href="/admin/analytics/collection">
+        <Tile id="an-requests" className="an-side" title="Data requests" href="/admin/rankings/data-requests">
           {open.length ? (
             <ul className="an-reqs">
               {open.slice(0, 5).map((c) => {
@@ -191,7 +186,7 @@ export function Scorecard({ desk }: { desk: ScorecardDesk }) {
           title="Action items"
           aside={
             desk.can.edit && (
-              <button type="button" className="btn btn--sm" onClick={() => setEditing({ edition: desk.editions[0].id, code: "", action: "", owner: "", due: "", status: "Not started", progress: 0, note: "" })}>
+              <button type="button" className="btn btn--sm" onClick={() => setEditing(newAction(desk.editions[0].id))}>
                 <Icon name="plus" size={15} /> Add
               </button>
             )
@@ -204,8 +199,8 @@ export function Scorecard({ desk }: { desk: ScorecardDesk }) {
                   <button
                     type="button"
                     className="an-acts__row"
-                    disabled={!desk.can.edit}
-                    onClick={() => setEditing({ id: a.id, edition: a.edition, code: a.code ?? "", action: a.action, owner: a.owner ?? "", due: a.due ?? "", status: a.status, progress: a.progress, note: a.note })}
+                    disabled={!desk.can.edit || !a.edition}
+                    onClick={() => setEditing(draftOf(a))}
                   >
                     <span className={`an-plan an-plan--${a.status.toLowerCase().replace(/\s+/g, "-")}`}>{a.status}</span>
                     <span className="an-acts__text">{a.action}</span>
@@ -223,93 +218,7 @@ export function Scorecard({ desk }: { desk: ScorecardDesk }) {
         </Tile>
       </div>
 
-      {editing && (
-        <Sheet title={editing.id ? "Action item" : "New action item"} onClose={() => setEditing(null)}>
-          {(close) => (
-            <form
-              className="ws-sheet__body"
-              onSubmit={async (ev) => {
-                ev.preventDefault();
-                const r = await run(() => saveAction({ ...editing, code: editing.code || undefined, owner: editing.owner || undefined, due: editing.due || undefined }));
-                if (r.ok) close();
-              }}
-            >
-              <label className="an-field">
-                <span>What will be done</span>
-                <input className="input" required maxLength={300} value={editing.action} onChange={(e) => setEditing({ ...editing, action: e.target.value })} />
-              </label>
-              <div className="an-row2">
-                <label className="an-field">
-                  <span>Edition</span>
-                  <Select className="select" value={editing.edition} onChange={(v) => setEditing({ ...editing, edition: v })}>
-                    {desk.editions.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.label}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                <label className="an-field">
-                  <span>Owner</span>
-                  <Select className="select" value={editing.owner} onChange={(v) => setEditing({ ...editing, owner: v })} searchable placeholder="No unit">
-                    <option value="">No unit</option>
-                    {desk.units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              </div>
-              <div className="an-row2">
-                <label className="an-field">
-                  <span>Due</span>
-                  <DateField value={editing.due} onChange={(d) => setEditing({ ...editing, due: d })} />
-                </label>
-                <label className="an-field">
-                  <span>Status</span>
-                  <Select className="select" value={editing.status} onChange={(v) => setEditing({ ...editing, status: v as PlanState })}>
-                    {PLAN_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              </div>
-              <label className="an-field">
-                <span>Progress</span>
-                <NumberField value={editing.progress} onChange={(n) => setEditing({ ...editing, progress: Number.isFinite(n) ? n : 0 })} min={0} max={100} step={5} suffix="%" aria-label="Progress" />
-              </label>
-              <label className="an-field">
-                <span>Note</span>
-                <textarea className="textarea" rows={3} maxLength={2000} value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} />
-              </label>
-              <footer className="ws-sheet__foot">
-                {editing.id && (
-                  <button
-                    type="button"
-                    className="btn btn--ghost an-left"
-                    disabled={pending}
-                    onClick={async () => {
-                      const r = await run(() => deleteAction({ id: editing.id! }));
-                      if (r.ok) close();
-                    }}
-                  >
-                    <Icon name="trash" size={15} /> Remove
-                  </button>
-                )}
-                <button type="button" className="btn" onClick={close}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn--dark" disabled={pending}>
-                  Save
-                </button>
-              </footer>
-            </form>
-          )}
-        </Sheet>
-      )}
+      {editing && <ActionSheet draft={editing} editions={desk.editions} units={desk.units} onClose={() => setEditing(null)} />}
     </div>
   );
 }

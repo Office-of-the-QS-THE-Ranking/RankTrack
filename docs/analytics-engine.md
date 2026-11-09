@@ -35,7 +35,8 @@ or as one small function. The engine itself doesn't change.
 | Daily reminders, escalations, weekly snapshots | `server/daily.ts` → `analyticsDaily()` (run by `src/app/api/cron/deadlines/route.ts`) |
 | Each ranking in brief (ranking pages, cards, dashboard) | `server/summary.ts` → `rankingSummaries()`, `summariesNow()`, `freshSummaries()` |
 | Actions | `src/app/actions/analytics.ts` (values, links, activities, cases, requests, plans, peers, benchmarks), `analytics-admin.ts` (editions, packs, profiles, aliases, imports, exports) |
-| Office pages | `src/app/admin/analytics/` (Scorecard, `indicators`, `collection`, `activities`, `benchmarks`, `imports`, `methodology`) |
+| Office pages | There is no Analytics section: the engine is part of Rankings. `src/app/admin/rankings/(overview)/` holds the overview's content tabs, each a page sharing one layout (Scorecard, `positions`, `data-requests`, `activities`, `benchmarks`, `imports`; `RankingsTabs.tsx`), and each ranking's page in `[slug]/` has its Indicators, Action plan and Methodology tabs. `src/app/admin/analytics/` only forwards old links |
+| Action items | `server/desk.ts` → `rankingActions()`: the one list, filtered per page (Scorecard, ranking, Dashboard, unit, Action plan report) |
 | Unit page | `src/app/portal/requests/` (Data requests) |
 | Components | `src/components/analytics/` (`parts.tsx` holds the shared pieces) |
 | Styles | `src/styles/analytics.css` (`an-*`; the ranking page tile is `.rk .rk-an*`) |
@@ -80,7 +81,7 @@ names with no Directory unit yet), `rollup`, `feeds` and `tags`.
 | `picks` | Any of `options`, or "No, none of these" (`yes: false`) |
 | `yesno` | Yes or No, plus a policy's dates when `evidence.policyDates` |
 | `text` / `date` | Text up to `max`, or an ISO date |
-| `result` | A published score, rank or band (recorded on the Indicators page's Results tab) |
+| `result` | A published score, rank or band (recorded on the Results view of a ranking's Indicators tab) |
 | `cases` | Cases reviewed against a rubric (WURI) |
 
 **Score rules** (`ScoreRule`, one function each in `rules.ts`). `points` is the most an indicator can earn on the
@@ -151,7 +152,7 @@ or the next band).
 
 ## 4. Packs
 
-A pack is one edition as portable JSON: `{ pack: 1, edition, groups, indicators }`. The Methodology page imports and
+A pack is one edition as portable JSON: `{ pack: 1, edition, groups, indicators }`. A ranking's Methodology tab imports and
 exports packs. `readPack()` validates every one, whether it comes from that page or from the seed builder:
 
 - codes match `^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$` and are unique;
@@ -161,7 +162,7 @@ exports packs. `readPack()` validates every one, whether it comes from that page
 
 Importing upserts the edition. Indicators missing from the pack are removed only when no facts reference them.
 `nextEdition(pack, year)` makes next year's edition: the id's year swapped, dates moved a year, status Draft. The
-Methodology page's **Start another year** does the same.
+Methodology tab's **Start another year** does the same.
 
 ---
 
@@ -244,7 +245,7 @@ The builder only takes the methodology's name for an item when the workbook row 
 
 ## 8. Data requests
 
-The Office asks units for an edition's items on Analytics → Data requests (`createCampaign`): a title, the
+The Office asks units for an edition's items on Rankings → Data requests (`createCampaign`): a title, the
 memorandum (such as `UST: S052-00-ME03`), a due date, reminder and escalation days, and the units. In `owned` mode
 each unit gets the indicators it owns. In `chosen` mode the Office picks units and items.
 
@@ -287,7 +288,8 @@ Every action is rate-limited per account (`allowAccount`) and audited.
 top fixes). It caches the result for 60 seconds, and any analytics change clears it (`refresh()`). `hub()` never waits
 for it: it uses `summariesNow()`, the last computed copy, and starts a fresh one in the background. With an active
 edition, a ranking's `readiness` and `pending` ("items to go") come from the engine. The ranking page awaits fresh
-summaries for up to 4 seconds and shows the **Analytics** tile, and its Evidence ring counts the edition's indicators.
+summaries for up to 4 seconds and shows the **Scorecard** tile, and its Evidence ring counts the edition's indicators.
+`clientHub()` passes the same readiness and items to go to client pages as `scores`, so `useRankings()` agrees everywhere.
 
 ---
 

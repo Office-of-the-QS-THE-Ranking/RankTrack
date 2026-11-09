@@ -44,6 +44,17 @@ This rule applies to every form field throughout the app, in Chrome, Safari, Fir
 - Don't add `noValidate` or `formNoValidate`, or manually bypass constraint validation, to suppress browser tooltips. All fields must continue to trigger the shared warning triangles and shake feedback. When updating a form with a separate validation implementation, bring its field feedback into the shared system.
 - Write each message as a short sentence that says what to do: "Enter a birthday from 01/01/1900 and at least 15 years ago.", not "Invalid input."
 
+## Buttons share one hover and press motion
+
+Every button on the public site and in the portals gets the same motion from `ButtonFx` (`src/components/ui/ButtonFx.tsx`, styled in `src/styles/button-fx.css`). It is mounted once in `src/app/layout.tsx`, next to `<CursorFx />`. Don't mount another, and don't add `motion.button`, `whileHover`/`whileTap` or a per-page ripple. A new button needs no class or prop.
+
+- Hover (mouse only): a 1px spring lift, a soft shadow on solid buttons, a slight swell on a direct-child icon and a light that follows the pointer. Press (any pointer, and Enter or Space): a spring in by about 4px whatever the button's size, and a bloom from the point of contact.
+- A button's own `transition`, `transform` and hover colours stay as written. The layer animates the individual `translate` and `scale` properties. It holds the button's resting `transform` during a press, so an `:active { transform: scale() }` rule doesn't squeeze it twice.
+- A `<button-fx>` overlay exists only while a button is in use. It paints over the fill and under the label. Colours come from the button, so a new surface needs no styling for it.
+- Tabs, picker triggers, options and menu items get the light but never move, because Motion or a popover anchor measures them. Buttons in `nav`, `table`, the sidebar or a list press but don't lift. A button placed by `translate` or `scale` keeps that value.
+- Links count when they're drawn as buttons (`.btn`, `.w-btn`, or a non-inline link with a fill, border or radius, up to 64px tall). Running text and whole cards don't. Scrims and surfaces over 720×320px are skipped.
+- Set `data-fx="off"` on anything with motion of its own, such as the draggable assistant orb. Reduced motion turns the whole layer off.
+
 ## Content tabs use the shared pill style
 
 Content tabs switch the content shown within a page, section, drawer or modal. Use `Tabs` and `TabPanel` from `src/components/ui/interactive.tsx`. Administration's `Tabs` in `src/components/admin/ui.tsx` delegates to the same component. Do not build another tab strip or override its appearance for a page. The shared styles live in `src/styles/content-tabs.css`.

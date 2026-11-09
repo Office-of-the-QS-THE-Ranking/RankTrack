@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ACTIONS, RECOGNITION, STAGES, daysUntil, formatDate, type EvidenceStatus } from "@/lib/data";
+import { RECOGNITION, STAGES, daysUntil, formatDate, type EvidenceStatus } from "@/lib/data";
+import type { RankingAction } from "@/lib/analytics/desk-types";
 import type { PortalContext } from "@/lib/governance/server/portal";
 import { flag } from "@/lib/governance/viewer";
 import { achievementsOf, metalOf, rankingsOf, seasonOf, seasonsOf } from "@/lib/merit";
 import { Icon } from "@/components/ui/Icon";
-import { Due, Empty, Notice, RankingName, SdgList, Status, cx } from "@/components/ui/primitives";
+import { Due, Empty, Notice, PlanStatus, RankingName, SdgList, Status, cx } from "@/components/ui/primitives";
 import { PipelineFlow } from "@/components/contributions/PipelineFlow";
 import { QueueArt } from "@/components/contributions/QueueArt";
 import { StatusMix, TickMeter } from "@/components/dashboard/Gauges";
@@ -24,7 +25,7 @@ const SHOWN = 5;
  * among its category, readiness, the next deadline, what is due, where its submissions stand, its honours,
  * and the rankings and goals its validated evidence counts in.
  */
-export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
+export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: RankingAction[] }) {
   const { viewer, hub: h, unit, evidence, requirements, can, scopeNote } = ctx;
   const rankings = h.rankings;
   const tracked = new Set(rankings.map((r) => r.short));
@@ -38,7 +39,7 @@ export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
   const ready = items.filter((x) => x.status === "Validated").length;
   const pct = items.length ? Math.round((ready / items.length) * 100) : 0;
   const open = reqs.filter((r) => r.status !== "Validated").sort((a, b) => a.due.localeCompare(b.due));
-  const actions = reqs.length ? [] : ACTIONS.filter((a) => a.unit === unit.name && h.isActive(a.ranking) && a.status !== "Validated");
+  const actions = reqs.length ? [] : plan;
   const owned = rankings.flatMap((r) => r.indicators.filter((i) => i.owner === unit.name).map((i) => ({ r, i })));
   const served = rankings.filter((r) => reqs.some((q) => q.ranking === r.slug) || owned.some((o) => o.r.slug === r.slug));
   const deadlines = served.length ? served : rankings;
@@ -58,16 +59,16 @@ export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
   // Next up: revisions first, then requirements (or, without any, the unit's actions) soonest first. Each is
   // answered with evidence, so it opens Submit evidence.
   const answer = "/portal/submit";
-  const todo: { key: string; what: string; status: EvidenceStatus | "Not started"; meta: ReactNode; due?: string; href: string }[] = [
+  const todo: { key: string; what: string; status: ReactNode; meta: ReactNode; due?: string; href: string }[] = [
     ...revisions.map((e) => ({
       key: e.id,
       what: e.title,
-      status: e.status,
+      status: <Status status={e.status} />,
       meta: <span>{e.comments[0] ? `${e.comments[0].by} · ${formatDate(e.comments[0].date)}` : rankingsOf(e)[0]}</span>,
       href: `/portal/submit#${e.id}`,
     })),
-    ...open.map((r) => ({ key: r.id, what: r.title, status: r.status, meta: <RankingName slug={r.ranking} />, due: r.due, href: answer })),
-    ...actions.map((a) => ({ key: a.id, what: a.action, status: a.status, meta: <RankingName slug={a.ranking} />, due: a.due, href: answer })),
+    ...open.map((r) => ({ key: r.id, what: r.title, status: <Status status={r.status} />, meta: <RankingName slug={r.ranking} />, due: r.due, href: answer })),
+    ...actions.map((a) => ({ key: a.id, what: a.action, status: <PlanStatus status={a.status} />, meta: <RankingName slug={a.ranking} />, due: a.due, href: answer })),
   ];
 
   // Submissions by the furthest stage each has reached.
@@ -188,7 +189,7 @@ export function UnitDashboard({ ctx }: { ctx: PortalContext }) {
                 <li key={t.key}>
                   <Link href={t.href} className="ov-act">
                     <span className="ov-act__what">{t.what}</span>
-                    <Status status={t.status} />
+                    {t.status}
                     <span className="ov-act__meta">{t.meta}</span>
                     {t.due && (
                       <span className={cx("ov-act__due", daysUntil(t.due) <= h.dashboard.deadlineWarningDays && "is-soon")}>

@@ -6,7 +6,8 @@
   gap: 16px;
   min-width: 0;
 }
-.an :where(button) {
+/* Plain buttons only: the shared tab strip, buttons and pickers keep their own type. */
+.an :where(button:not(.tabs__tab, .btn, .pick-trigger)) {
   font: inherit;
 }
 .an-muted {

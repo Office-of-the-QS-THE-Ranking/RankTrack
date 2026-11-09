@@ -214,7 +214,7 @@ export async function updateIndicator(input: { edition: string; code: string; pa
  * otherwise); an existing one is updated, and indicators the pack no longer has are removed only when nothing was
  * recorded against them.
  */
-export async function importPack(input: { text: string; meta: Partial<FileMeta> }): Promise<Result<{ id: string; added: number; updated: number; removed: number; kept: string[] }>> {
+export async function importPack(input: { text: string; meta: Partial<FileMeta> }): Promise<Result<{ id: string; ranking: string; added: number; updated: number; removed: number; kept: string[] }>> {
   const viewer = await allowed(["rankings", "manage"], undefined, "upload");
   if (!isViewer(viewer)) return viewer;
   const meta = readMeta(input?.meta);
@@ -259,7 +259,7 @@ export async function importPack(input: { text: string; meta: Partial<FileMeta> 
   forgetCatalogs();
   await audit(viewer, "analytics.pack.import", { type: "Edition", id: pack.edition.id, label: pack.edition.label }, `${meta.fileName}: ${added} added, ${updated} updated, ${removed} removed${kept.length ? `, ${kept.length} kept (have data)` : ""}`, [], "Configuration");
   refresh();
-  return { ok: true, message: existing ? `${pack.edition.label} updated.` : `${pack.edition.label} added as ${(pack.edition.status ?? "Draft").toLowerCase()}.`, data: { id: pack.edition.id, added, updated, removed, kept } };
+  return { ok: true, message: existing ? `${pack.edition.label} updated.` : `${pack.edition.label} added as ${(pack.edition.status ?? "Draft").toLowerCase()}.`, data: { id: pack.edition.id, ranking: pack.edition.ranking, added, updated, removed, kept } };
 }
 
 export async function exportPack(input: { edition: string }): Promise<Result<{ name: string; text: string }>> {

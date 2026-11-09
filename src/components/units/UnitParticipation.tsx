@@ -9,6 +9,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, MeterRow } from "@/components/ui/primitives";
 import { Tabs, TabPanel } from "@/components/ui/interactive";
 import { SearchField } from "@/components/ui/search-field";
+import { useFeature } from "@/components/hub/HubProvider";
+import { ReportOutput } from "@/components/reports/ReportOutput";
 import { ClickableTableRow } from "@/components/ui/ClickableTableRow";
 import { UnitMark } from "@/components/units/UnitMark";
 import { UnitLeaderboard } from "./UnitLeaderboard";
@@ -17,6 +19,7 @@ import { buildUnitLeaderboard } from "@/lib/governance/unit-leaderboard";
 const VIEWS = ["Submissions", "Rankings"] as const;
 const SEARCH_EXAMPLES = ["Search by unit name", "Search by unit code", "Search by coordinator"];
 type Category = typeof CATEGORIES[number];
+const REPORT_HEAD = ["Unit", "Assigned", "Completed", "Completion", "Validated", "Revisions", "Rankings served"];
 const KINDS: Record<Category, { kind: UnitKind; title: string; icon: "education" | "research" | "building" }> = {
   "Faculty/Colleges": { kind: "Faculty or college", title: "Faculty/Colleges", icon: "education" },
   "University Offices": { kind: "Office", title: "University Offices", icon: "building" },
@@ -38,6 +41,9 @@ export function UnitParticipation({ units }: { units: HubUnit[] }) {
   const standings = leaderboard.filter(({ unit }) => matches(unit));
   const archived = units.filter((unit) => unit.status === "Archived" && unit.kind === kind && matches(unit)).sort((a, b) => a.name.localeCompare(b.name));
   const counts = Object.fromEntries(CATEGORIES.map((label) => [label, active.filter((unit) => unit.kind === KINDS[label].kind).length]));
+  // Unit participation is read here, so it leaves the Hub from here: what the tab and search show is what is exported.
+  const reports = useFeature("reports");
+  const reportRows = UNITS.map((u) => [u.name, u.assigned, u.completed, `${u.assigned ? Math.min(100, Math.round((u.completed / u.assigned) * 100)) : 0}%`, u.validated, u.revisions, u.rankingsServed]);
 
   return (
     <>
@@ -48,6 +54,7 @@ export function UnitParticipation({ units }: { units: HubUnit[] }) {
         label="Unit categories"
         idBase="unit-participation"
         counts={counts}
+        actions={reports && <ReportOutput report="Unit Participation" datasets={["DS-EVIDENCE"]} head={REPORT_HEAD} rows={reportRows} strip />}
         search={<SearchField value={query} onChange={setQuery} placeholder="Search units" label={`Search ${title.toLowerCase()} by name, code or coordinator`} examples={SEARCH_EXAMPLES} shortcuts />}
       />
       <TabPanel idBase="unit-participation" index={CATEGORIES.indexOf(category)} className="stack">

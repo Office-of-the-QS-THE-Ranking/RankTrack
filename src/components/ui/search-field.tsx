@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { SearchIcon, type SearchIconHandle } from "@/components/animate-ui/icons/search";
+import { useTypedPlaceholder } from "./use-typed-placeholder";
 
 const PLACEHOLDER_CYCLE_MS = 6000;
 
@@ -11,9 +12,8 @@ export function SearchField({ value, onChange, placeholder, label, examples, sho
   const searchIconRef = useRef<SearchIconHandle>(null);
   const guideId = useId();
   const [focused, setFocused] = useState(false);
-  const [hint, setHint] = useState(placeholder);
   const reduceMotion = useReducedMotion();
-  const animate = !!examples?.length && !value && reduceMotion === false;
+  const hint = useTypedPlaceholder(placeholder, examples, !value, PLACEHOLDER_CYCLE_MS);
 
   useEffect(() => {
     const icon = searchIconRef.current;
@@ -43,39 +43,6 @@ export function SearchField({ value, onChange, placeholder, label, examples, sho
     return () => window.removeEventListener("keydown", focusSearch);
   }, [shortcuts]);
 
-  useEffect(() => {
-    if (!animate || !examples?.length) return;
-    const hints = examples.filter((example) => example.length > 0);
-    if (!hints.length) return;
-    let index = 0;
-    let timer: ReturnType<typeof setTimeout>;
-    const beginCycle = () => {
-      const text = hints[index];
-      let length = 0;
-      const typeMs = Math.min(85, 1200 / text.length);
-      const eraseMs = Math.min(45, 600 / text.length);
-      const gapMs = 350;
-      // Typing, holding, erasing and the gap together take six seconds.
-      const holdMs = PLACEHOLDER_CYCLE_MS - text.length * (typeMs + eraseMs) - gapMs;
-      setHint("");
-      const erase = () => {
-        setHint(text.slice(0, --length));
-        if (length > 0) timer = setTimeout(erase, eraseMs);
-        else {
-          index = (index + 1) % hints.length;
-          timer = setTimeout(beginCycle, gapMs);
-        }
-      };
-      const type = () => {
-        setHint(text.slice(0, ++length));
-        timer = length < text.length ? setTimeout(type, typeMs) : setTimeout(erase, holdMs + eraseMs);
-      };
-      timer = setTimeout(type, typeMs);
-    };
-    beginCycle();
-    return () => clearTimeout(timer);
-  }, [animate, examples]);
-
   return (
     <label className="adm-search">
       <SearchIcon ref={searchIconRef} size={16} className="adm-search__icon" aria-hidden="true" />
@@ -84,7 +51,7 @@ export function SearchField({ value, onChange, placeholder, label, examples, sho
         ref={inputRef}
         type="search"
         value={value}
-        placeholder={animate ? hint : placeholder}
+        placeholder={hint}
         aria-keyshortcuts={shortcuts ? "/" : undefined}
         aria-describedby={shortcuts ? guideId : undefined}
         onFocus={() => setFocused(true)}

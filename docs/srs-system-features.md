@@ -356,9 +356,9 @@ Opens from the sidebar profile with tabs: Overview, Edit profile, Roles & access
 ## 4.6 Dashboards
 
 **FR-4.6.1 Executive dashboard. [Built]** The system shall give the Office a University-wide view.
-- **Inputs:** View selection (Submissions, Rankings, Recognition); governed data.
-- **Processing:** Opens on the configured default view. Evidence shown is limited to what the viewer may see.
-- **Outputs:** A welcome tile, submission workload, ranking overview with readiness and deadlines, standings, the Recognition wall, an as-of date and a link to Reports.
+- **Inputs:** View selection (Submissions, Recognition); governed data.
+- **Processing:** Summarises only: each tile reads data held elsewhere and links to the page that holds it. Evidence shown is limited to what the viewer may see. The action items and data requests also require `rankings: view`.
+- **Outputs:** A welcome tile, readiness, next deadline, units engaged, open data requests, readiness by ranking, open action items, the Recognition wall, an as-of date and a link to Reports.
 - **Validation:** Requires `dashboard: view`. The Recognition view requires `recognition-internal` on.
 
 **FR-4.6.2 Unit dashboard. [Built]** The system shall show a Coordinator or Unit Administrator their unit's progress.
@@ -402,8 +402,8 @@ Opens from the sidebar profile with tabs: Overview, Edit profile, Roles & access
 
 **FR-4.7.2 Ranking workspace page. [Built]** The system shall present one ranking in tabs: Overview, Indicators, Evidence, Units, Action plan, Methodology.
 - **Inputs:** Ranking slug; filters.
-- **Processing:** Combines indicators, linked evidence by status, contributing units, strengths, gaps, opportunities and an Analytics tile. Answers five questions: where we stand, why, what is missing, who owns it, and what comes next.
-- **Outputs:** A hero with rank curve and readiness dial, tabbed content, and Reports in a drawer.
+- **Processing:** Combines the active edition's scorecard, indicators, linked evidence by status, contributing units, the ranking's action items, strengths, gaps and opportunities. With an edition, the Indicators tab is the engine's indicator table for that ranking (edition selectable); the Methodology tab adds its editions and catalog for `rankings: manage`. Answers five questions: where we stand, why, what is missing, who owns it, and what comes next.
+- **Outputs:** A hero with rank curve and readiness dial, tabbed content, and a link to Reports with this ranking chosen.
 - **Validation:** Evidence is limited to the viewer's scope. Missing data shows an empty state.
 
 **FR-4.7.3 Framework-specific dashboards. [Extend]** The system shall provide a tailored board for each framework family.
@@ -458,7 +458,7 @@ Opens from the sidebar profile with tabs: Overview, Edit profile, Roles & access
 
 ## 4.8 Analytics Engine
 
-Scores the University against each ranking body's methodology. A methodology is stored as data, so a new edition needs no code. Facts are what the Hub knows for an edition, and reports are computed from the two rather than stored. Office pages: Scorecard, Indicators, Data requests, Activities, Benchmarks, Data imports, Methodology. Unit page: Portal → Data requests.
+Scores the University against each ranking body's methodology. A methodology is stored as data, so a new edition needs no code. Facts are what the Hub knows for an edition, and reports are computed from the two rather than stored. It has no section of its own in the Office workspace: it is part of Rankings. The overview's content tabs work across rankings (Scorecard, Positions, Data requests, Activities, Benchmarks, Data imports), and each ranking's page holds its Indicators, Action plan and Methodology. Unit page: Portal → Data requests.
 
 **FR-4.8.1 Manage editions. [Built]** The system shall maintain a methodology edition per ranking and year.
 - **Inputs:** Label, period, methodology, status, open and close dates, evidence years, notes; a target year for "Start another year".
@@ -1154,25 +1154,23 @@ Pages: Dashboard, Assignments, Project Proposals, Evaluation Forms, Registration
 ## 4.17 Reports
 
 **FR-4.17.1 Build a report. [Built]** The system shall produce filtered management reports on screen.
-- **Inputs:** Report type; filters for ranking, cycle, unit, indicator, SDG, status, quality and plan status.
-- **Processing:** Filters to the viewer's scope and shows the report's columns.
-- **Outputs:** An on-screen report.
+- **Inputs:** Report tab; search; the filters that report can use (ranking, unit, indicator, SDG, status, quality or plan status).
+- **Processing:** Filters to the viewer's scope and previews the report's columns. Reports produce documents and hold no charts: figures are read on Rankings and Units. Records are not tied to a cycle, so a report is stamped with the current cycle.
+- **Outputs:** An on-screen report that matches what is exported.
 - **Validation:** Requires `reports: view` and the `reports` feature.
 
 **FR-4.17.2 Report types. [Extend]** The system shall provide:
 
 | Report | Content | Datasets |
 |---|---|---|
-| Executive Reports | Positions, readiness and top risks for leadership | Results, Indicators |
-| Management Review | Quarterly action-plan progress and decisions needed | Indicators |
 | Ranking Performance | Current, previous, direction, readiness, pending | Results, Indicators |
 | Evidence Readiness | Evidence by status and quality | Evidence |
-| Unit Participation | Assigned, completed, validated, revisions, rankings served | Evidence |
 | Risk and Opportunity | Critical gaps and main opportunities by ranking | Indicators |
-| Action Plan Progress | Action, KPI, owner, timeline, progress, status | Indicators |
-| Custom Report Builder | Any combination of filters | Evidence |
+| Action Plan Progress | The rankings' action items: action, KPI, owner, timeline, progress, status | Indicators |
 
-- **To complete:** Source figures from the engine's action items and summaries where sample lists remain.
+Unit Participation (assigned, completed, validated, revisions, rankings served; Evidence dataset) is released and exported from the Units page, under the same rules, since that is where it is read.
+
+- **To complete:** Source figures from the engine's summaries where sample lists remain.
 
 **FR-4.17.3 Export a report. [Built]** The system shall export reports under data-classification rules.
 - **Inputs:** Report, cycle, row count, datasets.
@@ -1249,7 +1247,7 @@ Pages: Dashboard, Assignments, Project Proposals, Evaluation Forms, Registration
 
 ## 4.19 Workspace Shell and Search
 
-**FR-4.19.1 Navigation. [Built]** The system shall provide a permanent sidebar with permitted pages, expandable children for Rankings, Analytics, Publications, Workspace and Administration, live counts, and a mobile menu.
+**FR-4.19.1 Navigation. [Built]** The system shall provide a permanent sidebar with permitted pages, expandable children for Rankings, Publications, Workspace and Administration, live counts, and a mobile menu.
 - **Inputs:** Viewer's permissions, feature switches.
 - **Processing:** Shows only permitted rows, and a server gate re-checks each page.
 - **Outputs:** Sidebar, icon-only rail remembered per browser, breadcrumbs, and an About link at the foot.

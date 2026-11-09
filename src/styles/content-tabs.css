@@ -97,6 +97,15 @@
     flex-shrink: 1;
     flex-wrap: wrap;
   }
+  /* Several buttons take a row of their own, and the search keeps its full width below them. */
+  .content-tabs__controls:has(> .content-tabs__actions > :nth-child(2)) {
+    flex-wrap: wrap;
+  }
+  .content-tabs__actions:has(> :nth-child(2)),
+  .content-tabs__actions:has(> :nth-child(2)) + .content-tabs__search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
 }
 .tabs-shell {
   --tabs-bg: #ffffff;

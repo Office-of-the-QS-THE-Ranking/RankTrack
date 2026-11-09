@@ -406,12 +406,6 @@ function Dashboard() {
   useEffect(() => setD(c.dashboard), [c.dashboard]);
   return (
     <Block title="Dashboards">
-      <Field label="Office dashboard opens on">
-        <Select className="select" disabled={!edit} value={d.officeView} onChange={(v) => setD({ ...d, officeView: v as typeof d.officeView })}>
-          <option value="submissions">Submissions</option>
-          <option value="rankings">Rankings</option>
-        </Select>
-      </Field>
       <Field label="Flag deadlines this many days ahead">
         <NumberField className="input num" min={3} max={90} disabled={!edit} value={d.deadlineWarningDays} onChange={(v) => setD({ ...d, deadlineWarningDays: v })} />
       </Field>

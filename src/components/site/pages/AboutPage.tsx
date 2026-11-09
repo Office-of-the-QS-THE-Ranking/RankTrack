@@ -4,6 +4,7 @@ import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
+import { GOVERNANCE } from "./site-copy";
 import { serverViews } from "@/lib/governance/server/views";
 
 const TABS = [
@@ -17,14 +18,6 @@ const TABS = [
   { id: "governance", label: "Data governance" },
   { id: "privacy", label: "Policies" },
   { id: "contact", label: "Contact" },
-];
-
-const GOVERNANCE = [
-  ["Office of the Rector", "The Office of QS/THE Rankings operates under the Office of the Rector."],
-  ["Director", "Engr. Nestor R. Ong heads the Office. The Office Clerk, Office Assistant and Ranking Specialists report directly to the Director."],
-  ["Functional supervision", "Engr. Rodablas P. Nicolas provides functional or indirect supervision to the Ranking Specialists."],
-  ["Academic and support units", "Coordinate with the Office to collect and consolidate data and implement action plans."],
-  ["Office of International Relations & Programs", "Works with the Office on data collection and stakeholder coordination."],
 ];
 
 /** About the Office of the QS/THE Rankings. */

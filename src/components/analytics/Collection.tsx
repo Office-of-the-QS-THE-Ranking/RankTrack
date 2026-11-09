@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Data requests: the Office's memoranda as campaigns. A request asks each unit for the indicators it owns
+ * Rankings › Data requests: the Office's memoranda as campaigns. A request asks each unit for the indicators it owns
  * (or a chosen set), tracks what each sent, reminds on a schedule, tells the Office when a unit is past due, and
  * thanks units once everything is in. Letters follow the Office's own wording: the request, the follow-up for units
  * that haven't sent, and the thank-you.

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ACTION_PLAN, type Indicator, type Ranking } from "@/lib/data";
+import type { Indicator, Ranking } from "@/lib/data";
+import type { RankingAction } from "@/lib/analytics/desk-types";
+import { day } from "@/lib/analytics/format";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, Kpi, MeterRow, Notice, PageHeader, PlanStatus, Status, Trend } from "@/components/ui/primitives";
 import { BarList, ChartFrame, LineWithTarget } from "@/components/charts/charts";
@@ -12,9 +14,9 @@ import { useHub } from "@/components/hub/HubProvider";
 import { useViews } from "@/components/reference/ReferenceProvider";
 
 /** Dedicated diagnostic for a ranking's principal structural challenge (QS: Citations per Faculty). */
-export function Diagnostic({ ranking }: { ranking: Ranking }) {
+export function Diagnostic({ ranking, actions }: { ranking: Ranking; actions: RankingAction[] }) {
   const ind = criticalIndicator(ranking);
-  if (ind) return <IndicatorDiagnostic ranking={ranking} ind={ind} />;
+  if (ind) return <IndicatorDiagnostic ranking={ranking} ind={ind} actions={actions} />;
   return (
     <>
       <PageHeader
@@ -34,17 +36,17 @@ export function Diagnostic({ ranking }: { ranking: Ranking }) {
   );
 }
 
-function IndicatorDiagnostic({ ranking, ind }: { ranking: Ranking; ind: Indicator }) {
+function IndicatorDiagnostic({ ranking, ind, actions }: { ranking: Ranking; ind: Indicator; actions: RankingAction[] }) {
   const { families, researchFunnel } = useViews();
   const years = [2023, 2024, 2025, 2026];
   const share = ind.current !== null && ind.target ? Math.round((ind.current / ind.target) * 100) : null;
   const hub = useHub();
   const owner = hub?.units.find((u) => u.name === ind.owner);
   const evidence = linkedEvidence(ranking, ind, hub?.evidence);
-  const isQs = ranking.slug === "qs-wur";
   const decimals = [ind.current ?? 0, ind.target ?? 0, ...ind.history].some((v) => v % 1 !== 0) ? 1 : 0;
   const num = (v: number | null) => (v === null ? "—" : v.toFixed(decimals));
-  const plan = ACTION_PLAN.filter((a) => (isQs ? /co-authorship|Citations/.test(a.action) : a.owner === ind.owner));
+  const isQs = ranking.slug === "qs-wur";
+  const plan = actions.filter((a) => a.ownerName === ind.owner);
 
   return (
     <>
@@ -158,13 +160,13 @@ function IndicatorDiagnostic({ ranking, ind }: { ranking: Ranking; ind: Indicato
         <Card title="Improvement actions" sub="From the action plan and the indicator's open items" icon="flag">
           <ul className="list">
             {plan.map((a) => (
-              <li key={a.action}>
+              <li key={a.id}>
                 <span className="list__main">{a.action}</span>
                 <span className="list__aside">
                   <PlanStatus status={a.status} />
                 </span>
                 <span className="list__sub">
-                  {a.kpi} · {a.owner} · {a.timeline}
+                  {[a.editionLabel, a.ownerName, a.due && day(a.due)].filter(Boolean).join(" · ")}
                 </span>
               </li>
             ))}

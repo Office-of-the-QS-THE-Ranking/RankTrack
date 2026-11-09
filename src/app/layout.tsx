@@ -3,6 +3,7 @@ import { Instrument_Sans, Newsreader } from "next/font/google";
 import { connection } from "next/server";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
+import { ButtonFx } from "@/components/ui/ButtonFx";
 import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
 import { FieldErrors } from "@/components/ui/validation";
@@ -17,6 +18,7 @@ import "@/styles/shell.css";
 import "@/styles/views.css";
 import "@/styles/portal.css";
 import "@/styles/admin.css";
+import "@/styles/assistant-admin.css";
 import "@/styles/posts.css";
 import "@/styles/publications.css";
 import "@/styles/workspace.css";
@@ -46,9 +48,10 @@ import "@/styles/analytics.css";
 import "@/styles/knowledge.css";
 import "@/styles/deadlines.css";
 import "@/styles/roles.css";
+import "@/styles/reports.css";
 import "@/styles/modal-motion.css";
 import "@/styles/assistant.css";
-import "@/styles/assistant-admin.css";
+import "@/styles/button-fx.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
 const sans = Instrument_Sans({
@@ -102,6 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Toaster />
         <FieldErrors />
         <CursorFx />
+        <ButtonFx />
         <SpeedInsights />
       </body>
     </html>

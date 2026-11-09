@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * Analytics › Activities: the activity register (service learning, community development, advocacy…) by unit and
+ * Rankings › Activities: the activity register (service learning, community development, advocacy…) by unit and
  * academic year. GreenMetric's ED4, ED5 and ED8, THE's community questions and QS's knowledge exchange read their
  * suggested counts from it. A register workbook in SIMBAHAYAN's format is read in the browser and added at once.
  */

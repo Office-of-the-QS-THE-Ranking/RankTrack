@@ -97,7 +97,7 @@ export async function saveValue(input: { edition: string; code: string; unit?: s
   const who = await unitName(unit);
   const notices =
     unit !== UNIVERSITY && status === "For review"
-      ? [{ to: "office", template: "tpl-data-sent", vars: { unit: who, indicator: label(catalog, ind.code), ranking: catalog.edition.label }, href: `/admin/analytics/indicators?edition=${catalog.edition.id}&code=${encodeURIComponent(ind.code)}` }]
+      ? [{ to: "office", template: "tpl-data-sent", vars: { unit: who, indicator: label(catalog, ind.code), ranking: catalog.edition.label }, href: `/admin/rankings/${catalog.edition.ranking}?edition=${catalog.edition.id}&code=${encodeURIComponent(ind.code)}#indicators` }]
       : [];
   await audit(viewer, "analytics.value", { type: "Indicator value", id: `${catalog.edition.id}:${ind.code}:${unit || "university"}`, label: `${label(catalog, ind.code)} · ${who}` }, `${status}${before ? ` (was ${before.status})` : ""}`, notices);
   if (unit !== UNIVERSITY && status === "For review") await thankIfDone(viewer, catalog, unit);

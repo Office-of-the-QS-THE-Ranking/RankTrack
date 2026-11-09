@@ -11,7 +11,7 @@ import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Stars } from "@/components/site/Stars";
-import { NAV, analyticsSubnav, knowledgeHref, publicationsSubnav, workspaceSubnav, type NavLink, type Variant } from "./nav";
+import { NAV, knowledgeHref, publicationsSubnav, rankingOverviewTabs, workspaceSubnav, type NavLink, type Variant } from "./nav";
 import { officeStoryPath, storyPath } from "@/lib/publications";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import type { Views } from "@/lib/reference";
@@ -59,7 +59,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
           // Publications' sections and the Workspace's pages are pages of their own.
           ...(i.publicationsBase ? publicationsSubnav(i.publicationsBase).map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })) : []),
           ...ws.map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })),
-          ...(i.analytics ? analyticsSubnav(i.analytics.base).filter((c) => can(c.need) && c.href !== i.href).map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })) : []),
+          ...(i.overviewTabs ? rankingOverviewTabs(i.overviewTabs).filter((c) => can(c.need) && c.href !== i.href).map((c) => ({ group: "Pages", label: c.label, sub: i.label, href: c.href, icon: c.icon })) : []),
         ];
       }),
   );

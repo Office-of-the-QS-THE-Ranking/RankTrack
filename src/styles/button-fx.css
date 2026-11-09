@@ -1,0 +1,67 @@
+/*
+ * The overlay ButtonFx adds to a button while it's in use. It covers the border box, follows the
+ * button's own corners and never takes a click. It paints over the button's fill and under its
+ * label, so text stays crisp. Colours come from the button (--fx-*), so it needs no per-surface
+ * styling.
+ */
+[data-fx-host] {
+  isolation: isolate;
+}
+[data-fx-host="static"] {
+  position: relative;
+}
+/* Holds a button's resting transform during a press, in place of any :active transform. */
+[data-fx-press] {
+  transform: var(--fx-hold, none) !important;
+}
+
+button-fx {
+  position: absolute;
+  inset: calc(var(--fx-edge, 0px) * -1);
+  z-index: -1;
+  display: block;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: inherit;
+  pointer-events: none;
+}
+button-fx > i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+}
+button-fx > [data-part="shade"] {
+  box-shadow: 0 6px 14px -7px color-mix(in srgb, var(--fx-bg, #000) 40%, rgb(0 0 0 / 0.5));
+  opacity: 0;
+}
+button-fx > [data-part="clip"] {
+  overflow: hidden;
+}
+button-fx [data-part="glow"],
+button-fx [data-part="bloom"] {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+}
+button-fx [data-part="glow"] {
+  top: 0;
+  left: 0;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--fx-tint, currentColor) var(--fx-glow, 12%), transparent), transparent);
+  opacity: 0;
+  transition: translate 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+button-fx [data-part="bloom"] {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--fx-tint, currentColor) calc(var(--fx-glow, 12%) * 1.4), transparent) 62%, transparent);
+}
+
+@media (forced-colors: active) {
+  button-fx {
+    display: none;
+  }
+}
+@media print {
+  button-fx {
+    display: none;
+  }
+}

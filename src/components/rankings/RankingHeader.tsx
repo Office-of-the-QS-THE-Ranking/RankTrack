@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ACTIONS, daysUntil, formatAsOf, formatDate, readinessLevel, type Indicator, type Ranking } from "@/lib/data";
+import { daysUntil, formatAsOf, formatDate, readinessLevel, type Indicator, type Ranking } from "@/lib/data";
+import type { RankingAction } from "@/lib/analytics/desk-types";
 import { familyOf } from "@/lib/reference";
 import { Tile } from "@/components/dashboard/Tile";
 import { Icon } from "@/components/ui/Icon";
@@ -18,9 +19,10 @@ export function drivers(r: Ranking, n = 2) {
   return [...r.indicators].sort((a, b) => weightOf(b) - weightOf(a) || gapOf(b) - gapOf(a)).slice(0, n);
 }
 
-export function nextAction(r: Ranking) {
-  const a = ACTIONS.filter((x) => x.ranking === r.slug && x.status !== "Validated").sort((x, y) => x.due.localeCompare(y.due))[0];
-  if (a) return { action: a.action, unit: a.unit, due: a.due as string | undefined };
+/** The ranking's next open action item (its plan is soonest first), else the first thing an indicator still needs. */
+export function nextAction(r: Ranking, plan: RankingAction[]) {
+  const a = plan.find((x) => x.status !== "Complete");
+  if (a) return { action: a.action, unit: a.ownerName ?? "", due: a.due };
   const ind = r.indicators.find((i) => i.actions.length);
   return ind ? { action: ind.actions[0], unit: ind.owner, due: undefined } : null;
 }
