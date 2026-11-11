@@ -202,12 +202,12 @@ export async function decideModelRequest(input: { modelId: unknown; accountId: u
 
 export async function assistantOptions(): Promise<ChatOptions> {
   const viewer = await getViewer();
-  if (!viewer) return { unavailable: "Your session has ended. Sign in again to continue.", models: [], sharing: [] };
+  if (!viewer) return { unavailable: "Your session has ended. Sign in again to continue.", models: [] };
   try {
     return await chatOptions(viewer);
   } catch (e) {
     console.error(`Assistant options: ${e instanceof Error ? e.message : e}`);
-    return { unavailable: "The assistant isn’t available right now.", models: [], sharing: [] };
+    return { unavailable: "The assistant isn’t available right now.", models: [] };
   }
 }
 

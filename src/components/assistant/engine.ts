@@ -746,7 +746,6 @@ export class OrbEngine {
       orbAngle: Math.atan2(-y / (this.vh / 2), x / (this.vw / 2)),
       energy: clamp(this.energy.x, 0, 1.4),
       flare: this.flare,
-      dark: document.documentElement.dataset.theme === "dark",
     });
   }
 }

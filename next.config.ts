@@ -46,6 +46,9 @@ const nextConfig: NextConfig = {
     // A workspace tab visited in the last 30 s opens from memory instead of rendering again. Every
     // change made through a server action revalidates the layout, which clears this cache.
     staleTimes: { dynamic: 30 },
+    // Turbopack keeps its dev and build caches on disk in .next and, without collection, they only ever grow
+    // (.next/dev/cache reached 8.5 GB). This drops work nothing has reached for a day.
+    turbopackGc: { rootTtlMs: 24 * 60 * 60 * 1000 },
   },
 };
 

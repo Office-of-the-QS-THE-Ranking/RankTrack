@@ -193,12 +193,14 @@
   width: 100%;
   height: 100%;
   border-radius: 0;
+  /* Colour carries further on black, so it is kept quieter */
+  opacity: 0.6;
   pointer-events: none;
 }
 .assist-edge[data-on] {
   display: block;
 }
-/* Softened like the blurred page under it, so the light reads as part of that layer rather than a line drawn on top */
+/* Softened into the background, so the light reads as part of it rather than a line drawn on top */
 .assist-edge:not(.assist-edge--flat) {
   filter: blur(3px);
 }
@@ -213,13 +215,23 @@
   mask-composite: exclude;
 }
 
-/* ---------- The page behind an open chat: blurred, dimmed and out of reach ---------- */
+/* ---------- The background behind an open chat: black in both themes, ruled out from the chat's column ---------- */
+.assist-scrim,
+.assist-panel {
+  /* The chat's column, and how far above the foot of the screen it stops. The lines are set out from the same two. */
+  --assist-col: min(960px, calc(100% - 32px));
+  --assist-lift: clamp(8px, calc(7vh - 12px), 60px);
+}
 .assist-scrim {
+  --assist-line: #232323;
+  /* Halfway between the screen's edge and the column */
+  --assist-guide: calc((100% - var(--assist-col)) / 4);
+  --assist-foot: calc(var(--assist-lift) / 2 + env(safe-area-inset-bottom));
   position: fixed;
   inset: 0;
   z-index: calc(var(--z-orb) - 3);
-  /* Solid while the chat is open, so nothing of the page shows: white, or jet black in dark */
-  background: #fff;
+  /* Solid while the chat is open, so nothing of the page shows: true black behind the top bar, then #131313 falling to black */
+  background: linear-gradient(#131313, #000) 0 var(--top-h) / 100% calc(100% - var(--top-h)) no-repeat, #000;
   opacity: 0;
   visibility: hidden;
   transition:
@@ -231,8 +243,65 @@
   visibility: visible;
   transition: opacity 340ms ease;
 }
-:root[data-theme="dark"] .assist-scrim {
-  background: #1d1d1f;
+/* The lines add to the gradient behind them, so they stand out from it just as clearly from top to bottom */
+.assist-rule,
+.assist-guide,
+.assist-tick {
+  position: absolute;
+  display: block;
+  mix-blend-mode: plus-lighter;
+}
+.assist-rule {
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--assist-line);
+}
+.assist-rule--top {
+  top: calc(var(--top-h) - 1px);
+}
+.assist-rule--foot {
+  bottom: var(--assist-foot);
+}
+/* Six on, six off */
+.assist-guide {
+  top: var(--top-h);
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(var(--assist-line) 50%, transparent 0) 0 0 / 1px 12px;
+}
+.assist-guide--start {
+  left: var(--assist-guide);
+}
+.assist-guide--end {
+  right: var(--assist-guide);
+}
+/* A small cross where the lines meet */
+.assist-tick {
+  width: 9px;
+  height: 9px;
+  background:
+    linear-gradient(#454545 0 0) 50% 50% / 100% 1px no-repeat,
+    linear-gradient(#454545 0 0) 50% 50% / 1px 100% no-repeat;
+}
+.assist-tick--top {
+  top: calc(var(--top-h) - 5px);
+}
+.assist-tick--foot {
+  bottom: calc(var(--assist-foot) - 4px);
+}
+.assist-tick--start {
+  left: calc(var(--assist-guide) - 4px);
+}
+.assist-tick--end {
+  right: calc(var(--assist-guide) - 4px);
+}
+/* Too short a window to spare the room for a second rule */
+@media (max-height: 560px) {
+  .assist-rule--foot,
+  .assist-tick--foot {
+    display: none;
+  }
 }
 /* The page can't scroll behind it, and doesn't shift when its scrollbar goes */
 html:has(.assist-scrim[data-on]) {
@@ -240,7 +309,7 @@ html:has(.assist-scrim[data-on]) {
   scrollbar-gutter: stable;
 }
 
-/* ---------- Chat: full screen over the blurred page, opened out of the orb ---------- */
+/* ---------- Chat: full screen over the black background, opened out of the orb ---------- */
 .assist-panel {
   position: fixed;
   inset: 0;
@@ -254,15 +323,29 @@ html:has(.assist-scrim[data-on]) {
   will-change: transform, opacity;
   /* Light: solid white surfaces lifted by soft shadows, so nothing behind tints them */
   --assist-glass: var(--surface);
-  --assist-glass-lift: 0 0 0 1px rgb(0 0 0 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.22);
-  --assist-row: var(--surface);
-  --assist-row-lift: inset 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 24px -16px rgb(0 0 0 / 0.16);
+  /* The input stands on the black, where a shadow alone can't be seen: shading inside the box and a faint halo round it carry the depth */
+  --assist-ask-shade: inset 0 -1px 0 rgb(0 0 0 / 0.08), inset 0 -18px 24px -18px rgb(0 0 0 / 0.16);
+  --assist-ask-depth: 0 2px 4px rgb(0 0 0 / 0.6), 0 12px 24px -6px rgb(0 0 0 / 0.7), 0 32px 64px -12px rgb(0 0 0 / 0.8), 0 0 72px -8px rgb(255 255 255 / 0.16);
 }
 :root[data-theme="dark"] .assist-panel {
   --assist-glass: rgb(var(--bg-rgb) / 0.86);
-  --assist-glass-lift: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 22px 48px -20px rgb(0 0 0 / 0.45);
-  --assist-row: rgb(var(--bg-rgb) / 0.55);
-  --assist-row-lift: inset 0 0 0 1px rgb(var(--hair) / 0.08);
+  --assist-ask-shade: inset 0 1px 0 rgb(255 255 255 / 0.2), inset 0 56px 56px -56px rgb(255 255 255 / 0.16), inset 0 -18px 24px -18px rgb(0 0 0 / 0.7);
+  --assist-ask-depth: 0 2px 4px rgb(0 0 0 / 0.6), 0 12px 24px -6px rgb(0 0 0 / 0.7), 0 32px 64px -12px rgb(0 0 0 / 0.8), 0 0 72px -8px rgb(255 255 255 / 0.14);
+}
+/* What stands directly on the black wears the dark theme in both themes, in the background's own greys. The input keeps the page's theme, so it isn't one of these. */
+.assist-panel :where(.theme-dark) {
+  --text: #edf2f5;
+  --text-2: #c8c8cc;
+  --text-3: #9f9f9f;
+  --surface: #121212;
+  --surface-2: #181818;
+  --surface-3: #202020;
+  --border: #232323;
+  --border-strong: #2c2c2c;
+  --chart-grid: #232323;
+  --chart-axis: #2c2c2c;
+  --assist-row-lift: inset 0 0 0 1px #232323;
+  color: var(--text);
 }
 .assist-panel:focus {
   outline: 0;
@@ -281,11 +364,11 @@ html:has(.assist-scrim[data-on]) {
   width: var(--assist-side);
   overflow: hidden;
   border-radius: 22px;
+  /* Solid: the conversation runs behind it, and glass would let it show through */
   background: var(--surface);
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.05),
-    0 2px 6px rgb(0 0 0 / 0.04),
-    0 28px 64px -20px rgb(0 0 0 / 0.28);
+    inset 0 0 0 1px var(--border),
+    0 28px 64px -20px rgb(0 0 0 / 0.9);
   visibility: hidden;
   opacity: 0;
   transform: translateX(calc(-100% - var(--assist-side-gap) - 8px));
@@ -301,13 +384,6 @@ html:has(.assist-scrim[data-on]) {
   transition:
     transform 380ms var(--ease-out),
     opacity 240ms ease;
-}
-/* Solid in both themes: the conversation runs behind it, and dark glass would let it show through */
-:root[data-theme="dark"] .assist-side {
-  background: #2a2a2d;
-  box-shadow:
-    inset 0 0 0 1px rgb(var(--hair) / 0.1),
-    0 28px 64px -20px rgb(0 0 0 / 0.7);
 }
 .assist-side__top {
   flex: none;
@@ -393,12 +469,9 @@ html:has(.assist-scrim[data-on]) {
   width: 34px;
   height: 34px;
   border-radius: 11px;
-  background: var(--surface);
+  background: rgb(var(--hair) / 0.08);
   box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.1);
   color: var(--text);
-}
-:root[data-theme="dark"] .assist-model__mark {
-  background: rgb(var(--hair) / 0.08);
 }
 .assist-model__text {
   flex: 1;
@@ -496,12 +569,13 @@ html:has(.assist-scrim[data-on]) {
   align-items: center;
   gap: 10px;
   height: var(--top-h);
-  padding: 0 var(--gutter);
+  /* It starts where the column does, inside the guide */
+  padding: 0 var(--gutter) 0 max(var(--gutter), calc((100% - var(--assist-col)) / 2));
 }
-.assist-top__title {
+.assist-top .assist-top__title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 400;
 }
 .assist-tool {
   display: grid;
@@ -530,10 +604,10 @@ html:has(.assist-scrim[data-on]) {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: min(960px, calc(100% - 32px));
+  width: var(--assist-col);
   margin: 0 auto;
   /* The input sits clear of the bottom edge, with its note under it */
-  padding-bottom: calc(clamp(8px, calc(7vh - 12px), 60px) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--assist-lift) + env(safe-area-inset-bottom));
 }
 
 .assist-hello {
@@ -545,10 +619,10 @@ html:has(.assist-scrim[data-on]) {
 }
 .assist-hello p {
   margin: 0;
-  font-size: 34px;
-  font-weight: 600;
+  font-size: clamp(30px, 3.2vw, 46px);
+  font-weight: 400;
   line-height: 1.18;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.035em;
 }
 .assist-hello__ask {
   color: var(--text-3);
@@ -720,6 +794,8 @@ html:has(.assist-scrim[data-on]) {
   /* Its own layer, so the glow sits behind the glass and the glass behind the text */
   isolation: isolate;
   container-type: inline-size;
+  /* On the form, not the glass, so it falls behind the typing glow rather than over it */
+  box-shadow: var(--assist-ask-depth);
 }
 .assist-ask__glass {
   position: absolute;
@@ -730,7 +806,7 @@ html:has(.assist-scrim[data-on]) {
   /* At rest the box is only this hairline: the colour below is for when someone's typing */
   box-shadow:
     inset 0 0 0 1px rgb(var(--hair) / 0.14),
-    var(--assist-glass-lift);
+    var(--assist-ask-shade);
   pointer-events: none;
 }
 .glow.assist-ask__rim,
@@ -919,6 +995,8 @@ html:has(.assist-scrim[data-on]) {
 
 /* What using the chat means: small, under the input */
 .assist-note {
+  /* Above the input's shadow, which would otherwise dim it */
+  position: relative;
   flex: none;
   margin: 12px 0 0;
   padding: 0;
@@ -966,8 +1044,9 @@ html:has(.assist-scrim[data-on]) {
   .assist-orb {
     --orb: 54px;
   }
-  .assist-stage {
-    width: calc(100% - 24px);
+  .assist-scrim,
+  .assist-panel {
+    --assist-col: calc(100% - 24px);
   }
   .assist-log {
     padding-bottom: 34px;
@@ -975,9 +1054,6 @@ html:has(.assist-scrim[data-on]) {
   .assist-panel {
     --assist-side: min(340px, calc(100% - 40px));
     --assist-side-gap: 8px;
-  }
-  .assist-hello p {
-    font-size: 28px;
   }
   .assist-ask__input {
     font-size: 16px;
@@ -1051,7 +1127,8 @@ html:has(.assist-scrim[data-on]) {
   }
 }
 @media (forced-colors: active) {
-  .assist-edge {
+  .assist-edge,
+  .assist-scrim > * {
     display: none !important;
   }
   .assist-orb__gl {
@@ -1124,24 +1201,16 @@ a.assist-cite:focus-visible,
 
 /* ---------- An answer's Markdown ---------- */
 .assist-md {
-  /* Graph series, in fixed order: validated for colour-blind separation on #fff and #1d1d1f */
-  --assist-series-1: #a87a00;
-  --assist-series-2: #2a78d6;
-  --assist-series-3: #eb6834;
-  --assist-series-4: #6250d6;
-  --assist-series-5: #e87ba4;
-  --assist-series-6: #008300;
-  font-size: 16px;
-  line-height: 1.65;
-  overflow-wrap: break-word;
-}
-:root[data-theme="dark"] .assist-md {
+  /* Graph series, in fixed order: validated for colour-blind separation on black */
   --assist-series-1: #c98500;
   --assist-series-2: #3987e5;
   --assist-series-3: #d95926;
   --assist-series-4: #9085e9;
   --assist-series-5: #d55181;
   --assist-series-6: #008300;
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-wrap: break-word;
 }
 /* Zero weight, so the spacing rules after these always win */
 .assist-md :where(p, ul, ol, blockquote, pre, h3, h4, h5) {

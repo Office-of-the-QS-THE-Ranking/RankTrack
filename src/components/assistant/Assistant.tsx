@@ -309,8 +309,17 @@ export default function Assistant({ name }: { name: string }) {
       {/* The glow class puts the dashboard's rim colours in reach of the engine, which reads them from here. */}
       <canvas ref={edge} className="assist-edge glow" aria-hidden="true" />
 
-      {/* Covers the page behind the chat: the chat's own background, white or jet black. */}
-      <div ref={scrim} className="assist-scrim" data-on={open ? "" : undefined} aria-hidden="true" onClick={close} />
+      {/* Covers the page behind the chat: the chat's own background, black in both themes and ruled out from its column. */}
+      <div ref={scrim} className="assist-scrim" data-on={open ? "" : undefined} aria-hidden="true" onClick={close}>
+        <i className="assist-rule assist-rule--top" />
+        <i className="assist-rule assist-rule--foot" />
+        <i className="assist-guide assist-guide--start" />
+        <i className="assist-guide assist-guide--end" />
+        <i className="assist-tick assist-tick--top assist-tick--start" />
+        <i className="assist-tick assist-tick--top assist-tick--end" />
+        <i className="assist-tick assist-tick--foot assist-tick--start" />
+        <i className="assist-tick assist-tick--foot assist-tick--end" />
+      </div>
 
       <section
         ref={panel}
@@ -342,7 +351,7 @@ export default function Assistant({ name }: { name: string }) {
           onRequest={(id) => void askForModel(id)}
         />
 
-        <header className="assist-top">
+        <header className="assist-top theme-dark">
           <h2 className="assist-top__title">Assistant</h2>
           {started && (
             <button type="button" className="assist-tool" onClick={startOver} aria-label="New chat" data-tip="New chat">
@@ -355,7 +364,7 @@ export default function Assistant({ name }: { name: string }) {
           {started ? (
             <div
               ref={log}
-              className="assist-log"
+              className="assist-log theme-dark"
               role="log"
               aria-live="polite"
               aria-label="Conversation"
@@ -379,7 +388,7 @@ export default function Assistant({ name }: { name: string }) {
               </div>
             </div>
           ) : (
-            <div className="assist-hello">
+            <div className="assist-hello theme-dark">
               <p className="assist-hello__name">Hi, {firstName(name)}</p>
               <p className="assist-hello__ask">{options?.unavailable ?? "How can I help?"}</p>
             </div>
@@ -440,9 +449,8 @@ export default function Assistant({ name }: { name: string }) {
 
           {/* Read before the first message of a chat; after that the conversation gets the room. */}
           {!started && (
-            <p className="assist-note">
-              {!!model && options?.sharing.includes(model) && "Don’t share personal details: this model’s provider may read messages. "}
-              Answers can be wrong, so check the sources. Chats may be collected and reviewed to improve the service. By using this, you agree to the{" "}
+            <p className="assist-note theme-dark">
+              Don’t share personal details, as some model providers may read messages. Answers can be wrong, so check the sources. Chats may be collected and reviewed to improve the service. By using this, you agree to the{" "}
               <a href="/terms" target="_blank" rel="noopener">
                 Terms
               </a>{" "}
