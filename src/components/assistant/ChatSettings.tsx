@@ -67,7 +67,7 @@ export function ChatSettings({
   onRequest: (id: string) => void;
 }) {
   return (
-    <aside id="assistant-settings" className="assist-side" aria-label="Models" inert={!shown} data-on={shown ? "" : undefined}>
+    <aside id="assistant-settings" className="assist-side theme-dark" aria-label="Models" inert={!shown} data-on={shown ? "" : undefined}>
       <header className="assist-side__top">
         <h3 className="assist-side__title">Models</h3>
         <button ref={closeRef} type="button" className="assist-tool" onClick={onClose} aria-label="Close models">

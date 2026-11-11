@@ -37,8 +37,6 @@ export interface ChatOptions {
   /** Why nothing can be asked yet, for the person asking. */
   unavailable?: string;
   models: ModelOption[];
-  /** The model on offer shares what it's sent with its provider, so people shouldn't type personal details. */
-  sharing: string[];
 }
 
 export interface ProviderRow {

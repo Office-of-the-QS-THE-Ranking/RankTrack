@@ -17,7 +17,6 @@ export type EdgeFrame = {
   energy: number;
   /** A brief flare as it lights, 0 to 1. */
   flare: number;
-  dark: boolean;
 };
 
 export type EdgeRenderer = {
@@ -38,7 +37,7 @@ void main() {
 const FS = /* glsl */ `#version 300 es
 precision highp float;
 uniform vec2 uSize;
-uniform float uRatio, uTime, uLevel, uReveal, uOrb, uEnergy, uFlare, uDark;
+uniform float uRatio, uTime, uLevel, uReveal, uOrb, uEnergy, uFlare;
 uniform vec3 uSpectrum[13];
 out vec4 o;
 
@@ -73,9 +72,7 @@ void main() {
   float swell = .5 + .5 * sin(2. * th + t * .52 + 1.3 * sin(3. * th - t * .37));
   float swell2 = .5 + .5 * sin(5. * th - t * (.74 + uEnergy * .9) + 1.1 * sin(2. * th + t * .29));
   float shape = mix(swell, swell2, .32 + uEnergy * .18);
-  // On white the colour has nothing to glow against and reads wider than it is: it is drawn slimmer there.
-  float slim = uDark > .5 ? 1. : .74;
-  float width = mix(2., 7., shape * shape) * (.74 + uEnergy * .5 + uFlare * .75) * slim;
+  float width = mix(2., 7., shape * shape) * (.74 + uEnergy * .5 + uFlare * .75);
 
   // Light spreads both ways round from the orb, and is strongest on the part of the edge facing it.
   float from = abs(mod(th - uOrb + PI, 2. * PI) - PI) / PI;
@@ -87,7 +84,7 @@ void main() {
   vec3 c = spectrum(hue);
 
   float bloom = exp(-pow(d / width, 1.55));
-  float mist = exp(-pow(d / (width * 1.3), 1.35)) * (.08 + uFlare * .12) * slim;
+  float mist = exp(-pow(d / (width * 1.3), 1.35)) * (.08 + uFlare * .12);
   float line = fall(2.6, .5, d);
   float glint = fall(1.5, 0., d) * (.2 + .8 * swell2 * swell2 + facing * .6);
 
@@ -105,7 +102,7 @@ void main() {
 }
 `;
 
-const NAMES = ["uSize", "uRatio", "uTime", "uLevel", "uReveal", "uOrb", "uEnergy", "uFlare", "uDark", "uSpectrum"] as const;
+const NAMES = ["uSize", "uRatio", "uTime", "uLevel", "uReveal", "uOrb", "uEnergy", "uFlare", "uSpectrum"] as const;
 
 export function createEdgeRenderer(canvas: HTMLCanvasElement): EdgeRenderer | null {
   const gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, powerPreference: "low-power", failIfMajorPerformanceCaveat: true });
@@ -192,7 +189,6 @@ export function createEdgeRenderer(canvas: HTMLCanvasElement): EdgeRenderer | nu
       ctx.uniform1f(u.uOrb, f.orbAngle);
       ctx.uniform1f(u.uEnergy, f.energy);
       ctx.uniform1f(u.uFlare, f.flare);
-      ctx.uniform1f(u.uDark, f.dark ? 1 : 0);
       ctx.uniform3fv(u.uSpectrum, spectrum);
       ctx.bindVertexArray(state.vao);
       ctx.drawArrays(ctx.TRIANGLES, 0, 3);

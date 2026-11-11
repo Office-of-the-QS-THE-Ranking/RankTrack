@@ -168,9 +168,11 @@
 
 /*
  * Dark appearance for the Office and contributor workspaces. The shell sets data-theme on <html>
- * only while a workspace is open, so the public site never sees these values.
+ * only while a workspace is open, so the public site never sees these values. theme-dark gives one part of a page the
+ * same values whichever theme is on, for something that stands on black in both, like the assistant's chat.
  */
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+.theme-dark {
   color-scheme: dark;
 
   --white: #1c1c1e;

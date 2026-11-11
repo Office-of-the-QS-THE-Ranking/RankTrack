@@ -77,7 +77,6 @@ export async function chatOptions(viewer: Viewer): Promise<ChatOptions> {
   return {
     unavailable: unavailable ?? (ready.length ? undefined : "The assistant isn’t set up yet."),
     models,
-    sharing: ready.filter((m) => sharesData(m.provider, setup.providers.get(m.provider)!.plan)).map((m) => m.id),
   };
 }
 
