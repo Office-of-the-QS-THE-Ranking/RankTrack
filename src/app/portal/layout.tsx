@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { PORTAL_NAME } from "@/lib/brand";
 import { redirect } from "next/navigation";
 import { Shell } from "@/components/shell/Shell";
 import { clientHub } from "@/lib/governance/server/hub";
 import { getSessionProblem, getViewer } from "@/lib/governance/server/session";
 
 export const metadata: Metadata = {
-  title: { default: "Contributor workspace", template: "%s · Contributor workspace · UST Rankings Hub" },
+  title: { default: "Contributor workspace", template: `%s · Contributor workspace · ${PORTAL_NAME}` },
   robots: { index: false },
 };
 

@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { BOOT_SCRIPTS } from "@/lib/boot-scripts";
+import { firewall } from "@/lib/firewall/guard";
 
 /*
  * In front of every page: a Content Security Policy with a fresh nonce per request (Next.js applies it to its own
  * scripts; the Hub's two inline boot scripts are allowed by hash), and a first gate for the workspaces. The gate
  * only turns away requests that carry no session cookie at all; every page and action still checks the session
- * itself (getViewer, Gate), so this is defence in depth, not the check.
+ * itself (getViewer, Gate), so this is defence in depth, not the check. Before either, the Hub's own firewall
+ * (lib/firewall/guard.ts) checks and records the request, wherever the Hub is hosted.
  */
 
 const DEV = process.env.NODE_ENV === "development";
@@ -30,10 +32,14 @@ const SUPABASE = origin(process.env.NEXT_PUBLIC_SUPABASE_URL);
 /** Supabase Realtime, for team copies of a digital form that update live. */
 const SUPABASE_LIVE = SUPABASE.replace(/^https:/, "wss:");
 
-function policy(nonce: string) {
+/**
+ * `wasm`: the workspaces read evidence files in the reviewer's browser (lib/review/extract), and the PDF decoders and
+ * the OCR engine are WebAssembly. 'wasm-unsafe-eval' lets WebAssembly compile; it doesn't allow eval of JavaScript.
+ */
+function policy(nonce: string, wasm: boolean) {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' ${BOOT_HASHES} 'strict-dynamic'${DEV ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' ${BOOT_HASHES} 'strict-dynamic'${wasm ? " 'wasm-unsafe-eval'" : ""}${DEV ? " 'unsafe-eval'" : ""}`,
     // React style attributes, Motion's animated styles and rich-text colours are inline styles.
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: https://*.googleusercontent.com ${R2_PUBLIC}`.trim(),
@@ -51,7 +57,9 @@ function policy(nonce: string) {
   ].join("; ");
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  const refused = await firewall(request, event);
+  if (refused) return refused;
   const { pathname, search } = request.nextUrl;
   const workspace = /^\/(admin|portal)(\/|$)/.test(pathname);
   if (workspace && !SESSION_COOKIES.some((name) => request.cookies.has(name))) {
@@ -61,7 +69,7 @@ export function proxy(request: NextRequest) {
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const csp = policy(nonce);
+  const csp = policy(nonce, workspace);
   const headers = new Headers(request.headers);
   headers.set("x-nonce", nonce);
   headers.set("Content-Security-Policy", csp);
@@ -73,8 +81,9 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Pages and Server Functions; not build assets, images, media or files with an extension.
-      source: "/((?!_next/static|_next/image|media/|favicon.ico|.*\\.(?:png|jpg|jpeg|webp|avif|gif|svg|ico|woff2?|txt|xml|webmanifest)$).*)",
+      // Pages and Server Functions; not build assets, images, media, the evidence reader's workers (their policy is
+      // in next.config.ts) or files with an extension.
+      source: "/((?!_next/static|_next/image|media/|ocr/|favicon.ico|.*\\.(?:png|jpg|jpeg|webp|avif|gif|svg|ico|woff2?|txt|xml|webmanifest)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

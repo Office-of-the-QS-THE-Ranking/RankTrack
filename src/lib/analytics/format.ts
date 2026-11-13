@@ -1,5 +1,5 @@
 /* How analytics figures read on the page and in exports. Safe anywhere. */
-import type { IndicatorState, InputSpec, Value } from "./types";
+import type { InputSpec, Value } from "./types";
 
 /** A number as the Office writes it: thousands separated, at most two decimals, small ones kept precise. */
 /** "1 unit", "3 units". */
@@ -39,14 +39,6 @@ export function valueText(input: InputSpec, v: Value | null | undefined, unit?: 
       return v.num !== undefined ? num(v.num) : (v.text ?? "");
   }
 }
-
-export const STATE_TONE: Record<IndicatorState, "ok" | "review" | "revise" | "missing" | "neutral"> = {
-  Validated: "ok",
-  "For review": "review",
-  "Needs revision": "revise",
-  "Not started": "missing",
-  "Not applicable": "neutral",
-};
 
 /** A day as "26 Oct 2026". */
 export const day = (iso?: string) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Manila" }).format(new Date(iso.length === 10 ? `${iso}T12:00:00+08:00` : iso)) : "—");

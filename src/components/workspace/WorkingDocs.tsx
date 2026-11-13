@@ -23,7 +23,7 @@ import {
 } from "@/lib/governance/workspace";
 import { useGovern, useRankings } from "@/components/hub/HubProvider";
 import { useReference } from "@/components/reference/ReferenceProvider";
-import { Field, Sheet as AdminSheet } from "@/components/admin/ui";
+import { Field, Sheet as AdminSheet } from "@/components/command-control/ui";
 import { SdgPicker } from "@/components/publications/ComposerPanels";
 import { RowMenu, SortMark } from "@/components/publications/PostManager";
 import { Icon } from "@/components/ui/Icon";
@@ -34,6 +34,7 @@ import { toast } from "@/components/ui/toast";
 import { LinkGlyph } from "./LinkGlyph";
 import { Sheet } from "./parts";
 import { ShelfHero } from "./ShelfHero";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Sort = { by: "title" | "date" | "status"; dir: 1 | -1 };
 
@@ -349,6 +350,7 @@ function DocSheet({
   const [remarks, setRemarks] = useState(doc?.remarks ?? "");
   const [rows, setRows] = useState<Row[]>(() => (doc?.links.length ? doc.links.map((l) => row(l)) : [row()]));
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   // Set when a save opened the other tab: submit again once its fields are in the form.
   const resubmit = useRef(false);
   const focusRow = useRef<number | null>(null);
@@ -380,7 +382,7 @@ function DocSheet({
 
   const save = async () => {
     setBusy(true);
-    if (await onSave({ title, date, rankings: tags, sdgs, status, links, remarks })) closeModal(form.current?.closest<HTMLElement>(".adm-sheet") ?? null, onClose);
+    if (await onSave({ title, date, rankings: tags, sdgs, status, links, remarks })) closeModal(form.current?.closest<HTMLElement>(".cmd-sheet") ?? null, onClose);
     else setBusy(false);
   };
 
@@ -391,7 +393,7 @@ function DocSheet({
       onClose={onClose}
       title={doc ? "Edit document" : "Add document"}
       headerContent={
-        <div className="adm-sheet__tabs">
+        <div className="cmd-sheet__tabs">
           <Tabs<Tab>
             label="Document"
             idBase={tabsId}
@@ -407,7 +409,7 @@ function DocSheet({
       }
       footer={
         <>
-          <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".adm-sheet"), onClose)}>
+          <button type="button" className="btn" onClick={(event) => closeModal(event.currentTarget.closest<HTMLElement>(".cmd-sheet"), onClose)}>
             Cancel
           </button>
           <button type="submit" form={formId} className="btn btn--dark" disabled={busy} aria-busy={busy}>
@@ -420,7 +422,7 @@ function DocSheet({
         <form
           ref={form}
           id={formId}
-          className="adm-invite ws-docform"
+          className="cmd-invite ws-docform"
           data-tab={tab}
           onSubmit={(e) => {
             e.preventDefault();
@@ -452,7 +454,7 @@ function DocSheet({
                   data-missing="Give the document a title."
                 />
               </Field>
-              <div className="adm-invite__pair">
+              <div className="cmd-invite__pair">
                 <Field label="Date due">
                   <DateField className="input" name="date" value={date} onChange={setDate} aria-label="Date due" required data-missing="Choose the date it’s due." />
                 </Field>
@@ -467,8 +469,8 @@ function DocSheet({
                 </Field>
               </div>
               {rankings.length > 0 && (
-                <fieldset className="adm-field ws-tagpick">
-                  <legend className="adm-field__label">
+                <fieldset className="cmd-field ws-tagpick">
+                  <legend className="cmd-field__label">
                     Rankings
                   </legend>
                   <div className="ws-tagpick__list">
@@ -490,16 +492,16 @@ function DocSheet({
                   </div>
                 </fieldset>
               )}
-              <fieldset className="adm-field ws-tagpick">
-                <legend className="adm-field__label">
+              <fieldset className="cmd-field ws-tagpick">
+                <legend className="cmd-field__label">
                   SDGs {sdgs.length > 0 && <em>{sdgs.map((n) => `SDG ${n}`).join(", ")}</em>}
                 </legend>
                 <SdgPicker compact value={sdgs} onToggle={(n) => setSdgs((v) => (v.includes(n) ? v.filter((x) => x !== n) : [...v, n].sort((a, b) => a - b)))} />
               </fieldset>
             </>
           ) : tab === "Links" ? (
-            <div className="adm-field">
-              <span className="adm-field__label">Links</span>
+            <div className="cmd-field">
+              <span className="cmd-field__label">Links</span>
               <ul className="ws-linkrows">
                 {rows.map((r, i) => (
                   <LinkRow

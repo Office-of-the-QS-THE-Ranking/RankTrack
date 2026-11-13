@@ -116,6 +116,8 @@ export async function usedToday(accountId: string, modelId: string) {
     .select("id", { count: "exact", head: true })
     .eq("account_id", accountId)
     .eq("model_id", modelId)
+    // A job's runs are the Office's work, not this person's messages.
+    .eq("job", "assistant")
     .in("outcome", ["answered", "general", "stopped"])
     .gte("at", manilaStart("day").toISOString());
   if (error) throw new Error(`Assistant usage: ${error.message}`);

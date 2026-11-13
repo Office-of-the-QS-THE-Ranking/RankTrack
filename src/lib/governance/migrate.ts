@@ -6,7 +6,7 @@
 import { ROLE } from "./catalog";
 import { importUstDirectory } from "./directory";
 import type { DirectoryEntry } from "./ust-directory";
-import { SCHEMA, WORKFLOWS } from "./seed";
+import { SCHEMA, UNIT_SUBMISSIONS, WORKFLOWS } from "./seed";
 import type { Assignment, GovernanceState, RoleId } from "./types";
 
 /** Schema 4 had nine built-in roles and custom ones; schema 5 had three; schema 10 has four. */
@@ -108,6 +108,8 @@ function from9(s: Stored): Stored {
  * schema 10 copy from before it (an older recovery point) gets its empty lists here.
  */
 function fill10(s: Stored): Stored {
+  // The Unit submissions pipeline (2026-11-13): a store or recovery point from before it gets the one-step default.
+  if (!s.workflows.some((w) => w.id === UNIT_SUBMISSIONS.id)) s.workflows.push(structuredClone(UNIT_SUBMISSIONS));
   // Research articles and reports joined schema 10 the same way.
   s.records.documents ??= [];
   s.records.counters.document ??= 0;

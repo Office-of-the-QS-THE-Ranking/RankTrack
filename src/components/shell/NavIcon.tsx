@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import type { IconProps } from "@/components/animate-ui/icons/icon";
+import { AgenticSpark } from "@/components/animate-ui/icons/agentic-spark";
 import { BookOpen } from "@/components/animate-ui/icons/book-open";
 import { ChartBar } from "@/components/animate-ui/icons/chart-bar";
 import { ChartColumnIncreasing } from "@/components/animate-ui/icons/chart-column-increasing";
@@ -45,6 +46,7 @@ const ANIMATED: Partial<Record<IconName, ComponentType<IconProps<never>>>> = {
   history: FolderClock,
   folder: FolderOpen,
   help: CircleQuestionMark,
+  agentic: AgenticSpark,
 };
 
 const LOOP_MS = 4000;

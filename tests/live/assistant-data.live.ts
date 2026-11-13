@@ -9,7 +9,7 @@ import { ROLE, roleOf } from "@/lib/governance/catalog";
 import type { RoleId } from "@/lib/governance/types";
 
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
-vi.mock("@/lib/assistant/server/notices", () => ({ markFailed: async () => {}, checkSpend: async () => {}, tellManagers: async () => {}, managerIds: () => [], AI_TAB: "", FAILURE_REASON: {} }));
+vi.mock("@/lib/assistant/server/notices", () => ({ markFailed: async () => {}, checkSpend: async () => {}, tellManagers: async () => {}, managerIds: () => [], AGENTIC_CONTROL_TAB: "", FAILURE_REASON: {} }));
 vi.mock("@/lib/supabase/server", async (orig) => {
   const real = await orig<typeof import("@/lib/supabase/server")>();
   return {
@@ -36,11 +36,11 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const person = (roleId: RoleId, units: "all" | string[], unitId: string, unitName: string, workspaces: string[]) => {
   const role = roleOf(roleId)!;
-  const perms = units === "all" ? role.universityPermissions! : role.permissions;
+  const perms = role.permissions;
   return { id: "__assistant_live_test", name: "Live Test", email: "live-test@invalid", unitId, unitName, roles: [], workspaces, portal: { unitId, unitName }, features: {}, flags: [], grants: [{ roleId, tier: role.tier, perms, units, scopeUnits: units }] } as never;
 };
 
-const admin = person(ROLE.admin, "all", "rankings-office", "Rankings Office", ["office", "portal"]);
+const admin = person(ROLE.superAdmin, "all", "rankings-office", "Rankings Office", ["office", "portal"]);
 const coordinator = person(ROLE.coordinator, ["cics"], "cics", "College of Information and Computing Sciences", ["portal"]);
 const student = person(ROLE.student, ["rankings-office"], "rankings-office", "", ["portal"]);
 

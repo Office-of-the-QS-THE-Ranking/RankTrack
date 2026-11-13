@@ -15,6 +15,7 @@ export function Tile({
   className,
   href,
   aside,
+  glow = true,
   children,
 }: {
   id: string;
@@ -22,6 +23,7 @@ export function Tile({
   className?: string;
   href?: string;
   aside?: ReactNode;
+  glow?: boolean;
   children: ReactNode;
 }) {
   const head = title && (
@@ -34,7 +36,7 @@ export function Tile({
   );
   return (
     <section className={cx("ov-tile", className)} aria-labelledby={id}>
-      <GlowingEffect />
+      {glow && <GlowingEffect />}
       {href ? (
         <Link href={href} className="ov-tile__core">
           {head}

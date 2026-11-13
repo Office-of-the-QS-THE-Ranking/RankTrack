@@ -26,6 +26,7 @@ import { FormAnalytics } from "./Analytics";
 import { FormArt } from "./art";
 import { ago, StatusMark } from "./marks";
 import { FormResponses } from "./Responses";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Tab = "Details" | "Responses" | "Analytics";
 const TABS: Tab[] = ["Details", "Responses", "Analytics"];
@@ -481,6 +482,7 @@ export function DetailsSheet({ form, desk, onSave, onClose }: { form: FormItem; 
   // The kinds its holder may make; the kind is set while it's a draft (it decides copies and the Student Portal).
   const kinds = FORM_KINDS.filter((k) => HOLDER_KINDS[form.holder.kind].includes(k.key));
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const sectionId = useId();
   const set = (change: Partial<DetailsFields>) => setF((x) => ({ ...x, ...change }));
   return (

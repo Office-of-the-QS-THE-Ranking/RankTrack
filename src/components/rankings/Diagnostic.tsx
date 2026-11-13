@@ -194,7 +194,7 @@ function IndicatorDiagnostic({ ranking, ind, actions }: { ranking: Ranking; ind:
             <ul className="list">
               {evidence.map((e) => (
                 <li key={e.id}>
-                  <Link href={`/admin/contributions?item=${e.id}`} className="list__main">
+                  <Link href={`/admin/unit-submissions?item=${e.id}`} className="list__main">
                     {e.title}
                   </Link>
                   <span className="list__aside">

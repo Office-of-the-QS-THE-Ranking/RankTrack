@@ -1,6 +1,5 @@
 /**
- * Geometry for the sign-in scene (SignInScene): the cut facets of the gold and silver bands, the faceted
- * sky behind them with its stars, and the lights of the building's render
+ * Geometry for the sign-in scene (SignInScene): the faceted sky with its stars, and the lights of the building's render
  * (SceneLight makes them shine). A seeded random keeps the markup the same on the server and in the browser.
  */
 
@@ -15,68 +14,6 @@ function seeded(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-const n1 = (v: number) => Math.round(v * 10) / 10;
-
-/**
- * Every band's facets are drawn in one box, 100 wide and tall enough to cover the band at any screen size
- * (signin.css slices it to the band). Facets are only cut where the band can be seen: its middle stretch.
- */
-export const FACET_BOX = { w: 100, h: 3200, from: 640, to: 2560 };
-
-export interface Facets {
-  /** One path per shade, lightest last: white facets laid over the band's own gradient. */
-  light: string[];
-  /** One path per shade, darkest last. */
-  dark: string[];
-  /** Facets that catch the light in turn; `delay` staggers them through one cycle. */
-  glints: { d: string; delay: number }[];
-}
-
-/**
- * A triangular lattice laid along the band with one family of edges running with it, so on screen the other
- * two families stand nearly level and steep, as on the cut gold of the reference. Each facet is shaded by a
- * slow swell along the band, as if light fell across it, and by its own scatter.
- */
-function cut(seed: number, side: number, levels: number, glintCount: number): Facets {
-  const r = seeded(seed);
-  const col = (side * Math.sqrt(3)) / 2;
-  const light: string[][] = Array.from({ length: levels }, () => []);
-  const dark: string[][] = Array.from({ length: levels }, () => []);
-  const lit: string[] = [];
-  const swell = r() * Math.PI * 2;
-  for (let i = 0; col * i < FACET_BOX.w; i++) {
-    const xa = i * col;
-    const xb = (i + 1) * col;
-    const oa = (i % 2) * 0.5;
-    const ob = 0.5 - oa;
-    for (let j = Math.floor(FACET_BOX.from / side) - 1; j * side < FACET_BOX.to; j++) {
-      const ya = (j + oa) * side;
-      const yb = (j + ob) * side;
-      const tris = [
-        // upright edge on the left line, point to the right; then the reverse
-        { d: `M${n1(xa)} ${n1(ya)}L${n1(xa)} ${n1(ya + side)}L${n1(xb)} ${n1(ya + side / 2)}Z`, y: ya + side / 2 },
-        { d: `M${n1(xb)} ${n1(yb)}L${n1(xb)} ${n1(yb + side)}L${n1(xa)} ${n1(yb + side / 2)}Z`, y: yb + side / 2 },
-      ];
-      for (const t of tris) {
-        const v = 0.55 * Math.sin(t.y / 260 + swell) + 0.45 * (r() * 2 - 1);
-        const k = Math.min(levels - 1, Math.floor(Math.abs(v) * levels * 1.15));
-        (v >= 0 ? light : dark)[k].push(t.d);
-        if (t.y > 1180 && t.y < 2020) lit.push(t.d);
-      }
-    }
-  }
-  const glints: Facets["glints"] = [];
-  for (let g = 0; g < glintCount && lit.length; g++) {
-    const at = Math.floor(r() * lit.length);
-    glints.push({ d: lit.splice(at, 1)[0], delay: n1((g / glintCount) * 11 + r() * 0.8) });
-  }
-  return { light: light.map((p) => p.join("")), dark: dark.map((p) => p.join("")), glints };
-}
-
-/** The wide gold band: three facets across. The narrow silver band: about two. */
-export const GOLD_FACETS = cut(1611, 40, 4, 9);
-export const SILVER_FACETS = cut(1645, 58, 4, 6);
 
 export interface Facet {
   /** Its three corners, in pixels. */

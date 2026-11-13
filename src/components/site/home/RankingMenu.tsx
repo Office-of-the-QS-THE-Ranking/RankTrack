@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { movement } from "@/lib/site";
+import { Move } from "../Move";
 import { siteData } from "@/lib/governance/server/site";
 import { serverViews } from "@/lib/governance/server/views";
 
@@ -46,10 +46,13 @@ export async function RankingMenu({ headingLevel = 2 }: { headingLevel?: 2 | 3 }
                     <span className="w-rkitem__body">
                       <span className="w-rkitem__row">
                         <span className="w-rkitem__name">{r.name}</span>
-                        <span className="w-rkitem__res">{r.current}</span>
+                        <span className="w-rkitem__res">
+                          <span className="sr-only">Latest result: </span>
+                          {r.current}
+                        </span>
                       </span>
                       <span className="w-rkitem__desc">{r.measures}.</span>
-                      <span className={`w-rkitem__note${r.direction === "up" ? " w-up" : ""}`}>{movement(r)}</span>
+                      <Move r={r} className="w-rkitem__note" />
                     </span>
                   </Link>
                 </li>

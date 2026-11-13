@@ -18,7 +18,8 @@ function submit(summary: string, extra: Partial<Input> = {}) {
     input: {
       title: "Rainwater reuse",
       type: "Operational data",
-      period: "Calendar year 2025",
+      academicYear: "2025–2026",
+      term: "First term",
       summary,
       result: "4,820 cubic metres reused",
       beneficiaries: "Residents of Barangay 455",
@@ -99,5 +100,57 @@ describe("evidence sections", () => {
 
   it("need a file or a link", () => {
     expect(submit("Gutters.", { url: "", links: [] }).r.ok).toBe(false);
+  });
+});
+
+describe("evidence periods", () => {
+  it("are saved as the academic year and term", () => {
+    expect(submit("", { academicYear: "2025-2026", term: "Second term" }).record?.period).toBe("AY 2025–2026 · Second term");
+  });
+
+  it("need a real academic year and a known term", () => {
+    expect(submit("", { academicYear: "2019–2020" }).r.ok).toBe(true);
+    expect(submit("", { academicYear: "2025–2027" }).r.ok).toBe(false);
+    expect(submit("", { term: "Summer" }).r.ok).toBe(false);
+  });
+});
+
+describe("evidence kinds", () => {
+  it("keep further kinds after the main one, without repeats", () => {
+    const { r, record } = submit("<p>Gutters.</p>", { alsoTypes: ["Policy", "Operational data", "Policy"] });
+    expect(r.ok).toBe(true);
+    expect(record?.type).toBe("Operational data");
+    expect(record?.alsoTypes).toEqual(["Policy"]);
+  });
+
+  it("allow three kinds at most", () => {
+    expect(submit("", { alsoTypes: ["Policy", "Research output"] }).r.ok).toBe(true);
+    expect(submit("", { alsoTypes: ["Policy", "Research output", "Financial data"] }).r.ok).toBe(false);
+  });
+
+  it("refuse kinds outside the list", () => {
+    expect(submit("", { alsoTypes: ["Gossip"] }).r.ok).toBe(false);
+  });
+
+  it("are received with no ranking matched; the Office maps them in review", () => {
+    expect(submit("", { mappedTo: [] }).r.ok).toBe(true);
+  });
+});
+
+describe("academic years", () => {
+  it("run from 2000–2001 to the year in progress, newest first", async () => {
+    const { academicYears, currentAcademicYear } = await import("@/lib/periods");
+    expect(currentAcademicYear(new Date(2026, 10, 12))).toBe("2026–2027");
+    expect(currentAcademicYear(new Date(2026, 6, 31))).toBe("2025–2026");
+    const ys = academicYears(new Date(2026, 10, 12));
+    expect(ys[0]).toBe("2026–2027");
+    expect(ys.at(-1)).toBe("2000–2001");
+    expect(ys).toHaveLength(27);
+  });
+
+  it("accept any of them for evidence, and nothing outside", () => {
+    expect(submit("", { academicYear: "2000–2001" }).r.ok).toBe(true);
+    expect(submit("", { academicYear: "1999–2000" }).r.ok).toBe(false);
+    expect(submit("", { academicYear: "2040–2041" }).r.ok).toBe(false);
   });
 });

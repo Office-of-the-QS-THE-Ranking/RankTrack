@@ -112,7 +112,7 @@ export function DocumentManager({ desk }: { desk: DocumentDesk }) {
                 {can.submit
                   ? ` The Rankings Office reviews and approves each ${noun.one} before it goes live.`
                   : desk.needsApproval
-                    ? " Publishing needs approval from two other University-wide Administrators."
+                    ? " Publishing needs approval from two other approvers in the Office."
                     : ""}
               </span>
             </InfoTooltip>

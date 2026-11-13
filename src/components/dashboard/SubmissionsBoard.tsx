@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { calendarOf } from "@/lib/calendar";
 import { Suspense } from "react";
 import { daysUntil } from "@/lib/data";
 import type { Hub } from "@/lib/governance/server/hub";
@@ -6,7 +7,7 @@ import { viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { rankingActions, requestsBrief } from "@/lib/analytics/server/desk";
 import { Due, Empty, PlanStatus, RankingName, cx } from "@/components/ui/primitives";
 import { StatusMix, TickMeter } from "./Gauges";
-import { NextDeadline } from "./NextDeadline";
+import { NextDeadlineTile, SubmissionCalendar } from "./NextDeadline";
 import { ReadinessChart } from "./ReadinessChart";
 import { Tile } from "./Tile";
 
@@ -103,9 +104,12 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
     .map((u) => ({ slug: u.slug, on: h.evidence.some((e) => e.unitSlug === u.slug) }))
     .sort((a, b) => Number(b.on) - Number(a.on));
   const engaged = units.filter((u) => u.on).length;
+  const calendar = calendarOf(h.rankings, h.state.config.calendar);
 
   return (
     <div className="ov-bento">
+      <NextDeadlineTile id="ov-next" calendar={calendar} href={(slug) => `/admin/rankings/${slug}`} />
+
       <Tile id="ov-ready" title="Readiness" className="ov-hero" href="/admin/rankings">
         <div className="ov-figrow">
           <p className="ov-hero__value">
@@ -121,9 +125,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
         <StatusMix items={evidence} />
       </Tile>
 
-      <NextDeadline id="ov-next" rankings={h.rankings} href={(slug) => `/admin/rankings/${slug}`} />
-
-      <Tile id="ov-units" title="Units engaged" className="ov-units" href="/admin/units">
+      <Tile id="ov-units" title="Units engaged" className="ov-units" href="/admin/unit-submissions?tab=units">
         {units.length ? (
           <>
             <p className="ov-value">
@@ -152,6 +154,8 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
           <RequestsTile />
         </Suspense>
       )}
+
+      <SubmissionCalendar id="ov-next-calendar" calendar={calendar} />
 
       <Tile id="ov-rk" className="ov-rank">
         <ReadinessChart goal={GOAL} />

@@ -1,4 +1,5 @@
 import "server-only";
+import { PORTAL_NAME } from "@/lib/brand";
 
 /*
  * Operational alerts: failures someone should hear about before users report them (a save to the governance
@@ -22,7 +23,7 @@ export async function alert(event: AlertEvent, message: string, detail: Record<s
   const last = sent.get(key) ?? 0;
   if (Date.now() - last < QUIET_MS) return;
   sent.set(key, Date.now());
-  const text = `UST Rankings Hub · ${event}: ${message}${Object.keys(detail).length ? `\n${Object.entries(detail).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}: ${v}`).join("\n")}` : ""}`;
+  const text = `${PORTAL_NAME} · ${event}: ${message}${Object.keys(detail).length ? `\n${Object.entries(detail).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}: ${v}`).join("\n")}` : ""}`;
   try {
     await fetch(WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, content: text.slice(0, 1900) }), signal: AbortSignal.timeout(5000) });
   } catch (e) {

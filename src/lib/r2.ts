@@ -87,12 +87,6 @@ export async function hasObject(bucket: Bucket, key: string) {
   return (await r2().client.fetch(objectUrl(bucket, key), { method: "HEAD" })).ok;
 }
 
-/** Copy an object between buckets inside R2, keeping its key and Content-Type. */
-export async function copyObject(key: string, from: Bucket, to: Bucket) {
-  const res = await r2().client.fetch(objectUrl(to, key), { method: "PUT", headers: { "x-amz-copy-source": `/${r2().buckets[from]}/${encodeKey(key)}` } });
-  if (!res.ok) throw new Error(`R2 copy ${key} ${from}→${to}: ${res.status}`);
-}
-
 export async function deleteObject(bucket: Bucket, key: string) {
   const res = await r2().client.fetch(objectUrl(bucket, key), { method: "DELETE" });
   // R2 answers 204 whether or not the object existed.

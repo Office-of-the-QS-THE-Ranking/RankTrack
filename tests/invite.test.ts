@@ -7,11 +7,11 @@ import { UNIVERSITY, unitScope } from "@/lib/governance/rbac";
 import type { InviteInput } from "@/lib/governance/commands";
 import { ref, world } from "./helpers";
 
-/** A world with the Office that sponsors guests, and a University-wide Administrator to invite from. */
+/** A world with the Office that sponsors guests, and its Director to invite from. */
 function office() {
   const w = world();
   const hub = createUnit(makeCtx(w.state, SYSTEM, ref), { name: "Office of QS/THE Rankings", code: "RANKINGS-OFFICE", kind: "Office", parentId: w.university.id });
-  const admin = w.person("Maria Santos", "admin@ust.edu.ph", ROLE.admin, hub.id, false, UNIVERSITY);
+  const admin = w.person("Maria Santos", "admin@ust.edu.ph", ROLE.superAdmin, hub.id, false, UNIVERSITY);
   const invite = (input: Partial<InviteInput>) => execute(w.ctxFor(admin), { type: "account.invite", input: { ...THOMASIAN, ...input } });
   return { ...w, hub, invite };
 }
@@ -81,7 +81,17 @@ describe("inviting someone", () => {
     expect(student.unitId).toBe(w.hub.id);
     expect(student.assignments[0].scope.units).toEqual([w.hub.id]);
     expect(w.invite({ roleId: ROLE.admin, section: "offices", unitId: w.eng.id }).message).toBe("Choose their office.");
-    expect(w.invite({ roleId: ROLE.admin, section: "offices", unitId: w.hub.id }).ok).toBe(true);
+    expect(w.invite({ roleId: ROLE.admin, section: "offices", unitId: w.hub.id }).message).toMatch(/Super Administrators/);
+  });
+
+  it("invites the Office's own people as Super Administrators in a position, into the Rankings Office", () => {
+    const w = office();
+    expect(w.invite({ email: "sam@ust.edu.ph", roleId: ROLE.superAdmin, section: "", unitId: "" }).message).toBe("Choose their position in the Office.");
+    expect(w.invite({ email: "sam@ust.edu.ph", roleId: ROLE.superAdmin, section: "", unitId: "", position: "specialist" }).ok).toBe(true);
+    const sam = w.state.accounts.find((x) => x.email === "sam@ust.edu.ph")!;
+    expect([sam.unitId, sam.title, sam.assignments[0].position, sam.assignments[0].scope]).toEqual([w.hub.id, "Ranking Specialist", "specialist", UNIVERSITY]);
+    // nobody asks for the Office's role on the Request access form
+    expect(readPerson({ ...THOMASIAN, roleId: ROLE.superAdmin }, "self")).toMatch(/Choose your role/);
   });
 
   it("makes an External partner a guest of the Office, with an end date, while guest sign-in is on", () => {

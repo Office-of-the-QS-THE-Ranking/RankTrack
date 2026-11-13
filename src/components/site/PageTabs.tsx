@@ -28,6 +28,9 @@ export function PageTabs({ items, label }: { items: { id: string; label: string 
   return (
     <nav className="w-ptabs" aria-label={label}>
       <ul className="w-ptabs__list w-wrap">
+        <li className="w-ptabs__label" aria-hidden="true">
+          {label}
+        </li>
         {items.map((i) => (
           <li key={i.id}>
             <a href={`#${i.id}`} className={`w-ptab${active === i.id ? " is-on" : ""}`} aria-current={active === i.id ? "location" : undefined}>

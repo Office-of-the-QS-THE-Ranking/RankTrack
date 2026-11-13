@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
-import { inkOn, type RankPoint, type Ranking } from "@/lib/data";
-import { familyOf } from "@/lib/reference";
-import { useReference } from "@/components/reference/ReferenceProvider";
+import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import type { Ranking } from "@/lib/data";
 import { Card, Swatch } from "@/components/ui/primitives";
 import { Segmented } from "@/components/ui/interactive";
 
@@ -72,158 +70,6 @@ export function useStepper(count: number) {
     });
   };
   return { active, setActive, onKeyDown, onFocus: () => setActive((a) => a ?? count - 1), onBlur: () => setActive(null) };
-}
-
-/* ---------- Rank trajectory: band ribbon + midpoint line, rank 1 at the top ---------- */
-export function RankTrajectory(props: { ranking: Ranking; height?: number; compact?: boolean }) {
-  if (!props.ranking.history.some((p) => p.hi !== null)) return <p className="small muted">No published result yet</p>;
-  return <RankTrajectoryPlot {...props} />;
-}
-
-function RankTrajectoryPlot({ ranking, height = 150, compact }: { ranking: Ranking; height?: number; compact?: boolean }) {
-  const pts = ranking.history;
-  const color = familyOf(useReference(), ranking.family).color;
-  const W = 280;
-  const H = height;
-  const padX = 8;
-  const padT = 24;
-  const padB = 22;
-  const ranked = pts.filter((p) => p.hi !== null && p.lo !== null) as { year: number; hi: number; lo: number; label: string }[];
-  const minR = ranked.length ? Math.min(...ranked.map((p) => p.hi)) : 1;
-  const maxR = ranked.length ? Math.max(...ranked.map((p) => p.lo)) : 2;
-  const span = Math.max(60, maxR - minR);
-  const d0 = Math.max(1, minR - span * 0.45);
-  const d1 = maxR + span * 0.2;
-  const y = (r: number) => padT + ((r - d0) / (d1 - d0)) * (H - padT - padB);
-  const x = (i: number) => padX + ((i + 0.5) * (W - padX * 2)) / pts.length;
-  const mid = (p: RankPoint) => ((p.hi ?? 0) + (p.lo ?? 0)) / 2;
-  const { active, setActive, onKeyDown, onFocus, onBlur } = useStepper(pts.length);
-
-  // Contiguous ranked segments
-  const segments: number[][] = [];
-  pts.forEach((p, i) => {
-    if (p.hi === null) return;
-    const last = segments[segments.length - 1];
-    if (last && last[last.length - 1] === i - 1) last.push(i);
-    else segments.push([i]);
-  });
-  const lineD = segments
-    .map((seg) => seg.map((i, k) => `${k ? "L" : "M"}${x(i).toFixed(1)},${y(mid(pts[i])).toFixed(1)}`).join(" "))
-    .join(" ");
-  const bandD = segments
-    .filter((seg) => seg.length > 1)
-    .map((seg) => {
-      const top = seg.map((i, k) => `${k ? "L" : "M"}${x(i).toFixed(1)},${y(pts[i].hi as number).toFixed(1)}`).join(" ");
-      const bot = [...seg].reverse().map((i) => `L${x(i).toFixed(1)},${y(pts[i].lo as number).toFixed(1)}`).join(" ");
-      return `${top} ${bot} Z`;
-    })
-    .join(" ");
-  const lastIdx = pts.length - 1;
-  const last = pts[lastIdx];
-  const summary = pts.map((p) => `${p.year}: ${p.label}`).join("; ");
-  const tipIdx = active;
-  const lineLen = segments.reduce((sum, seg) => sum + seg.length * 60, 0) + 40;
-
-  return (
-    <div className="chart" onPointerLeave={() => setActive(null)}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="chart__svg"
-        role="img"
-        aria-label={`${ranking.name} by year, rank 1 at the top. ${summary}`}
-        tabIndex={0}
-        onKeyDown={onKeyDown}
-        onFocus={onFocus}
-        onBlur={onBlur}
-      >
-        {ranked.length > 0 && (
-          <>
-            <line className="chart__grid" x1={0} x2={W} y1={y(minR)} y2={y(minR)} />
-            <line className="chart__grid" x1={0} x2={W} y1={y(maxR)} y2={y(maxR)} />
-            {!compact && (
-              <>
-                <text className="chart__tick" x={0} y={y(minR) - 4}>
-                  {minR.toLocaleString()}
-                </text>
-                <text className="chart__tick" x={0} y={y(maxR) - 4}>
-                  {maxR.toLocaleString()}
-                </text>
-              </>
-            )}
-          </>
-        )}
-        <line className="chart__axis" x1={0} x2={W} y1={H - padB} y2={H - padB} />
-        {tipIdx !== null && <line className="chart__crosshair" x1={x(tipIdx)} x2={x(tipIdx)} y1={padT - 8} y2={H - padB} />}
-        {bandD && <path d={bandD} className="traj__band" fill={color} />}
-        {lineD && (
-          <path d={lineD} className="traj__line" stroke={color} style={{ ["--len" as string]: lineLen } as CSSProperties} />
-        )}
-        {pts.map((p, i) => (
-          <g key={p.year}>
-            {p.hi === null ? (
-              <circle className="traj__nr" cx={x(i)} cy={H - padB - 8} r={3.5} />
-            ) : (
-              <circle className="traj__dot" cx={x(i)} cy={y(mid(p))} r={i === lastIdx || i === tipIdx ? 5 : 3.5} fill={color} />
-            )}
-            <text className="chart__tick" x={x(i)} y={H - 6} textAnchor="middle">
-              {`’${String(p.year).slice(2)}`}
-            </text>
-            <rect
-              className="chart__hit"
-              x={x(i) - (W - padX * 2) / pts.length / 2}
-              y={0}
-              width={(W - padX * 2) / pts.length}
-              height={H}
-              onPointerEnter={() => setActive(i)}
-              onPointerDown={() => setActive(i)}
-            />
-          </g>
-        ))}
-        {last.hi !== null && tipIdx === null && (
-          <text className="chart__label" x={x(lastIdx) + 6} y={y(mid(last)) - 10} textAnchor="end">
-            {last.label}
-          </text>
-        )}
-        {ranked.length === 0 && (
-          <text className="chart__tick" x={W / 2} y={H / 2 - 6} textAnchor="middle">
-            Baseline year: not yet ranked
-          </text>
-        )}
-      </svg>
-      {tipIdx !== null && (
-        <div className="tip" style={{ left: `${(x(tipIdx) / W) * 100}%`, top: 8 }}>
-          <span className="tip__value">{pts[tipIdx].label}</span>
-          <span className="tip__label">{pts[tipIdx].year} edition</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function TrajectoryTable({ rankings }: { rankings: Ranking[] }) {
-  const years = rankings[0]?.history.map((h) => h.year) ?? [];
-  return (
-    <table className="chart-table">
-      <thead>
-        <tr>
-          <th>Ranking</th>
-          {years.map((y) => (
-            <th key={y}>{y}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rankings.map((r) => (
-          <tr key={r.slug}>
-            <td>{r.short}</td>
-            {r.history.map((h) => (
-              <td key={h.year}>{h.label}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
 }
 
 /* ---------- Radar: institutional profile, current against target ---------- */
@@ -314,19 +160,6 @@ export function Radar({ rows }: { rows: { label: string; current: number; target
         </div>
       )}
     </div>
-  );
-}
-
-export function RadarLegend() {
-  return (
-    <>
-      <span className="legend__item">
-        <i className="legend__dot" style={{ ["--k" as string]: "var(--gold-700)" } as CSSProperties} /> Current
-      </span>
-      <span className="legend__item">
-        <i className="legend__line legend__line--outline" style={{ ["--k" as string]: "var(--n-600)" } as CSSProperties} /> Target
-      </span>
-    </>
   );
 }
 
@@ -421,82 +254,6 @@ export function Dumbbell({ rows, max = 100, label }: { rows: { label: string; cu
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/* ---------- Heat map (sequential gold ramp + scale legend) ---------- */
-const RAMP = ["#fdf3d1", "#fbe29a", "#f5c94a", "#e0a800", "#a87a00"];
-export function heatColor(v: number, min: number, max: number) {
-  const t = max === min ? 0.5 : (v - min) / (max - min);
-  return RAMP[Math.min(RAMP.length - 1, Math.max(0, Math.floor(t * RAMP.length)))];
-}
-
-export function Heatmap({
-  columns,
-  rows,
-  min,
-  max,
-  format = (v) => String(v),
-  caption,
-}: {
-  columns: (string | number)[];
-  rows: { label: string; values: (number | null)[] }[];
-  min: number;
-  max: number;
-  format?: (v: number) => string;
-  caption: string;
-}) {
-  return (
-    <div className="stack" style={{ ["--gap" as string]: "10px" } as CSSProperties}>
-      <div className="table-wrap">
-        <table className="heat">
-          <caption className="sr-only">{caption}</caption>
-          <thead>
-            <tr>
-              <th scope="col">
-                <span className="sr-only">Row</span>
-              </th>
-              {columns.map((c) => (
-                <th key={c} scope="col">
-                  {c}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label}>
-                <th scope="row">{r.label}</th>
-                {r.values.map((v, k) =>
-                  v === null ? (
-                    <td key={k} className="is-empty">
-                      —
-                    </td>
-                  ) : (
-                    <td
-                      key={k}
-                      style={{ background: heatColor(v, min, max), color: inkOn(heatColor(v, min, max)) }}
-                      title={`${r.label}, ${columns[k]}: ${format(v)}`}
-                    >
-                      {format(v)}
-                    </td>
-                  ),
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="scale" aria-hidden="true">
-        <span>Lower</span>
-        <span className="scale__ramp">
-          {RAMP.map((c) => (
-            <i key={c} style={{ background: c }} />
-          ))}
-        </span>
-        <span>Higher</span>
-      </div>
     </div>
   );
 }

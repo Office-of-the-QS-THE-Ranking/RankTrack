@@ -1,18 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { movement, splitResult } from "@/lib/site";
+import { splitResult } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { CountsWhere } from "../home/CountsWhere";
 import { Calendar } from "../Calendar";
 import { PhotoBand } from "../PhotoBand";
+import { Move } from "../Move";
+import { ReadingGuide } from "../ReadingGuide";
 import { serverViews } from "@/lib/governance/server/views";
 
 const TABS = [
   { id: "results", label: "Results" },
-  { id: "counts", label: "Where work counts" },
+  { id: "counts", label: "By kind of work" },
   { id: "matrix", label: "What each measures" },
   { id: "calendar", label: "Calendar" },
   { id: "indicators", label: "Shared indicators" },
@@ -41,7 +43,7 @@ export async function RankingsIndex() {
             <a href="#results" className="w-btn">
               See the results
             </a>
-            <Link href="/knowledge#methodologies" className="w-link">
+            <Link href="/knowledge-base#methodologies" className="w-link">
               How each ranking works
             </Link>
           </>
@@ -61,14 +63,15 @@ export async function RankingsIndex() {
             </p>
           </div>
         </div>
+        <ReadingGuide headingLevel={3} />
         <div className="w-tablewrap" data-reveal>
           <table className="w-results">
             <caption className="sr-only">UST in eight global rankings, {latestEdition} editions</caption>
             <thead>
               <tr>
                 <th scope="col">Ranking</th>
-                <th scope="col">{latestEdition}</th>
-                <th scope="col">Movement</th>
+                <th scope="col">{latestEdition} result</th>
+                <th scope="col">Since the last edition</th>
                 <th scope="col">What it measures</th>
               </tr>
             </thead>
@@ -96,8 +99,15 @@ export async function RankingsIndex() {
                       {res.label && <span className="w-results__label">{res.label}</span>}
                       <span className="w-figure">{res.value}</span>
                     </td>
-                    <td className={r.direction === "up" ? "w-up" : undefined}>{movement(r)}</td>
-                    <td className="w-results__what">{r.measures}.</td>
+                    <td className="w-results__move">
+                      <Move r={r} />
+                    </td>
+                    <td className="w-results__what">
+                      {r.measures}.{" "}
+                      <Link href={`/rankings/${r.slug}`} className="w-results__open">
+                        Open<span className="sr-only"> {r.name}</span>
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}
@@ -180,7 +190,7 @@ export async function RankingsIndex() {
           </h2>
           <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
             <p className="w-lead">The same figure is asked for by more than one ranking body. These are the ones that travel furthest.</p>
-            <Link href="/knowledge#dictionary" className="w-link">
+            <Link href="/knowledge-base#dictionary" className="w-link">
               Search the indicator dictionary
             </Link>
           </div>
@@ -191,7 +201,7 @@ export async function RankingsIndex() {
               const names = [...new Set(d.links.map((l) => l.ranking))];
               return (
                 <li key={d.term} data-reveal style={{ ["--d" as string]: `${(i % 3) * 70}ms` }}>
-                  <Link href={`/knowledge?q=${encodeURIComponent(d.term)}#dictionary`} className="w-term">
+                  <Link href={`/knowledge-base?q=${encodeURIComponent(d.term)}#dictionary`} className="w-term">
                     <span className="w-term__n w-figure">{names.length}</span>
                     <span className="w-term__body">
                       <span className="w-term__name">{d.term}</span>

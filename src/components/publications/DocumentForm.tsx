@@ -17,7 +17,7 @@ import type { DocumentDesk, DocumentRow } from "@/lib/governance/hub-types";
 import type { DocumentCoverTone, DocumentKind } from "@/lib/governance/types";
 import { useGovern } from "@/components/hub/HubProvider";
 import { useReference } from "@/components/reference/ReferenceProvider";
-import { Switch } from "@/components/admin/ui";
+import { Switch } from "@/components/command-control/ui";
 import { DocCover } from "@/components/site/publications/DocCover";
 import { byline, issuedDay } from "@/components/site/publications/doc-format";
 import { Icon } from "@/components/ui/Icon";
@@ -27,6 +27,7 @@ import { recheckField } from "@/components/ui/validation";
 import { Dropzone, SdgPicker, UploadRow, sizeOf, sizePair, timeLeft } from "./ComposerPanels";
 import { PostStatusPill } from "./PostComposer";
 import { upload } from "./media";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 const MB = 1_048_576;
 
@@ -106,6 +107,7 @@ export function DocumentForm({
   const [featured, setFeatured] = useState(row?.featured ?? false);
   const [coverTone, setCoverTone] = useState<DocumentCoverTone | undefined>(row?.coverTone);
   const [saving, setSaving] = useState<false | "draft" | "publish">(false);
+  usePending(saving);
   const [leaving, setLeaving] = useState(false);
 
   const status = row?.status ?? "Draft";

@@ -1,4 +1,5 @@
 import { DEMO_ON, demo } from "./demo";
+import type { SubmissionPipeline } from "./governance/submission-review";
 
 /*
  * The shapes of the Hub's data, the helpers that format it, and the stages and statuses its workflows move
@@ -116,6 +117,8 @@ export interface EvidenceItem {
   unit: string;
   unitSlug: string;
   type: string;
+  /** Further kinds the evidence also covers. */
+  alsoTypes?: string[];
   period: string;
   submitted: string;
   /** Exact initial submission time, recovered from the audit trail when available. */
@@ -139,6 +142,10 @@ export interface EvidenceItem {
   links?: { url: string; label: string }[];
   references?: { title: string; source: string; url: string }[];
   comments: { by: string; role: string; date: string; text: string }[];
+  /** Stored progress through the Unit submissions pipeline (EvidenceRecord.review). */
+  review?: { step: number; approvals: { step: number; by: string; at: string }[] };
+  /** While For review: the pipeline's steps and the one it waits on, for the record screen. */
+  pipeline?: SubmissionPipeline;
 }
 
 export const STAGES = ["Received", "Under review", "Accepted", "Included in final submission", "Result achieved"] as const;
@@ -239,10 +246,6 @@ export type PlanStatus = "On track" | "At risk" | "Not started" | "Complete";
 
 /** Peer positions beside UST's in QS WUR, for the comparison panel. */
 export const COMPARISON: { name: string; value: string; own: boolean }[] = DEMO_ON ? demo.comparison : [];
-
-export const NOTIFICATIONS: { text: string; when: string; href: string }[] = DEMO_ON ? demo.notifications : [];
-
-export const UNIT_NOTIFICATIONS: { text: string; when: string; href: string }[] = DEMO_ON ? demo.unitNotifications : [];
 
 export function daysUntil(iso: string, from = new Date().toISOString().slice(0, 10)) {
   const a = new Date(from + "T00:00:00Z").getTime();

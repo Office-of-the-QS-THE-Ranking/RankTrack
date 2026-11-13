@@ -1,6 +1,6 @@
-# UST Rankings Hub (RankTrack)
+# PRESTIGE Portal (RankTrack)
 
-The University of Santo Tomas Rankings Hub. It brings the work of the Office of the QS/THE Ranking into one place: ranking
+The University of Santo Tomas PRESTIGE Portal (Performance & Rankings Evaluator of Sustainability, Transparency, & Intelligence for Global Excellence). It brings the work of the Office of the QS/THE Ranking into one place: ranking
 methodologies, evidence submitted by units, reviews, reports and public results.
 
 | Area | Path | For |

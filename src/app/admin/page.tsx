@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PORTAL_NAME } from "@/lib/brand";
 import { redirect } from "next/navigation";
 import { formatAsOf } from "@/lib/data";
 import { hub } from "@/lib/governance/server/hub";
@@ -15,7 +16,7 @@ import { RecognitionWall } from "@/components/recognition/RecognitionWall";
 
 export const metadata = {
   title: {
-    absolute: "Executive dashboard · Office workspace · UST Rankings Hub",
+    absolute: `Executive dashboard · Office workspace · ${PORTAL_NAME}`,
   },
 };
 
@@ -43,7 +44,7 @@ export default async function ExecutiveDashboard({
         </div>
         <DashboardViewSwitch view={view} views={views} />
         <div className="ov__actions">
-          <Link href="/admin/reports" className="btn btn--sm">
+          <Link href="/admin/workspace/build-a-report" className="btn btn--sm">
             <Icon name="download" size={16} /> Report
           </Link>
         </div>

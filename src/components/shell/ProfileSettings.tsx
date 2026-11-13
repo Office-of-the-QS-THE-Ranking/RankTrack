@@ -2,7 +2,7 @@
 
 import { closeModal, openModal } from "@/components/ui/modal-motion";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import { Icon } from "@/components/ui/Icon";
 import { InfoTooltip } from "@/components/ui/interactive";
 import { Select } from "@/components/ui/pickers";
 import { toast } from "@/components/ui/toast";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Section = "overview" | "profile" | "access" | "security" | "devices" | "logs" | "notifications" | "privacy" | "language" | "support" | "settings";
 type IconName = Parameters<typeof Icon>[0]["name"];
@@ -190,6 +191,8 @@ function EditProfile({ viewer, onDiscard }: { viewer: Viewer; onDiscard: () => v
   const router = useRouter();
   const saving = useRef(false);
   const [pending, setPending] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  usePending(pending || refreshing);
 
   return (
     <form
@@ -203,7 +206,7 @@ function EditProfile({ viewer, onDiscard }: { viewer: Viewer; onDiscard: () => v
         try {
           const result = await saveProfile({ name: String(data.get("name") ?? ""), title: String(data.get("title") ?? "") });
           toast(result.message, result.ok ? "ok" : "error");
-          if (result.ok) router.refresh();
+          if (result.ok) startRefresh(() => router.refresh());
         } catch {
           toast("Your profile could not be saved. Try again in a moment.", "error");
         } finally {
@@ -294,6 +297,8 @@ const actsAsStudent = (viewer: Viewer) => viewer.roles.some((r) => r.active && r
 function Access({ viewer }: { viewer: Viewer }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [moving, startMove] = useTransition();
+  usePending(busy || moving);
   const several = viewer.roles.length > 1;
 
   const switchTo = async (assignmentId: string) => {
@@ -303,8 +308,10 @@ function Access({ viewer }: { viewer: Viewer }) {
     toast(r.message, r.ok ? "ok" : "error");
     const here = window.location.pathname;
     // The new role may not open this workspace: go to its own, which closes this window with the old one.
-    if (r.ok && r.dest && here !== r.dest && !here.startsWith(`${r.dest}/`)) router.push(r.dest);
-    else router.refresh();
+    startMove(() => {
+      if (r.ok && r.dest && here !== r.dest && !here.startsWith(`${r.dest}/`)) router.push(r.dest);
+      else router.refresh();
+    });
     setBusy(null);
   };
 
@@ -603,6 +610,8 @@ function Settings({ viewer }: { viewer: Viewer }) {
   const [idle, setIdle] = useState(String(s.prefIdleMinutes ?? s.policyIdleMinutes));
   const [stay, setStay] = useState(s.stay);
   const [busy, setBusy] = useState<string | null>(null);
+  const [refreshing, startRefresh] = useTransition();
+  usePending(busy || refreshing);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const save = async (next: { idle: string; stay: boolean }) => {
@@ -610,7 +619,7 @@ function Settings({ viewer }: { viewer: Viewer }) {
     try {
       const r = await saveSessionPrefs({ idleMinutes: Number(next.idle), stay: next.stay });
       toast(r.message, r.ok ? "ok" : "error");
-      if (r.ok) router.refresh();
+      if (r.ok) startRefresh(() => router.refresh());
       else {
         setIdle(String(s.prefIdleMinutes ?? s.policyIdleMinutes));
         setStay(s.stay);
@@ -784,6 +793,7 @@ function Empty({ icon, children }: { icon: IconName; children: ReactNode }) {
 function Devices() {
   const { data, failed, reload } = useLoad<{ devices: DeviceRow[] }>(loadDevices, "Your devices could not be loaded. Try again in a moment.");
   const [busy, setBusy] = useState<string | null>(null);
+  usePending(busy);
   const others = data?.devices.filter((d) => !d.current) ?? [];
 
   const end = async (id: string | "others") => {
@@ -856,6 +866,7 @@ const ACTIONS: Record<string, string> = {
   "evidence.submit": "Submitted evidence",
   "evidence.resubmit": "Replied to a review",
   "evidence.accept": "Accepted evidence",
+  "evidence.step": "Approved a review step",
   "evidence.revise": "Requested a revision",
   "evidence.map": "Changed indicator mapping",
   "data.submit": "Submitted data",
@@ -932,6 +943,7 @@ function Notifications({ viewer }: { viewer: Viewer }) {
   const router = useRouter();
   const [prefs, setPrefs] = useState(viewer.notify);
   const [busy, setBusy] = useState(false);
+  usePending(busy);
 
   const save = async (next: { email: boolean; off: string[] }) => {
     const before = prefs;
@@ -1020,8 +1032,8 @@ function Support({ workspace, onOpen }: { workspace: "office" | "portal"; onOpen
   const base = workspace === "office" ? "/admin" : "/portal";
   const help: { href: string; icon: IconName; title: string; text: string }[] = [
     ...(workspace === "portal" ? [{ href: "/portal/assistance", icon: "help" as IconName, title: "Request assistance", text: "Ask the Office for help with a requirement or submission" }] : []),
-    { href: `${base}/workspace/knowledge`, icon: "knowledge" as IconName, title: "Knowledge Center", text: "Guides, templates and ranking methodology" },
-    { href: `${base}/about`, icon: "info", title: "About the Office", text: "Who we are, and what each team looks after" },
+    { href: `${base}/knowledge-base`, icon: "knowledge" as IconName, title: "Knowledge Base", text: "Guides, templates and ranking methodology" },
+    { href: `${base}/knowledge-base#about`, icon: "info", title: "About the Office", text: "Who we are, and what each team looks after" },
   ];
   const keys: [string, string][] = [
     ["⌘ K", "Search the Hub"],
@@ -1119,6 +1131,7 @@ const POLICIES: { href: string; icon: IconName; title: string; text: string }[] 
 function Privacy() {
   const { data, failed } = useLoad<PrivacyInfo>(loadPrivacy, "Your privacy details could not be loaded. Try again in a moment.");
   const [busy, setBusy] = useState(false);
+  usePending(busy);
 
   const download = async () => {
     setBusy(true);

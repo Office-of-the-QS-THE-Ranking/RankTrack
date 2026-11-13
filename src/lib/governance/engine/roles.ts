@@ -1,4 +1,4 @@
-import { MODULES, ROLE, roleOf } from "../catalog";
+import { MODULES, ROLE, roleOf, withoutCommandControl } from "../catalog";
 import type { Command } from "../commands";
 import { canEditRolePermissions, has, normalize } from "../rbac";
 import type { PermissionSet } from "../types";
@@ -16,27 +16,19 @@ function validPermissions(value: unknown): value is PermissionSet {
 export function updateRolePermissions(ctx: Ctx, cmd: Extract<Command, { type: "role.permissions" }>) {
   const resource = { type: "Role", id: cmd.id, label: roleOf(cmd.id)?.name ?? "Role" };
   if (!ctx.actor.account || !canEditRolePermissions(ctx.actor.account, ctx.actor.grants))
-    return deny(ctx, cmd.type, "Access", resource, "Only Administrators in the Office of QS/THE Rankings can edit role permissions.");
+    return deny(ctx, cmd.type, "Access", resource, "Only the Director can edit role permissions.");
   const role = roleOf(cmd.id, ctx.state.config.rolePermissions);
-  if (!role || (cmd.scope !== "unit" && cmd.scope !== "university") || (cmd.scope === "university" && !role.universityPermissions))
-    return invalid("Choose an existing role and permission scope.");
+  if (role?.id === ROLE.superAdmin) return invalid("A Super Administrator's permissions are fixed by their position.");
+  if (!role) return invalid("Choose an existing role.");
   if (!validPermissions(cmd.permissions) || !validPermissions(cmd.previous)) return invalid("Choose permissions from the listed modules and actions.");
-  const current = cmd.scope === "university" ? role.universityPermissions! : role.permissions;
+  const current = role.permissions;
   if (JSON.stringify(normalize(current)) !== JSON.stringify(normalize(cmd.previous)))
     return invalid("These permissions changed while you were editing. Reopen the editor and try again.");
-  const permissions = normalize(cmd.permissions);
-  if (cmd.id === ROLE.admin && cmd.scope === "university") {
-    permissions.roles = MODULES.find((m) => m.key === "roles")!.actions;
-  }
+  // The Command & Control console stays with Super Administrators (catalog roleOf).
+  const permissions = normalize(withoutCommandControl(cmd.permissions));
   const changes = MODULES.flatMap((m) => m.actions.flatMap((a) => has(current, m.key, a) === has(permissions, m.key, a) ? [] : [`${has(permissions, m.key, a) ? "Granted" : "Removed"} ${m.key}.${a}`]));
   if (!changes.length) return ok("Permissions are already up to date.");
-  ctx.state.config.rolePermissions = {
-    ...ctx.state.config.rolePermissions,
-    [role.id]: {
-      permissions: cmd.scope === "unit" ? permissions : role.permissions,
-      ...(role.universityPermissions ? { universityPermissions: cmd.scope === "university" ? permissions : role.universityPermissions } : {}),
-    },
-  };
-  log(ctx, cmd.type, "Access", resource, "Success", `${cmd.scope === "university" ? "Rankings Office" : "Unit"}: ${changes.join("; ")}`);
+  ctx.state.config.rolePermissions = { ...ctx.state.config.rolePermissions, [role.id]: { permissions } };
+  log(ctx, cmd.type, "Access", resource, "Success", changes.join("; "));
   return ok(`${role.name} permissions saved.`);
 }

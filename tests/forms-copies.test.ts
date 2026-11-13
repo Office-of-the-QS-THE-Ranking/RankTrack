@@ -166,7 +166,7 @@ describe("team copies: links and people", () => {
 describe("team copies: the form's setting", () => {
   it("follows the kind (proposals and terminal reports), and is kept in the store", () => {
     const w = world();
-    const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
     const details = { title: COMDEV_PROPOSAL.title, kind: COMDEV_PROPOSAL.kind, description: COMDEV_PROPOSAL.description };
     expect(execute(w.ctxFor(admin), { type: "form.save", ...details, schema: COMDEV_PROPOSAL.schema }).ok).toBe(true);
     const [form] = w.state.records.forms;

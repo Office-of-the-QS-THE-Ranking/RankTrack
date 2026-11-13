@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { Tile } from "@/components/dashboard/Tile";
 import { RowMenu } from "@/components/publications/PostManager";
-import { download } from "@/components/admin/ui";
+import { download } from "@/components/command-control/ui";
 import { Icon } from "@/components/ui/Icon";
 import { exportBrief, exportIndicators, exportQuarterly } from "@/app/actions/analytics-admin";
 import { takeSnapshot } from "@/app/actions/analytics";

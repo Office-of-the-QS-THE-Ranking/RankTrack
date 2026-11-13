@@ -16,6 +16,7 @@ import { studentPortalPath } from "@/lib/forms/kinds";
 import type { FormKind } from "@/lib/forms/types";
 import type { FormWho } from "@/lib/governance/hub-types";
 import { WhoBox } from "./copy-parts";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 /** A Proposal or Terminal Report form's own link: copies of it are built in the Student Portal. */
 export function CopyDoor({ kind, open }: { kind: FormKind; open: boolean }) {
@@ -46,6 +47,7 @@ export function CopyDoor({ kind, open }: { kind: FormKind; open: boolean }) {
 export function CopyGate({ code, token, who, requested }: { code: string; token: string; who: FormWho | null; requested?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const [asked, setAsked] = useState(!!requested);
   const ask = async () => {
     setBusy(true);

@@ -106,14 +106,6 @@ const results: Aggregate = ({ edition, benchmarks, indicators }) => {
 
 export const AGGREGATES: Record<AggregateKind, Aggregate> = { sum, "the-impact": theImpact, "best-per-group": bestPerGroup, readiness: readinessOnly, results };
 
-export const AGGREGATE_LABELS: Record<AggregateKind, string> = {
-  sum: "Sum of points",
-  "the-impact": "SDG 17 plus the best three goals",
-  "best-per-group": "Best case per category",
-  readiness: "Readiness only",
-  results: "Published results",
-};
-
 export function aggregate(kind: AggregateKind, input: AggregateInput): TotalReport {
   return (AGGREGATES[kind] ?? sum)(input);
 }

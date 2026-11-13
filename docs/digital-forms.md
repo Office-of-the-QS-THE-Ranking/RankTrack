@@ -143,7 +143,7 @@ Each module has, in one place each:
 
 **Step 0, data privacy** (every form, not part of the schema): before the first question the responder page shows
 the notice in lib/forms/privacy.ts (PrivacyStep.tsx), built to be read at a glance: the law as a pill, six "What we
-collect" tiles (icon, label, a few words), "Who uses it" as two cards (the Office of the QS/THE Rankings on onyx, UST
+collect" tiles (icon, label, a few words), "Who uses it" as two cards (the Office of QS/THE Rankings on onyx, UST
 SIMBAHAYAN on gold-washed paper, four one-line uses each), three promises in one strip (never sold, seen by
 reviewers only, kept while needed), the respondent's rights folded in a disclosure, and two titled statements to
 agree to. Keep each line short; detail belongs in the disclosure, not in more paragraphs. No other step opens until both are ticked, and `submitFormResponse` refuses a response without them
@@ -367,7 +367,7 @@ Still to come for copies: removing abandoned copies, and editing a returned copy
 A **Student** account is the Secretary of a student organization, commission or council (user, 2026-10-29); the
 request form and the invite drawer ask which one (`profile.organization`, the account's title "Secretary, …"). Only
 Students hold `forms` *submit*, so only they see the Student Portal's pages, and nothing of their unit's evidence,
-data, stories or Knowledge Center:
+data, stories or Knowledge Base:
 
 | Page | What it is |
 |---|---|

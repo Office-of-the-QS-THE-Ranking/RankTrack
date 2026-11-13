@@ -2,11 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { WURI_PLACEMENTS, inkOn, type Ranking } from "@/lib/data";
-import { movement, splitResult } from "@/lib/site";
+import { splitResult } from "@/lib/site";
 import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
+import { Move } from "../Move";
 import { Spark, Trajectory } from "./Trajectory";
 import { serverViews } from "@/lib/governance/server/views";
 
@@ -140,7 +141,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
   const highlights = r.strengths.length > 0;
 
   const tabs = [
-    ...(r.history.length ? [{ id: "trajectory", label: "Five editions" }] : []),
+    ...(r.history.length ? [{ id: "trajectory", label: "Over time" }] : []),
     { id: "measures", label: "What it measures" },
     ...(focus ? [{ id: "focus", label: focus.split(",")[0] }] : []),
     ...(highlights ? [{ id: "highlights", label: "Highlights" }] : []),
@@ -162,7 +163,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
         actions={
           <>
             <a href="#measures" className="w-btn">
-              What it measures
+              See what it measures
             </a>
             <Link href="/rankings" className="w-link">
               All eight rankings
@@ -173,13 +174,12 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
         figure={
           result
             ? {
-                label: res.label,
+                label: res.label ?? `${latestEdition} result`,
                 value: res.value,
                 note: (
                   <>
-                    {latestEdition} edition
-                    <br />
-                    {movement(r)}
+                    {res.label && <span className="w-phero__figwhen">{latestEdition} result</span>}
+                    <Move r={r} />
                   </>
                 ),
               }
@@ -193,10 +193,12 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
         <div className="w-wrap">
           <div className="w-intro w-grid">
             <h2 id="traj-title" className="w-head" data-reveal>
-              Five editions
+              How the result has moved
             </h2>
             <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
-              <p className="w-lead">{r.publicNote} Each capsule is the band published for that edition.</p>
+              <p className="w-lead">
+                {r.publicNote} Each mark is the result published for that edition; higher on the chart is a better place.
+              </p>
             </div>
           </div>
           <div data-reveal style={{ ["--d" as string]: "140ms" }}>
@@ -223,8 +225,8 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
             <thead>
               <tr>
                 <th scope="col">Indicator</th>
-                <th scope="col">Weight</th>
-                <th scope="col">Four cycles</th>
+                <th scope="col">Share of the score</th>
+                <th scope="col">UST over four editions</th>
               </tr>
             </thead>
             <tbody>
@@ -234,8 +236,10 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
                     <span className="w-ind__name">{i.name}</span>
                     <span className="w-ind__def">{i.definition}</span>
                   </th>
-                  <td className="w-ind__w w-figure">{i.weight}</td>
-                  <td>
+                  <td className="w-ind__w w-figure" data-label="Share of the score">
+                    {i.weight}
+                  </td>
+                  <td data-label="UST over four editions">
                     <span className="w-ind__trend">
                       <Spark values={i.history.filter((v) => v > 0)} label={i.name} />
                       {i.trend}
@@ -311,7 +315,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
             <dt>The result</dt>
             <dd>
               Results belong to {body.name} and follow its published method. The Office reports them exactly as published.{" "}
-              <Link href="/knowledge#methodologies" className="w-link">
+              <Link href="/knowledge-base#methodologies" className="w-link">
                 Every ranking&rsquo;s method in plain language
               </Link>
             </dd>
@@ -370,6 +374,7 @@ export async function RankingDetail({ ranking: r }: { ranking: Ranking }) {
                   </span>
                   <span className="w-related__name">{x.name}</span>
                   <span className="w-related__res w-figure">{x.current}</span>
+                  <Move r={x} className="w-related__move" />
                 </Link>
               </li>
             ))}

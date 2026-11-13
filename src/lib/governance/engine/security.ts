@@ -110,7 +110,7 @@ export function startReview(ctx: Ctx, name: string, population: "privileged" | "
     .filter((a) => {
       if (population === "all") return true;
       if (population === "external") return !!a.external;
-      return actorFor(ctx.state, a, ctx.now).grants.some((g) => g.roleId === ROLE.admin) || !!a.external || a.assignments.some((x) => x.expires);
+      return actorFor(ctx.state, a, ctx.now).grants.some((g) => g.roleId === ROLE.superAdmin || g.roleId === ROLE.admin) || !!a.external || a.assignments.some((x) => x.expires);
     })
     .map((a) => a.id);
   const id = `AR-${nextId(ctx, "review", "", 3)}`;
@@ -200,7 +200,7 @@ export function rotateKey(ctx: Ctx, id: string): CommandResult {
   const k = ctx.state.security.keys.find((x) => x.id === id);
   if (!k) return invalid("That key no longer exists.");
   const target = { type: "Key", id: k.id, label: k.name };
-  if (!can(ctx, "security", "manage")) return deny(ctx, "key.rotate", "Security", target, "Only University-wide Administrators can rotate keys.");
+  if (!can(ctx, "security", "manage")) return deny(ctx, "key.rotate", "Security", target, "Only the Director and Ranking Specialists can rotate keys.");
   k.rotated = ctx.day;
   log(ctx, "key.rotate", "Security", target, "Success", `${k.algorithm} · next rotation ${addDays(ctx.day, k.rotationDays)}`);
   return ok(`${k.name} rotated.`);

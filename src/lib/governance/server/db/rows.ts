@@ -20,6 +20,7 @@ import type {
   EvidenceLink,
   EvidenceRecord,
   EvidenceReference,
+  EvidenceReview,
   FormRecord,
   GovernanceState,
   OrgUnit,
@@ -28,8 +29,10 @@ import type {
   RankingConfig,
   Records,
   RequestPayload,
+  Position,
   Scope,
   SecurityPolicy,
+  StepApprover,
   SystemConfig,
   WorkspaceFile,
   WorkspaceFolder,
@@ -209,6 +212,7 @@ export function toRows(s: Stored): Tables {
         account_id: a.id,
         ord: appendOrd(j),
         role_id: g.roleId,
+        position: nul(g.position),
         scope_units: scopeArray(g.scope.units),
         scope_bodies: scopeArray(g.scope.rankingBodies),
         scope_years: scopeArray(g.scope.years),
@@ -287,8 +291,8 @@ export function toRows(s: Stored): Tables {
   securityRows(s.security, t);
 
   s.workflows.forEach((w, i) => {
-    t.workflows.push({ id: w.id, ord: appendOrd(i), name: w.name, description: w.description, enabled: w.enabled, sla_days: w.slaDays, separation: w.separation });
-    w.steps.forEach((st, j) => t.workflow_steps.push({ workflow_id: w.id, ord: appendOrd(j), name: st.name }));
+    t.workflows.push({ id: w.id, ord: appendOrd(i), name: w.name, description: w.description, enabled: w.enabled, sla_days: w.slaDays, separation: w.separation, notify: w.notify });
+    w.steps.forEach((st, j) => t.workflow_steps.push({ workflow_id: w.id, ord: appendOrd(j), name: st.name, enabled: st.enabled, approver: st.approver }));
   });
   s.requests.forEach((r, i, all) => {
     t.approval_requests.push({
@@ -514,6 +518,7 @@ function recordRows(r: Records, t: Tables) {
       unit_id: e.unitSlug,
       program_id: nul(e.programId),
       type: e.type,
+      also_types: e.alsoTypes ?? [],
       period: e.period,
       submitted: e.submitted,
       submitted_by: e.submittedBy,
@@ -532,6 +537,8 @@ function recordRows(r: Records, t: Tables) {
       verified_by: e.verifiedBy ?? "",
       links: e.links ?? [],
       citations: e.references ?? [],
+      review_step: e.review ? e.review.step : null,
+      review_approvals: e.review?.approvals ?? [],
     });
     e.comments.forEach((c, j) => t.evidence_comments.push({ evidence_id: e.id, ord: appendOrd(j), by: c.by, role: c.role, date: c.date, text: c.text }));
   });
@@ -753,6 +760,7 @@ export function fromRows(t: Tables): Stored {
         tidy({
           id: str(g.id),
           roleId: g.role_id as Account["assignments"][number]["roleId"],
+          position: opt(g.position as Position | null),
           scope: {
             units: scopeValue(g.scope_units),
             rankingBodies: scopeValue(g.scope_bodies) as Scope["rankingBodies"],
@@ -1021,6 +1029,7 @@ export function fromRows(t: Tables): Stored {
           unitSlug: str(e.unit_id),
           programId: opt(e.program_id as string | null),
           type: str(e.type),
+          alsoTypes: strs(e.also_types).length ? strs(e.also_types) : undefined,
           period: str(e.period),
           submitted: str(e.submitted),
           submittedBy: str(e.submitted_by),
@@ -1039,6 +1048,7 @@ export function fromRows(t: Tables): Stored {
           verifiedBy: str(e.verified_by) || undefined,
           links: Array.isArray(e.links) && e.links.length ? (e.links as EvidenceLink[]) : undefined,
           references: Array.isArray(e.citations) && e.citations.length ? (e.citations as EvidenceReference[]) : undefined,
+          review: typeof e.review_step === "number" ? { step: e.review_step, approvals: Array.isArray(e.review_approvals) ? (e.review_approvals as EvidenceReview["approvals"]) : [] } : undefined,
           comments: commentsOf(str(e.id)).map((c) => ({ by: str(c.by), role: str(c.role), date: str(c.date), text: str(c.text) })),
         }),
       ]),
@@ -1277,9 +1287,11 @@ export function fromRows(t: Tables): Stored {
       name: str(w.name),
       description: str(w.description),
       enabled: !!w.enabled,
-      steps: stepsOf(str(w.id)).map((s) => ({ name: str(s.name) })),
+      // Rows written before steps could be switched off or given to one approver read as on, for either approver.
+      steps: stepsOf(str(w.id)).map((s) => ({ name: str(s.name), enabled: s.enabled !== false, approver: (["director", "specialist"].includes(str(s.approver)) ? s.approver : "office") as StepApprover })),
       slaDays: num(w.sla_days),
       separation: !!w.separation,
+      notify: w.notify !== false,
     })),
     requests: sorted(t.approval_requests, "prepend").map((r): ApprovalRequest =>
       tidy({

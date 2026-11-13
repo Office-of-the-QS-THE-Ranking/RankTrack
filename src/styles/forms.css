@@ -816,7 +816,7 @@
   padding-right: 44px;
 }
 .pick-num:has([data-clearable-active]) :is(.pick-num__step, .pick-num__suffix),
-.adm-search:has([data-clearable-active]) .adm-search__shortcut {
+.cmd-search:has([data-clearable-active]) .cmd-search__shortcut {
   visibility: hidden;
 }
 .form-field-clear {
@@ -3131,7 +3131,8 @@ html:has(.site.fr) {
   color: var(--text);
   font-weight: 600;
 }
-.fr-link-confirm__go:not(:disabled) {
+/* .btn keeps it ahead of the glass hover that .on-dark gives other buttons. */
+.btn.fr-link-confirm__go:not(:disabled) {
   --btn-bg: var(--danger-fill);
   --btn-bd: var(--danger-fill);
   --btn-bg-h: var(--danger-fill-h);
@@ -5310,12 +5311,16 @@ html:has(.site.fr) {
   --btn-bg: #fcbf15;
   --btn-fg: #161412;
   --btn-bd: #fcbf15;
+  --btn-bg-h: #f7c93f;
+  --btn-bd-h: #f7c93f;
   border-radius: 999px;
 }
 .btn.fm-btn-glass {
   --btn-bg: rgb(255 255 255 / 0.08);
   --btn-fg: #ffffff;
   --btn-bd: rgb(255 255 255 / 0.16);
+  --btn-bg-h: rgb(255 255 255 / 0.14);
+  --btn-bd-h: rgb(255 255 255 / 0.24);
   border-radius: 999px;
   box-shadow: none;
 }
@@ -8324,9 +8329,9 @@ html:has(.site.fr) {
 }
 
 /* The sheet opens outside the console, so its switch track gets a visible off state on the grey settings panel. */
-.fm-sheet__switch .adm-switch {
-  --adm-line-2: rgb(120 120 128 / 0.32);
-  --adm-green: #34c759;
+.fm-sheet__switch .cmd-switch {
+  --cmd-line-2: rgb(120 120 128 / 0.32);
+  --cmd-green: #34c759;
   margin-top: 2px;
 }
 

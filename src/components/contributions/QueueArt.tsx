@@ -15,7 +15,7 @@ function Lines({ x, y, widths }: { x: number; y: number; widths: number[] }) {
 }
 
 /**
- * Illustrations for the validation queue's empty views, drawn from the theme's tokens (contributions.css):
+ * Illustrations for the validation queue's empty views, drawn from the theme's tokens (unit-submissions.css):
  * "clear" when a view has been worked through, "start" before any submission arrives, "search" for no match.
  */
 export function QueueArt({ kind }: { kind: "clear" | "start" | "search" }) {

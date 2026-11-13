@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, type NextFetchEvent } from "next/server";
 import { BOOT_SCRIPTS } from "@/lib/boot-scripts";
 import { ROLE } from "@/lib/governance/catalog";
 import { checkCommand } from "@/lib/governance/command-guard";
@@ -49,21 +49,22 @@ describe("sign-in gate", () => {
 });
 
 describe("proxy", () => {
-  it("allows the boot scripts by hash and sends a nonce", () => {
-    const res = proxy(new NextRequest("https://hub.example/"));
+  const event = { waitUntil() {} } as unknown as NextFetchEvent;
+  it("allows the boot scripts by hash and sends a nonce", async () => {
+    const res = await proxy(new NextRequest("https://hub.example/"), event);
     const csp = res.headers.get("Content-Security-Policy") ?? "";
     for (const s of BOOT_SCRIPTS) expect(csp).toContain(`'sha256-${createHash("sha256").update(s).digest("base64")}'`);
     expect(csp).toMatch(/'nonce-[A-Za-z0-9+/=]+'/);
     expect(csp).toContain("frame-ancestors 'none'");
   });
-  it("sends a request with no session cookie to sign-in", () => {
-    const res = proxy(new NextRequest("https://hub.example/admin/reports?x=1"));
+  it("sends a request with no session cookie to sign-in", async () => {
+    const res = await proxy(new NextRequest("https://hub.example/admin/workspace/build-a-report?x=1"), event);
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("https://hub.example/signin?next=%2Fadmin%2Freports%3Fx%3D1");
+    expect(res.headers.get("location")).toBe("https://hub.example/signin?next=%2Fadmin%2Fworkspace%2Fbuild-a-report%3Fx%3D1");
   });
-  it("lets a request with a session cookie through to the page's own checks", () => {
+  it("lets a request with a session cookie through to the page's own checks", async () => {
     const req = new NextRequest("https://hub.example/admin", { headers: { cookie: "hub_session=abc" } });
-    expect(proxy(req).headers.get("location")).toBeNull();
+    expect((await proxy(req, event)).headers.get("location")).toBeNull();
   });
 });
 
@@ -73,10 +74,10 @@ describe("store migrations", () => {
     // from the first migration that follows the rule; earlier ones are already applied
     for (const file of readdirSync(dir).filter((f) => f >= "20261027310000")) {
       const sql = readFileSync(path.join(dir, file), "utf8").replace(/--.*$/gm, "");
-      // form_responses and the analytics_ and assistant_ tables live outside the store on purpose (Digital Forms' responses
-      // and team copies; the analytics engine's catalog and facts; the assistant's models, ledgers and index), so servers
-      // never cache them.
-      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits", "form_responses"].includes(t) && !t.startsWith("analytics_") && !t.startsWith("assistant_"));
+      // form_responses and the analytics_, assistant_ and review_ tables live outside the store on purpose (Digital Forms'
+      // responses and team copies; the analytics engine's catalog and facts; the assistant's models, ledgers and index;
+      // evidence review's text, terms and suggestions; the firewall's settings, rules and request log), so servers never cache them.
+      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits", "form_responses"].includes(t) && !t.startsWith("analytics_") && !t.startsWith("assistant_") && !t.startsWith("review_") && !t.startsWith("firewall_"));
       if (edits.length) expect(sql, file).toMatch(/update\s+public\.hub_meta\s+set\s+version\s*=\s*version\s*\+\s*1/i);
     }
   });

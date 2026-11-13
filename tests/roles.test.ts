@@ -17,16 +17,19 @@ describe("four roles", () => {
     expect(roleScope(ROLE.student, "faculty-of-engineering").units).toEqual([HUB_OFFICE]);
   });
 
-  it("gives an Administrator the whole University only in the Rankings Office", () => {
-    expect(roleScope(ROLE.admin, HUB_OFFICE)).toEqual(UNIVERSITY);
+  it("keeps the Rankings Office to its Super Administrators, and Administrators to their own unit", () => {
+    expect(roleScope(ROLE.admin, HUB_OFFICE).units).toEqual([HUB_OFFICE]);
     expect(roleScope(ROLE.admin, "faculty-of-engineering").units).toEqual(["faculty-of-engineering"]);
-    expect(roleScope(ROLE.coordinator, HUB_OFFICE).units).toEqual([HUB_OFFICE]);
+    expect(roleScope(ROLE.superAdmin, "faculty-of-engineering")).toEqual(UNIVERSITY);
+    for (const role of [ROLE.admin, ROLE.coordinator]) expect(invitationUnitMatchesRole({ id: HUB_OFFICE, kind: "Office" }, role)).toBe(false);
+    expect(invitationUnitMatchesRole({ id: HUB_OFFICE, kind: "Office" }, ROLE.superAdmin)).toBe(true);
+    expect(invitationUnitMatchesRole({ id: "x", kind: "Office" }, ROLE.superAdmin)).toBe(false);
   });
 
   it("keeps the Hub's own settings from an Administrator of a college", () => {
     const w = world();
     const dean = w.person("Dean", "dean@ust.edu.ph", ROLE.admin, w.eng.id);
-    const hub = w.person("Hub", "hub@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    const hub = w.person("Hub", "hub@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
     const deanGrants = grantsFor(dean, w.state.units, new Date().toISOString().slice(0, 10));
     const hubGrants = grantsFor(hub, w.state.units, new Date().toISOString().slice(0, 10));
     expect(dean.assignments.some(runsHub)).toBe(false);

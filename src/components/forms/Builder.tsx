@@ -47,6 +47,7 @@ import { UNIT_CATEGORY_LABELS } from "@/lib/unit-categories";
 import { FormArt } from "./art";
 import { FieldInput } from "./fields";
 import { MODULE_ICON } from "./FormWindow";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 /** Where a question sits: a step by index, or the office's review. */
 type Box = number | "review";
@@ -108,6 +109,7 @@ export function FormBuilder({ form, desk, act, onSaved, onClose }: { form?: Form
   const [spot, setSpot] = useState<Spot | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const [leaving, setLeaving] = useState(false);
   /** Questions added in this sitting: their keys still follow their labels. */
   const [fresh, setFresh] = useState<Set<string>>(() => new Set());

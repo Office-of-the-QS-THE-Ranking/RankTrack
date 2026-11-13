@@ -6,8 +6,8 @@ import { closeModal, openModal } from "@/components/ui/modal-motion";
  * Submit evidence, a large dialog in the same four tabs a reviewer reads it in (ContributionRecord.tsx): the
  * Overview (title, background, type, period, result, beneficiaries and SDGs), the Narrative (the post composer's
  * document, publications/DocEditor.tsx), the Evidence (how strong it is, how it was verified, the files with what
- * each one is, and public links) and the References it cites. At the foot, the rankings it counts in beside Save
- * draft and Submit; the rankings open as a panel over the tabs. Every tab stays mounted, so the Hub's field checks
+ * each one is, and public links) and the References it cites. Cancel and Submit share the tabs' row; the rankings
+ * it counts in close the Overview and open as a panel over the tabs. Every tab stays mounted, so the Hub's field checks
  * see every field, and a Submit that fails opens the tab holding the first problem. Submit asks for the
  * certification, uploads the files and sends one evidence.submit command, which the server checks, applies and
  * audits. Closing with unsaved work offers to keep it as a draft on this device.
@@ -26,10 +26,9 @@ import {
   type RefObject,
 } from "react";
 import { flushSync } from "react-dom";
-import { useFlag, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
+import { useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { useReference, useViews } from "@/components/reference/ReferenceProvider";
-import { Switch } from "@/components/admin/ui";
-import { Dropzone, Panel, SdgPicker, UploadRow, sizeOf } from "@/components/publications/ComposerPanels";
+import { Dropzone, SdgPicker, UploadRow, sizeOf } from "@/components/publications/ComposerPanels";
 import { DocEditor } from "@/components/publications/DocEditor";
 import { Face } from "@/components/ui/Face";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -37,14 +36,30 @@ import { TabPanel, Tabs } from "@/components/ui/interactive";
 import { Select } from "@/components/ui/pickers";
 import { cx } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
+import { useTypedPlaceholder } from "@/components/ui/use-typed-placeholder";
 import { recheckField } from "@/components/ui/validation";
 import { EVIDENCE_FILE_KINDS, EVIDENCE_LIMITS, EVIDENCE_SUMMARY, PUBLIC_URL, guessFileKind, isFileKind, type EvidenceFileKind } from "@/lib/governance/evidence-files";
 import { initials } from "@/lib/governance/rbac";
-import { familyOf } from "@/lib/reference";
+import { TERMS, TERM_MONTHS, isTerm, academicYears, type Term } from "@/lib/periods";
 import { plainText } from "@/lib/rich-text";
 import { uploadEvidence } from "./evidence-upload";
 import { KIND, SUBMISSION_TABS, fileKind, type SubmissionTab as Tab } from "./parts";
 import { StageTrack } from "./StageTrack";
+import { usePending } from "@/components/ui/ButtonBusy";
+
+const RESULT_EXAMPLES = ["4,820", "1,200", "350", "92", "24"] as const;
+const MEASURE_EXAMPLES = [
+  "cubic metres of rainwater used",
+  "students supported by scholarships",
+  "kilograms of waste recycled",
+  "percent of campus energy from renewables",
+  "community outreach programmes delivered",
+] as const;
+
+/** How many types one submission may name, the main one included (EVIDENCE_MAX_TYPES on the server). */
+const MAX_TYPES = 3;
+/** What each picked type is called, in the order picked. */
+const RANKS = ["Primary", "Secondary", "Tertiary"] as const;
 
 const TYPES = [
   { key: "Operational data", short: "Operations", icon: "energy", note: "Energy, water, waste, transport or campus figures" },
@@ -73,14 +88,14 @@ interface Match {
   why: string;
 }
 
-/** Every ranking indicator that can reuse evidence of this type for these goals. */
-function recommend(type: DataType | "", sdgs: number[], sdgNames: Record<number, string>): Match[] {
+/** Every ranking indicator that can reuse evidence of these kinds for these goals. */
+function recommend(types: readonly DataType[], sdgs: number[], sdgNames: Record<number, string>): Match[] {
   const out: Match[] = [];
   const add = (ranking: string, indicator: string, why: string) => {
     const key = `${ranking} · ${indicator}`;
     if (!out.some((m) => m.key === key)) out.push({ key, ranking, indicator, why });
   };
-  switch (type) {
+  for (const type of types) switch (type) {
     case "Operational data":
       sdgs.forEach((s) => GM_BY_SDG[s] && add("UI GreenMetric", GM_BY_SDG[s], `Campus operations for SDG ${s}`));
       if (!sdgs.some((s) => GM_BY_SDG[s])) add("UI GreenMetric", "Setting and Infrastructure", "Campus operations data");
@@ -111,7 +126,7 @@ function recommend(type: DataType | "", sdgs: number[], sdgNames: Record<number,
       add("THE WUR", "Industry", "Patents citing UST research");
       break;
   }
-  if (type) sdgs.forEach((s) => add("THE Impact", `SDG ${s}`, sdgNames[s]));
+  if (types.length) sdgs.forEach((s) => add("THE Impact", `SDG ${s}`, sdgNames[s]));
   return out;
 }
 
@@ -121,8 +136,13 @@ type RefRow = { key: string; title: string; source: string; url: string };
 
 /** What Save draft keeps on this device. Files can't be kept, so they are attached again. */
 type Draft = {
-  type: DataType | "";
+  /** The kinds picked, the main one first. */
+  types: DataType[];
+  /** Older drafts kept a single kind here. */
+  type?: DataType | "";
+  /** The academic year, "2025–2026". Older drafts kept a reporting period label here. */
   period: string;
+  term?: string;
   title: string;
   background: string;
   body: string;
@@ -137,15 +157,16 @@ type Draft = {
   refs: { title: string; source: string; url: string }[];
   /** Older drafts kept a single link here. */
   url?: string;
-  auto: boolean;
-  picked: string[];
+  /** Older drafts kept a ranking choice here; the Hub now matches rankings itself. */
+  auto?: boolean;
+  picked?: string[];
   savedAt: string;
 };
 
-type Fields = Omit<Draft, "period" | "auto" | "savedAt"> & { period?: string; auto?: boolean };
+type Fields = Omit<Draft, "period" | "term" | "savedAt"> & { period?: string; term?: string };
 
 const EMPTY: Fields = {
-  type: "",
+  types: [],
   title: "",
   background: "",
   body: "",
@@ -158,7 +179,6 @@ const EMPTY: Fields = {
   sdgs: [],
   links: [],
   refs: [],
-  picked: [],
 };
 
 const draftKey = (account: string, unit: string) => `hub:evidence-draft:${account}:${unit}`;
@@ -207,18 +227,19 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   const hub = useHub();
   const viewer = useViewer();
   const rankings = useRankings();
-  const smart = useFlag("smart-matching");
   const { run } = useGovern();
   const ids = useId();
 
-  const periods = useMemo(() => hub?.periods ?? [], [hub]);
+  // Academic years are fixed, 2000–2001 to now, newest first; the term places evidence in calendar years (lib/periods).
+  const years = useMemo(() => academicYears(), []);
   const uploads = hub?.uploads ?? { maxFileMB: 25, maxFiles: 10, types: ["PDF", "XLSX", "CSV"] };
   const unitSlug = viewer?.portal.unitId ?? "";
   const storage = viewer ? draftKey(viewer.id, unitSlug) : null;
-  const firstOpen = periods.find((p) => p.accepting)?.label ?? "";
+  const firstOpen = years[0];
 
-  const [type, setType] = useState<DataType | "">(EMPTY.type);
+  const [types, setTypes] = useState<DataType[]>(EMPTY.types);
   const [period, setPeriod] = useState(firstOpen);
+  const [term, setTerm] = useState<Term | "">("");
   const [title, setTitle] = useState(EMPTY.title);
   const [background, setBackground] = useState(EMPTY.background);
   const [body, setBody] = useState(EMPTY.body);
@@ -232,8 +253,6 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   const [files, setFiles] = useState<Attached[]>([]);
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [refs, setRefs] = useState<RefRow[]>([]);
-  const [auto, setAuto] = useState(smart);
-  const [picked, setPicked] = useState<string[]>(EMPTY.picked);
   /** Remounts the document when a draft comes back or the form starts over: the editor reads its story once. */
   const [doc, setDoc] = useState(0);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -243,15 +262,18 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   const [tried, setTried] = useState(false);
   /** The row just added, which takes focus. */
   const [fresh, setFresh] = useState<string | null>(null);
-  const [ranks, setRanks] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState<null | number | "send">(null);
+  usePending(busy !== null);
   const [sent, setSent] = useState<null | { ref: string; title: string; rankings: number }>(null);
   const [leaving, setLeaving] = useState(false);
   /** The form as last saved or restored, to tell whether closing would lose anything. */
   const [savedSig, setSavedSig] = useState("");
   const snapNext = useRef(true);
+  const animateResultExamples = !result && !measure;
+  const resultHint = useTypedPlaceholder(RESULT_EXAMPLES[0], RESULT_EXAMPLES, animateResultExamples, 10_000);
+  const measureHint = useTypedPlaceholder(MEASURE_EXAMPLES[0], MEASURE_EXAMPLES, animateResultExamples, 10_000);
 
   const root = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -264,8 +286,6 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   const sdgWrap = useRef<HTMLDivElement>(null);
   const dropWrap = useRef<HTMLDivElement>(null);
   const filesProxy = useRef<HTMLInputElement>(null);
-  const reachRow = useRef<HTMLButtonElement>(null);
-  const reachProxy = useRef<HTMLInputElement>(null);
   const confirmDialog = useRef<HTMLDialogElement>(null);
 
   /* ---------- What the evidence adds up to ---------- */
@@ -273,31 +293,19 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   const story = plainText(body);
   const tracked = useMemo(() => new Set(rankings.map((r) => r.short)), [rankings]);
   // Only rankings System Configuration tracks can receive evidence.
-  const matches = useMemo(() => recommend(type, sdgs, sdgNames).filter((m) => tracked.has(m.ranking)), [type, sdgs, sdgNames, tracked]);
-  const chosen = auto ? matches.map((m) => m.key) : picked.filter((p) => matches.some((m) => m.key === p));
-  const groups = useMemo(() => {
-    const out: { ranking: string; color: string; items: Match[] }[] = [];
-    for (const m of matches) {
-      let g = out.find((x) => x.ranking === m.ranking);
-      if (!g) {
-        const r = rankings.find((x) => x.short === m.ranking);
-        g = { ranking: m.ranking, color: r ? familyOf(reference, r.family).color : "#6b6b6b", items: [] };
-        out.push(g);
-      }
-      g.items.push(m);
-    }
-    return out;
-  }, [matches, rankings, reference]);
-  const reach = groups.filter((g) => g.items.some((m) => chosen.includes(m.key)));
-  const kind = TYPES.find((t) => t.key === type);
-  const periodNote = periods.find((p) => p.label === period)?.note;
+  const matches = useMemo(() => recommend(types, sdgs, sdgNames).filter((m) => tracked.has(m.ranking)), [types, sdgs, sdgNames, tracked]);
+  // The Hub decides where evidence counts: every matched indicator goes with it, and the Office adjusts in review.
+  const chosen = matches.map((m) => m.key);
+  const reach = new Set(matches.map((m) => m.ranking)).size;
+  const kinds = types.map((k) => TYPES.find((t) => t.key === k)!).filter(Boolean);
+  const kind = kinds[0];
 
   const linkList = links.map((l) => ({ url: l.url.trim(), label: l.label.trim() })).filter((l) => l.url);
   const refList = refs.map((r) => ({ title: r.title.trim(), source: r.source.trim(), url: r.url.trim() })).filter((r) => r.title || r.source || r.url);
 
   /** What each tab still needs, counted as the Hub's checks would find it. */
   const problems: Record<Tab, number> = {
-    Overview: [title.trim().length < 4, !type, !period, !result.trim(), !who.trim(), !sdgs.length].filter(Boolean).length,
+    Overview: [title.trim().length < 4, !types.length, !period, !term, !result.trim(), !who.trim(), !sdgs.length].filter(Boolean).length,
     Narrative: story.length > EVIDENCE_SUMMARY.text ? 1 : 0,
     Evidence: (files.length || linkList.length ? 0 : 1) + linkList.filter((l) => badUrl(l.url)).length,
     References: refList.filter((r) => !r.title || badUrl(r.url)).length,
@@ -309,8 +317,8 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     References: refList.length || undefined,
   };
 
-  const dirty = !!(type || title.trim() || background.trim() || story.trim() || result.trim() || who.trim() || verified.trim() || sdgs.length || files.length || linkList.length || refList.length);
-  const sig = JSON.stringify([type, period, title.trim(), background.trim(), story.trim() ? body : "", result, measure, level, who, count, verified, sdgs, linkList, refList, auto, picked]);
+  const dirty = !!(types.length || title.trim() || background.trim() || story.trim() || result.trim() || who.trim() || verified.trim() || sdgs.length || files.length || linkList.length || refList.length);
+  const sig = JSON.stringify([types, period, term, title.trim(), background.trim(), story.trim() ? body : "", result, measure, level, who, count, verified, sdgs, linkList, refList]);
   const unsaved = files.length > 0 || (dirty && sig !== savedSig);
 
   // What the form holds when it opens, or just after a draft comes back, counts as saved.
@@ -349,13 +357,11 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
 
   useValidity(bodyProxy, story.length > EVIDENCE_SUMMARY.text ? `Shorten the narrative to ${EVIDENCE_SUMMARY.text.toLocaleString("en")} characters.` : "");
   useValidity(filesProxy, files.length || linkList.length ? "" : "Attach a file or add a public link.");
-  useValidity(reachProxy, chosen.length ? "" : matches.length ? "Keep at least one ranking." : "Choose a type and an SDG to see where this counts.");
 
-  const reachLen = chosen.length;
   useEffect(() => {
-    [typeGrid, sdgWrap, dropWrap, reachRow].forEach((r) => recheckField(r.current));
+    [typeGrid, sdgWrap, dropWrap].forEach((r) => recheckField(r.current));
     recheckField(bodyRef.current);
-  }, [type, sdgs, files, linkList.length, reachLen, story.length]);
+  }, [types, sdgs, files, linkList.length, story.length]);
 
   // The title grows with what is written, and with the page's width.
   useLayoutEffect(() => fit(titleRef.current), [title, doc, tab]);
@@ -370,8 +376,10 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   /* ---------- Drafts on this device ---------- */
 
   const apply = (d: Fields) => {
-    setType(TYPES.some((t) => t.key === d.type) ? d.type : "");
-    setPeriod(d.period && periods.some((p) => p.label === d.period && p.accepting) ? d.period : firstOpen);
+    const picks = Array.isArray(d.types) ? d.types : d.type ? [d.type] : [];
+    setTypes([...new Set(picks)].filter((k) => TYPES.some((t) => t.key === k)).slice(0, MAX_TYPES));
+    setPeriod(d.period && years.includes(d.period) ? d.period : firstOpen);
+    setTerm(isTerm(d.term) ? d.term : "");
     setTitle(d.title);
     setBackground(typeof d.background === "string" ? d.background : "");
     setBody(d.body);
@@ -386,8 +394,6 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     const all = [...kept, ...(d.url && !kept.some((l) => l.url === d.url) ? [{ url: d.url, label: "" }] : [])];
     setLinks(all.slice(0, EVIDENCE_LIMITS.links).map((l) => ({ key: rowKey(), url: String(l.url ?? ""), label: String(l.label ?? "") })));
     setRefs((Array.isArray(d.refs) ? d.refs : []).slice(0, EVIDENCE_LIMITS.references).map((r) => ({ key: rowKey(), title: String(r.title ?? ""), source: String(r.source ?? ""), url: String(r.url ?? "") })));
-    setAuto(smart && (d.auto ?? true));
-    setPicked(d.picked);
     setDoc((n) => n + 1);
   };
 
@@ -407,7 +413,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
   const saveDraft = () => {
     if (!storage) return false;
     const at = new Date().toISOString();
-    const d: Draft = { type, period, title, background, body, result, measure, level, who, count, verified, sdgs, links: linkList, refs: refList, auto, picked, savedAt: at };
+    const d: Draft = { types, period, term, title, background, body, result, measure, level, who, count, verified, sdgs, links: linkList, refs: refList, savedAt: at };
     try {
       localStorage.setItem(storage, JSON.stringify(d));
     } catch {
@@ -433,7 +439,6 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     forget();
     apply(EMPTY);
     setFiles([]);
-    setRanks(false);
     setTried(false);
     setTab("Overview");
     snapNext.current = true;
@@ -447,28 +452,8 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     return () => window.removeEventListener("beforeunload", stay);
   }, [unsaved, sent]);
 
-  /* ---------- The rankings panel ---------- */
-
-  /** Done and Esc go back to the bar that opened it; clicking elsewhere leaves focus where the click put it. */
-  const closeRanks = () => {
-    setRanks(false);
-    requestAnimationFrame(() => reachRow.current?.focus({ preventScroll: true }));
-  };
-
-  useEffect(() => {
-    if (!ranks) return;
-    const away = (e: MouseEvent) => {
-      const t = e.target;
-      if (t instanceof Element && t.closest(".pc-doc, [data-side-trigger], .pick, .fieldwarn, .ec-confirm, .pc-leave, .toasts")) return;
-      setRanks(false);
-    };
-    document.addEventListener("click", away, true);
-    return () => document.removeEventListener("click", away, true);
-  }, [ranks]);
-
   const show = (t: Tab) => {
     setTab(t);
-    setRanks(false);
   };
 
   /* ---------- Files, links and references ---------- */
@@ -545,10 +530,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     setTried(true);
     const pane = bad.closest<HTMLElement>("[data-tab]")?.dataset.tab as Tab | undefined;
     if (pane)
-      flushSync(() => {
-        setTab(pane);
-        setRanks(false);
-      });
+      flushSync(() => setTab(pane));
   };
 
   /** Every field passed the Hub's checks: the certification comes next. */
@@ -576,8 +558,10 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
       unitSlug,
       input: {
         title,
-        type,
-        period,
+        type: types[0],
+        alsoTypes: types.slice(1),
+        academicYear: period,
+        term,
         background: background.trim(),
         summary: story.trim() ? body : "",
         result: `${result} ${measure}`.trim(),
@@ -596,18 +580,16 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     const id = typeof r.data === "string" ? r.data : "";
     forget();
     closeModal(confirmDialog.current, () => setConfirming(false));
-    setRanks(false);
-    setSent({ ref: id, title: title.trim(), rankings: reach.length });
+    setSent({ ref: id, title: title.trim(), rankings: reach });
     if (id) onSent?.(id);
   };
 
-  /** Esc steps back: out of a question, out of the rankings, then out of the dialog. */
+  /** Esc steps back: out of a question, then out of the dialog. */
   const back = () => {
     if (leaving) closeModal(leaveDialog.current, () => setLeaving(false));
     else if (confirming) {
       if (busy === null) closeModal(confirmDialog.current, () => setConfirming(false));
-    } else if (ranks) closeRanks();
-    else requestClose();
+    } else requestClose();
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
@@ -618,7 +600,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     }
   };
 
-  const head = (
+  const head = (closable: boolean) => (
     <header className="pc-head ec-head">
       <span className="ec-who">
         <span className="pc-avatar ec-who__avatar" aria-hidden="true">
@@ -635,9 +617,11 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
       <h2 id={`${ids}-heading`} className="pc-head__title">
         Submit evidence
       </h2>
-      <button type="button" className="pc-iconbtn ec-head__close" aria-label="Close" onClick={requestClose} disabled={busy !== null}>
-        <Icon name="close" size={18} />
-      </button>
+      {closable && (
+        <button type="button" className="pc-iconbtn ec-head__close" aria-label="Close" onClick={requestClose} disabled={busy !== null}>
+          <Icon name="close" size={18} />
+        </button>
+      )}
     </header>
   );
 
@@ -656,7 +640,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
         }}
       >
         <div className="pc__form">
-          {head}
+          {head(true)}
           <div className="ec-done">
             <section className="ec-sent" aria-labelledby={`${ids}-sent`}>
               <span className="ec-sent__mark" aria-hidden="true">
@@ -668,7 +652,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
               </h2>
               <p className="ec-sent__line">
                 <b>{sent.title}</b>
-                <span>Counts in {plural(sent.rankings, "ranking")} once accepted</span>
+                {sent.rankings > 0 && <span>Counts in {plural(sent.rankings, "ranking")} once accepted</span>}
               </p>
               <StageTrack stage={0} status="For review" />
               <div className="ec-sent__actions">
@@ -693,64 +677,6 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
     );
   }
 
-  /* ---------- The rankings, over the tabs ---------- */
-
-  const panelId = `${ids}-panel`;
-  const rankingsPanel = (
-    <Panel id={panelId} title="Rankings" note={chosen.length ? `${plural(reach.length, "ranking")} · ${plural(chosen.length, "indicator")}` : undefined} onDone={closeRanks}>
-      {smart && matches.length > 0 && (
-        <div className="ec-auto">
-          <span className="ec-auto__text">
-            <b>Match automatically</b>
-            <span>Every suggestion counts</span>
-          </span>
-          <Switch checked={auto} onChange={setAuto} label="Match rankings automatically" />
-        </div>
-      )}
-      {matches.length === 0 ? (
-        <div className="ec-none">
-          <span className="ec-none__art" aria-hidden="true">
-            <Icon name="layers" size={26} strokeWidth={1.5} />
-          </span>
-          <b>Nothing to match yet</b>
-          <span>Choose a type and an SDG in the Overview.</span>
-        </div>
-      ) : (
-        groups.map((g) => (
-          <section key={g.ranking} className="ec-rk" aria-label={g.ranking}>
-            <h4 className="ec-rk__name">
-              <i style={{ background: g.color }} aria-hidden="true" />
-              {g.ranking}
-            </h4>
-            <ul className="ec-rk__list">
-              {g.items.map((m) => (
-                <li key={m.key}>
-                  <label className="ec-ind" data-auto={auto ? "" : undefined}>
-                    {auto ? (
-                      <span className="ec-ind__auto" aria-label="Matched">
-                        <Icon name="check" size={12} strokeWidth={2.8} />
-                      </span>
-                    ) : (
-                      <input
-                        type="checkbox"
-                        checked={chosen.includes(m.key)}
-                        onChange={(e) => setPicked((p) => (e.target.checked ? [...p, m.key] : p.filter((x) => x !== m.key)))}
-                      />
-                    )}
-                    <span className="ec-ind__text">
-                      <b>{m.indicator}</b>
-                      <span>{m.why}</span>
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
-      )}
-    </Panel>
-  );
-
   const busyLabel = busy === "send" ? "Sending…" : busy !== null ? `Uploading ${Math.round(busy * 100)}%` : "Submit for validation";
   const tabsId = `${ids}-tabs`;
   const [a, b] = uploads.types.length > 1 ? uploads.types : [uploads.types[0] ?? "PDF", "XLSX"];
@@ -770,7 +696,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
       onDrop={onDrop}
     >
       <form ref={formRef} className="pc__form" onSubmit={review}>
-        {head}
+        {head(false)}
         <div className="ec-frame" inert={confirming || leaving}>
           <div className="ec-tabs">
             <Tabs
@@ -783,10 +709,26 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
               label="Parts of your evidence"
               idBase={tabsId}
             />
+            <div className="pc-actions ec-tabs__actions">
+              {savedAt && (
+                <span className="ec-draftnote">
+                  Draft saved
+                  <button type="button" onClick={startOver}>
+                    Start over
+                  </button>
+                </span>
+              )}
+              <button type="button" className="btn pc-actions__btn" onClick={requestClose} disabled={busy !== null}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn--dark pc-actions__btn" onClick={jump}>
+                <Icon name="send" size={16} /> Submit
+              </button>
+            </div>
           </div>
 
           <div className="ec-body">
-            <div className="ec-main" inert={ranks}>
+            <div className="ec-main">
               <TabPanel idBase={tabsId} index={SUBMISSION_TABS.indexOf(tab)} className="ec-tab">
                 {/* ---------- Overview ---------- */}
                 <div className="ec-pane" data-tab="Overview" hidden={tab !== "Overview"}>
@@ -816,7 +758,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
                       />
                       <div className="ec-bg">
                         <label className="ec-label" htmlFor={`${ids}-bg`}>
-                          Background <em>optional</em>
+                          Abstract or Summary <em>optional</em>
                         </label>
                         <textarea
                           ref={backgroundRef}
@@ -841,58 +783,93 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
                         Type
                       </h3>
                       <div className="ec-proxied">
-                        <div ref={typeGrid} className="ec-types" role="radiogroup" aria-labelledby={`${ids}-type`}>
-                          {TYPES.map((t) => (
-                            <label key={t.key} className="ec-type" title={t.note}>
-                              <input type="radio" className="sr-only" name={`${ids}-type-choice`} value={t.key} checked={type === t.key} onChange={() => setType(t.key)} />
-                              <span className="ec-type__icon" aria-hidden="true">
-                                <Icon name={t.icon} size={19} strokeWidth={1.6} />
-                              </span>
-                              <span className="ec-type__name">{t.short}</span>
-                            </label>
-                          ))}
+                        <div ref={typeGrid} className="ec-types" role="group" aria-labelledby={`${ids}-type`}>
+                          {TYPES.map((t) => {
+                            const on = types.includes(t.key);
+                            const rank = types.indexOf(t.key);
+                            return (
+                              <div key={t.key} className="ec-typecell">
+                                <label className="ec-type" title={t.note} data-full={!on && types.length >= MAX_TYPES ? "" : undefined}>
+                                  <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    value={t.key}
+                                    checked={on}
+                                    disabled={!on && types.length >= MAX_TYPES}
+                                    aria-describedby={on ? `${ids}-rank-${rank}` : undefined}
+                                    onChange={() => setTypes((v) => (on ? v.filter((x) => x !== t.key) : [...v, t.key]))}
+                                  />
+                                  <span className="ec-type__icon" aria-hidden="true">
+                                    <Icon name={t.icon} size={19} strokeWidth={1.6} />
+                                  </span>
+                                  <span className="ec-type__name">{t.short}</span>
+                                </label>
+                                <span className="ec-type__rank" id={on ? `${ids}-rank-${rank}` : undefined} data-rank={on ? rank : undefined}>
+                                  {on ? RANKS[rank] : ""}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <input className="pick-proxy" tabIndex={-1} aria-hidden="true" required value={type} onChange={() => {}} data-missing="Choose the type of evidence." />
+                        <input className="pick-proxy" tabIndex={-1} aria-hidden="true" required value={types.join(",")} onChange={() => {}} data-missing="Choose the type of evidence." />
                       </div>
-                      {kind && <p className="ec-caption">{kind.note}</p>}
                       <div className="ec-period">
                         <label className="ec-label" htmlFor={`${ids}-period-pick`}>
-                          Period
+                          When
                         </label>
-                        <Select
-                          id={`${ids}-period-pick`}
-                          className="select ec-period__pick"
-                          value={period}
-                          onChange={setPeriod}
-                          required
-                          placeholder={periods.some((p) => p.accepting) ? "Choose a period" : "No period is open"}
-                        >
-                          {periods.map((p) => (
-                            <option key={p.id} value={p.label} disabled={!p.accepting}>
-                              {p.accepting ? p.label : `${p.label} · closed`}
-                            </option>
-                          ))}
-                        </Select>
-                        {periodNote && <p className="ec-caption">{periodNote}</p>}
+                        <div className="ec-period__picks">
+                          <Select
+                            id={`${ids}-period-pick`}
+                            className="select ec-period__pick"
+                            value={period}
+                            onChange={setPeriod}
+                            required
+                            aria-label="Academic year"
+                            data-missing="Choose the academic year."
+                            placeholder="Academic year"
+                            rows={3}
+                          >
+                            {years.map((y) => (
+                              <option key={y} value={y}>
+                                {`AY ${y}`}
+                              </option>
+                            ))}
+                          </Select>
+                          <Select
+                            className="select ec-period__pick"
+                            value={term}
+                            onChange={(v: string) => setTerm(isTerm(v) ? v : "")}
+                            required
+                            aria-label="Term"
+                            data-missing="Choose the term."
+                            placeholder="Term"
+                          >
+                            {TERMS.map((t) => (
+                              <option key={t} value={t}>
+                                {`${t} · ${TERM_MONTHS[t]}`}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
                       </div>
                     </section>
 
                     <div className="ec-duo">
-                      <section className="ec-card ec-card--gold" aria-labelledby={`${ids}-res`}>
-                        <span className="ec-card__icon" aria-hidden="true">
+                      <section className="ec-card" aria-labelledby={`${ids}-res`}>
+                        <span className="ec-card__icon ec-card__icon--soft" aria-hidden="true">
                           <Icon name="target" size={16} />
                         </span>
                         <h3 id={`${ids}-res`} className="ec-label">
-                          Result
+                          Result highlight
                         </h3>
                         <div className="ec-figure">
                           <label className="ec-figure__value">
-                            <span className="sr-only">Result</span>
+                            <span className="sr-only">Result highlight</span>
                             <input
                               value={result}
                               inputMode="decimal"
                               autoComplete="off"
-                              placeholder="4,820"
+                              placeholder={resultHint}
                               maxLength={60}
                               required
                               data-missing="Enter the result, like 4,820."
@@ -901,7 +878,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
                           </label>
                           <label className="ec-figure__unit">
                             <span className="sr-only">What it counts</span>
-                            <input value={measure} autoComplete="off" placeholder="cubic metres of rainwater reused" maxLength={120} onChange={(e) => setMeasure(e.target.value)} />
+                            <input value={measure} autoComplete="off" placeholder={measureHint} maxLength={120} onChange={(e) => setMeasure(e.target.value)} />
                           </label>
                         </div>
                       </section>
@@ -923,7 +900,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
                               autoComplete="off"
                               required
                               data-missing="Say who benefited."
-                              placeholder="Residents of Barangay 455"
+                              placeholder="University of Santo Tomas student body"
                               onChange={(e) => setWho(e.target.value)}
                             />
                           </label>
@@ -979,7 +956,7 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
                     contentLabel="What your unit did"
                     placeholder="What did your unit do? The challenge, the work, who took part, what changed."
                     pageRef={bodyRef}
-                    inert={confirming || leaving || ranks}
+                    inert={confirming || leaving}
                     onChange={setBody}
                     onPhotos={(list) => {
                       const n = addFiles(list);
@@ -1214,69 +1191,8 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
               </TabPanel>
             </div>
 
-            {ranks && (
-              <div className="pc-sidewrap" inert={leaving}>
-                {rankingsPanel}
-              </div>
-            )}
           </div>
 
-          <footer className="pc-foot ec-foot">
-            <div className="ec-proxied ec-foot__reach">
-              <button
-                ref={reachRow}
-                type="button"
-                className="ec-reach"
-                aria-expanded={ranks}
-                aria-controls={ranks ? panelId : undefined}
-                aria-label={`Counts in ${plural(reach.length, "ranking")}. Choose rankings.`}
-                data-side-trigger="rankings"
-                data-empty={reach.length ? undefined : ""}
-                onClick={() => (ranks ? closeRanks() : setRanks(true))}
-              >
-                <b className="ec-reach__n num">{reach.length}</b>
-                <span className="ec-reach__text">
-                  <span className="ec-reach__label">
-                    {reach.length === 1 ? "ranking" : "rankings"}
-                    {chosen.length > 0 && <small> · {plural(chosen.length, "indicator")}</small>}
-                  </span>
-                  <span className="ec-reach__list">
-                    {reach.length ? (
-                      <>
-                        {reach.slice(0, reach.length > 3 ? 2 : 3).map((g) => (
-                          <span key={g.ranking} className="ec-reach__chip">
-                            <i style={{ background: g.color }} />
-                            {g.ranking}
-                          </span>
-                        ))}
-                        {reach.length > 3 && <span className="ec-reach__chip">+{reach.length - 2}</span>}
-                      </>
-                    ) : (
-                      <span className="ec-reach__hint">{matches.length ? "Tick at least one" : "Pick a type and SDGs"}</span>
-                    )}
-                  </span>
-                </span>
-                <Icon name="chevron" size={16} className="ec-reach__chev" />
-              </button>
-              <input ref={reachProxy} className="pick-proxy" tabIndex={-1} aria-hidden="true" value={chosen.length} onChange={() => {}} />
-            </div>
-            {savedAt && (
-              <span className="ec-foot__draft">
-                Draft saved
-                <button type="button" onClick={startOver}>
-                  Start over
-                </button>
-              </span>
-            )}
-            <div className="pc-actions">
-              <button type="button" className="btn pc-actions__btn" onClick={saveDraft} disabled={!dirty}>
-                Save draft
-              </button>
-              <button type="submit" className="btn btn--dark pc-actions__btn" onClick={jump}>
-                <Icon name="send" size={16} /> Submit
-              </button>
-            </div>
-          </footer>
         </div>
       </form>
 
@@ -1305,11 +1221,11 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
             <ul className="ec-recap" aria-label="This submission">
               <li>
                 <Icon name={kind?.icon ?? "evidence"} size={14} />
-                {kind?.short}
+                {kinds.map((k) => k.short).join(" · ")}
               </li>
               <li>
                 <Icon name="calendar" size={14} />
-                {period}
+                AY {period} · {term}
               </li>
               <li>
                 <Icon name="paperclip" size={14} />
@@ -1321,10 +1237,6 @@ export function EvidenceComposer({ onClose, onSent }: { onClose: () => void; onS
                   {plural(refList.length, "reference")}
                 </li>
               )}
-              <li className="ec-recap__gold">
-                <Icon name="layers" size={14} />
-                {plural(reach.length, "ranking")}
-              </li>
             </ul>
             <label className="ec-certify">
               <input type="checkbox" required data-missing="Tick to certify the submission." />

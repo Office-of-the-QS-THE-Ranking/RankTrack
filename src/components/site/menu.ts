@@ -159,28 +159,28 @@ export const allMenus = (ref: Reference): Menu[] => {
     },
   },
   {
-    href: "/knowledge",
-    label: "Knowledge",
-    title: "Knowledge",
+    href: "/knowledge-base",
+    label: "Knowledge Base",
+    title: "Knowledge Base",
     description: "Find the methods, resources and standards behind the rankings.",
-    cta: "Explore knowledge",
+    cta: "Explore the Knowledge Base",
     photo: PHOTOS.library,
     groups: [
       {
         links: [
-          { label: "Dictionary", href: "/knowledge#dictionary", icon: "knowledge", note: "One term, and every ranking it touches" },
-          { label: "Methods", href: "/knowledge#methodologies", icon: "target", note: "What each ranking measures, in plain language" },
-          { label: "Evidence standards", href: "/knowledge#standards", icon: "shield-check", note: "What counts as evidence, and what does not" },
-          { label: "Calendar", href: "/knowledge#calendar", icon: "calendar", note: "When each ranking collects data" },
-          { label: "Templates", href: "/knowledge#templates", icon: "clipboard", note: "The forms units fill in, and the training" },
-          { label: "Questions", href: "/knowledge#faq", icon: "help", note: "The questions units ask most" },
-          { label: "Policies", href: "/knowledge#policies", icon: "scroll", note: "The policies and frameworks behind the work" },
+          { label: "Dictionary", href: "/knowledge-base#dictionary", icon: "knowledge", note: "One term, and every ranking it touches" },
+          { label: "Methods", href: "/knowledge-base#methodologies", icon: "target", note: "What each ranking measures, in plain language" },
+          { label: "Evidence standards", href: "/knowledge-base#standards", icon: "shield-check", note: "What counts as evidence, and what does not" },
+          { label: "Calendar", href: "/knowledge-base#calendar", icon: "calendar", note: "When each ranking collects data" },
+          { label: "Templates", href: "/knowledge-base#templates", icon: "clipboard", note: "The forms units fill in, and the training" },
+          { label: "Questions", href: "/knowledge-base#faq", icon: "help", note: "The questions units ask most" },
+          { label: "Policies", href: "/knowledge-base#policies", icon: "scroll", note: "The policies and frameworks behind the work" },
         ],
       },
     ],
     strip: {
       text: ref.calendar[0] ? `Next deadline: ${ref.calendar[0].items[0]}.` : "When each ranking collects data.",
-      link: { label: "Open the calendar", href: "/knowledge#calendar" },
+      link: { label: "Open the calendar", href: "/knowledge-base#calendar" },
     },
   },
   {
@@ -193,16 +193,15 @@ export const allMenus = (ref: Reference): Menu[] => {
     groups: [
       {
         links: [
-          { label: "Purpose", href: "/about#mission", icon: "target", note: "Five functions under the Office of the Rector" },
+          { label: "Purpose", href: "/about#mission", icon: "target", note: `${ref.office.functions.length} functions under the ${ref.office.reportsTo}` },
           { label: "Vision and mission", href: "/about#vision", icon: "eye", note: "Shared responsibility and our 2030 aspiration" },
-          { label: "Ranking portfolio", href: "/about#portfolio", icon: "rankings", note: "Ten ranking, rating and special-project frameworks" },
+          { label: "Ranking portfolio", href: "/about#portfolio", icon: "rankings", note: "The rankings the Office tracks, by ranking body" },
           { label: "Deliverables", href: "/about#deliverables", icon: "send", note: "Survey contacts, benchmarking and submissions" },
-          { label: "Since 1611", href: "/about#since-1611", icon: "history", note: "From Intramuros to España" },
-          { label: "How it works", href: "/about#process", icon: "workflow", note: "Data collection, quarterly KPI monitoring and review" },
-          { label: "Team", href: "/about#team", icon: "users", note: "The people and reporting structure of the Office" },
-          { label: "Data governance", href: "/about#governance", icon: "governance", note: "Reporting lines and stakeholder coordination" },
-          { label: "Policies", href: "/about#privacy", icon: "shield", note: "Privacy, accessibility and method" },
+          { label: "Team", href: "/about#team", icon: "users", note: "The people of the Office and how the work is shared" },
+          { label: "Reporting and coordination", href: "/about#governance", icon: "governance", note: "Reporting lines and stakeholder coordination" },
+          { label: "Policies", href: "/about#policies", icon: "shield", note: "Privacy, accessibility and method" },
           { label: "Contact", href: "/about#contact", icon: "mail", note: ref.office.location },
+          { label: "FAQs", href: "/about#faq", icon: "help", note: "Questions people ask the Office" },
         ],
       },
     ],
@@ -222,9 +221,9 @@ export const allMenus = (ref: Reference): Menu[] => {
 export function governedMenus(ref: Reference, opts: {
   publicSlugs: string[];
   stories: { slug: string; title: string; unit: string; outcome: string; images: string[] }[];
-  features: { publications: boolean; recognition: boolean; knowledge: boolean };
+  features: { publications: boolean; recognition: boolean; knowledgeBase: boolean };
 }): Menu[] {
-  const off = new Set([!opts.features.publications && PUBLICATIONS_PATH, !opts.features.recognition && "/recognition", !opts.features.knowledge && "/knowledge"].filter(Boolean));
+  const off = new Set([!opts.features.publications && PUBLICATIONS_PATH, !opts.features.recognition && "/recognition", !opts.features.knowledgeBase && "/knowledge-base"].filter(Boolean));
   return allMenus(ref).filter((m) => !off.has(m.href)).map((m) => {
     if (m.href === "/rankings")
       return {

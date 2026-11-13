@@ -36,6 +36,7 @@ export interface Badge {
 
 const COUNTS: Record<string, keyof Pick<OverviewStats, "reviews" | "submissions" | "published" | "proposals" | "decisions" | "signIns">> = {
   "evidence.accept": "reviews",
+  "evidence.step": "reviews",
   "evidence.revise": "reviews",
   "evidence.submit": "submissions",
   "data.submit": "submissions",

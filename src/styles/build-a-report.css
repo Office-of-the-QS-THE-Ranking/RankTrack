@@ -1,0 +1,232 @@
+/*
+ * Reports (/admin/workspace/build-a-report): pill tabs, an optional filter row, then the report's preview table with its export.
+ */
+.rr {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.rr-panel {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.rr-panel:focus-visible {
+  outline: none;
+}
+
+/* ---------- Filters ---------- */
+.rr-filter-n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--gold-500);
+  color: #1d1d1f;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.rr-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgb(var(--hair) / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 12px 28px -20px rgb(0 0 0 / 0.22);
+  animation: rr-rise 220ms var(--ease-out) both;
+}
+.rr-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+/* "All rankings" is a real choice, not a prompt to fill in. */
+.rr-filter .pick-trigger[data-placeholder] .pick-trigger__label {
+  color: var(--text);
+}
+.rr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.rr-chip,
+.rr-chips__clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  transition: background-color var(--t) ease, color var(--t) ease;
+}
+.rr-chip {
+  background: rgb(var(--hair) / 0.07);
+  color: var(--text);
+}
+.rr-chips__clear {
+  background: none;
+  color: var(--text-3);
+}
+@media (hover: hover) {
+  .rr-chip:hover {
+    background: rgb(var(--hair) / 0.12);
+  }
+  .rr-chips__clear:hover {
+    color: var(--text);
+  }
+}
+
+/* ---------- The report ---------- */
+.rr-report .ov-tile__head {
+  flex-wrap: wrap;
+}
+.rr-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.rr-cycle {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.rr-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.rr-print {
+  display: none;
+}
+.rr-sheet-lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.rr-sheet-lead svg {
+  flex: none;
+}
+
+.rr-released__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rr-released__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  font-size: 13px;
+}
+.rr-released__list li + li {
+  border-top: 1px solid rgb(var(--hair) / 0.06);
+}
+.rr-released__list time {
+  flex: none;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes rr-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-filters {
+    animation: none;
+  }
+}
+
+@container content (max-width: 520px) {
+  .rr-export {
+    width: 100%;
+  }
+}
+
+/* Paper carries the report, its stamp and its figures; the controls stay on screen. */
+@media print {
+  /* Paper is as wide as a phone's container query thinks, but a table still reads best as a table. */
+  .content:has(.rr) {
+    container-type: normal !important;
+  }
+  .rr .content-tabs,
+  .rr-filters,
+  .rr-chips,
+  .rr-export {
+    display: none !important;
+  }
+  .rr-print {
+    display: block;
+    margin: 0;
+    font-size: 10pt;
+    color: var(--text-2);
+  }
+  .rr-report .ov-tile__core,
+  .rr-released .ov-tile__core {
+    box-shadow: none;
+  }
+  /* White paper in either theme: the dark theme's light text would vanish on it. */
+  :root:has(.rr) {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #fafafa;
+    --surface-3: #f0f0f3;
+    --border: #e8e8ed;
+    --border-strong: #d2d2d7;
+    --ink: #1d1d1f;
+    --on-ink: #fff;
+    --text: #1d1d1f;
+    --text-2: #424245;
+    --text-3: #6e6e73;
+    --hair: 0 0 0;
+    --ok: #1d7a36;
+    --ok-bg: #e9f6ec;
+    --review: #0062c4;
+    --review-bg: #e8f1fc;
+    --revise: #a84b00;
+    --revise-bg: #fdf1e4;
+    --missing: #6e6e73;
+    --missing-bg: #f0f0f3;
+    background: #fff;
+    color-scheme: light;
+  }
+  body:has(.rr),
+  .main:has(.rr),
+  .rr .ov-tile__core {
+    background: #fff;
+  }
+  .rr .ov-tile {
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  .rr-report.ov-tile {
+    break-inside: auto;
+  }
+  .rr .glow {
+    display: none;
+  }
+}

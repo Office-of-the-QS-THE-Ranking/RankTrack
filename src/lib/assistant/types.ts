@@ -105,8 +105,31 @@ export interface UsageRow {
   cost: number;
 }
 
-/** Everything on the AI Assistant tab of Administration. */
-export interface AssistantDesk {
+/**
+ * Work a model does for the Office rather than for the person chatting. The chat is the Assistant; the Reviewer checks
+ * the rules' suggestions against an evidence file's pages (lib/review). A job's model is set here, once, and must be
+ * on a plan that doesn't share data.
+ */
+export interface JobRow {
+  id: "reviewer";
+  label: string;
+  does: string;
+  enabled: boolean;
+  modelId: string | null;
+  backupModelId: string | null;
+  /** Runs a day, across the Hub. */
+  dailyLimit: number;
+  runsToday: number;
+  /** Over the usage period: runs, how many failed, and what they cost. */
+  runs: number;
+  failed: number;
+  cost: number;
+  /** Every model, with why it can't do this job right now, if it can't. */
+  models: { id: string; label: string; problem: string | null }[];
+}
+
+/** Everything on the Agentic Control tab of Command & Control. */
+export interface AgenticControlDesk {
   now: string;
   paused: boolean;
   fallbackModel: string | null;
@@ -115,6 +138,7 @@ export interface AssistantDesk {
   accountKnown: boolean;
   providers: ProviderRow[];
   models: ModelRow[];
+  jobs: JobRow[];
   requests: AccessRequestRow[];
   credits: CreditRow[];
   usage: UsageRow[];

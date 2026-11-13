@@ -6,7 +6,7 @@ import { WURI_PLACEMENTS, inkOn, type Ranking } from "@/lib/data";
 import { Tile } from "@/components/dashboard/Tile";
 import { PipelineFlow } from "@/components/contributions/PipelineFlow";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { Card, Meter, Status, cx } from "@/components/ui/primitives";
+import { Meter, Status, cx } from "@/components/ui/primitives";
 import { InfoTooltip } from "@/components/ui/interactive";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Bullet, EmptyArt, PillarRings, Spark, shareOf, valueOf } from "./RankingCharts";
@@ -53,126 +53,6 @@ export function AreaLegend() {
         </span>
       ))}
     </div>
-  );
-}
-
-/* ---------- THE Impact: 17 SDG tiles + evidence ladder ---------- */
-export function SdgBoard({ publicMode }: { publicMode?: boolean }) {
-  const { impactLadder, sdgColors, sdgNames, sdgTiles } = useViews();
-  const [sel, setSel] = useState(3);
-  const t = sdgTiles[sel - 1];
-  const publicEvidence = Math.min(100, Math.round(t.readiness * 0.92));
-  return (
-    <div className="grid cols-2-1" id="sdg-board">
-      <Card
-        title="All 17 Sustainable Development Goals"
-        sub={publicMode ? "Goals marked Rated were submitted for this year's rating" : "Select a goal. Goals marked Rated are submitted for this year's rating."}
-        icon="globe"
-      >
-        <div className="sdgs" role="group" aria-label="Sustainable Development Goals">
-          {sdgTiles.map((s) => (
-            <button
-              key={s.sdg}
-              type="button"
-              className="sdgt"
-              aria-pressed={sel === s.sdg}
-              onClick={() => setSel(s.sdg)}
-              style={{ background: sdgColors[s.sdg], color: inkOn(sdgColors[s.sdg]) } as CSSProperties}
-            >
-              <span className="sdgt__n">{s.sdg}</span>
-              <span className="sdgt__name">{sdgNames[s.sdg]}</span>
-              {!publicMode && <span className="sdgt__pct">{s.readiness}% ready</span>}
-              {s.submittedForRating && <span className="sdgt__flag">Rated</span>}
-            </button>
-          ))}
-        </div>
-      </Card>
-      <div className="grid">
-        <Card title={`SDG ${t.sdg}: ${sdgNames[t.sdg]}`} sub={t.submittedForRating ? "Submitted for rating this year" : "Not submitted for rating this year"}>
-          {!publicMode && (
-            <div className="stack" style={{ ["--gap" as string]: "6px", marginBottom: 16 } as CSSProperties}>
-              <span className="small text-2">
-                Readiness <b className="num">{t.readiness}%</b>
-              </span>
-              <Meter value={t.readiness} tone="gold" label={`SDG ${t.sdg} readiness`} />
-            </div>
-          )}
-          <dl className="kv kv--tight">
-            {!publicMode && (
-              <>
-                <dt>Evidence submitted</dt>
-                <dd className="num">{t.submitted}</dd>
-                <dt>Evidence validated</dt>
-                <dd className="num">{t.validated}</dd>
-                <dt>Responsible units</dt>
-                <dd className="num">{t.units}</dd>
-              </>
-            )}
-            <dt>Research outputs</dt>
-            <dd className="num">{t.outputs}</dd>
-            <dt>Policies and programmes</dt>
-            <dd className="num">{t.policies}</dd>
-            <dt>Beneficiaries</dt>
-            <dd className="num">{t.beneficiaries}</dd>
-            <dt>Outcomes demonstrated</dt>
-            <dd className="num">{t.outcomes}</dd>
-            {!publicMode && (
-              <>
-                <dt>Public evidence available</dt>
-                <dd className="num">{publicEvidence}%</dd>
-              </>
-            )}
-          </dl>
-        </Card>
-        <Card title="Impact evidence ladder" sub="Moving evidence from activity reports to verified change" icon="ladder" id="impact-ladder">
-          <ol className="ladder">
-            {impactLadder.map((l, i) => (
-              <li key={l.step} style={{ ["--w" as string]: `${100 - i * 11}%` } as CSSProperties}>
-                <span className="ladder__n">{i + 1}</span>
-                <span className="ladder__step">{l.step}</span>
-                <b className="num">{l.count}</b>
-              </li>
-            ))}
-          </ol>
-          <p className="small muted mt-3">
-            Read through the UST Aquinas Framework and the Social Transformation Framework as the institutional-impact layer.
-          </p>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- WURI: categories ---------- */
-export function WuriCategories({ publicMode }: { publicMode?: boolean }) {
-  const [sel, setSel] = useState<string | null>(null);
-  return (
-    <Card
-      title={WURI_PLACEMENTS.length ? `Top 100 in ${WURI_PLACEMENTS.length} categories` : "Top 100 placements"}
-      sub="From the official result letter"
-      icon="recognition"
-      tone="dark"
-      id="wuri-categories"
-    >
-      {!WURI_PLACEMENTS.length && (
-        <p className="small" style={{ color: "var(--on-dark-2)" }}>
-          No placements recorded yet.
-        </p>
-      )}
-      <div className="cats" role="group" aria-label="WURI categories">
-        {WURI_PLACEMENTS.map((c, i) => (
-          <button key={c} type="button" className="cats__btn" aria-pressed={sel === c} onClick={() => setSel(sel === c ? null : c)}>
-            <span className="cats__n">{String(i + 1).padStart(2, "0")}</span>
-            {c}
-          </button>
-        ))}
-      </div>
-      <p className="small mt-4" aria-live="polite" style={{ color: "var(--on-dark-2)" }} hidden={!WURI_PLACEMENTS.length}>
-        {sel
-          ? `${sel}: Top 100 placement.${publicMode ? "" : " Linked programmes and evidence are listed under Submitted projects."}`
-          : "Select a category to see its placement."}
-      </p>
-    </Card>
   );
 }
 

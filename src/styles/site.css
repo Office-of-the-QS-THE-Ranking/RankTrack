@@ -24,7 +24,7 @@
   --stone-2: #e5e3de;
   --charcoal: #2b2825; /* the official wallpaper's dark ground */
   --ink: var(--black);
-  --muted: #5a554d; /* 7.4:1 on paper */
+  --muted: #544f48; /* 8.1:1 on paper, 7.1:1 on stone: secondary text still reads as text */
   --on-dark: #f4f4f2;
   --on-dark-muted: #bdb6a8; /* 9.1:1 on black */
 
@@ -43,12 +43,13 @@
   --font-sans: var(--font-text);
   --font-serif: var(--font-display);
 
-  /* five sizes, far apart (80% of the first scale; small is held at 12px so it stays legible) */
-  --step-small: clamp(0.75rem, 0.73rem + 0.08vw, 0.8125rem);
-  --step-body: clamp(0.85rem, 0.8rem + 0.2vw, 0.95rem);
-  --step-lead: clamp(1rem, 0.88rem + 0.56vw, 1.3rem);
-  --step-head: clamp(1.7rem, 1.04rem + 2.56vw, 3.2rem);
-  --step-display: clamp(2.3rem, 0.72rem + 4.48vw, 5rem);
+  /* five sizes, far apart. Running text is 16px on a phone and 18px on a wide screen, and nothing
+     meant to be read goes under 14px: the site is read by people outside the Office, on any screen. */
+  --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
+  --step-body: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);
+  --step-lead: clamp(1.1875rem, 1.05rem + 0.6vw, 1.5rem);
+  --step-head: clamp(1.9rem, 1.2rem + 2.7vw, 3.4rem);
+  --step-display: clamp(2.5rem, 0.9rem + 4.6vw, 5.25rem);
 
   /* side margins: 20px on a phone, opening to 96px on wide screens */
   --margin: clamp(20px, 5vw, 96px);
@@ -2190,7 +2191,7 @@ html:has(.site .palette[open]) {
   }
 }
 
-/* Site-wide notice set in Administration › System Configuration: a night pill above the page. */
+/* Site-wide notice set in Command & Control › System Configuration: a night pill above the page. */
 .w-notice {
   position: fixed;
   left: 50%;

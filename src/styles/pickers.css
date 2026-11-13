@@ -24,6 +24,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.pick-trigger--fit .pick-trigger__label {
+  display: grid;
+  min-width: max-content;
+}
+.pick-trigger--fit .pick-trigger__label > span {
+  grid-area: 1 / 1;
+}
+.pick-trigger__sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
 .select.pick-trigger:has(> .pick-select__chevron) {
   background-image: none;
   padding-right: 12px;
@@ -561,18 +572,18 @@ input.pick-proxy {
 
 /* ---------- Surfaces ---------- */
 
-/* Administration console */
-.adm {
-  --pick-bg: var(--adm-bg);
-  --pick-fg: var(--adm-text);
-  --pick-muted: var(--adm-muted);
-  --pick-hover: var(--adm-hover);
-  --pick-line: var(--adm-line);
-  --pick-edge: var(--adm-line);
+/* Command & Control console */
+.cmd {
+  --pick-bg: var(--cmd-bg);
+  --pick-fg: var(--cmd-text);
+  --pick-muted: var(--cmd-muted);
+  --pick-hover: var(--cmd-hover);
+  --pick-line: var(--cmd-line);
+  --pick-edge: var(--cmd-line);
 }
-.adm .pick-num[data-disabled] {
-  background-color: var(--adm-well);
-  color: var(--adm-muted);
+.cmd .pick-num[data-disabled] {
+  background-color: var(--cmd-well);
+  color: var(--cmd-muted);
 }
 
 /* Dark workspaces: the chosen row lifts in gold rather than cream. */

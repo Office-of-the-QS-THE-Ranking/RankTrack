@@ -37,7 +37,7 @@ export function closeModal(element: HTMLElement | null, complete?: () => void): 
   for (const child of element.querySelectorAll<HTMLDialogElement>("dialog[open]")) closeModal(child);
   element.dataset.modalClosing = "true";
   element.inert = true;
-  const drawer = element.matches(".drawer, .adm-sheet:not(.adm-sheet--modal)");
+  const drawer = element.matches(".drawer, .cmd-sheet:not(.cmd-sheet--modal)");
   const animation = element.animate([
     from,
     { opacity: 0, translate: drawer ? "24px 0" : "0 10px", scale: drawer ? "1" : "0.985" },

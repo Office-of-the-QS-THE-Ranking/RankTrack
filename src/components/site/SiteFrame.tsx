@@ -13,7 +13,7 @@ import { publicHub, siteData } from "@/lib/governance/server/site";
 
 /** The public website: its own header, footer and loader, outside the dashboard shell. */
 export async function SiteFrame({ children, loader = true }: { children: ReactNode; loader?: boolean }) {
-  // What the public may see is decided in Administration: menus, search, and a site-wide notice.
+  // What the public may see is decided in Command & Control: menus, search, and a site-wide notice.
   const site = await siteData();
   const menus = governedMenus({ ...site.ref, calendar: site.calendarMonths }, { publicSlugs: site.rankings.map((r) => r.slug), stories: site.stories, features: site.features });
   return (

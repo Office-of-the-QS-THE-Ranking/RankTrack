@@ -9,23 +9,23 @@ body:has(> .nf) {
   letter-spacing: normal;
 }
 
-:is(.app, .signin, .nf, .adm),
-:is(.app, .signin, .nf, .adm) :is(h1, h2, h3, h4, h5, h6, p, a, button, input, select, textarea, label, th, td) {
+:is(.app, .signin, .nf, .cmd),
+:is(.app, .signin, .nf, .cmd) :is(h1, h2, h3, h4, h5, h6, p, a, button, input, select, textarea, label, th, td) {
   letter-spacing: normal;
 }
 
-:is(.app, .signin, .nf, .adm) :is(h1, h2, h3, h4, h5, h6) {
+:is(.app, .signin, .nf, .cmd) :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-sans);
   font-weight: 600;
   line-height: 1.3;
   font-variation-settings: normal;
 }
 
-:is(.app, .signin, .nf) :is(.ph__title, .dash-head__title, .rhead__title, .ov__title) {
+:is(.app, .signin, .nf) :is(.ph__title, .dash-head__title, .ov__title) {
   font-size: clamp(1.75rem, 1.5rem + 0.75vw, 2.25rem);
 }
 
-:is(.app, .signin, .nf) :is(.ph__lede, .dash-head__sub, .rhead__msg) {
+:is(.app, .signin, .nf) :is(.ph__lede, .dash-head__sub) {
   font-size: 1rem;
   line-height: 1.6;
 }

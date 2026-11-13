@@ -8,7 +8,7 @@
  */
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { download, Hint } from "@/components/admin/ui";
+import { download, Hint } from "@/components/command-control/ui";
 import { Icon } from "@/components/ui/Icon";
 import { Drawer, TabPanel, Tabs } from "@/components/ui/interactive";
 import { NumberField, Select } from "@/components/ui/pickers";
@@ -317,12 +317,12 @@ function Panel({ row, desk }: { row: IndicatorView; desk: IndicatorsDesk }) {
       </div>
 
       {row.guidance && (
-        <details className="adm-disclosure an-guidance">
+        <details className="cmd-disclosure an-guidance">
           <summary>
-            <span className="adm-disclosure__title">What the body asks</span>
-            <Icon name="chevron-down" size={16} className="adm-disclosure__chev" />
+            <span className="cmd-disclosure__title">What the body asks</span>
+            <Icon name="chevron-down" size={16} className="cmd-disclosure__chev" />
           </summary>
-          <div className="adm-disclosure__body">
+          <div className="cmd-disclosure__body">
             <p className="an-pre">{row.guidance}</p>
             {row.evidence.note && <p className="an-pre">{row.evidence.note}</p>}
           </div>

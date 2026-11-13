@@ -8,8 +8,8 @@ import { ref, world } from "./helpers";
 describe("assistance requests", () => {
   it("are refused for someone who doesn't contribute for the unit", () => {
     const w = world();
-    const guest = w.person("Guest", "guest@partner.org", ROLE.external, w.eng.id, true);
-    const r = execute(w.ctxFor(guest), { type: "assistance.request", unitSlug: w.eng.id, topic: "Help", urgent: true, message: "Please help with the submission." });
+    const student = w.person("Student", "student@ust.edu.ph", ROLE.student, w.eng.id);
+    const r = execute(w.ctxFor(student), { type: "assistance.request", unitSlug: w.eng.id, topic: "Help", urgent: true, message: "Please help with the submission." });
     expect(r.ok).toBe(false);
     expect(w.state.records.assistance).toHaveLength(0);
   });
@@ -43,7 +43,7 @@ describe("evidence review", () => {
     title: "Flood sensors",
     unitSlug,
     type: "Programme",
-    period: "Calendar year 2025",
+    period: "AY 2025–2026 · First term",
     submitted: "2026-10-01",
     submittedBy: by.name,
     submittedById: by.id,
@@ -61,7 +61,7 @@ describe("evidence review", () => {
 
   it("is refused to the account that submitted it", () => {
     const w = world();
-    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
     w.state.records.evidence["EV-9001"] = record(a, w.eng.id);
     const r = execute(w.ctxFor(a), { type: "evidence.review", id: "EV-9001", decision: "accept", note: "" });
     expect(r.ok).toBe(false);
@@ -70,8 +70,8 @@ describe("evidence review", () => {
 
   it("is not refused to a different account that shares the submitter's name", () => {
     const w = world();
-    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
-    const b = w.person("Maria Santos", "b@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    const a = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
+    const b = w.person("Maria Santos", "b@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
     w.state.records.evidence["EV-9001"] = record(a, w.eng.id);
     const r = execute(w.ctxFor(b), { type: "evidence.review", id: "EV-9001", decision: "accept", note: "" });
     expect(r.message).not.toMatch(/another reviewer/);
@@ -86,7 +86,8 @@ describe("evidence review", () => {
       input: {
         title: "Flood sensors",
         type: "Programme",
-        period: "Calendar year 2025",
+        academicYear: "2025–2026",
+        term: "First term",
         summary: "",
         result: "12",
         beneficiaries: "Residents",

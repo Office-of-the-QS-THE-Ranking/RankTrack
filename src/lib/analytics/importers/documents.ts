@@ -78,8 +78,6 @@ export interface EvidenceDoc {
   links: string[];
 }
 
-export const isGreenMetricTemplate = (text: string) => /Template for Evidence/i.test(text) && /GreenMetric/i.test(text);
-
 /** University_Country_1_5_Total_main_campus_area.docx → 1.5 */
 export function codeFromFileName(name: string): string | null {
   const m = /University_Country_(\d)_(\d{1,2})_/i.exec(name);

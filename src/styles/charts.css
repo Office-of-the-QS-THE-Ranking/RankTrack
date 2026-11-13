@@ -212,11 +212,6 @@
   stroke: var(--surface);
   stroke-width: 2;
 }
-.traj__nr {
-  fill: var(--surface);
-  stroke: var(--n-300);
-  stroke-width: 1.5;
-}
 @media (prefers-reduced-motion: no-preference) {
   .traj__line {
     stroke-dasharray: var(--len, 600);

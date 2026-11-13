@@ -18,6 +18,7 @@ import { fillUrl } from "../deadline-read";
 import type { DeadlineDesk, HubData } from "../hub-types";
 import type { GovernanceState } from "../types";
 import { buildUnits } from "../unit-participation";
+import { pipelineOf, submissionSteps } from "../submission-review";
 import type { Viewer } from "../viewer";
 import { noticeVisible } from "../engine";
 import { wantsNotice } from "../notification-prefs";
@@ -62,7 +63,12 @@ function buildRequirements(state: GovernanceState, evidence: EvidenceItem[], uni
 }
 
 function build(state: GovernanceState, ref: Reference, analytics: Map<string, RankingAnalytics> = new Map()) {
-  const evidence: EvidenceItem[] = evidenceList(state).map((e) => ({ ...e, unit: unitLabel(state, e.unitSlug, e.programId) }));
+  const steps = submissionSteps(state, new Date().toISOString().slice(0, 10));
+  const evidence: EvidenceItem[] = evidenceList(state).map((e) => ({
+    ...e,
+    unit: unitLabel(state, e.unitSlug, e.programId),
+    ...(e.status === "For review" && { pipeline: pipelineOf(state, steps, e.review) }),
+  }));
   const stories = storyList(state);
   const storiesPublic = featureOn(state, "public-publications") && datasetPublic(state, "DS-STORIES");
   const units = buildUnits(state, evidence, ref);

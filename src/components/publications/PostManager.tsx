@@ -112,7 +112,7 @@ export function PostManager({ desk }: { desk: PostDesk }) {
                 {can.submit
                   ? " The Rankings Office reviews and approves each post before it goes live."
                   : desk.needsApproval
-                    ? " Posting needs approval from two other University-wide Administrators."
+                    ? " Posting needs approval from two other approvers in the Office."
                     : ""}
               </span>
             </InfoTooltip>

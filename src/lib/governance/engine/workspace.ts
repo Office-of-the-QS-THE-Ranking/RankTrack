@@ -1,7 +1,7 @@
 /*
  * The Workspace: files a unit keeps for its own work, and the Office's shared library and templates every unit
  * sees. A unit's files are written by people who submit evidence for it; the shared ones by people who edit the
- * Knowledge Center. Folders nest and belong to the same owner as the files in them, and files go only inside
+ * Knowledge Base. Folders nest and belong to the same owner as the files in them, and files go only inside
  * folders. An empty folder stays until it is deleted. Archiving is reversible; only an archived file can be
  * deleted for good, and its upload goes with it. Digital Forms, the Workspace's forms, are in forms.ts.
  * Working Documents are links a unit keeps (title, date, rankings, status), written by the same people as its
@@ -17,7 +17,7 @@ const res = (f: { id: string; name: string }) => ({ type: "Workspace file", id: 
 
 const folderRes = (f: WorkspaceFolder) => ({ type: "Workspace folder", id: f.id, label: f.name });
 
-/** Who may change files of this owner: the unit's contributors, or for shared files the Knowledge Center's editors. */
+/** Who may change files of this owner: the unit's contributors, or for shared files the Knowledge Base's editors. */
 const writes = (ctx: Ctx, unitId: string | undefined) => (unitId ? can(ctx, "evidence", "submit", { unitId }) : can(ctx, "knowledge", "edit"));
 
 const whose = (ctx: Ctx, unitId: string | undefined) => (unitId ? (unitById(ctx, unitId)?.name ?? unitId) : "Shared by the Office");
@@ -236,7 +236,7 @@ const validDate = (v: unknown): v is string => typeof v === "string" && DATE.tes
 export function saveDoc(ctx: Ctx, cmd: Extract<Command, { type: "workdoc.save" }>): CommandResult {
   const doc = cmd.id ? ctx.state.records.workingDocs.find((d) => d.id === cmd.id) : undefined;
   if (cmd.id && !doc) return invalid("That document is no longer in Working Documents.");
-  // No unit: the Office's own Working Documents, written by the Knowledge Center's editors.
+  // No unit: the Office's own Working Documents, written by the Knowledge Base's editors.
   const unitId = doc ? doc.unitId : typeof cmd.unitId === "string" && cmd.unitId ? cmd.unitId : undefined;
   if (unitId && !unitById(ctx, unitId)) return invalid("That unit no longer exists.");
   const target = doc ? docRes(doc) : { type: "Workspace", id: unitId ?? "office", label: unitId ? whose(ctx, unitId) : "Office of QS/THE Rankings" };

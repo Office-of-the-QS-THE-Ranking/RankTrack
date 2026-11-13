@@ -3,11 +3,13 @@ import { Instrument_Sans, Newsreader } from "next/font/google";
 import { connection } from "next/server";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
+import { ButtonBusy } from "@/components/ui/ButtonBusy";
 import { ButtonFx } from "@/components/ui/ButtonFx";
 import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
 import { FieldErrors } from "@/components/ui/validation";
 import { reference } from "@/lib/governance/server/reference";
+import { PORTAL_EXPANSION, PORTAL_NAME } from "@/lib/brand";
 import "@/styles/tokens.css";
 import "@/styles/cursors.css";
 import "@/styles/cursor-frames.css";
@@ -17,8 +19,8 @@ import "@/styles/charts.css";
 import "@/styles/shell.css";
 import "@/styles/views.css";
 import "@/styles/portal.css";
-import "@/styles/admin.css";
-import "@/styles/assistant-admin.css";
+import "@/styles/command-control.css";
+import "@/styles/agentic-control.css";
 import "@/styles/posts.css";
 import "@/styles/publications.css";
 import "@/styles/workspace.css";
@@ -34,6 +36,7 @@ import "@/styles/site.css";
 import "@/styles/site-home.css";
 import "@/styles/site-ascent.css";
 import "@/styles/site-pages.css";
+import "@/styles/site-guide.css";
 import "@/styles/site-post.css";
 import "@/styles/site-news.css";
 import "@/styles/site-publications.css";
@@ -41,17 +44,23 @@ import "@/styles/portal-typography.css";
 import "@/styles/pickers.css";
 import "@/styles/profile-modal.css";
 import "@/styles/content-tabs.css";
-import "@/styles/contributions.css";
+import "@/styles/unit-submissions.css";
 import "@/styles/evidence-composer.css";
+import "@/styles/review.css";
 import "@/styles/ranking.css";
 import "@/styles/analytics.css";
-import "@/styles/knowledge.css";
+import "@/styles/knowledge-base.css";
 import "@/styles/deadlines.css";
 import "@/styles/roles.css";
-import "@/styles/reports.css";
+import "@/styles/process-pipelines.css";
+import "@/styles/security.css";
+import "@/styles/firewall.css";
+import "@/styles/system-config.css";
+import "@/styles/build-a-report.css";
 import "@/styles/modal-motion.css";
 import "@/styles/assistant.css";
 import "@/styles/button-fx.css";
+import "@/styles/button-busy.css";
 
 /* Clean sans for dashboards; a refined serif used sparingly for major headings (proposal §1). */
 const sans = Instrument_Sans({
@@ -71,16 +80,16 @@ const serif = Newsreader({
 export const metadata: Metadata = {
   metadataBase: new URL("https://rankings.ust.edu.ph"),
   title: {
-    default: "UST Global Rankings and Impact Hub",
-    template: "%s · UST Global Rankings and Impact Hub",
+    default: PORTAL_NAME,
+    template: `%s · ${PORTAL_NAME}`,
   },
   description:
-    "Where the University of Santo Tomas stands in eight global rankings, the evidence behind each result, and the Thomasian practices other institutions can adapt.",
-  applicationName: "UST Global Rankings and Impact Hub",
+    `${PORTAL_NAME}: ${PORTAL_EXPANSION}. Where the University of Santo Tomas stands in eight global rankings, the evidence behind each result, and the Thomasian practices other institutions can adapt.`,
+  applicationName: PORTAL_NAME,
   openGraph: {
     type: "website",
-    siteName: "UST Global Rankings and Impact Hub",
-    title: "UST Global Rankings and Impact Hub",
+    siteName: PORTAL_NAME,
+    title: PORTAL_NAME,
     description: "From Thomasian contributions to global impact: eight global rankings, the evidence behind them and replicable practices.",
     locale: "en_PH",
   },
@@ -106,6 +115,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <FieldErrors />
         <CursorFx />
         <ButtonFx />
+        <ButtonBusy />
         <SpeedInsights />
       </body>
     </html>

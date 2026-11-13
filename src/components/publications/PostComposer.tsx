@@ -30,6 +30,7 @@ import { firstName } from "@/lib/first-name";
 import { postPickProblem, preparePostPicture, upload, type Prepared } from "./media";
 import { PostAnalytics } from "./PostAnalytics";
 import { useViews } from "@/components/reference/ReferenceProvider";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Pic = {
   key: string;
@@ -137,6 +138,7 @@ export function PostComposer({
   }, [leaving]);
   const [dropping, setDropping] = useState(false);
   const [saving, setSaving] = useState<false | "draft" | "publish">(false);
+  usePending(saving);
   const dragFrom = useRef<number | null>(null);
 
   /** Uploads made in this composer: whatever isn't saved leaves the bucket when it closes. */

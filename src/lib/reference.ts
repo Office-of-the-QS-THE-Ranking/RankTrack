@@ -53,6 +53,8 @@ export interface OfficeProfile {
   vision: string;
   mission: string;
   summary: string;
+  /** Our purpose: the lead line of the About page's first section. */
+  purpose: string;
 }
 
 export interface Office extends OfficeProfile {
@@ -61,7 +63,11 @@ export interface Office extends OfficeProfile {
   deliverables: { title: string; text: string }[];
   workplan: { title: string; owners: string; timing: string }[];
   team: { role: string; who: string; focus: string }[];
-  portfolio: { name: string; href: string }[];
+  /** Reporting and coordination: who the Office answers to and works with. */
+  coordination: { title: string; text: string }[];
+  /** Privacy, accessibility and method, each at its own anchor (#privacy …). */
+  policies: { title: string; text: string; anchor: string }[];
+  faq: { q: string; a: string }[];
 }
 
 /** Where a ranking body publishes its dates and how the deadline check reads them (deadline_sources). */
@@ -221,9 +227,6 @@ export const sdgTiles = (ref: Reference) =>
 
 export const subjectPortfolio = (ref: Reference) =>
   Object.keys(ref.quadrantNotes).map((quadrant) => ({ quadrant, subjects: DEMO_ON ? demo.subjects[quadrant] ?? [] : [] }));
-
-/** The ranking whose data collection closes first. */
-export const nearestDeadline = (rankings: Ranking[]) => [...rankings].sort((a, b) => a.deadline.localeCompare(b.deadline))[0];
 
 /** Everything views draw from the reference data, in one object: lists, maps and the dashboards' figures. */
 export function views(ref: Reference) {

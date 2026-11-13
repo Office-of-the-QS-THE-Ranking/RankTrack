@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
 import { siteData } from "@/lib/governance/server/site";
+import { Move } from "../Move";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
@@ -89,7 +90,7 @@ export async function RecognitionPage() {
             What moved in {latestEdition}
           </h2>
           <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
-            <p className="w-lead">These results rose in the latest editions. Each counted evidence from several units at once.</p>
+            <p className="w-lead">These results improved in the latest editions. Each one counted evidence from several units at once.</p>
           </div>
         </div>
         <ul className="w-ach">
@@ -98,7 +99,7 @@ export async function RecognitionPage() {
               <Link href={`/rankings/${r.slug}`} className="w-ach__item">
                 <span className="w-ach__fig w-figure">{r.current}</span>
                 <span className="w-ach__name">{r.name}</span>
-                <span className="w-ach__from w-up">Up from {r.previous}</span>
+                <Move r={r} className="w-ach__from" />
               </Link>
             </li>
           ))}

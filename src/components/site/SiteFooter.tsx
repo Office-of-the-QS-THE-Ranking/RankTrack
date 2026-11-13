@@ -20,7 +20,7 @@ const columns = (site: SiteData) => [
       { href: "/rankings", label: "All rankings" },
       ...(site.features.publications ? [{ href: publicationsPath("stories"), label: "Publications" }] : []),
       ...(site.features.recognition ? [{ href: "/recognition", label: "Recognition" }] : []),
-      ...(site.features.knowledge ? [{ href: "/knowledge", label: "Knowledge center" }] : []),
+      ...(site.features.knowledgeBase ? [{ href: "/knowledge-base", label: "Knowledge Base" }] : []),
       { href: "/about", label: "About the Office" },
       { href: "/signin", label: "Sign in to contribute" },
     ],

@@ -44,8 +44,8 @@ export function SearchField({ value, onChange, placeholder, label, examples, sho
   }, [shortcuts]);
 
   return (
-    <label className="adm-search">
-      <SearchIcon ref={searchIconRef} size={16} className="adm-search__icon" aria-hidden="true" />
+    <label className="cmd-search">
+      <SearchIcon ref={searchIconRef} size={16} className="cmd-search__icon" aria-hidden="true" />
       <span className="sr-only">{label}</span>
       <input
         ref={inputRef}
@@ -67,7 +67,7 @@ export function SearchField({ value, onChange, placeholder, label, examples, sho
       />
       {shortcuts && (
         <>
-          <kbd className="adm-search__shortcut" aria-hidden="true">{focused ? "Esc" : "/"}</kbd>
+          <kbd className="cmd-search__shortcut" aria-hidden="true">{focused ? "Esc" : "/"}</kbd>
           <span className="sr-only" id={guideId}>Press / to focus search. Press Escape to clear your search, or leave the empty field.</span>
         </>
       )}

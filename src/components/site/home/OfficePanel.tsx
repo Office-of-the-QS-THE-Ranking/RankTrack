@@ -9,7 +9,7 @@ export async function OfficePanel() {
     <section className="w-office" aria-labelledby="office-title">
       <div className="w-office__panel w-on-dark">
         <h2 id="office-title" className="w-office__title w-head" data-reveal>
-          Every result, as published
+          The Office behind this site
         </h2>
         <div className="w-office__disc" data-reveal="disc">
           <Image src={photos.arch.src} alt={photos.arch.alt} fill sizes="(max-width: 900px) 86vw, 40vw" style={{ objectPosition: photos.arch.pos }} />

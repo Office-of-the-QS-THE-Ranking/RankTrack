@@ -1,0 +1,1615 @@
+/*
+ * Process Pipelines (Command & Control › Process Pipelines). The workflows stack on the left; the chosen one's
+ * node map sits on an onyx dot grid on the right (PipelineStudio.tsx), top to bottom: requester, queue, approvals
+ * (gold diamonds, gold is the Rankings Office) with the rejection branch beside them, Applied, and the parts of the
+ * Hub it reaches. Edges are an SVG measured from the nodes. Request rows (ProcessPipelines.tsx) reuse the route
+ * marks: a round request, a diamond per approval, a square where the change is applied.
+ */
+
+.pp,
+.pp-reqs {
+  --pp-gold: var(--gold-600);
+  --pp-rail: var(--cmd-line-2);
+  --pp-surface: var(--cmd-raise);
+}
+:root[data-theme="dark"] :is(.pp, .pp-reqs) {
+  --pp-gold: var(--gold-500);
+}
+
+/* ---------- A route, drawn small ---------- */
+
+.pp-route {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 132px;
+  height: 12px;
+}
+.pp-route__seg {
+  flex: 1;
+  min-width: 10px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.26;
+}
+.pp-route__mark {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pp-route__mark[data-k="approver"] {
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  border-radius: 1.5px;
+  background: var(--pp-gold);
+  rotate: 45deg;
+}
+.pp-route__mark[data-k="applied"] {
+  border-radius: 2.5px;
+}
+/* not reached yet, or switched off: an outline */
+.pp-route__mark:is([data-s="next"], [data-s="off"]),
+.pp-route[data-dim] .pp-route__mark[data-k="approver"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  opacity: 0.4;
+}
+.pp-route__mark[data-s="now"] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pp-gold) 30%, transparent);
+}
+.pp-route__mark[data-s="stopped"] {
+  background: var(--danger);
+}
+
+/* ---------- Layout: the workflows on the left, the chosen one's map on the right ---------- */
+
+.pp-shell {
+  container: pp / inline-size;
+  min-width: 0;
+}
+.pp {
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+}
+@container pp (max-width: 860px) {
+  .pp {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- The stack ---------- */
+
+.pp-list {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--cmd-line);
+  border-radius: 22px;
+  background: var(--pp-surface);
+  list-style: none;
+}
+@container pp (max-width: 860px) {
+  .pp-list {
+    position: static;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+.pp-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px 10px 10px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--cmd-text);
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+  transition: background-color 200ms ease, color 200ms ease, opacity 200ms ease;
+}
+/* above the sliding highlight; ButtonFx's hover layer stays absolute */
+.pp-item > :not(button-fx, .pp-item__on) {
+  position: relative;
+}
+@media (hover: hover) {
+  .pp-list:has(.pp-item:hover) .pp-item:not(:hover):not(:focus-visible):not([aria-pressed="true"]) {
+    opacity: 0.45;
+  }
+  .pp-item:not([aria-pressed="true"]):hover {
+    background: var(--cmd-hover);
+  }
+}
+.pp-item:focus-visible {
+  outline: 1px solid var(--cmd-muted);
+  outline-offset: -1px;
+}
+/* the chosen workflow: jet black in light, white in dark, sliding between rows */
+.pp-item > .pp-item__on {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: #1d1d1f;
+}
+.pp-item[aria-pressed="true"] {
+  --pp-gold: var(--gold-400);
+  color: #f5f5f7;
+}
+:root[data-theme="dark"] .pp-item > .pp-item__on {
+  background: #f5f5f7;
+}
+:root[data-theme="dark"] .pp-item[aria-pressed="true"] {
+  --pp-gold: var(--gold-600);
+  color: #1d1d1f;
+}
+.pp-item__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--cmd-well);
+  color: var(--cmd-text-2);
+}
+.pp-item[aria-pressed="true"] .pp-item__icon {
+  background: rgb(255 255 255 / 0.1);
+  color: inherit;
+}
+:root[data-theme="dark"] .pp-item[aria-pressed="true"] .pp-item__icon {
+  background: rgb(0 0 0 / 0.07);
+}
+.pp-item__main {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.pp-item__main b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pp-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--cmd-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pp-item[aria-pressed="true"] .pp-item__meta {
+  color: inherit;
+  opacity: 0.66;
+}
+.pp-item__meta b {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ---------- The map ---------- */
+
+.pp-map {
+  --pp-gold: var(--gold-400);
+  --pp-ink: #0d0d0c;
+  --pp-node: #181816;
+  --pp-node-2: #201f1d;
+  --pp-line: rgb(255 255 255 / 0.08);
+  --pp-edge: rgb(255 255 255 / 0.2);
+  --pp-text: #f5f5f7;
+  --pp-muted: rgb(245 245 247 / 0.52);
+  /* the console's controls, read on the dark canvas */
+  --cmd-text: var(--pp-text);
+  --cmd-text-2: rgb(245 245 247 / 0.72);
+  --cmd-muted: var(--pp-muted);
+  --cmd-line: var(--pp-line);
+  --cmd-line-2: rgb(255 255 255 / 0.16);
+  --cmd-hover: rgb(255 255 255 / 0.06);
+  --cmd-well: rgb(255 255 255 / 0.06);
+  --cmd-raise: var(--pp-node-2);
+  --surface: var(--pp-node-2);
+  --surface-3: rgb(255 255 255 / 0.06);
+  --text: var(--pp-text);
+  --text-2: rgb(245 245 247 / 0.7);
+  --text-3: var(--pp-muted);
+  --border: rgb(255 255 255 / 0.1);
+  --border-strong: rgb(255 255 255 / 0.12);
+  --ink: rgb(255 255 255 / 0.5);
+  --pick-hover: rgb(255 255 255 / 0.08);
+  --pick-muted: var(--pp-muted);
+  position: relative;
+  display: grid;
+  min-width: 0;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.075) 1px, transparent 1.4px) 0 0 / 20px 20px,
+    var(--pp-ink);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.06),
+    0 24px 48px -32px rgb(0 0 0 / 0.6);
+  color: var(--pp-text);
+}
+.pp-map__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 0 22px;
+}
+
+/* The page shows a clipped, inert preview; editing lives in the modal. */
+.pp-preview {
+  --pp-vignette-height: min(180px, 65%);
+  height: 480px;
+  overflow: clip;
+  display: block;
+  box-shadow: 0 24px 48px -32px rgb(0 0 0 / 0.6);
+}
+.pp-preview::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: inherit;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--pp-vignette-height)), transparent 100%);
+  pointer-events: none;
+}
+.pp-preview__content {
+  pointer-events: none;
+  user-select: none;
+}
+.pp-preview__content .pp-map {
+  box-shadow: none;
+}
+.pp-preview__content .pp-map__bar {
+  justify-content: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--pp-line);
+  border-radius: 24px 24px 0 0;
+  background: var(--pp-ink);
+}
+.pp-preview__content .pp-map__bar h3 {
+  justify-content: center;
+  text-align: center;
+}
+.pp-preview__content .pp-map__bar .cmd-hint {
+  display: none;
+}
+.pp-preview__content .pp-canvas {
+  overflow: clip;
+}
+.pp-preview__content :is(.pp-map__tools, .pp-savebar) {
+  display: none;
+}
+.pp-preview__footer {
+  position: absolute;
+  z-index: 4;
+  inset: auto 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: var(--pp-vignette-height);
+  padding: 24px;
+  background: linear-gradient(transparent, rgb(13 13 12 / 0.86) 55%, var(--pp-ink));
+  pointer-events: none;
+}
+.pp-preview__footer .btn {
+  pointer-events: auto;
+  background: var(--gold-500);
+  color: #1d1d1f;
+  border-color: transparent;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.4);
+}
+.pp-editor {
+  width: 90vw;
+  height: 90dvh;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 24px;
+  background: #0d0d0c;
+  color: #f5f5f7;
+  box-shadow: 0 32px 100px rgb(0 0 0 / 0.5);
+}
+.pp-editor[open] {
+  display: flex;
+  flex-direction: column;
+}
+/* It shares .pp-map's palette, whose display: grid would otherwise show the closed dialog in the page. */
+.pp-editor:not([open]) {
+  display: none;
+}
+.pp-editor::backdrop {
+  background: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(6px);
+}
+.pp-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 16px 22px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+.pp-editor__header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.pp-editor__header .pp-map__tools {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.pp-editor__close {
+  position: absolute;
+  top: 0;
+  right: calc(-1 * min(40px, 5vw));
+  display: grid;
+  place-items: center;
+  width: min(32px, 4dvh);
+  height: min(32px, 4dvh);
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 50%;
+  background: #201f1d;
+  color: #f5f5f7;
+  cursor: var(--cursor-pointer);
+}
+.pp-editor > .pp-map {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  border-radius: 0 0 24px 24px;
+  overflow: hidden;
+}
+.pp-editor > .pp-map > .pp-map__bar {
+  display: none;
+}
+.pp-editor .pp-canvas {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.pp-editor > .pp-map > .pp-savebar {
+  position: relative;
+  bottom: auto;
+  margin: 10px 0 18px;
+}
+@media (max-width: 640px) {
+  .pp-editor__header {
+    gap: 8px;
+    padding: 14px 12px;
+  }
+  .pp-editor__header h2 {
+    min-width: 0;
+    font-size: 14px;
+  }
+  .pp-editor__header .pp-map__tools {
+    gap: 4px;
+  }
+  .pp-editor__header .pp-chipbtn {
+    padding: 0 8px;
+  }
+}
+.pp-map__bar h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.pp-map__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--pp-line);
+  border-radius: 999px;
+  background: var(--pp-node);
+  color: var(--pp-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: var(--cursor-pointer);
+}
+@media (hover: hover) {
+  .pp-chipbtn:not(:disabled):hover {
+    background: var(--pp-node-2);
+  }
+}
+.pp-chipbtn:disabled {
+  opacity: 0.5;
+  cursor: var(--cursor-default);
+}
+.pp-onoff {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--pp-line);
+  border-radius: 999px;
+  background: var(--pp-node);
+  font-size: 12px;
+}
+.pp-onoff .cmd-switch {
+  scale: 0.8;
+}
+
+.pp-canvas {
+  position: relative;
+  min-width: 0;
+  padding: 26px 22px 30px;
+  overflow-x: auto;
+}
+.pp-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.pp-edge {
+  fill: none;
+  stroke: var(--pp-edge);
+  stroke-width: 1.4;
+  transition: stroke 300ms ease;
+}
+.pp-edge[data-kind="reject"] {
+  color: rgb(255 255 255 / 0.32);
+  stroke: rgb(255 255 255 / 0.2);
+  stroke-dasharray: 4 5;
+}
+.pp-edge[data-lit] {
+  stroke: var(--pp-gold);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: pp-draw 520ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+@keyframes pp-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+.pp-port {
+  fill: var(--pp-ink);
+  stroke: rgb(255 255 255 / 0.36);
+  stroke-width: 1.4;
+  transition: stroke 300ms ease;
+}
+.pp-port[data-lit] {
+  stroke: var(--pp-gold);
+}
+
+/* packets travelling the pipes: only in the Manage Pipeline modal */
+.pp-packets {
+  display: none;
+}
+.pp-editor .pp-packets {
+  display: inline;
+}
+.pp-packet {
+  color: rgb(255 255 255 / 0.85);
+}
+.pp-packet[data-lit] {
+  color: var(--pp-gold);
+}
+.pp-packet[data-kind="reject"] {
+  color: rgb(255 120 110 / 0.75);
+}
+.pp-packet__core {
+  fill: currentColor;
+}
+.pp-packet__glow {
+  fill: currentColor;
+  opacity: 0.18;
+}
+
+/* the spine down the middle; branches beside it */
+.pp-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+  justify-items: center;
+  align-items: center;
+  column-gap: 40px;
+  row-gap: 30px;
+  min-width: 640px;
+  animation: pp-in 360ms ease both;
+}
+@keyframes pp-in {
+  from {
+    opacity: 0;
+  }
+}
+.pp-grid > * {
+  grid-column: 1;
+}
+.pp-grid > [data-side],
+.pp-grid > .pp-branch {
+  grid-column: 2;
+  justify-self: stretch;
+}
+
+/* ---------- Nodes ---------- */
+
+.pp-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 12px;
+  width: min(100%, 340px);
+  padding: 12px 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 16px;
+  background: var(--pp-node);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 16px 28px -20px rgb(0 0 0 / 0.9);
+  transition: border-color 300ms ease, opacity 200ms ease;
+}
+.pp-node[data-small] {
+  width: 100%;
+  padding: 10px 12px;
+}
+.pp-node[data-then] {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--pp-ink);
+}
+.pp-node[data-off] {
+  opacity: 0.45;
+}
+.pp-node[data-flow] {
+  border-color: rgb(247 207 94 / 0.38);
+}
+.pp-node__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.pp-node__head--open {
+  width: 100%;
+  margin: -4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+  box-sizing: content-box;
+}
+@media (hover: hover) {
+  .pp-node__head--open:hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+  .pp-node__head--open:hover .pp-node__go {
+    opacity: 1;
+  }
+}
+.pp-node__head--open:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.5);
+}
+.pp-node__go {
+  flex: none;
+  align-self: flex-start;
+  margin-left: auto;
+  opacity: 0.4;
+  transition: opacity 200ms ease;
+}
+.pp-node__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.07);
+  color: rgb(245 245 247 / 0.8);
+}
+.pp-node[data-then] .pp-node__mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+}
+.pp-node[data-flow] .pp-node__mark {
+  background: var(--pp-gold);
+  color: #1d1d1f;
+}
+.pp-node[data-flow] .pp-node__mark--step {
+  background: none;
+}
+.pp-node[data-tone="stop"] .pp-node__mark {
+  color: #ff6961;
+}
+/* an approval: the gold diamond */
+.pp-node__mark--step {
+  position: relative;
+  background: none;
+}
+.pp-node__mark--step::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 4px;
+  background: var(--pp-gold);
+  rotate: 45deg;
+}
+.pp-node__mark--step > b {
+  position: relative;
+  color: #1d1d1f;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* a stage the Hub does itself (Information): the plain square, numbered */
+.pp-node__mark--auto > b {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* a live figure: how many wait here, or when it last ran */
+.pp-node__fig {
+  flex: none;
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.07);
+  color: rgb(245 245 247 / 0.78);
+  font-size: 11px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pp-node[data-tone="stop"] .pp-node__fig {
+  background: rgb(255 105 97 / 0.14);
+  color: #ff9f97;
+}
+.pp-node__fig ~ :is(.pp-node__go, .pp-node__end) {
+  margin-left: 6px;
+}
+.pp-node[data-off] .pp-node__mark--step::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--pp-gold);
+}
+.pp-node[data-off] .pp-node__mark--step > b {
+  color: var(--pp-gold);
+}
+.pp-node__text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.pp-node__text b {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.pp-node[data-then] .pp-node__text b {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgb(245 245 247 / 0.78);
+}
+.pp-node__text small {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--pp-muted);
+}
+.pp-node__end {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.pp-node__end .cmd-switch,
+.pp-opt .cmd-switch {
+  scale: 0.8;
+}
+.pp-node__body {
+  display: grid;
+  gap: 10px;
+}
+
+/* the step's name, typed in place */
+.pp-node__input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  margin-left: -4px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pp-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+@media (hover: hover) {
+  .pp-node__input:not(:disabled):hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+}
+.pp-map .pp-node__input:focus {
+  outline: none;
+  border-color: rgb(255 255 255 / 0.36);
+  background: rgb(255 255 255 / 0.04);
+}
+.pp-map .pp-node__input[data-invalid] {
+  border-color: var(--danger);
+}
+.pp-node__input:disabled {
+  opacity: 1;
+}
+
+/* requester */
+.pp-from,
+.pp-checks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: rgb(245 245 247 / 0.72);
+}
+.pp-from li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-from svg {
+  flex: none;
+  color: var(--pp-muted);
+}
+.pp-checks li {
+  position: relative;
+  padding-left: 16px;
+}
+.pp-checks li::before {
+  content: "";
+  position: absolute;
+  top: 0.45em;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.28);
+}
+
+/* what the request carries, riding on the edge */
+.pp-sends {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  max-width: 340px;
+  margin: -12px 0;
+  padding: 3px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  background: var(--pp-ink);
+}
+.pp-sends > span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  font-size: 11px;
+  color: rgb(245 245 247 / 0.72);
+}
+
+/* queue settings */
+.pp-opts {
+  display: grid;
+  gap: 8px;
+}
+.pp-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: rgb(245 245 247 / 0.72);
+}
+.pp-map .pp-days {
+  width: 116px;
+  height: 30px;
+  border-color: var(--pp-line);
+  background: var(--pp-node-2);
+  font-size: 12px;
+}
+.pp-map .pp-days.pick-num:focus-within {
+  border-color: rgb(255 255 255 / 0.36);
+  box-shadow: none;
+}
+.pp-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--gold-300, #f7cf5e);
+}
+
+/* approvals */
+.pp-node__who {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pp-who.seg {
+  padding: 2px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.05);
+}
+.pp-who .seg__opt {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 8px;
+  color: var(--pp-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.pp-who .seg__opt[aria-checked="true"] {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--pp-text);
+  box-shadow: none;
+}
+.pp-faces {
+  display: flex;
+  align-items: center;
+}
+.pp-faces .cmd-avatar {
+  box-shadow: 0 0 0 2px var(--pp-node);
+}
+.pp-faces .cmd-avatar + .cmd-avatar {
+  margin-left: -6px;
+}
+.pp-faces i {
+  margin-left: 6px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--pp-muted);
+}
+.pp-nobody {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: #ff9f97;
+}
+.pp-add {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  margin: -8px 0;
+  padding: 0 11px;
+  border: 1px dashed rgb(255 255 255 / 0.22);
+  border-radius: 999px;
+  background: var(--pp-ink);
+  color: var(--pp-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: var(--cursor-pointer);
+  transition: color 200ms ease, border-color 200ms ease;
+}
+@media (hover: hover) {
+  .pp-add:not(:disabled):hover {
+    border-color: rgb(255 255 255 / 0.45);
+    color: var(--pp-text);
+  }
+}
+.pp-add:disabled {
+  opacity: 0.4;
+}
+
+/* the rejection branch beside the approvals */
+.pp-branch {
+  display: grid;
+  align-self: start;
+  align-content: start;
+  gap: 22px;
+}
+
+/* the established Hub, fanned out below Applied */
+.pp-outs {
+  grid-column: 1 / -1 !important;
+  justify-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(var(--outs, 4), minmax(124px, 1fr));
+  align-items: start;
+  gap: 12px;
+  margin-top: 10px;
+}
+.pp-out {
+  display: grid;
+  gap: 22px;
+}
+/* a part of the Hub: its icon over its name and what changes there */
+.pp-out > .pp-node:not([data-then]) .pp-node__head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pp-out .pp-node__go {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.pp-out .pp-node__end {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+}
+
+/* ---------- Save bar ---------- */
+
+.pp-map > .pp-savebar {
+  position: sticky;
+  bottom: 20px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-self: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 6px 6px 6px 18px;
+  border-radius: 999px;
+  background: #2a2927;
+  color: #f5f5f7;
+  font-size: 13px;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.1),
+    0 18px 40px -16px rgb(0 0 0 / 0.7);
+}
+.pp-savebar > span {
+  margin-right: 10px;
+}
+.pp-savebar .btn {
+  border-color: transparent;
+  background: rgb(255 255 255 / 0.1);
+  color: #f5f5f7;
+}
+.pp-savebar .btn.btn--dark {
+  background: var(--gold-500);
+  color: #1d1d1f;
+}
+
+/* ---------- Request rows ---------- */
+
+.pp-reqs {
+  container: ppreqs / inline-size;
+  display: grid;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--cmd-line);
+  border-radius: 22px;
+  background: var(--pp-surface);
+  list-style: none;
+}
+.pp-reqs > li + li {
+  position: relative;
+}
+.pp-reqs > li + li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 14px;
+  left: 62px;
+  height: 1px;
+  background: var(--cmd-line);
+}
+.pp-req {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 230px 200px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px 12px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--cmd-text);
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+  transition: background-color var(--t) ease;
+}
+@media (hover: hover) {
+  .pp-req:hover {
+    background: var(--cmd-hover);
+  }
+}
+.pp-req:focus-visible {
+  outline: 1px solid var(--cmd-muted);
+  outline-offset: -1px;
+}
+.pp-req__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cmd-well);
+  color: var(--cmd-text-2);
+}
+.pp-req__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.pp-req__main b {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pp-req__main small,
+.pp-req__route small {
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cmd-muted);
+}
+.pp-req__route {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.pp-req__route em {
+  margin-left: 8px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--danger);
+}
+.pp-req__end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+@container ppreqs (max-width: 640px) {
+  .pp-req {
+    grid-template-columns: 36px minmax(0, 1fr);
+    row-gap: 8px;
+  }
+  .pp-req__route,
+  .pp-req__end {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-grid,
+  .pp-edge[data-lit] {
+    animation: none !important;
+  }
+  .pp-editor .pp-packets {
+    display: none;
+  }
+  .pp-edge,
+  .pp-port,
+  .pp-item,
+  .pp-node,
+  .pp-add {
+    transition: none !important;
+  }
+}
+
+/* ---------- High-risk save confirmation (after Vercel's 2FA notice): red edge, icon tile, change list, footer bar ---------- */
+.pp-risk {
+  width: min(440px, calc(100vw - 32px));
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(255 69 58 / 0.55);
+  border-radius: 14px;
+  background: #0a0a0a;
+  color: #ededed;
+  box-shadow:
+    0 0 0 4px rgb(255 69 58 / 0.08),
+    0 24px 80px rgb(0 0 0 / 0.6);
+}
+.pp-risk::backdrop {
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
+}
+.pp-risk__main {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 24px 24px 20px;
+}
+.pp-risk__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  border: 1px solid rgb(255 69 58 / 0.35);
+  border-radius: 10px;
+  background: rgb(255 69 58 / 0.1);
+  color: #ff6961;
+}
+.pp-risk__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(255 69 58 / 0.14);
+  color: #ff8a82;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.pp-risk h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.pp-risk p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgb(237 237 237 / 0.62);
+}
+.pp-risk__list {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 12px 14px;
+  list-style: none;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.03);
+  font-size: 13px;
+  color: rgb(237 237 237 / 0.85);
+}
+.pp-risk__list li {
+  position: relative;
+  padding-left: 14px;
+}
+.pp-risk__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ff6961;
+}
+.pp-risk__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  background: #111;
+}
+.pp-risk .btn:not(.btn--danger) {
+  --btn-bg: #0a0a0a;
+  --btn-fg: #ededed;
+  --btn-bd: rgb(255 255 255 / 0.14);
+  --btn-bg-h: #1a1a1a;
+  --btn-bd-h: rgb(255 255 255 / 0.22);
+}
+
+/* ---------- Check Integrity: node outcomes and the Assessment report (PipelineStudio CheckLine, AssessmentReport) ---------- */
+.pp-node[data-check="pass"] {
+  border-color: rgb(48 209 88 / 0.45);
+}
+.pp-node[data-check="warn"] {
+  border-color: rgb(247 207 94 / 0.6);
+}
+.pp-node[data-check="fail"] {
+  border-color: rgb(255 69 58 / 0.75);
+  box-shadow:
+    0 0 0 3px rgb(255 69 58 / 0.12),
+    0 16px 28px -20px rgb(0 0 0 / 0.9);
+}
+.pp-node__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: rgb(245 245 247 / 0.72);
+}
+.pp-node__check > svg {
+  flex: none;
+  margin-top: 1px;
+}
+:is(.pp-node__check, .pp-report li, .pp-report__badge)[data-status="pass"] > svg {
+  color: #30d158;
+}
+:is(.pp-node__check, .pp-report li, .pp-report__badge)[data-status="warn"] > svg {
+  color: #f7cf5e;
+}
+:is(.pp-node__check, .pp-report li, .pp-report__badge)[data-status="fail"] > svg {
+  color: #ff6961;
+}
+.pp-node__check[data-status="fail"] {
+  color: #ff8a82;
+}
+
+.pp-report {
+  --ok: #30d158;
+  --warn: #f7cf5e;
+  --bad: #ff6961;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 18px;
+  background: #141413;
+  color: #f5f5f7;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.55);
+  animation: pp-report-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pp-report[data-status="fail"] {
+  border-color: rgb(255 69 58 / 0.45);
+}
+@keyframes pp-report-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+    translate: 0 8px;
+  }
+}
+/* Centred over the map in the pipeline modal, on a scrim that dims the map behind it. */
+.pp-report-scrim {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border-radius: inherit;
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(3px);
+  animation: pp-scrim-in 200ms ease both;
+}
+@keyframes pp-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-report,
+  .pp-report-scrim {
+    animation: none;
+  }
+}
+.pp-report__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 10px 18px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+.pp-report__kicker {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(245 245 247 / 0.55);
+}
+.pp-report__x {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: var(--cursor-pointer);
+}
+.pp-report__x:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.5);
+}
+.pp-report__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px 18px;
+}
+
+/* the verdict: one line that says whether the pipeline's integrity holds */
+.pp-report__verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pp-report__verdict > span:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.pp-report__verdict b {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.pp-report__verdict[data-status="pass"] b {
+  color: var(--ok);
+}
+.pp-report__verdict[data-status="warn"] b {
+  color: var(--warn);
+}
+.pp-report__verdict[data-status="fail"] b {
+  color: var(--bad);
+}
+.pp-report__verdict small {
+  font-size: 12px;
+  color: rgb(245 245 247 / 0.6);
+}
+.pp-report__badge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgb(48 209 88 / 0.12);
+}
+.pp-report__badge[data-status="warn"] {
+  background: rgb(247 207 94 / 0.12);
+}
+.pp-report__badge[data-status="fail"] {
+  background: rgb(255 69 58 / 0.14);
+}
+.pp-report__badge[data-status] > svg {
+  color: var(--ok);
+}
+.pp-report__badge[data-status="warn"] > svg {
+  color: var(--warn);
+}
+.pp-report__badge[data-status="fail"] > svg {
+  color: var(--bad);
+}
+.pp-report__stale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgb(247 207 94 / 0.1);
+  font-size: 12px;
+  color: var(--warn);
+}
+
+/* tests passed, warnings and failures as one bar, then the figures */
+.pp-report__meter {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  margin: 16px 0 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+}
+.pp-report__meter i {
+  flex-basis: 0;
+  background: var(--ok);
+  transform-origin: left;
+  animation: pp-meter-in 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.pp-report__meter i[data-status="warn"] {
+  background: var(--warn);
+}
+.pp-report__meter i[data-status="fail"] {
+  background: var(--bad);
+}
+@keyframes pp-meter-in {
+  from {
+    scale: 0 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-report__meter i {
+    animation: none;
+  }
+}
+.pp-report__figs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+.pp-report__figs > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.03);
+}
+.pp-report__figs dt {
+  font-size: 11px;
+  color: rgb(245 245 247 / 0.55);
+}
+.pp-report__figs dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.pp-report__figs dd small {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgb(245 245 247 / 0.5);
+}
+.pp-report__figs > [data-status="warn"] dd {
+  color: var(--warn);
+}
+.pp-report__figs > [data-status="fail"] dd {
+  color: var(--bad);
+}
+.pp-report__stats {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  list-style: none;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.03);
+  font-size: 12px;
+}
+.pp-report__stats li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgb(245 245 247 / 0.6);
+}
+.pp-report__stats b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: #f5f5f7;
+}
+
+/* the tests, by group */
+.pp-report__group h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 18px 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(245 245 247 / 0.5);
+}
+.pp-report__group h3 span {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.pp-report__group ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pp-report__group li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+}
+.pp-report__group li > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.pp-report__group li span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.pp-report__group li b {
+  font-weight: 500;
+}
+.pp-report__group li small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(245 245 247 / 0.6);
+}
+.pp-report__log {
+  margin-top: 18px;
+  font-size: 12px;
+}
+.pp-report__log summary {
+  color: rgb(245 245 247 / 0.7);
+  cursor: var(--cursor-pointer);
+}
+.pp-report__log ol {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 10px 12px 10px 28px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.03);
+  color: rgb(245 245 247 / 0.7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.pp-report__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px 10px 18px;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+.pp-report__foot small {
+  font-size: 11.5px;
+  color: rgb(245 245 247 / 0.5);
+}
+.pp-report__foot > span {
+  display: flex;
+  gap: 6px;
+}
+@media (max-width: 640px) {
+  .pp-report-scrim {
+    padding: 12px;
+  }
+  .pp-report__figs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

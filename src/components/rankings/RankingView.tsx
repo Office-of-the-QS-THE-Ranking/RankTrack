@@ -222,7 +222,7 @@ export function RankingView({
         idBase={`rk-${ranking.slug}`}
         counts={{ Evidence: ranking.pending || undefined }}
         actions={
-          <Link href={`/admin/reports?ranking=${encodeURIComponent(ranking.short)}`} className="btn content-tabs__action">
+          <Link href={`/admin/workspace/build-a-report?ranking=${encodeURIComponent(ranking.short)}`} className="btn content-tabs__action">
             <Icon name="reports" size={16} /> Reports
           </Link>
         }
@@ -508,7 +508,7 @@ export function RankingView({
                           <Icon name="evidence" size={18} />
                         </span>
                         <span className="rk-evi__main">
-                          <Link href={`/admin/contributions?item=${e.id}`} className="rk-evi__title">
+                          <Link href={`/admin/unit-submissions?item=${e.id}`} className="rk-evi__title">
                             {e.title}
                           </Link>
                           <span className="rk-evi__meta">

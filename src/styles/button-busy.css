@@ -1,0 +1,51 @@
+/*
+ * The loader ButtonBusy puts inside the button that started an action. A ring with a tapering
+ * tail in the button's own text colour, so it needs no per-surface styling. It takes the icon's
+ * place when the button has one, otherwise it leads the label.
+ */
+[data-busy] {
+  opacity: 1 !important;
+  cursor: var(--cursor-default) !important;
+}
+[data-loader-hidden] {
+  display: none !important;
+}
+
+.btn-loader {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.14em;
+  border-radius: 50%;
+  background: conic-gradient(from 90deg, transparent 0 12%, currentColor 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  pointer-events: none;
+  animation:
+    btn-loader-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    btn-loader-spin 0.75s linear infinite;
+}
+
+@keyframes btn-loader-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes btn-loader-spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-loader {
+    animation: btn-loader-spin 1.6s linear infinite;
+  }
+}
+@media (forced-colors: active) {
+  .btn-loader {
+    background: conic-gradient(from 90deg, transparent 0 12%, ButtonText 100%);
+  }
+}

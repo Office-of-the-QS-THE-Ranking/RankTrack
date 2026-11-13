@@ -12,11 +12,11 @@ export async function Process() {
     <section className="w-process w-section" aria-labelledby="process-title">
       <div className="w-process__intro w-wrap w-grid">
         <h2 id="process-title" className="w-head" data-reveal>
-          Asked once, counted everywhere
+          How a result is built
         </h2>
         <p className="w-lead" data-reveal style={{ ["--d" as string]: "90ms" }}>
-          Colleges, centres and offices send each piece of evidence once. The Office checks it, maps it to every indicator it supports and credits the
-          unit in every ranking where it counts.
+          {processStages.length === 6 ? "Six" : processStages.length} steps, in order. Colleges, centres and offices send each piece of evidence once; the Office checks
+          it and counts it in every ranking it supports.
         </p>
       </div>
       <div className="w-wrap">

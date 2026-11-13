@@ -39,6 +39,7 @@ import { peerLocation } from "@/lib/forms/copies";
 import { PrivacyStep } from "./PrivacyStep";
 import { useAnswers, type Peer } from "./useCopy";
 import { CopyLinkActions } from "./CopyLinkActions";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 /** What the confirmation says, by what the form is for. */
 const RECEIVED: Record<FormKind, string> = {
@@ -185,6 +186,7 @@ export function Responder({ form, copy, who, directory }: { form: ResponderForm;
   const [visited, setVisited] = useState<Set<number>>(() => new Set([0]));
   const [tried, setTried] = useState(false);
   const [sending, setSending] = useState(false);
+  usePending(sending);
   const [done, setDone] = useState<{ ref: string; at: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);

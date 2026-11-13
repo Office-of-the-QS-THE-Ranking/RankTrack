@@ -268,7 +268,7 @@ export function Overview({
                     <p>{e.comments[0].text}</p>
                   </div>
                 )}
-                <Link href={`/admin/contributions?item=${e.id}`} className="btn btn--dark">
+                <Link href={`/admin/unit-submissions?item=${e.id}`} className="btn btn--dark">
                   <Icon name="comment" size={18} /> Open in the queue
                 </Link>
               </div>

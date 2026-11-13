@@ -156,7 +156,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
           className="rw-top"
           aside={
             internal && (
-              <Link href="/admin/units" className="btn btn--sm">
+              <Link href="/admin/unit-submissions?tab=units" className="btn btn--sm">
                 All units
               </Link>
             )

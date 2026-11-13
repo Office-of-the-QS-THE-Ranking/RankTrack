@@ -1,7 +1,7 @@
 import "server-only";
 
 /*
- * Shapes the governance store for the Administration console, section by section, according to what
+ * Shapes the governance store for the Command & Control console, section by section, according to what
  * the viewer may see.
  */
 import { participationKind } from "../directory";
@@ -33,7 +33,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
   /* Accounts */
   const grantsOf = new Map<string, Grant[]>(state.accounts.map((a) => [a.id, grantsFor(a, state.units, day, state.config.rolePermissions)]));
   const accountReach = (unitId: string) => can(viewer, "accounts", "view", { unitId });
-  const accounts: AccountRow[] | undefined = viewer.admin.includes("accounts")
+  const accounts: AccountRow[] | undefined = viewer.commandControl.includes("accounts")
     ? state.accounts
         .filter((a) => accountReach(a.unitId))
         .map((a) => {
@@ -76,7 +76,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
 
   /* Data governance */
   const results = runRules(state.rules, evidence, stories, state.duplicates);
-  const governance = viewer.admin.includes("governance");
+  const governance = viewer.commandControl.includes("governance");
   const datasets: DatasetRow[] | undefined = governance
     ? state.datasets.map((d) => ({
         ...d,
@@ -125,7 +125,7 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
 
   /* Audit */
   // The trail is read from audit_events: the newest 800 entries for the log, its length from the chain's head.
-  const audit = viewer.admin.includes("audit") ? { events: await latestAudit(800), total: state.auditHead.seq } : undefined;
+  const audit = viewer.commandControl.includes("audit") ? { events: await latestAudit(800), total: state.auditHead.seq } : undefined;
 
   /* Health */
   const live = state.accounts.filter((a) => a.status !== "Deactivated");
@@ -153,18 +153,18 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
   const myDecisions = requests.filter((r) => r.canDecide).length;
 
   const attention: Attention[] = [];
-  if (myDecisions) attention.push({ section: "workflows", text: `${myDecisions} ${myDecisions === 1 ? "request" : "requests"} to approve`, tone: "review" });
-  if (alertsOpen && viewer.admin.includes("security")) attention.push({ section: "security", text: `${alertsOpen} open security ${alertsOpen === 1 ? "alert" : "alerts"}`, tone: "danger", focus: "alerts" });
-  if (inactive.length && viewer.admin.includes("accounts")) attention.push({ section: "accounts", text: `${inactive.length} idle ${inactive.length === 1 ? "account" : "accounts"} to review`, tone: "revise", focus: "flagged" });
-  if (keysOverdue && viewer.admin.includes("security")) attention.push({ section: "security", text: `${keysOverdue} ${keysOverdue === 1 ? "key" : "keys"} due for rotation`, tone: "revise", focus: "keys" });
-  if (expiring.length && viewer.admin.includes("roles")) attention.push({ section: "roles", text: `${expiring.length} temporary ${expiring.length === 1 ? "role ends" : "roles end"} within 21 days`, tone: "review", focus: "temporary" });
+  if (myDecisions) attention.push({ section: "process-pipelines", text: `${myDecisions} ${myDecisions === 1 ? "request" : "requests"} to approve`, tone: "review" });
+  if (alertsOpen && viewer.commandControl.includes("security")) attention.push({ section: "security", text: `${alertsOpen} open security ${alertsOpen === 1 ? "alert" : "alerts"}`, tone: "danger", focus: "alerts" });
+  if (inactive.length && viewer.commandControl.includes("accounts")) attention.push({ section: "accounts", text: `${inactive.length} idle ${inactive.length === 1 ? "account" : "accounts"} to review`, tone: "revise", focus: "flagged" });
+  if (keysOverdue && viewer.commandControl.includes("security")) attention.push({ section: "security", text: `${keysOverdue} ${keysOverdue === 1 ? "key" : "keys"} due for rotation`, tone: "revise", focus: "keys" });
+  if (expiring.length && viewer.commandControl.includes("roles")) attention.push({ section: "roles", text: `${expiring.length} temporary ${expiring.length === 1 ? "role ends" : "roles end"} within 21 days`, tone: "review", focus: "temporary" });
   if (failingRules.length && governance) attention.push({ section: "governance", text: `${failingRules.length} data quality ${failingRules.length === 1 ? "check" : "checks"} failing`, tone: "revise", focus: "quality" });
   const openDupes = duplicates?.filter((d) => !d.decision).length ?? 0;
   if (openDupes) attention.push({ section: "governance", text: `${openDupes} possible ${openDupes === 1 ? "duplicate" : "duplicates"} to check`, tone: "review", focus: "quality" });
-  if (!withinRpo && viewer.admin.includes("backup"))
+  if (!withinRpo && viewer.commandControl.includes("backup"))
     attention.push({ section: "backup", text: `Last ${Math.round(atRiskMinutes / 60)} h of changes not backed up`, tone: "danger" });
   const overdueReviews = state.security.reviews.filter((r) => r.status !== "Complete" && r.due < day).length;
-  if (overdueReviews && viewer.admin.includes("security")) attention.push({ section: "security", text: `${overdueReviews} access ${overdueReviews === 1 ? "review" : "reviews"} overdue`, tone: "danger", focus: "reviews" });
+  if (overdueReviews && viewer.commandControl.includes("security")) attention.push({ section: "security", text: `${overdueReviews} access ${overdueReviews === 1 ? "review" : "reviews"} overdue`, tone: "danger", focus: "reviews" });
 
   const health: Health = {
     accounts: {
@@ -211,19 +211,19 @@ export async function consoleData(viewer: Viewer, given?: GovernanceState): Prom
     rules: governance ? results : undefined,
     duplicates,
     terms,
-    security: viewer.admin.includes("security") ? state.security : undefined,
+    security: viewer.commandControl.includes("security") ? state.security : undefined,
     audit,
     workflows: state.workflows,
     approvals: state.workflows.filter((w) => needsApproval(ctx, w.id)).map((w) => w.id),
     requests,
-    config: viewer.admin.includes("config")
+    config: viewer.commandControl.includes("config")
       ? {
           ...state.config,
           rankingMeta: ref.rankings.map((r) => ({ slug: r.slug, name: r.name, short: r.short, family: r.family, body: ref.families[r.family]?.body ?? r.family })),
           deadlineSources: ref.deadlineSources.map((d) => ({ id: d.id, name: d.name, page: d.page, kind: d.kind, slugs: [...new Set(d.rules.flatMap((x) => x.slugs))] })),
         }
       : undefined,
-    backup: viewer.admin.includes("backup") ? state.backup : undefined,
+    backup: viewer.commandControl.includes("backup") ? state.backup : undefined,
     people: state.accounts.filter((a) => a.status !== "Deactivated").map((a) => ({ id: a.id, name: a.name, unitId: a.unitId, status: a.status })),
     signIn: { domains: state.security.sso.domains, allowGuests: state.security.sso.allowGuests },
     catalog: {

@@ -6,6 +6,7 @@
 import { baseline, movement, summarize } from "@/lib/analytics/brief";
 import { valueText } from "@/lib/analytics/format";
 import type { Catalog, CatalogIndicator, EditionReport, IndicatorReport, Snapshot } from "@/lib/analytics/types";
+import { ROLE } from "@/lib/governance/catalog";
 import { canWith, type Grant } from "@/lib/governance/rbac";
 
 /* ---------- Who gets which tool ---------- */
@@ -18,6 +19,8 @@ export type DataTool = (typeof DATA_TOOLS)[number];
  * model is offered at all; those that reach into a unit (unit_detail, search_evidence) check that unit again when called.
  */
 export function dataToolsFor(grants: Grant[]): DataTool[] {
+  // External Contributors file for the Office from outside the University: the assistant hands guests no live records.
+  if (grants.every((g) => g.roleId === ROLE.external)) return [];
   const can = (module: Parameters<typeof canWith>[1], action: Parameters<typeof canWith>[2] = "view") => canWith(grants, module, action);
   const rankings = can("rankings");
   const evidence = can("evidence");

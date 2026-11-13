@@ -1,0 +1,274 @@
+/* The public website's reading aids: the movement chip (Move.tsx), the guide to reading a result
+   (ReadingGuide.tsx) and the home page's "What you can find here" rows (home/StartHere.tsx). They
+   exist so a visitor who has never opened a ranking table can follow the site. Tokens live in site.css. */
+
+/* ---------- movement: a sign, a fill and plain words ---------- */
+.w-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-height: 32px;
+  padding: 5px 14px 5px 11px;
+  border-radius: 16px;
+  background: var(--stone);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--step-small);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+.w-move svg {
+  flex: none;
+  width: 0.72em;
+  height: 0.72em;
+  fill: currentColor;
+}
+.w-move--up {
+  background: var(--gold);
+  color: var(--black);
+}
+.w-band--stone .w-move--same,
+.w-band--stone .w-move--down,
+.w-guide .w-move--same {
+  background: var(--stone-2);
+}
+.w-on-dark .w-move--same,
+.w-on-dark .w-move--down,
+.w-band--ink .w-move--same,
+.w-band--ink .w-move--down {
+  background: var(--charcoal);
+  color: var(--on-dark);
+}
+.w-band--gold .w-move--up,
+.w-phero__fig .w-move--up {
+  background: var(--black);
+  color: var(--gold);
+}
+.w-band--gold .w-move--same,
+.w-band--gold .w-move--down,
+.w-phero__fig .w-move--same,
+.w-phero__fig .w-move--down {
+  background: var(--gold-soft);
+}
+
+.w-nowrap {
+  white-space: nowrap;
+}
+
+/* ---------- how to read a result ---------- */
+.w-guide {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  row-gap: 28px;
+  align-items: start;
+  margin-bottom: clamp(56px, 6vw, 104px);
+  padding: clamp(28px, 3.4vw, 56px);
+  border-top-right-radius: var(--arc);
+  background: var(--stone);
+}
+.w-guide__title {
+  grid-column: 1 / 4;
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.125rem);
+  line-height: 1.08;
+  letter-spacing: -0.018em;
+}
+.w-guide__points {
+  grid-column: 4 / 13;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px clamp(24px, 3vw, 56px);
+}
+.w-guide__points li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--step-body);
+  line-height: 1.5;
+}
+.w-guide__points li > span:last-child {
+  color: var(--muted);
+}
+.w-guide__points b {
+  font-weight: 700;
+  line-height: 1.3;
+}
+.w-guide__spec {
+  display: flex;
+  align-items: flex-end;
+  height: 1.15em;
+  margin-bottom: 0.32em;
+  font-size: clamp(2rem, 1.3rem + 2.1vw, 3.25rem);
+  line-height: 1;
+}
+.w-guide__spec sup {
+  align-self: flex-start;
+  margin-left: 0.06em;
+  font-size: 0.42em;
+  line-height: 1.6;
+}
+.w-guide__spec--move {
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.24em;
+  height: 1em;
+  margin-block: 0.075em 0.395em;
+  padding: 0 0.42em 0 0.32em;
+  border-radius: 0.5em;
+  background: var(--gold);
+  color: var(--black);
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.w-guide__spec--move svg {
+  width: 0.42em;
+  height: 0.42em;
+  fill: currentColor;
+}
+@media (max-width: 1180px) {
+  .w-guide__title,
+  .w-guide__points {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .w-guide {
+    margin-inline: calc(var(--margin) * -1);
+    padding: 36px var(--margin) 40px;
+    border-top-right-radius: 0;
+  }
+  .w-guide__points {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+  .w-guide__spec {
+    font-size: 2.25rem;
+  }
+}
+
+/* ---------- home: what you can find here ---------- */
+.w-start__in {
+  align-items: start;
+  row-gap: 40px;
+}
+.w-start__copy {
+  grid-column: 1 / 6;
+  position: sticky;
+  top: calc(var(--header-h) + 40px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2vw, 28px);
+}
+.w-start__copy .w-lead {
+  max-width: 30ch;
+}
+.w-start__rows {
+  grid-column: 7 / 13;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.w-start__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  grid-template-areas:
+    "label go"
+    "text go";
+  align-items: center;
+  column-gap: clamp(16px, 2vw, 32px);
+  row-gap: 6px;
+  padding: clamp(22px, 2.1vw, 32px) clamp(22px, 2.4vw, 36px);
+  background: var(--stone);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color var(--t-hover) ease;
+}
+.w-start__rows li:first-child .w-start__row {
+  border-top-right-radius: var(--arc);
+}
+.w-start__label {
+  grid-area: label;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.15rem + 1.15vw, 2.25rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.018em;
+}
+.w-start__text {
+  grid-area: text;
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: var(--step-body);
+  line-height: 1.45;
+  transition: color var(--t-hover) ease;
+}
+.w-start__go {
+  grid-area: go;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--black);
+  transition:
+    background-color var(--t-hover) ease,
+    color var(--t-hover) ease;
+}
+.w-start__go svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--t-ui) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .w-start__row:hover {
+    background: var(--gold);
+  }
+  .w-start__row:hover .w-start__text {
+    color: var(--black);
+  }
+  .w-start__row:hover .w-start__go {
+    background: var(--black);
+    color: var(--gold);
+  }
+  .w-start__row:hover .w-start__go svg {
+    transform: translateX(3px);
+  }
+}
+.w-start__row:active {
+  background: var(--gold);
+}
+@media (max-width: 1000px) {
+  .w-start__copy,
+  .w-start__rows {
+    grid-column: 1 / -1;
+  }
+  .w-start__copy {
+    position: static;
+  }
+  .w-start__copy .w-lead {
+    max-width: 40ch;
+  }
+}
+@media (max-width: 600px) {
+  .w-start__row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    padding: 20px;
+  }
+  .w-start__go {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .w-start__go svg {
+    transition: none;
+  }
+}

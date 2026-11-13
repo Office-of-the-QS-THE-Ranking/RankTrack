@@ -114,6 +114,9 @@ activity register over the edition's academic years. `per: "year"` takes the lat
 `per: "average"` the mean across the years (GreenMetric ED4, ED5 and ED8 ask per year).
 `{ kind: "template", profile, measure }` takes a total from the latest template upload.
 
+A figure a reviewer accepted from a unit's evidence (`docs/evidence-review.md`) is offered the same way, beside the
+indicator that takes a number: `Facts.findings`, read by `evidenceFigures()` in `server/load.ts`.
+
 ---
 
 ## 3. Facts, and what a report says

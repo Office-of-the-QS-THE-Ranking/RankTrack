@@ -8,7 +8,7 @@
  */
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Hint } from "@/components/admin/ui";
+import { Hint } from "@/components/command-control/ui";
 import { RowMenu } from "@/components/publications/PostManager";
 import { Icon } from "@/components/ui/Icon";
 import { DateField, NumberField, Select } from "@/components/ui/pickers";

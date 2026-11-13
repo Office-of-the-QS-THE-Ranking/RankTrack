@@ -611,9 +611,10 @@ html:has(.w-arch) {
 .w-rkitem__res {
   flex: none;
   font-family: var(--font-display);
-  font-size: var(--step-lead);
+  font-size: clamp(1.5rem, 1.25rem + 0.8vw, 2rem);
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1;
+  letter-spacing: -0.02em;
   white-space: nowrap;
   font-variant-numeric: lining-nums tabular-nums;
 }
@@ -626,9 +627,7 @@ html:has(.w-arch) {
   line-height: 1.5;
 }
 .w-rkitem__note {
-  display: block;
-  margin-top: 8px;
-  font-size: var(--step-small);
+  margin-top: 14px;
 }
 @media (hover: hover) and (pointer: fine) {
   .w-rkitem:hover .w-rkitem__name {
@@ -822,11 +821,25 @@ html:has(.w-arch) {
   }
 }
 @media (max-width: 600px) {
+  /* on a phone the circles are too small for a ranking's name: they become two columns of full pills */
   .w-counts__rings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
   .w-counts__rk {
-    padding: 8%;
+    aspect-ratio: auto;
+    place-items: center start;
+    min-height: 52px;
+    padding: 8px 34px 8px 18px;
+    border-radius: 26px;
+    text-align: left;
+  }
+  .w-counts__state {
+    top: 50%;
+    right: 16px;
+    bottom: auto;
+    left: auto;
+    margin: -4px 0 0;
   }
   .w-counts__notes {
     margin-top: 80px;
@@ -851,6 +864,7 @@ html:has(.w-arch) {
 .w-stages {
   --open: 0.58;
   display: flex;
+  counter-reset: stage;
   height: clamp(460px, 58vh, 560px);
 }
 .w-stage {
@@ -886,6 +900,16 @@ html:has(.w-arch) {
 }
 .w-stage:has(.w-stage__input:checked) {
   flex-grow: 7;
+}
+/* the stages are steps in order, so each one carries its number from the list */
+.w-stage {
+  counter-increment: stage;
+}
+.w-stage__tab span::before,
+.w-stage__name::before {
+  content: counter(stage) ".";
+  margin-inline-end: 0.3em;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .w-stage__input {
   position: absolute;
@@ -1172,8 +1196,9 @@ html:has(.w-arch) {
   overflow: hidden;
 }
 .w-folder__title {
-  font-size: var(--step-lead);
-  line-height: 1.12;
+  font-size: clamp(1.5rem, 1.15rem + 1.2vw, 2.375rem);
+  line-height: 1.08;
+  letter-spacing: -0.018em;
 }
 .w-folder__unit {
   font-size: var(--step-small);
@@ -1391,13 +1416,13 @@ html:has(.w-arch) {
   object-fit: cover;
 }
 .w-office__text {
-  grid-column: 8 / 12;
+  grid-column: 7 / 13;
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: clamp(36px, 4.4vw, 64px);
-  max-width: 34ch;
+  max-width: 40ch;
   padding-top: 10px;
 }
 .w-office__sub {

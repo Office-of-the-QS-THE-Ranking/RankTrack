@@ -8,56 +8,49 @@ import { UNIT_CATEGORY_TABS as CATEGORIES } from "@/lib/unit-categories";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Empty, MeterRow } from "@/components/ui/primitives";
 import { Tabs, TabPanel } from "@/components/ui/interactive";
-import { SearchField } from "@/components/ui/search-field";
-import { useFeature } from "@/components/hub/HubProvider";
-import { ReportOutput } from "@/components/reports/ReportOutput";
 import { ClickableTableRow } from "@/components/ui/ClickableTableRow";
 import { UnitMark } from "@/components/units/UnitMark";
 import { UnitLeaderboard } from "./UnitLeaderboard";
 import { buildUnitLeaderboard } from "@/lib/governance/unit-leaderboard";
 
 const VIEWS = ["Submissions", "Rankings"] as const;
-const SEARCH_EXAMPLES = ["Search by unit name", "Search by unit code", "Search by coordinator"];
-type Category = typeof CATEGORIES[number];
-const REPORT_HEAD = ["Unit", "Assigned", "Completed", "Completion", "Validated", "Revisions", "Rankings served"];
+export const UNIT_SEARCH_EXAMPLES = ["Search by unit name", "Search by unit code", "Search by coordinator"];
+export type UnitCategory = typeof CATEGORIES[number];
+export const UNIT_CATEGORIES = CATEGORIES;
+type Category = UnitCategory;
 const KINDS: Record<Category, { kind: UnitKind; title: string; icon: "education" | "research" | "building" }> = {
   "Faculty/Colleges": { kind: "Faculty or college", title: "Faculty/Colleges", icon: "education" },
   "University Offices": { kind: "Office", title: "University Offices", icon: "building" },
   "Research Centers": { kind: "Research centre", title: "Research Centers", icon: "research" },
 };
 
-/** The directory remains the source for all categories, including units without submissions. */
-export function UnitParticipation({ units }: { units: HubUnit[] }) {
-  const [category, setCategory] = useState<Category>(CATEGORIES[0]);
-  const [query, setQuery] = useState("");
+const matcher = (query: string) => {
+  const term = query.trim().toLowerCase();
+  return { term, matches: (unit: HubUnit) => !term || [unit.name, unit.code, unit.coordinator].some((value) => value.toLowerCase().includes(term)) };
+};
+const activeIn = (units: HubUnit[], category: Category) => units.filter((unit) => unit.status === "Active" && unit.kind === KINDS[category].kind);
+const listed = (units: HubUnit[], category: Category, query: string) => {
+  const { matches } = matcher(query);
+  return activeIn(units, category).filter(matches).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+/** How many active units each category holds, for the category filter. */
+export const unitCategoryCounts = (units: HubUnit[]) => Object.fromEntries(CATEGORIES.map((label) => [label, activeIn(units, label).length])) as Record<Category, number>;
+
+/**
+ * One category's units, the Units tab of Unit Submissions: the category filter and search sit in that page's
+ * tab row. The directory remains the source for all categories, including units without submissions.
+ */
+export function UnitParticipation({ units, category, query }: { units: HubUnit[]; category: Category; query: string }) {
   const [view, setView] = useState<typeof VIEWS[number]>("Submissions");
   const { kind, title, icon } = KINDS[category];
-  const active = units.filter((unit) => unit.status === "Active");
-  const categoryUnits = active.filter((unit) => unit.kind === kind);
-  const term = query.trim().toLowerCase();
-  const matches = (unit: HubUnit) => !term || [unit.name, unit.code, unit.coordinator].some((value) => value.toLowerCase().includes(term));
-  const UNITS = categoryUnits.filter(matches).sort((a, b) => a.name.localeCompare(b.name));
-  const leaderboard = buildUnitLeaderboard(categoryUnits);
-  const standings = leaderboard.filter(({ unit }) => matches(unit));
+  const { term, matches } = matcher(query);
+  const UNITS = listed(units, category, query);
+  const standings = buildUnitLeaderboard(activeIn(units, category)).filter(({ unit }) => matches(unit));
   const archived = units.filter((unit) => unit.status === "Archived" && unit.kind === kind && matches(unit)).sort((a, b) => a.name.localeCompare(b.name));
-  const counts = Object.fromEntries(CATEGORIES.map((label) => [label, active.filter((unit) => unit.kind === KINDS[label].kind).length]));
-  // Unit participation is read here, so it leaves the Hub from here: what the tab and search show is what is exported.
-  const reports = useFeature("reports");
-  const reportRows = UNITS.map((u) => [u.name, u.assigned, u.completed, `${u.assigned ? Math.min(100, Math.round((u.completed / u.assigned) * 100)) : 0}%`, u.validated, u.revisions, u.rankingsServed]);
 
   return (
-    <>
-      <Tabs
-        tabs={CATEGORIES}
-        value={category}
-        onChange={(value) => { setCategory(value); setQuery(""); }}
-        label="Unit categories"
-        idBase="unit-participation"
-        counts={counts}
-        actions={reports && <ReportOutput report="Unit Participation" datasets={["DS-EVIDENCE"]} head={REPORT_HEAD} rows={reportRows} strip />}
-        search={<SearchField value={query} onChange={setQuery} placeholder="Search units" label={`Search ${title.toLowerCase()} by name, code or coordinator`} examples={SEARCH_EXAMPLES} shortcuts />}
-      />
-      <TabPanel idBase="unit-participation" index={CATEGORIES.indexOf(category)} className="stack">
+    <div className="stack">
         <Card
           title={title}
           icon={view === "Rankings" ? "recognition" : icon}
@@ -174,7 +167,6 @@ export function UnitParticipation({ units }: { units: HubUnit[] }) {
             </div>
           </Card>
         )}
-      </TabPanel>
-    </>
+    </div>
   );
 }

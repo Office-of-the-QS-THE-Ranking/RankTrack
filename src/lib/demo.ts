@@ -401,13 +401,4 @@ export const demo = {
     { name: "De La Salle University", value: "601–610", own: false },
     { name: "University of Santo Tomas", value: "681–690", own: true },
   ],
-  notifications: [
-    { text: "Facilities uploaded water recycling volumes for review", when: "2026-10-23", href: "/admin/validation" },
-    { text: "Career Services submitted the 2025 graduate tracer", when: "2026-10-15", href: "/admin/validation" },
-    { text: "UI GreenMetric questionnaire closes in 7 days", when: "2026-10-24", href: "/admin/rankings/greenmetric" },
-  ],
-  unitNotifications: [
-    { text: "Your industry income evidence is under review", when: "2026-10-01", href: "/portal" },
-    { text: "Faculty FTE by department is due 15 Dec", when: "2026-10-20", href: "/portal" },
-  ],
 };

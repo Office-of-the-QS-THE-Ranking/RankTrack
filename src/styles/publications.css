@@ -469,14 +469,14 @@ dialog.pc.df {
   }
 }
 
-/* These controls keep their contrast outside the Administration palette. */
+/* These controls keep their contrast outside the Command & Control palette. */
 .df__feature-control { display: flex; align-items: center; gap: 10px; flex: none; }
 .df__feature-state { min-width: 24px; color: var(--text-2); font-size: 13px; font-weight: 600; }
-.df__feature .adm-switch { width: 48px; height: 28px; background: #767680; }
-.df__feature .adm-switch__knob { width: 24px; height: 24px; }
-.df__feature .adm-switch[aria-checked="true"] { background: #1d7a3a; }
-.df__feature .adm-switch[aria-checked="true"] .adm-switch__knob { transform: translateX(20px); }
-.df__feature .adm-switch:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.df__feature .cmd-switch { width: 48px; height: 28px; background: #767680; }
+.df__feature .cmd-switch__knob { width: 24px; height: 24px; }
+.df__feature .cmd-switch[aria-checked="true"] { background: #1d7a3a; }
+.df__feature .cmd-switch[aria-checked="true"] .cmd-switch__knob { transform: translateX(20px); }
+.df__feature .cmd-switch:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 .df__feature[data-enabled="true"] .df__feature-state { color: #1d7a3a; }
 .df__cover-colors { min-width: 0; margin: 0 0 24px; padding: 0; border: 0; }
 .df__cover-colors legend { margin-bottom: 12px; font-size: 14px; font-weight: 600; }
@@ -490,5 +490,5 @@ dialog.pc.df {
 .df__cover-option:nth-child(3) .df__cover-swatch, .df__cover-option:nth-child(4) .df__cover-swatch { color: #161412; }
 .df__cover-swatch--auto { background: var(--surface); color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
-  .df__feature .adm-switch, .df__feature .adm-switch__knob { transition: none; }
+  .df__feature .cmd-switch, .df__feature .cmd-switch__knob { transition: none; }
 }

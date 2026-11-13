@@ -1,0 +1,555 @@
+/*
+ * The Review tab of a submission's record (components/contributions/ReviewTab.tsx): the files and what was read of
+ * them, the SDGs and flags the rules noticed, and the suggestions with their sentence, terms, figures and decision.
+ * It sits inside the record (unit-submissions.css), so it takes that page's wells, hairlines and status colours.
+ */
+
+.rv-sec {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.rv-sec + .rv-sec {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.rv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rv-muted {
+  color: var(--text-3);
+  font-size: 13px;
+}
+.rv-loading {
+  display: grid;
+  gap: 10px;
+}
+.rv-loading span {
+  height: 56px;
+  border-radius: 14px;
+  background: var(--cv-well, rgb(var(--hair) / 0.035));
+  animation: rv-pulse 1.2s ease-in-out infinite alternate;
+}
+.rv-loading span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.rv-loading span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes rv-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* Files */
+.rv-files {
+  display: grid;
+  gap: 8px;
+}
+.rv-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px 10px 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgb(var(--hair) / 0.08),
+    0 1px 2px rgb(0 0 0 / 0.04);
+}
+.rv-file:is(.is-skipped, .is-unsupported) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.06);
+}
+.rv-file:is(.is-skipped, .is-unsupported) .cv-file__ext {
+  opacity: 0.5;
+}
+.rv-file__text {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rv-file__name {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rv-file__meta {
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.rv-bar {
+  display: block;
+  height: 3px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.08);
+}
+.rv-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold-500);
+  transition: width 240ms var(--ease-out);
+}
+.rv-tick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.rv-iconbtn,
+.rv-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: var(--cursor-pointer);
+}
+.rv-x {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+}
+@media (hover: hover) {
+  :is(.rv-iconbtn, .rv-x):hover:enabled {
+    background: rgb(var(--hair) / 0.06);
+    color: var(--text);
+  }
+}
+:is(.rv-iconbtn, .rv-x, .rv-textbtn, .rv-goal, .rv-chip__x):focus-visible {
+  outline: 1px solid rgb(var(--hair) / 0.5);
+  outline-offset: 2px;
+}
+.rv-iconbtn:disabled {
+  opacity: 0.4;
+  cursor: var(--cursor-default);
+}
+
+/* SDGs the unit chose, against the text */
+.rv-goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rv-goal {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px 6px 6px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px rgb(var(--hair) / 0.08);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+}
+.rv-goal img {
+  border-radius: 6px;
+}
+.rv-goal > span {
+  display: grid;
+  line-height: 1.25;
+}
+.rv-goal b {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.rv-goal__mark {
+  width: 20px;
+  height: 20px;
+  padding: 4px;
+  border-radius: 50%;
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.rv-goal.is-missing {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--revise) 35%, transparent);
+}
+.rv-goal.is-missing img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.rv-goal.is-missing .rv-goal__mark {
+  background: var(--revise-bg);
+  color: var(--revise);
+}
+.rv-goal.is-extra {
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed rgb(var(--hair) / 0.22);
+  outline-offset: -1px;
+}
+.rv-goal[aria-pressed="true"] {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+
+/* Flags: standing context about the files, not outcomes */
+.rv-flags {
+  display: grid;
+  gap: 6px;
+}
+.rv-flag {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--cv-well, rgb(var(--hair) / 0.035));
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.rv-flag svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-3);
+}
+.rv-flag.is-alert {
+  background: var(--revise-bg);
+  color: var(--text);
+}
+.rv-flag.is-alert svg {
+  color: var(--revise);
+}
+
+/* Suggestions */
+.rv-ai svg {
+  color: var(--gold-600);
+}
+.rv-ai-off {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rv-list {
+  display: grid;
+  gap: 10px;
+}
+.rv-item {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgb(var(--hair) / 0.08),
+    0 1px 2px rgb(0 0 0 / 0.04);
+}
+.rv-item.is-dismissed {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.07);
+}
+.rv-item.is-dismissed :is(.rv-item__name, .rv-quote) {
+  opacity: 0.7;
+}
+.rv-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rv-item__rank {
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+.rv-conf,
+.rv-where,
+.rv-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgb(var(--hair) / 0.06);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rv-conf.is-high {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.rv-where--file {
+  max-width: 180px;
+  overflow: hidden;
+  display: inline-block;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.rv-state.is-accepted {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.rv-item__name {
+  color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+.rv-item__name b {
+  margin-right: 4px;
+  font-weight: 700;
+}
+.rv-quote {
+  margin: 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--gold-500);
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rv-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--revise);
+  font-size: 12px;
+  font-weight: 600;
+}
+.rv-found,
+.rv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.rv-found span,
+.rv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgb(var(--hair) / 0.05);
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+.rv-chip {
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+}
+.rv-chip__x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: var(--cursor-pointer);
+}
+@media (hover: hover) {
+  .rv-chip__x:hover:enabled {
+    background: rgb(var(--hair) / 0.1);
+    color: var(--text);
+  }
+}
+
+/* The Reviewer's second opinion */
+.rv-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--cv-well, rgb(var(--hair) / 0.035));
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rv-verdict > svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--gold-600);
+}
+.rv-verdict b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.rv-verdict.is-ok b {
+  color: var(--ok);
+}
+.rv-verdict.is-review b {
+  color: var(--review);
+}
+.rv-verdict.is-revise b {
+  color: var(--revise);
+}
+.rv-verdict.is-missing b {
+  color: var(--missing);
+}
+.rv-verdict q {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-3);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.rv-verdict small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+/* Figures to offer beside the indicator */
+.rv-figs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rv-fig {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.12);
+  color: var(--text-2);
+  font-size: 12.5px;
+  cursor: var(--cursor-pointer);
+}
+.rv-fig input {
+  accent-color: var(--ink);
+}
+.rv-fig b {
+  color: var(--text);
+  font-weight: 600;
+}
+.rv-fig:has(input:checked) {
+  background: var(--gold-wash);
+  box-shadow: inset 0 0 0 1px var(--gold-500);
+}
+.rv-fig--none:has(input:checked) {
+  background: rgb(var(--hair) / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.2);
+}
+.rv-offered {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.rv-offered svg {
+  color: var(--gold-600);
+}
+
+.rv-item__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.rv-item__more {
+  display: inline-flex;
+  gap: 14px;
+  margin-left: auto;
+}
+.rv-textbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: var(--cursor-pointer);
+}
+.rv-textbtn[aria-expanded="true"] {
+  color: var(--text);
+}
+@media (hover: hover) {
+  .rv-textbtn:hover {
+    color: var(--text);
+  }
+}
+
+/* Terms the rules look for */
+.rv-terms {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  background: var(--cv-well, rgb(var(--hair) / 0.035));
+}
+.rv-terms__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+.rv-terms__head b {
+  font-weight: 600;
+}
+.rv-terms__add {
+  display: flex;
+  gap: 8px;
+}
+.rv-terms__add .input {
+  flex: 1;
+  min-width: 0;
+}
+.rv-missing {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+.rv-missing:has(.rv-terms) {
+  max-width: none;
+}
+.cv-blank.rv-blank {
+  padding: 36px 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-loading span {
+    animation: none;
+  }
+  .rv-bar i {
+    transition: none;
+  }
+}

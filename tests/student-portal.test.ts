@@ -17,7 +17,7 @@ const reviewed: FormSchema = { ...schema, review: { stages: [{ id: "ok", role: "
 /** The Office's Administrator, a Coordinator and an Administrator of Engineering, two Students of Engineering and one of Science. */
 function people() {
   const w = world();
-  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
   const coord = w.person("Ana Reyes", "ana@ust.edu.ph", ROLE.coordinator, w.eng.id);
   const dean = w.person("Dean Cruz", "dean@ust.edu.ph", ROLE.admin, w.eng.id);
   const sec = w.person("Juan Dela Cruz", "juan@ust.edu.ph", ROLE.student, w.eng.id);
@@ -37,7 +37,7 @@ describe("the Student role", () => {
     expect(filesForms(grants(dean))).toBe(false);
     const studentPages = navPages("unit").filter((p) => p.need?.[0] === "forms").map((p) => p.href);
     expect(studentPages).toEqual(["/portal/assignments", "/portal/proposals", "/portal/evaluations", "/portal/registrations", "/portal/terminal-reports"]);
-    // A Student sees no unit page: they hold nothing of evidence, data, stories or the Knowledge Center.
+    // A Student sees no unit page: they hold nothing of evidence, data, stories or the Knowledge Base.
     for (const page of navPages("unit").filter((p) => p.need && p.need[0] !== "forms")) expect(canWith(grants(sec), page.need![0], page.need![1])).toBe(false);
   });
 

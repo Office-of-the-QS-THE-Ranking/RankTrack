@@ -8,7 +8,7 @@
  * colours of the surface they open from (console, sign-in glass, public site). Select reads ordinary
  * <option> and <optgroup> children, so swapping one in for a <select> keeps the markup.
  */
-import { Children, Fragment, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactElement, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import { cx } from "./primitives";
 import { recheckField } from "./validation";
@@ -141,6 +141,8 @@ function readOptions(children: ReactNode, group?: string, out: Opt[] = []): Opt[
 }
 
 export interface SelectProps {
+  /** Size a non-searchable trigger to its widest option, keeping its width stable between selections. */
+  fitOptions?: boolean;
   /** Search available choices, including close spelling matches. */
   searchable?: boolean;
   /** <option> elements, optionally in <optgroup>s. `data-depth` on an option indents it. */
@@ -161,9 +163,16 @@ export interface SelectProps {
   "aria-label"?: string;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
+  /** The empty-field message when `required` (the shared field messages read it), "Choose one." otherwise. */
+  "data-missing"?: string;
+  /** How many options the open list shows before it scrolls; a sliver of the next one hints at more. */
+  rows?: number;
 }
 
-export function Select({ children, value, defaultValue, onChange, className = "select", placeholder, id, name, required, disabled, autoFocus, title, searchable = false, ...aria }: SelectProps) {
+/** Option rows are 36px; the list's padded shell adds the inset twice. */
+const rowsCap = (rows: number) => ({ "--pick-cap": `${rows * 36 + 12 + 12}px` }) as CSSProperties;
+
+export function Select({ children, value, defaultValue, onChange, className = "select", placeholder, id, name, required, disabled, autoFocus, title, searchable = false, fitOptions = false, rows, "data-missing": missing = "Choose one.", ...aria }: SelectProps) {
   const allOpts = readOptions(children);
   const [query, setQuery] = useState<string | null>(null);
   const opts = searchable && query?.trim()
@@ -363,7 +372,7 @@ export function Select({ children, value, defaultValue, onChange, className = "s
         aria-label={aria["aria-label"]}
         aria-invalid={aria["aria-invalid"] || undefined}
         aria-describedby={aria["aria-describedby"]}
-        className={cx(className, "pick-trigger")}
+        className={cx(className, "pick-trigger", fitOptions && "pick-trigger--fit")}
         data-placeholder={!sel || sel.value === "" ? "" : undefined}
         disabled={disabled}
         autoFocus={autoFocus}
@@ -373,12 +382,17 @@ export function Select({ children, value, defaultValue, onChange, className = "s
         onKeyUp={(e) => e.key === " " && e.preventDefault()}
         onBlur={(e) => !pop.current?.contains(e.relatedTarget as Node) && setOpen(false)}
       >
-        <span className="pick-trigger__label">{sel ? sel.label : placeholder}</span>
+        <span className="pick-trigger__label">
+          {fitOptions ? <>
+            <span>{sel ? sel.label : placeholder}</span>
+            {allOpts.map((option) => <span key={option.value} className="pick-trigger__sizer" aria-hidden="true">{option.text}</span>)}
+          </> : sel ? sel.label : placeholder}
+        </span>
         <Icon name="chevron-down" size={15} className="pick-select__chevron" />
       </button>}
-      {searchable ? <input type="hidden" name={name} value={current} disabled={disabled} /> : <Proxy name={name} value={current} required={required} disabled={disabled} missing="Choose one." />}
+      {searchable ? <input type="hidden" name={name} value={current} disabled={disabled} /> : <Proxy name={name} value={current} required={required} disabled={disabled} missing={missing} />}
       {open && (
-        <div ref={pop} popover="manual" id={listId} role="listbox" aria-label={aria["aria-label"]} className="pick pick--list" onMouseDown={(e) => e.preventDefault()} onClick={keepLabel}>
+        <div ref={pop} popover="manual" id={listId} role="listbox" aria-label={aria["aria-label"]} className="pick pick--list" style={rows ? rowsCap(rows) : undefined} onMouseDown={(e) => e.preventDefault()} onClick={keepLabel}>
           <div className="pick__scroll" role="presentation">
             {groups.map((g, gi) =>
               g.label === undefined ? (
@@ -842,6 +856,7 @@ export function DateRangeField({ value, onChange, ...rest }: Omit<DateFieldProps
 /* ---------- NumberField ---------- */
 
 export interface NumberFieldProps {
+  required?: boolean;
   /** Report an empty edit as NaN so optional form questions can clear their stored value. */
   allowEmpty?: boolean;
   value: number;
@@ -857,7 +872,7 @@ export interface NumberFieldProps {
 }
 
 /** A number box with the Hub's own steppers in place of the browser's spin buttons. */
-export function NumberField({ value, onChange, min, max, step = 1, className = "input", id, disabled, suffix, allowEmpty = false, ...aria }: NumberFieldProps) {
+export function NumberField({ value, onChange, min, max, step = 1, className = "input", id, disabled, required, suffix, allowEmpty = false, ...aria }: NumberFieldProps) {
   const [blank, setBlank] = useState(false);
   const nudge = (dir: 1 | -1) => {
     setBlank(false);
@@ -870,6 +885,7 @@ export function NumberField({ value, onChange, min, max, step = 1, className = "
         type="number"
         inputMode="numeric"
         className="pick-num__field"
+        required={required}
         value={blank ? "" : Number.isFinite(value) ? value : ""}
         min={min}
         max={max}

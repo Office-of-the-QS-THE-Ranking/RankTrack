@@ -7,7 +7,7 @@
  * peers. Normalised ratios (THE's proportions) are projected from the same peers' figures.
  */
 import { useMemo, useRef, useState } from "react";
-import { download } from "@/components/admin/ui";
+import { download } from "@/components/command-control/ui";
 import { RowMenu } from "@/components/publications/PostManager";
 import { Icon } from "@/components/ui/Icon";
 import { TabPanel, Tabs } from "@/components/ui/interactive";

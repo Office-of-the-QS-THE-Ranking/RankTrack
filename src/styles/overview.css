@@ -56,10 +56,24 @@
     grid-column: span 6;
   }
 }
-@container content (min-width: 960px) {
+/* Row one: the next deadline, readiness, units engaged and data requests, a quarter each; a third each without
+   data requests. The calendar takes the whole row under them. */
+.ov-bento > .dashboard-deadlines.ov-next-cell {
+  grid-column: span 12;
+}
+@container content (min-width: 620px) {
+  .ov-bento > .dashboard-deadlines.ov-next-cell,
   .ov-bento > .ov-hero {
     grid-column: span 6;
-    grid-row: span 2;
+  }
+}
+@container content (min-width: 960px) {
+  .ov-bento > .ov-hero,
+  .ov-bento > .dashboard-deadlines.ov-next-cell {
+    grid-column: span 3;
+  }
+  .ov-bento:not(:has(> .ov-reqs)) > :is(.ov-next-cell, .ov-hero, .ov-units) {
+    grid-column: span 4;
   }
   .ov-bento > .ov-next {
     grid-column: span 6;

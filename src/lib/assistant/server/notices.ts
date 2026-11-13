@@ -13,7 +13,7 @@ import { adminDb } from "@/lib/supabase/server";
 import { PROVIDERS, spendAlerts, type Failure, type ProviderId } from "../rules";
 import type { ProviderRecord } from "./setup";
 
-export const AI_TAB = "/admin/administration/ai";
+export const AGENTIC_CONTROL_TAB = "/admin/command-control/agentic-control";
 
 /** Everyone able to manage the assistant: University-wide, and holding its manage permission in the role they're acting in. */
 export function managerIds(state: GovernanceState) {
@@ -25,7 +25,7 @@ export function managerIds(state: GovernanceState) {
 
 export async function tellManagers(template: string, vars: Record<string, string | number>) {
   await runSystem((ctx) => {
-    for (const id of managerIds(ctx.state)) notify(ctx, id, template, vars, AI_TAB);
+    for (const id of managerIds(ctx.state)) notify(ctx, id, template, vars, AGENTIC_CONTROL_TAB);
     return { ok: true, message: "" };
   }).catch((e: unknown) => console.error(`Assistant notice: ${e instanceof Error ? e.message : e}`));
 }
