@@ -8,7 +8,7 @@
  * message, so the group gets the red edge, the shake and the warning sign. The bigger modules (people, tables,
  * counts, budgets) are in blocks.tsx.
  */
-import { useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Icon } from "@/components/ui/Icon";
 import { InfoTooltip } from "@/components/ui/interactive";
@@ -483,6 +483,3 @@ function SignatureInput({ spec, value, onChange, id }: InputProps<SignatureSpec>
     </div>
   );
 }
-
-/** A unique, stable id base for a field on the page. */
-export const useFieldId = (field: string) => `fm-${useId().replace(/[^a-zA-Z0-9-]/g, "")}-${field}`;

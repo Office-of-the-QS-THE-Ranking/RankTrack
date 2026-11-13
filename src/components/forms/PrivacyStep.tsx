@@ -2,7 +2,7 @@
 
 /*
  * Step 0 of every Digital Form: the data privacy notice, read at a glance. What the form collects (six tiles), how
- * the Office of the QS/THE Rankings and UST SIMBAHAYAN each use it (an onyx card and a gold one; a unit or a student
+ * the Office of QS/THE Rankings and UST SIMBAHAYAN each use it (an onyx card and a gold one; a unit or a student
  * organization that made the form gets a paper card of its own across them), three promises,
  * the respondent's rights folded away, then the two statements to agree to. Continue opens the first question only
  * when both are ticked (lib/forms/privacy.ts holds the words; the server refuses a response without them).

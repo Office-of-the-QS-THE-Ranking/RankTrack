@@ -1,8 +1,8 @@
-/* Shared content tabs: workspace, Administration, unit profiles and public content. */
+/* Shared content tabs: workspace, Command & Control, unit profiles and public content. */
 .content-tabs {
-  --content-control-bg: var(--adm-well, var(--surface-2));
-  --content-control-text: var(--adm-text, var(--text));
-  --content-control-line: var(--adm-line-2, var(--border-strong));
+  --content-control-bg: var(--cmd-well, var(--surface-2));
+  --content-control-text: var(--cmd-text, var(--text));
+  --content-control-line: var(--cmd-line-2, var(--border-strong));
   --content-control-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.07);
   display: flex;
   align-items: center;
@@ -36,7 +36,7 @@
   min-width: 0;
   max-width: 100%;
 }
-.content-tabs__search > .adm-search,
+.content-tabs__search > .cmd-search,
 .content-tabs .content-tabs__action {
   display: inline-flex;
   align-items: center;
@@ -58,7 +58,7 @@
   white-space: nowrap;
   transition: background-color 180ms ease-out, color 180ms ease-out, box-shadow 180ms ease-out;
 }
-.content-tabs__search > .adm-search {
+.content-tabs__search > .cmd-search {
   width: 100%;
   min-width: 0;
 }
@@ -77,7 +77,7 @@
   background: #ffffff;
   color: #1d1d1f;
 }
-.content-tabs__search > .adm-search:focus-within,
+.content-tabs__search > .cmd-search:focus-within,
 .content-tabs .content-tabs__action:focus-visible,
 .content-tabs .content-tabs__action:is([aria-expanded="true"], [aria-pressed="true"], .is-active) {
   outline: none;
@@ -219,7 +219,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .tabs__tab,
-  .content-tabs__search > .adm-search,
+  .content-tabs__search > .cmd-search,
   .content-tabs .content-tabs__action {
     transition: none;
   }

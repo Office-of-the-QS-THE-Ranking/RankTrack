@@ -2,6 +2,7 @@
  * Data quality checks and duplicate detection over the records the Hub holds. Pure functions, so the
  * console can show results and the server can enforce them with the same logic.
  */
+import { parsePeriod } from "@/lib/periods";
 import type { DuplicateDecision, EvidenceRecord, QualityRule } from "./types";
 
 export interface RuleResult {
@@ -19,11 +20,9 @@ interface StoryLike {
   post?: unknown;
 }
 
-const YEARS = /\b(19|20)\d{2}\b/g;
-
 /** Evidence must speak to the 2025 reporting window; 2024 is accepted only for corrections, 2026 for academic years that run into it. */
 function periodProblem(period: string): string | null {
-  const years = (period.match(YEARS) ?? []).map(Number);
+  const years = parsePeriod(period).calendarYears;
   if (!years.length) return "No year in the reporting period";
   if (!years.includes(2025)) return `Covers ${years.join("–")}, outside the 2025 window`;
   const out = years.filter((y) => y < 2024 || y > 2026);

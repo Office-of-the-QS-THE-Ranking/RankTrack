@@ -41,6 +41,12 @@ export function fileKind(name: string) {
   return { ext: ext.slice(0, 4).toUpperCase() || "FILE", kind };
 }
 
+/** Every kind the evidence covers, the main one first. */
+export const typesOf = (e: Pick<EvidenceItem, "type" | "alsoTypes">) => [e.type, ...(e.alsoTypes ?? [])];
+
+/** The main kind, with a count of the others for tight rows: "Research output +1". */
+export const typeLabel = (e: Pick<EvidenceItem, "type" | "alsoTypes">) => (e.alsoTypes?.length ? `${e.type} +${e.alsoTypes.length}` : e.type);
+
 export const fileSize = (b: number) => (b < 1048576 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1048576).toFixed(1)} MB`);
 
 /** A unit's logo or arms, else its code (or initials when the directory has no entry). */

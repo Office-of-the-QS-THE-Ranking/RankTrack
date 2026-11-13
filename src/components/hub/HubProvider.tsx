@@ -15,6 +15,7 @@ import type { HubData } from "@/lib/governance/hub-types";
 import type { Target } from "@/lib/governance/rbac";
 import type { Action, ModuleKey } from "@/lib/governance/types";
 import { feature, flag, viewerCan, type Viewer } from "@/lib/governance/viewer";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 interface HubContext {
   viewer: Viewer | null;
@@ -61,6 +62,7 @@ export function useGovern() {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
+  usePending(pending || busy);
   const run = useCallback(
     async (cmd: Command): Promise<CommandResult> => {
       setBusy(true);

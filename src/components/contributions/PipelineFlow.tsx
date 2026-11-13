@@ -28,7 +28,7 @@ function ribbon(half: number[]) {
 }
 
 /**
- * The contribution pipeline as one ribbon that narrows at each stage, its thickness the stage's count.
+ * The submission pipeline as one ribbon that narrows at each stage, its thickness the stage's count.
  * Counts sit above, stage names below, and the share carried over from the previous stage on each seam.
  */
 export function PipelineFlow({ steps, label }: { steps: { step: string; count: number }[]; label: string }) {

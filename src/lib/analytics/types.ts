@@ -85,8 +85,6 @@ export type InputSpec =
   /** Cases reviewed against a rubric (WURI programmes). */
   | { type: "cases" };
 
-export type InputType = InputSpec["type"];
-
 /** A banded threshold: the computed value falls in [min, max] (inclusive where stated) and earns `share` of the points. */
 export interface Band {
   label: string;
@@ -414,6 +412,11 @@ export interface Facts {
   evidence: EvidenceRef[];
   /** Template totals by profile and measure, from the latest upload of each. */
   templates: Record<string, Record<string, number>>;
+  /**
+   * Figures a reviewer accepted from a unit's evidence (lib/review): offered beside the indicator like a feed's
+   * count, never entered for anyone.
+   */
+  findings?: { code: string; value: number; from: string }[];
 }
 
 /* ---------- Reports ---------- */

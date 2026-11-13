@@ -4,7 +4,6 @@
  */
 import type {
   AccountStatus,
-  Action,
   BodyKey,
   Classification,
   CycleConfig,
@@ -14,11 +13,11 @@ import type {
   ExportPolicy,
   FeatureFlag,
   Incident,
-  ModuleKey,
   OrgKind,
   PostMedia,
   PrivacyAssessment,
   PermissionSet,
+  Position,
   RequestPayload,
   RoleId,
   Scope,
@@ -39,6 +38,8 @@ import type { PersonInput } from "./person-details";
  * role and unit, any other affiliation an External guest of the Office. Scope and end date are the inviter's.
  */
 export interface InviteInput extends PersonInput {
+  /** A Super Administrator's position in the Office. */
+  position?: Position;
   scope?: Scope;
   expires?: string;
 }
@@ -75,7 +76,7 @@ export interface DocumentInput {
 }
 
 export type Command =
-  | { type: "role.permissions"; id: RoleId; scope: "unit" | "university"; permissions: PermissionSet; previous: PermissionSet }
+  | { type: "role.permissions"; id: RoleId; permissions: PermissionSet; previous: PermissionSet }
   /* Accounts */
   | { type: "account.invite"; input: InviteInput }
   | { type: "account.update"; id: string; name?: string; title?: string }
@@ -85,7 +86,7 @@ export type Command =
   | { type: "account.reauth"; id: string }
   | { type: "account.transfer"; id: string; toUnitId: string; moveScope: boolean }
   | { type: "account.keep"; id: string }
-  | { type: "assignment.add"; accountId: string; roleId: RoleId; scope: Scope; expires?: string; note?: string }
+  | { type: "assignment.add"; accountId: string; roleId: RoleId; position?: Position; scope: Scope; expires?: string; note?: string }
   | { type: "assignment.remove"; accountId: string; assignmentId: string }
   /* Directory */
   | { type: "unit.create"; name: string; code: string; kind: OrgKind; parentId: string; justification?: string; emails?: string[]; emblem?: { src: string; width: number; height: number } }
@@ -125,12 +126,12 @@ export type Command =
   /* Audit */
   | { type: "audit.verify" }
   | { type: "audit.export"; ids: number[]; filters: string }
-  /* Approval workflows */
+  /* Process pipelines */
   | { type: "request.create"; workflowId: WorkflowKey; payload: RequestPayload; justification: string; title?: string }
   | { type: "request.decide"; id: string; decision: "Approved" | "Rejected"; note?: string; unitId?: string }
   | { type: "request.cancel"; id: string }
   | { type: "request.review"; id: string }
-  | { type: "workflow.update"; id: WorkflowKey; enabled?: boolean; slaDays?: number; separation?: boolean; steps?: WorkflowStep[] }
+  | { type: "workflow.update"; id: WorkflowKey; enabled?: boolean; slaDays?: number; separation?: boolean; notify?: boolean; steps?: WorkflowStep[] }
   /* System configuration */
   | { type: "config.body"; key: string; enabled: boolean }
   | { type: "config.bodyAdd"; name: string; short: string; website: string }
@@ -163,7 +164,9 @@ export type Command =
       input: {
         title: string;
         type: string;
-        period: string;
+        /** "2025–2026"; the term places it in calendar years (lib/periods). */
+        academicYear: string;
+        term: string;
         background?: string;
         summary: string;
         result: string;
@@ -178,6 +181,8 @@ export type Command =
         links?: { url: string; label: string }[];
         references?: { title: string; source: string; url: string }[];
         mappedTo: string[];
+        /** Further kinds beyond `type`, at most two. */
+        alsoTypes?: string[];
       };
     }
   | { type: "evidence.review"; id: string; decision: "accept" | "revise"; note: string }
@@ -226,8 +231,6 @@ export type Command =
   | { type: "report.publish"; report: string; cycle: string; justification: string }
   | { type: "notice.read" };
 
-export type CommandType = Command["type"];
-
 export interface CommandResult {
   ok: boolean;
   message: string;
@@ -238,8 +241,5 @@ export interface CommandResult {
   /** Extra payload for the caller (an id, a CSV, a verification result). */
   data?: unknown;
 }
-
-/** What a check on a permission looks like on the wire. */
-export type PermissionCheck = [ModuleKey, Action];
 
 export type { BodyKey };

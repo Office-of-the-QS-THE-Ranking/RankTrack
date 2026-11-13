@@ -114,7 +114,7 @@ function setup() {
     { slug: "qs-subject", short: "QS by Subject", name: "QS WUR by Subject", family: "QS", deadline: "2027-01-30" },
   ];
   const ref = { directory: [], rankings, deadlineSources: [QS], families: {} } as unknown as Reference;
-  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
   const coordinator = w.person("Own", "own@ust.edu.ph", ROLE.coordinator, w.eng.id);
   const as = (a: typeof admin) => makeCtx(w.state, actorFor(w.state, a), ref);
   const reading: Reading = { sourceId: "qs-cycle", url: QS.page, status: "Read", signature: "abc", note: "", found: readTable(QS_BODY, QS, TODAY).found.filter((f) => f.slug !== "qs-sustainability") };

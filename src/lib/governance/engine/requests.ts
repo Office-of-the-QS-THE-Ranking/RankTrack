@@ -1,16 +1,17 @@
 /*
- * Approval workflows: opening requests, deciding them step by step, and applying the change once the
+ * Process pipelines: opening requests, deciding them step by step, and applying the change once the
  * last step approves. Separation of duties: the requester never approves, and each step needs a
  * different approver.
  */
 import { GUEST_DAYS } from "../access-requests";
-import { ROLE, STUDENT_HOME, roleOf } from "../catalog";
+import { ROLE, STUDENT_HOME, positionOf, roleOf } from "../catalog";
 import type { CommandResult } from "../commands";
 import { addDays } from "../derive";
 import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
 import { profileOf } from "../person-details";
-import { canWith, grantCheck, grantsFor, has } from "../rbac";
-import type { ApprovalRequest, RequestPayload, WorkflowKey } from "../types";
+import { canWith, grantCheck, grantsFor, roleLabel } from "../rbac";
+import type { ApprovalRequest, RequestPayload, StepApprover, WorkflowKey } from "../types";
+import { APPROVERS, SUBMISSIONS, approverBlock, approverFits, nextStep, stepOn } from "../workflow-steps";
 import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
 import { addAssignment, addDataGrant, createAccount, createUnit, publishDocument, publishStory } from "./mutations";
 import { validUnitEmblem } from "../unit-emblems";
@@ -26,15 +27,20 @@ export function workflowOn(ctx: Ctx, id: WorkflowKey) {
  */
 export function needsApproval(ctx: Ctx, id: WorkflowKey) {
   const wf = ctx.state.workflows.find((w) => w.id === id);
-  if (!wf?.enabled) return false;
-  const approvers = ctx.state.accounts.filter(
-    (a) => a.status === "Active" && (!wf.separation || a.id !== ctx.actor.id) && canWith(grantsFor(a, ctx.state.units, ctx.day, ctx.state.config.rolePermissions), "workflows", "approve"),
-  );
-  return approvers.length >= wf.steps.length;
+  if (!wf?.enabled || id === SUBMISSIONS) return false;
+  const active = wf.steps.filter(stepOn);
+  if (!active.length) return false;
+  const approvers = ctx.state.accounts
+    .filter((a) => a.status === "Active" && (!wf.separation || a.id !== ctx.actor.id))
+    .map((a) => grantsFor(a, ctx.state.units, ctx.day, ctx.state.config.rolePermissions))
+    .filter((g) => canWith(g, "workflows", "approve"));
+  // every step on needs its own approver, and a step given to one position needs someone in it
+  return approvers.length >= active.length && active.every((s) => approvers.some((g) => approverFits(g, s.approver)));
 }
 
 export function openRequest(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayload, title: string, justification: string): ApprovalRequest {
   const wf = ctx.state.workflows.find((w) => w.id === workflowId)!;
+  const first = Math.max(0, nextStep(wf.steps, 0));
   const req: ApprovalRequest = {
     id: nextId(ctx, "request", "RQ-", 4),
     workflowId,
@@ -44,13 +50,13 @@ export function openRequest(ctx: Ctx, workflowId: WorkflowKey, payload: RequestP
     justification: cleanText(justification, 600),
     payload,
     status: "Pending",
-    step: 0,
+    step: first,
     decisions: [],
     due: addDays(ctx.day, wf.slaDays),
   };
   ctx.state.requests.unshift(req);
-  log(ctx, "request.create", "Approval", { type: "Request", id: req.id, label: title }, "Success", `${wf.name} · step 1 of ${wf.steps.length}: ${wf.steps[0].name}`);
-  notify(ctx, "office", "tpl-decision", { title, decision: "submitted for approval", approver: wf.steps[0].name }, "/admin/administration/workflows");
+  log(ctx, "request.create", "Approval", { type: "Request", id: req.id, label: title }, "Success", `${wf.name} · step 1 of ${wf.steps.filter(stepOn).length}: ${wf.steps[first].name}`);
+  notify(ctx, "office", "tpl-decision", { title, decision: "submitted for approval", approver: wf.steps[first].name }, "/admin/command-control/process-pipelines");
   return req;
 }
 
@@ -63,7 +69,8 @@ export function decisionBlock(ctx: Ctx, req: ApprovalRequest, actor: Actor = ctx
   if (!step) return "The request has no open step.";
   if (wf.separation && req.requesterId === actor.id) return "You opened this request, so someone else must decide it.";
   if (req.decisions.some((d) => d.by === actor.id && d.decision === "Approved")) return "You approved an earlier step; another approver must take this one.";
-  if (!actor.grants.some((g) => has(g.perms, "workflows", "approve"))) return "Only University-wide Administrators can approve requests.";
+  // a step switched off while a request waited on it is still decided where it stands
+  if (!approverFits(actor.grants, step.approver)) return approverBlock(step.approver);
   return null;
 }
 
@@ -96,11 +103,12 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
       const role = roleOf(p.roleId, ctx.state.config.rolePermissions);
       if (!acc || !role) return "The account or role no longer exists.";
       if (acc.status !== "Active" && acc.status !== "Pending Invitation") return `${acc.name} is ${acc.status.toLowerCase()}.`;
-      if (acc.external && role.id !== ROLE.external) return "External partners can only hold the External role.";
-      const check = grantCheck(ctx.actor.grants, role, p.scope, ctx.state.units);
+      if (acc.external && role.id !== ROLE.external) return "External partners can only hold the External Contributor role.";
+      const position = role.id === ROLE.superAdmin ? positionOf(p.position).id : undefined;
+      const check = grantCheck(ctx.actor.grants, role, p.scope, ctx.state.units, position);
       if (!check.ok) return check.reason;
-      const a = addAssignment(ctx, acc, role.id, p.scope, p.expires, `Approved request ${req.id}`);
-      log(ctx, "assignment.add", "Access", { type: "Account", id: acc.id, label: acc.name }, "Success", `${role.name}${a.expires ? ` until ${a.expires}` : ""} · through ${req.id}`);
+      const a = addAssignment(ctx, acc, role.id, p.scope, p.expires, `Approved request ${req.id}`, position);
+      log(ctx, "assignment.add", "Access", { type: "Account", id: acc.id, label: acc.name }, "Success", `${roleLabel(role, position)}${a.expires ? ` until ${a.expires}` : ""} · through ${req.id}`);
       return null;
     }
     case "org-unit": {
@@ -165,15 +173,17 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
     req.completedAt = ctx.iso;
     returnPost(ctx, req);
     log(ctx, "request.reject", "Approval", res, "Success", text);
-    notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "rejected", approver: ctx.actor.name }, "/admin/administration/workflows");
+    if (wf.notify) notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "rejected", approver: ctx.actor.name }, "/admin/command-control/process-pipelines");
     return ok("Request rejected.");
   }
-  const last = req.step >= wf.steps.length - 1;
-  if (!last) {
+  // steps switched off are passed without stopping
+  const next = nextStep(wf.steps, req.step + 1);
+  if (next !== -1) {
     req.decisions.push({ step: req.step, by: ctx.actor.id, at: ctx.iso, decision, note: text });
-    req.step += 1;
-    log(ctx, "request.approve", "Approval", res, "Success", `Step ${req.step} of ${wf.steps.length}; next: ${wf.steps[req.step].name}`);
-    return ok(`Approved. Next: ${wf.steps[req.step].name}.`);
+    const done = wf.steps[req.step]?.name ?? `Step ${req.step + 1}`;
+    req.step = next;
+    log(ctx, "request.approve", "Approval", res, "Success", `${done} approved; next: ${wf.steps[next].name}`);
+    return ok(`Approved. Next: ${wf.steps[next].name}.`);
   }
   const problem = apply(ctx, req, unitId);
   if (problem) return invalid(`Could not apply ${req.id}: ${problem}`);
@@ -182,7 +192,7 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
   req.step = wf.steps.length;
   req.completedAt = ctx.iso;
   log(ctx, "request.approve", "Approval", res, "Success", "Final approval; change applied");
-  notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "approved", approver: ctx.actor.name }, "/admin/administration/workflows");
+  if (wf.notify) notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "approved", approver: ctx.actor.name }, "/admin/command-control/process-pipelines");
   return ok("Approved and applied.");
 }
 
@@ -224,6 +234,7 @@ function returnPost(ctx: Ctx, req: ApprovalRequest) {
 export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayload, justification: string, title?: string): CommandResult {
   const wf = ctx.state.workflows.find((w) => w.id === workflowId);
   if (!wf) return invalid("Unknown workflow.");
+  if (workflowId === SUBMISSIONS) return invalid("Units send evidence from Submit evidence; it is reviewed in Unit Submissions.");
   if (!wf.enabled) return invalid(`${wf.name} is switched off; make the change directly instead.`);
   if (payload.kind !== workflowId) return invalid("The request does not match its workflow.");
   if (cleanText(justification).length < 10) return invalid("Give a justification of at least a sentence; approvers read it first.");
@@ -234,7 +245,7 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       const acc = accountById(ctx, payload.accountId);
       const role = roleOf(payload.roleId, ctx.state.config.rolePermissions);
       if (!acc || !role) return invalid("Choose an account and a role.");
-      if (acc.external && role.id !== ROLE.external) return invalid("External partners can only hold the External role.");
+      if (acc.external && role.id !== ROLE.external) return invalid("External partners can only hold the External Contributor role.");
       if (acc.id !== ctx.actor.id && !can(ctx, "accounts", "edit", { unitId: acc.unitId }))
         return deny(ctx, "request.create", "Approval", { type: "Account", id: acc.id, label: acc.name }, "You can only request roles for yourself or accounts you administer.");
       label = title ?? `${role.name} for ${acc.name}`;
@@ -281,7 +292,7 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
       label = title ?? `Publish ${payload.target}: ${payload.title}`;
       break;
     case "destructive":
-      if (!can(ctx, "backup", "manage")) return invalid("Only University-wide Administrators can request destructive backup operations.");
+      if (!can(ctx, "backup", "manage")) return invalid("Only the Director and Ranking Specialists can request destructive backup operations.");
       break;
   }
   const normalizedPayload = payload.kind === "org-unit" ? { ...payload, emails: unitEmails } : payload;
@@ -292,14 +303,16 @@ export function create(ctx: Ctx, workflowId: WorkflowKey, payload: RequestPayloa
 export function updateWorkflow(
   ctx: Ctx,
   id: WorkflowKey,
-  patch: { enabled?: boolean; slaDays?: number; separation?: boolean; steps?: { name: string }[] },
+  patch: { enabled?: boolean; slaDays?: number; separation?: boolean; notify?: boolean; steps?: { name: string; enabled?: boolean; approver?: StepApprover }[] },
 ): CommandResult {
   const wf = ctx.state.workflows.find((w) => w.id === id);
   if (!wf) return invalid("Unknown workflow.");
   const res = { type: "Workflow", id: wf.id, label: wf.name };
-  if (!can(ctx, "workflows", "manage")) return deny(ctx, "workflow.update", "Configuration", res, "Your role cannot change approval workflows.");
+  if (!can(ctx, "workflows", "manage")) return deny(ctx, "workflow.update", "Configuration", res, "Your role cannot change process pipelines.");
   if (id === "destructive" && (patch.enabled === false || patch.separation === false))
-    return invalid("Destructive backup operations always need a second University-wide Administrator.");
+    return invalid("Destructive backup operations always need a second Director or Ranking Specialist.");
+  if (id === SUBMISSIONS && (patch.enabled === false || patch.separation === false))
+    return invalid("Unit submissions are always reviewed, and never by the person who sent them.");
   const changes: string[] = [];
   if (patch.enabled !== undefined && patch.enabled !== wf.enabled) {
     wf.enabled = patch.enabled;
@@ -315,12 +328,26 @@ export function updateWorkflow(
     wf.separation = patch.separation;
     changes.push(patch.separation ? "separation of duties on" : "separation of duties off");
   }
+  if (patch.notify !== undefined && patch.notify !== wf.notify) {
+    wf.notify = patch.notify;
+    changes.push(patch.notify ? "requester told of the outcome" : "requester not told of the outcome");
+  }
   if (patch.steps) {
-    if (!patch.steps.length) return invalid("A workflow needs at least one approval step.");
-    if (!Array.isArray(patch.steps) || patch.steps.length > 5) return invalid("A workflow has at most five approval steps.");
+    if (!Array.isArray(patch.steps) || !patch.steps.length) return invalid("A workflow needs at least one approval step.");
+    if (patch.steps.length > 5) return invalid("A workflow has at most five approval steps.");
     if (patch.steps.some((s) => typeof s?.name !== "string" || !s.name.trim())) return invalid("Name every step.");
-    wf.steps = patch.steps.map((s) => ({ name: clean(s.name, 80) }));
-    changes.push(`${wf.steps.length} approval ${wf.steps.length === 1 ? "step" : "steps"}`);
+    if (patch.steps.some((s) => s.approver !== undefined && !APPROVERS.some((a) => a.id === s.approver))) return invalid("Choose who decides each step.");
+    const steps = patch.steps.map((s) => ({ name: clean(s.name, 80), enabled: s.enabled !== false, approver: s.approver ?? ("office" as const) }));
+    if (!steps.some(stepOn)) return invalid("Keep at least one step on. To let changes apply directly, switch the workflow off.");
+    if (JSON.stringify(steps) !== JSON.stringify(wf.steps)) {
+      wf.steps = steps;
+      const on = steps.filter(stepOn).length;
+      changes.push(`${on} approval ${on === 1 ? "step" : "steps"} on${on < steps.length ? `, ${steps.length - on} off` : ""}`);
+      // a request waiting past the end of a shorter chain waits on its last step instead
+      const last = steps.length - 1 - [...steps].reverse().findIndex(stepOn);
+      for (const r of ctx.state.requests) if (r.workflowId === wf.id && r.status === "Pending" && r.step >= steps.length) r.step = last;
+      // evidence mid-review keeps the approvals it has; it waits on the next step on from where it stood (submission-review.ts)
+    }
   }
   if (!changes.length) return ok("No changes.");
   log(ctx, "workflow.update", "Configuration", res, "Success", changes.join("; "));

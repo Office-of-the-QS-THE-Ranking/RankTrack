@@ -41,6 +41,7 @@ import {
 } from "@/lib/governance/access-requests";
 import { ROLE } from "@/lib/governance/catalog";
 import { AffiliationField } from "./AffiliationField";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 export type AccessDraft = {
   lastName: string;
@@ -152,6 +153,7 @@ export function RequestAccessForm({
   const [part, setPart] = useState(startPart);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [pending, start] = useTransition();
+  usePending(pending);
   const [affiliationFocused, setAffiliationFocused] = useState(false);
   const [editingBirthday, setEditingBirthday] = useState(false);
   const form = useRef<HTMLFormElement>(null);

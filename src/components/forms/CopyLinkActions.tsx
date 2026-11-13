@@ -11,6 +11,7 @@ import { Sheet } from "@/components/workspace/parts";
 import { copyPath } from "@/lib/forms/copies";
 import type { CopyView } from "@/lib/governance/hub-types";
 import { FormLink } from "./FormLink";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 const CONFIRM_WORD = "Generate";
 
@@ -19,6 +20,7 @@ export function CopyLinkActions({ code, copy, beforeReplace }: { code: string; c
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const [confirm, setConfirm] = useState(false);
   const [typed, setTyped] = useState("");
   const qr = useRef<HTMLSpanElement>(null);

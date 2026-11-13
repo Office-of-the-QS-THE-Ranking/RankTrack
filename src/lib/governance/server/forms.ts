@@ -36,7 +36,7 @@ export function formUnits(units: OrgUnit[]): FormUnit[] {
 
 const unitName = (state: GovernanceState, id: string | undefined) => (id ? state.units.find((u) => u.id === id)?.name : undefined);
 
-export const OFFICE_NAME = "Office of the QS/THE Rankings";
+export const OFFICE_NAME = "Office of QS/THE Rankings";
 
 /** Who holds a form, by name: the Office, the unit, or the Student's organization (their own name when they gave none). */
 export function holderName(state: GovernanceState, f: Pick<FormRecord, "unitId" | "ownerId">) {

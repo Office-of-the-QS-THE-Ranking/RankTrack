@@ -99,7 +99,7 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
     case "account.keep":
       return accounts.keep(ctx, cmd.id);
     case "assignment.add":
-      return accounts.addRole(ctx, cmd.accountId, cmd.roleId, cmd.scope, cmd.expires, cmd.note);
+      return accounts.addRole(ctx, cmd.accountId, cmd.roleId, cmd.scope, cmd.expires, cmd.note, cmd.position);
     case "assignment.remove":
       return accounts.removeRole(ctx, cmd.accountId, cmd.assignmentId);
 

@@ -1,5 +1,5 @@
 /*
- * Governance model for the Rankings and Impact Hub: who can sign in, what each role may do, which
+ * Governance model for the PRESTIGE Portal: who can sign in, what each role may do, which
  * records an account can reach, how data is classified and retained, what is logged, what needs a
  * second pair of eyes, and how the platform is configured and recovered.
  *
@@ -53,10 +53,16 @@ export interface Scope {
   datasets: "all" | string[];
 }
 
-/** The Hub's four role identities. Their permissions can be configured by Rankings Office Administrators. */
-export type RoleId = "administrator" | "coordinator" | "student" | "external";
+/** The Hub's role identities. Super Administrators configure the others' permissions; their own are fixed. */
+export type RoleId = "super-admin" | "administrator" | "coordinator" | "student" | "external";
 
-export type RolePermissions = Partial<Record<RoleId, { permissions: PermissionSet; universityPermissions?: PermissionSet }>>;
+/**
+ * A Super Administrator's position in the Office of QS/THE Rankings (user, 2026-11-12): the Director owns the Hub,
+ * a Ranking Specialist runs it day to day, Staff do the Office's work without managing accounts.
+ */
+export type Position = "director" | "specialist" | "staff";
+
+export type RolePermissions = Partial<Record<RoleId, { permissions: PermissionSet }>>;
 
 export interface Role {
   id: RoleId;
@@ -65,8 +71,6 @@ export interface Role {
   /** Higher ranks hold more. Giving an active account a higher-ranked role than it holds is privilege escalation. */
   tier: number;
   permissions: PermissionSet;
-  /** What the role holds instead when an assignment of it is University-wide (an Administrator of the Rankings Office runs the Hub). */
-  universityPermissions?: PermissionSet;
   /** What scope an assignment of this role normally carries. */
   scopeKind: "university" | "unit" | "custom";
 }
@@ -74,6 +78,8 @@ export interface Role {
 export interface Assignment {
   id: string;
   roleId: RoleId;
+  /** A Super Administrator's position in the Office; absent on every other role. */
+  position?: Position;
   scope: Scope;
   grantedBy: string;
   grantedAt: ISOTime;
@@ -361,13 +367,23 @@ export interface AuditEvent {
   hash: string;
 }
 
-/* ---------- Approval workflows ---------- */
+/* ---------- Process pipelines ---------- */
 
-export type WorkflowKey = "account-access" | "privilege-escalation" | "org-unit" | "data-access" | "publication" | "destructive";
+/**
+ * The workflows. All but `unit-submissions` run through ApprovalRequest; that one sets the review steps evidence
+ * from the units goes through, and each EvidenceRecord follows them itself (engine/records.ts).
+ */
+export type WorkflowKey = "account-access" | "privilege-escalation" | "org-unit" | "data-access" | "publication" | "destructive" | "unit-submissions";
 
-/** Anyone with approve rights on workflows (the University-wide Administrators) may decide a step. */
+/** Who may decide a step: either approver in the Office (the Director or a Ranking Specialist), or only one of them. */
+export type StepApprover = "office" | "director" | "specialist";
+
+/** One approval in a workflow's chain. */
 export interface WorkflowStep {
   name: string;
+  /** Off: requests pass this step without stopping. A workflow keeps at least one step on. */
+  enabled: boolean;
+  approver: StepApprover;
 }
 
 export interface Workflow {
@@ -379,6 +395,8 @@ export interface Workflow {
   slaDays: number;
   /** The requester can never approve their own request. */
   separation: boolean;
+  /** Tell the requester in the Hub when their request is approved or rejected. */
+  notify: boolean;
 }
 
 /**
@@ -425,7 +443,7 @@ export type RequestPayload =
       /** Outside the University's sign-in domains: a sponsored guest whose access ends GUEST_DAYS after approval. */
       external?: boolean;
     }
-  | { kind: "privilege-escalation"; accountId: string; roleId: RoleId; scope: Scope; expires?: ISODate }
+  | { kind: "privilege-escalation"; accountId: string; roleId: RoleId; position?: Position; scope: Scope; expires?: ISODate }
   | { kind: "org-unit"; name: string; code: string; kind2: OrgKind; parentId: string; emails?: string[]; emblem?: OrgUnit["emblem"] }
   | { kind: "data-access"; accountId: string; datasetId: string; access: "View" | "Export"; until: ISODate }
   | { kind: "publication"; target: "story" | "report" | "document"; id: string; title: string }
@@ -618,7 +636,10 @@ export interface EvidenceRecord {
   title: string;
   unitSlug: string;
   programId?: string;
+  /** The main kind of evidence. */
   type: string;
+  /** Further kinds the evidence also covers, in the order picked (at most two). */
+  alsoTypes?: string[];
   period: string;
   submitted: ISODate;
   submittedBy: string;
@@ -626,6 +647,11 @@ export interface EvidenceRecord {
   submittedById?: string;
   status: "Validated" | "For review" | "Needs revision" | "Not yet submitted" | "Not applicable";
   stage: number;
+  /**
+   * Where it stands in the Unit submissions pipeline while For review: the step it waits on and the steps already
+   * approved. Absent on records that predate the pipeline, which wait on its first step on.
+   */
+  review?: EvidenceReview;
   level: 1 | 2 | 3 | 4 | 5;
   mappedTo: string[];
   sdgs: number[];
@@ -644,6 +670,11 @@ export interface EvidenceRecord {
   /** Publications, news and documents the submission cites. */
   references?: EvidenceReference[];
   comments: { by: string; role: string; date: ISODate; text: string }[];
+}
+
+export interface EvidenceReview {
+  step: number;
+  approvals: { step: number; by: string; at: ISOTime }[];
 }
 
 export interface EvidenceFile {

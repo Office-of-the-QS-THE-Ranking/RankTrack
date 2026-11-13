@@ -41,7 +41,7 @@ const doc = (extra: Partial<DocumentInput> = {}): DocumentInput => ({
 /** One Office administrator (alone, so approving posts at once), and a Coordinator in each of two units. */
 function setup() {
   const w = world();
-  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
   const eng = w.person("Jose Cruz", "j@ust.edu.ph", ROLE.coordinator, w.eng.id);
   const sci = w.person("Ana Reyes", "r@ust.edu.ph", ROLE.coordinator, w.sci.id);
   const as = (a: typeof admin) => makeCtx(w.state, actorFor(w.state, a), REF);
@@ -110,8 +110,8 @@ describe("a Coordinator's publications", () => {
 
   it("go through the publication workflow once the Office approves, when other administrators can sign off", () => {
     const w = setup();
-    w.person("Second Admin", "b@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
-    w.person("Third Admin", "c@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    w.person("Second Admin", "b@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
+    w.person("Third Admin", "c@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
     execute(w.coordinator(), { type: "post.save", input: post(), publish: true });
     const p = w.state.records.posts[0];
     const r = execute(w.office(), { type: "post.status", id: p.id, status: "Published" });

@@ -11,7 +11,7 @@ import { UNIT_CATEGORY_LABELS } from "@/lib/unit-categories";
  * Who is asking follows from the affiliation. A Thomasian picks University of Santo Tomas, gives a University
  * email proved by signing in to Google, and asks to be an Administrator, Coordinator or Student of their office
  * or college; anyone else (ranking body, accreditor, reviewer) asks as External, for a 90-day guest account.
- * Neither gets in on the email alone: both wait for a University-wide Administrator's approval.
+ * Neither gets in on the email alone: both wait for the Office's approval.
  */
 export const THOMASIAN_AFFILIATION = "UNIVERSITY OF SANTO TOMAS";
 
@@ -21,6 +21,9 @@ export const UST_ROLES = [
   { id: ROLE.coordinator, name: "Coordinator" },
   { id: ROLE.student, name: "Student Organizer" },
 ] as const;
+
+/** What the invite drawer offers besides: the Office's own people, whom its Director invites (never asked for). */
+export const INVITE_ROLES = [{ id: ROLE.superAdmin, name: "Super Administrator" }, ...UST_ROLES] as const;
 
 /** Where a role is held: Administrators and Coordinators choose a University Office or a College/Faculty; Students choose neither. */
 export const SECTIONS = [

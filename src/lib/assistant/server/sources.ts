@@ -7,8 +7,8 @@ import "server-only";
  * down or a section switched off disappears from the assistant too. Demo data, drafts, evidence, form answers and unit
  * files aren't here. Add them in a later step, each with the permission check it needs.
  */
-import { FAQ as PORTAL_FAQ, POLICIES as PORTAL_POLICIES } from "@/components/knowledge/content";
-import { EXAMPLES, FAQ, GOVERNANCE, POLICIES, STANDARDS } from "@/components/site/pages/site-copy";
+import { POLICIES as PORTAL_POLICIES } from "@/components/knowledge-base/content";
+import { EXAMPLES, POLICIES, STANDARDS } from "@/components/site/pages/site-copy";
 import { DEMO_ON } from "@/lib/demo";
 import { siteData } from "@/lib/governance/server/site";
 import { serverViews } from "@/lib/governance/server/views";
@@ -27,7 +27,7 @@ export interface SourceDoc {
   unitId?: string;
 }
 
-/** Marks a link the reader's own workspace decides: /admin/knowledge or /portal/knowledge. */
+/** Marks a link the reader's own workspace decides: /admin/knowledge-base or /portal/knowledge-base. */
 export const WORKSPACE = "workspace:";
 
 const lines = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join("\n");
@@ -74,26 +74,26 @@ export async function sourceDocs(): Promise<SourceDoc[]> {
     }
   }
 
-  if (site.features.knowledge) {
-    for (const d of site.dictionary) pub(`term:${d.term}`, `Dictionary: ${d.term}`, "/knowledge#dictionary", lines(`${d.term}: ${d.definition}`, d.links.length ? `Used in: ${d.links.map((l) => `${l.indicator} (${l.ranking})`).join("; ")}.` : ""));
-    pub("knowledge:standards", "Evidence standards", "/knowledge#standards", lines("Acceptable evidence:", ...STANDARDS.map((s) => `- ${s}.`), "", ...EXAMPLES.map(([good, bad]) => `Good evidence: ${good}. Not enough: ${bad}.`)));
-    pub("knowledge:faq", "Common questions", "/knowledge#faq", FAQ.map(([q, a]) => `${q}\n${a}`).join("\n\n"));
-    pub("knowledge:policies", "Policies", "/knowledge#policies", POLICIES.map(([t, d]) => `${t}: ${d}.`).join("\n"));
+  if (site.features.knowledgeBase) {
+    for (const d of site.dictionary) pub(`term:${d.term}`, `Dictionary: ${d.term}`, "/knowledge-base#dictionary", lines(`${d.term}: ${d.definition}`, d.links.length ? `Used in: ${d.links.map((l) => `${l.indicator} (${l.ranking})`).join("; ")}.` : ""));
+    pub("knowledge:standards", "Evidence standards", "/knowledge-base#standards", lines("Acceptable evidence:", ...STANDARDS.map((s) => `- ${s}.`), "", ...EXAMPLES.map(([good, bad]) => `Good evidence: ${good}. Not enough: ${bad}.`)));
+    pub("knowledge:policies", "Policies", "/knowledge-base#policies", POLICIES.map(([t, d]) => `${t}: ${d}.`).join("\n"));
     const upcoming = site.calendar.filter((c) => c.due >= new Date().toISOString().slice(0, 10));
-    pub("knowledge:calendar", "Ranking calendar", "/knowledge#calendar", upcoming.map((c) => `${c.lead}: ${c.label}, ${c.due}.`).join("\n"));
+    pub("knowledge:calendar", "Ranking calendar", "/knowledge-base#calendar", upcoming.map((c) => `${c.lead}: ${c.label}, ${c.due}.`).join("\n"));
   }
 
-  pub("about:office", `About ${office.name}`, "/about#mission", lines(office.summary, `It reports to ${office.reportsTo}.`, ...office.functions.map((f) => `Function: ${f}`)));
+  pub("about:office", `About ${office.name}`, "/about#mission", lines(office.summary, office.purpose, `It reports to ${office.reportsTo}.`, ...office.functions.map((f) => `Function: ${f}`)));
   pub("about:vision", "Vision and mission", "/about#vision", lines(`Vision: ${office.vision}`, `Mission: ${office.mission}`, ...office.objectives.map((o) => `Objective, ${o.title}: ${o.text}`)));
   pub("about:deliverables", "What the Office delivers", "/about#deliverables", office.deliverables.map((d) => `${d.title}: ${d.text}`).join("\n"));
   pub("about:team", "The Office's team", "/about#team", office.team.map((t) => `${t.role}: ${t.who}. ${t.focus}`).join("\n"));
-  pub("about:governance", "How the Office is governed", "/about#governance", GOVERNANCE.map(([t, d]) => `${t}: ${d}`).join("\n"));
+  pub("about:governance", "Reporting and coordination", "/about#governance", lines(`The Office reports to ${office.reportsTo}.`, ...office.coordination.map((c) => `${c.title}: ${c.text}`)));
+  pub("about:policies", "Privacy, access and method", "/about#policies", office.policies.map((p) => `${p.title}: ${p.text}`).join("\n"));
+  pub("about:faq", "Common questions", "/about#faq", office.faq.map(({ q, a }) => `${q}\n${a}`).join("\n\n"));
   pub("about:contact", "Contact the Office", "/about#contact", lines(office.name, office.location, office.landmark, office.street, office.city, `Phone: ${office.phone}`, `Email: ${office.email}`));
 
-  // The portal's own Knowledge Center. Internal, so it waits for a model on a plan that doesn't share data.
-  const inner = (id: string, title: string, text: string) => docs.push({ id, title, href: `${WORKSPACE}/knowledge`, text, level: "internal", module: "knowledge", action: "view" });
-  inner("portal-knowledge:faq", "Knowledge Center: questions", PORTAL_FAQ.map(([q, a]) => `${q}\n${a}`).join("\n\n"));
-  inner("portal-knowledge:policies", "Knowledge Center: policies", PORTAL_POLICIES.map(([t, d]) => `${t}: ${d}.`).join("\n"));
+  // The portal's own Knowledge Base. Internal, so it waits for a model on a plan that doesn't share data.
+  const inner = (id: string, title: string, text: string) => docs.push({ id, title, href: `${WORKSPACE}/knowledge-base`, text, level: "internal", module: "knowledge", action: "view" });
+  inner("portal-knowledge:policies", "Knowledge Base: policies", PORTAL_POLICIES.map(([t, d]) => `${t}: ${d}.`).join("\n"));
 
   return docs;
 }

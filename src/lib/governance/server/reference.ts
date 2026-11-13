@@ -169,12 +169,15 @@ async function load(): Promise<Reference> {
       vision: office.vision,
       mission: office.mission,
       summary: office.summary,
+      purpose: office.purpose,
       functions: section("function").map((e) => e.title),
       objectives: section("objective").map((e) => ({ title: e.title, text: e.body })),
       deliverables: section("deliverable").map((e) => ({ title: e.title, text: e.body })),
       workplan: section("workplan").map((e) => ({ title: e.title, owners: e.owners ?? "", timing: e.timing ?? "" })),
       team: section("team").map((e) => ({ role: e.title, who: e.person ?? "", focus: e.body })),
-      portfolio: section("portfolio").map((e) => ({ name: e.title, href: e.href ?? "" })),
+      coordination: section("coordination").map((e) => ({ title: e.title, text: e.body })),
+      policies: section("policy").map((e) => ({ title: e.title, text: e.body, anchor: e.anchor ?? "" })),
+      faq: section("faq").map((e) => ({ q: e.title, a: e.body })),
     },
     photos: Object.fromEntries(assets.filter((a) => a.kind === "photo").map((a) => [a.key, photoOf(a.key)!])),
     credits: assets
@@ -231,6 +234,11 @@ async function loadReference(): Promise<Reference> {
     g.__hubReference = { at: Date.now(), ref: held.ref };
   });
   return held.ref;
+}
+
+/** Drop the cached copy, so the next read (this request's included) sees an edit at once. */
+export function forgetReference() {
+  g.__hubReference = undefined;
 }
 
 /** The reference data for this request. */

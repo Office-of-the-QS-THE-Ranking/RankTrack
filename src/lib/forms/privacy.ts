@@ -1,6 +1,6 @@
 /*
  * The data privacy notice every Digital Form opens with: Step 0, before the first question. A respondent reads
- * how the Office of the QS/THE Rankings and UST SIMBAHAYAN use what the form collects (and, for a form a unit or a
+ * how the Office of QS/THE Rankings and UST SIMBAHAYAN use what the form collects (and, for a form a unit or a
  * student organization made, how its maker does) and agrees to both statements; until then no other step opens,
  * and the server takes no response without that consent. The consent is kept with the response
  * (form_responses.privacy_consent) under the notice's version, so a change to these words is a new version. No
@@ -36,7 +36,7 @@ export interface PrivacyUser {
 export const PRIVACY_USERS: PrivacyUser[] = [
   {
     id: "rankings",
-    name: "Office of the QS/THE Rankings",
+    name: "Office of QS/THE Rankings",
     role: "Hosts this form",
     icon: "rankings",
     uses: [
@@ -92,13 +92,13 @@ export const PRIVACY_CONTACT = "Write to the office that issued this form or to 
 
 /** What the respondent agrees to, each required. */
 export const PRIVACY_STATEMENTS = [
-  { id: "mine", title: "I agree to this notice", text: "The Office of the QS/THE Rankings and UST SIMBAHAYAN may use my information as described." },
+  { id: "mine", title: "I agree to this notice", text: "The Office of QS/THE Rankings and UST SIMBAHAYAN may use my information as described." },
   { id: "others", title: "The people I name agreed", text: "My contacts, officers, speakers and emergency contact know how their information is used." },
 ] as const;
 
 /** A statement's words for this form: its maker, when a unit or a student organization made it, is named with the offices. */
 export const statementText = (s: (typeof PRIVACY_STATEMENTS)[number], maker?: PrivacyMaker) =>
-  s.id === "mine" && maker ? `The Office of the QS/THE Rankings, UST SIMBAHAYAN and ${maker.name} may use my information as described.` : s.text;
+  s.id === "mine" && maker ? `The Office of QS/THE Rankings, UST SIMBAHAYAN and ${maker.name} may use my information as described.` : s.text;
 
 export type PrivacyStatement = (typeof PRIVACY_STATEMENTS)[number]["id"];
 

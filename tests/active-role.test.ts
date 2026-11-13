@@ -14,8 +14,8 @@ const day = () => new Date().toISOString().slice(0, 10);
 /** An Administrator of the Hub who also coordinates a faculty, and a second Administrator to approve things. */
 function twoRoles() {
   const w = world();
-  const person = w.person("Both", "both@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
-  w.person("Other", "other@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+  const person = w.person("Both", "both@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
+  w.person("Other", "other@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY);
   const coord = addAssignment(makeCtx(w.state, SYSTEM, ref), person, ROLE.coordinator, { units: [w.eng.id], rankingBodies: "all", years: "all", datasets: "all" });
   const admin = person.assignments[0];
   return { w, person, admin, coord };

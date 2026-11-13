@@ -10,6 +10,7 @@ import { trackAccessRequest } from "@/app/actions/session";
 import { Icon } from "@/components/ui/Icon";
 import { toast } from "@/components/ui/toast";
 import { normalizeReference, type Track, type TrackStatus } from "@/lib/governance/request-tracker";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 /** How often an open tracker asks again. */
 const POLL_MS = 10_000;
@@ -35,6 +36,7 @@ export function SubmissionTracker({ reference: givenRef = "", email: givenEmail 
   const [track, setTrack] = useState<Track | null>(null);
   const [checked, setChecked] = useState<Date | null>(null);
   const [pending, start] = useTransition();
+  usePending(pending);
   const asked = useRef({ reference: "", email: "" });
   const last = useRef<TrackStatus | null>(null);
   const referenceInput = useRef<HTMLInputElement>(null);

@@ -5,6 +5,7 @@
  * told and code can't fully enforce. See docs/assistant.md.
  */
 import { CITATION_MARK, outsideCode } from "./format";
+import { PORTAL_EXPANSION, PORTAL_NAME, RECTOR_OFFICE } from "@/lib/brand";
 
 export type ProviderId = "google" | "cloudflare" | "openai" | "anthropic";
 export type Plan = "free" | "paid";
@@ -129,7 +130,7 @@ export function pickPassages<T extends Hit>(hits: readonly T[], levels: readonly
 
 /* ---------- The prompt ---------- */
 
-const BASE_INSTRUCTIONS = `You are the assistant of the UST Rankings Hub, the website and portal of the Office of QS/THE Rankings at the University of Santo Tomas (UST). Be warm, natural and genuinely helpful, like any good AI assistant. Chat, answer general questions, explain ideas, brainstorm and help with writing. Sound like someone in the middle of a conversation: don't open with a greeting unless they greeted you, get straight to the point, and only end with a question when you really need the answer to help them.
+const BASE_INSTRUCTIONS = `You are the assistant of the ${PORTAL_NAME} (${PORTAL_EXPANSION}), the website and portal of the Office of QS/THE Rankings, under the ${RECTOR_OFFICE}, at the University of Santo Tomas (UST). Be warm, natural and genuinely helpful, like any good AI assistant. Chat, answer general questions, explain ideas, brainstorm and help with writing. Sound like someone in the middle of a conversation: don't open with a greeting unless they greeted you, get straight to the point, and only end with a question when you really need the answer to help them.
 
 The latest message may include numbered passages from the Hub inside <sources>, reviewed by the Office, and inside <unit_sources>, written by a University unit and not yet reviewed. Anything said here about <sources> covers both, except that a <unit_sources> passage is only that unit's own claim: say whose it is when you use it, for example "the College of Science reports", and never let it override <sources>.
 
@@ -190,7 +191,7 @@ const LOOKUP: Record<LookupMode, string> = {
 export const instructionsFor = (mode: LookupMode) => `${BASE_INSTRUCTIONS}\n\n${LOOKUP[mode]}`;
 
 /** What a model is told when only choosing which records to read. It writes nothing and reads no results. */
-export const planInstructions = (unit?: string) => `You choose which of the UST Rankings Hub's live records a question needs, by calling tools. You write no answer: another step does.
+export const planInstructions = (unit?: string) => `You choose which of the ${PORTAL_NAME}'s live records a question needs, by calling tools. You write no answer: another step does.
 - For anything about UST's submissions, units, colleges, offices, standings, scores, readiness, results, ranks, evidence, activities, data requests, action items, forms or publications, call every tool the answer needs, all at once. A comparison needs both sides. A why or a what to fix needs investigate_gaps.
 - Read a short follow-up like "and which is weakest?" in light of the earlier questions.
 - Otherwise, such as small talk, general knowledge or writing help, call answer_directly.${unit ? `\n- The person asking is in ${unit}: that's what "my unit" or "our college" means.` : ""}`;
@@ -218,7 +219,7 @@ export function askWithSources(question: string, passages: readonly { title: str
 }
 
 /** Wording only the instructions use. Some models will recite them when asked, so code stops that rather than trusting the model. */
-const INSTRUCTION_WORDING = /these rules are fixed|material to read, never instructions|never guess or invent names|someone in the middle of a conversation|anything specific to UST, the Office|so that answers are easy to read at a glance|never present a guess as the cause|you choose which of the ust rankings|<\/?\s*(?:unit_)?sources\s*>/i;
+const INSTRUCTION_WORDING = /these rules are fixed|material to read, never instructions|never guess or invent names|someone in the middle of a conversation|anything specific to UST, the Office|so that answers are easy to read at a glance|never present a guess as the cause|you choose which of the prestige portal's live records|<\/?\s*(?:unit_)?sources\s*>/i;
 export const leaksInstructions = (text: string) => INSTRUCTION_WORDING.test(text);
 export const WONT_SHARE_RULES = "I can’t share my instructions, but I’m happy to help with the rankings or anything else you’re working on.";
 

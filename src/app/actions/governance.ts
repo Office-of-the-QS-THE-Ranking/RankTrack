@@ -101,10 +101,10 @@ export async function govern(cmd: Command): Promise<CommandResult> {
   return (await execute(cmd)).result;
 }
 
-/** The Administration console's data, filtered to what the viewer may see. */
+/** The Command & Control console's data, filtered to what the viewer may see. */
 export async function loadConsole(): Promise<ConsoleData | null> {
   const viewer = await getViewer();
-  if (!viewer || !viewer.admin.length) return null;
+  if (!viewer || !viewer.commandControl.length) return null;
   return consoleData(viewer);
 }
 
@@ -113,7 +113,7 @@ export async function governConsole(cmd: Command): Promise<{ result: CommandResu
   const { viewerId, result } = await execute(cmd);
   if (!viewerId) return { result, data: null };
   const after = await getViewer();
-  return { result, data: after && after.admin.length ? await consoleData(after) : null };
+  return { result, data: after && after.commandControl.length ? await consoleData(after) : null };
 }
 
 /** Export audit entries as CSV. The export is itself audited as a sensitive export. */

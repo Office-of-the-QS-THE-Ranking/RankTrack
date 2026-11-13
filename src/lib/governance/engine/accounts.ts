@@ -1,12 +1,12 @@
 /*
  * Account lifecycle and role assignments. The roles themselves are fixed (catalog.ts).
  */
-import { HUB_OFFICE, ROLE, roleOf } from "../catalog";
+import { HUB_OFFICE, POSITIONS, ROLE, positionOf, roleOf } from "../catalog";
 import { invitationUnitMatchesRole, roleUnitHint } from "../invitation";
 import type { CommandResult, InviteInput } from "../commands";
-import { descendants, grantCheck, grantsFor, roleScope, runsHub, scopeLabel, topTier } from "../rbac";
+import { assignmentScopeLabel, descendants, grantCheck, grantsFor, ownsHub, roleLabel, roleScope, runsHub, scopeLabel, topTier } from "../rbac";
 import { personTitle, placePerson, readPerson, type Person } from "../person-details";
-import type { Account, OrgUnit, RoleId, Scope } from "../types";
+import type { Account, OrgUnit, Position, RoleId, Scope } from "../types";
 import {
   accountById,
   can,
@@ -25,14 +25,21 @@ import { needsApproval, openRequest } from "./requests";
 
 const res = (a: Account) => ({ type: "Account", id: a.id, label: a.name });
 
-/** An administrator may act on an account only inside the units they administer. */
+const actorOwnsHub = (ctx: Ctx) => ctx.actor.grants.some(ownsHub);
+
+/**
+ * An administrator may act on an account only inside the units they administer, and only the Director may change
+ * one who runs the Hub (a Super Administrator in any position).
+ */
 function guard(ctx: Ctx, a: Account, action: "edit" | "delete" | "create", what: string): CommandResult | null {
   if (!can(ctx, "accounts", action, { unitId: a.unitId })) return deny(ctx, what, "Account", res(a), `${a.name} is outside the accounts you administer.`);
+  if (a.id !== ctx.actor.id && !actorOwnsHub(ctx) && a.assignments.some((x) => runsHub(x) && (!x.expires || x.expires > ctx.day)))
+    return deny(ctx, what, "Account", res(a), `Only the Director can change ${a.name}'s account.`);
   return null;
 }
 
-/** Whether the account runs the Hub: an Administrator held University-wide. */
-const holdsAdmin = (ctx: Ctx, a: Account) => a.assignments.some((x) => runsHub(x) && (!x.expires || x.expires > ctx.day));
+/** Whether the account owns the Hub: the Office's Director. The Hub always keeps one active. */
+const holdsAdmin = (ctx: Ctx, a: Account) => a.assignments.some((x) => ownsHub(x) && (!x.expires || x.expires > ctx.day));
 
 const activeAdmins = (ctx: Ctx) => ctx.state.accounts.filter((a) => a.status === "Active" && holdsAdmin(ctx, a));
 
@@ -40,7 +47,7 @@ const activeAdmins = (ctx: Ctx) => ctx.state.accounts.filter((a) => a.status ===
  * Who is invited and where, checked as an access request is (person-details.ts): a Thomasian joins the unit
  * they were placed in with the role chosen, anyone else is an External guest of the Office until the end date.
  */
-function readInvite(ctx: Ctx, input: InviteInput): { person: Person; unit: OrgUnit; roleId: RoleId; external: boolean } | string {
+function readInvite(ctx: Ctx, input: InviteInput): { person: Person; unit: OrgUnit; roleId: RoleId; position?: Position; external: boolean } | string {
   const person = readPerson(input, "other");
   if (typeof person === "string") return person;
   if (ctx.state.accounts.some((a) => a.email.toLowerCase() === person.email)) return `${person.email} already has an account.`;
@@ -51,39 +58,42 @@ function readInvite(ctx: Ctx, input: InviteInput): { person: Person; unit: OrgUn
   if (!unit || unit.status !== "Active") return external ? "External partners are guests of the Office, which isn't an active unit in the Directory." : "Choose an active unit.";
   const roleId = person.roleId ?? ROLE.external;
   if (!invitationUnitMatchesRole(unit, roleId)) return roleUnitHint(roleId);
+  const position = roleId === ROLE.superAdmin ? POSITIONS.find((p) => p.id === input.position)?.id : undefined;
+  if (roleId === ROLE.superAdmin && !position) return "Choose their position in the Office.";
   if (external) {
     if (!ctx.state.security.sso.allowGuests) return "Guest accounts are switched off in Privacy and Security.";
     if (!input.expires) return "External access needs an end date.";
   }
   if (input.expires && (!isDay(input.expires) || input.expires <= ctx.day)) return "The end date must be in the future.";
-  return { person, unit, roleId, external };
+  return { person, unit, roleId, position, external };
 }
 
 export function invite(ctx: Ctx, input: InviteInput): CommandResult {
   const read = readInvite(ctx, input);
   if (typeof read === "string") return invalid(read);
-  const { person, unit, external } = read;
+  const { person, unit, external, position } = read;
   const role = roleOf(read.roleId, ctx.state.config.rolePermissions)!;
   const target = { type: "Account", id: person.email, label: person.name };
   if (!can(ctx, "accounts", "create", { unitId: unit.id })) return deny(ctx, "account.invite", "Account", target, `You cannot add accounts to ${unit.name}.`);
   // Outside collaborators are sponsored by the Office, not by individual units.
-  if (external && !can(ctx, "accounts", "manage")) return deny(ctx, "account.invite", "Account", target, "Only University-wide Administrators can invite guests.");
-  // a Student holds the role as just Student, never scoped to a unit
-  const scope = (role.id !== ROLE.student && input.scope) || defaultScope(role.id, unit.id);
-  const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units);
+  if (external && !can(ctx, "accounts", "manage")) return deny(ctx, "account.invite", "Account", target, "Only the Director and Ranking Specialists can invite guests.");
+  // a Student holds the role as just Student, never scoped to a unit, and the Office's people hold theirs University-wide
+  const scope = (role.id !== ROLE.student && role.id !== ROLE.superAdmin && input.scope) || defaultScope(role.id, unit.id);
+  const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units, position);
   if (!check.ok) return deny(ctx, "account.invite", "Access", target, check.reason);
   const account = createAccount(ctx, {
     name: person.name,
     email: person.email,
-    title: personTitle(person),
+    title: position ? positionOf(position).name : personTitle(person),
     unitId: unit.id,
     roleId: role.id,
+    position,
     scope,
     expires: input.expires || undefined,
     external,
     profile: person.profile,
   });
-  log(ctx, "account.invite", "Account", res(account), "Success", `${role.name} · ${scopeLabel(scope, ctx.state.units)}${input.expires ? ` · until ${input.expires}` : ""}`);
+  log(ctx, "account.invite", "Account", res(account), "Success", `${roleLabel(role, position)} · ${assignmentScopeLabel({ roleId: role.id, scope }, ctx.state.units)}${input.expires ? ` · until ${input.expires}` : ""}`);
   return ok(`Invitation sent to ${account.email}.`, { data: account.id });
 }
 
@@ -117,7 +127,7 @@ export function setStatus(ctx: Ctx, id: string, status: "Active" | "Suspended" |
   const why = cleanText(reason, 300);
   if (status !== "Active" && why.length < 5) return invalid("Give a reason; it is shown to other administrators and kept in the audit log.");
   if (status !== "Active" && holdsAdmin(ctx, a) && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1)
-    return invalid("This is the last active University-wide Administrator. Make someone else one before suspending this account.");
+    return invalid("This is the last active Director. Make someone else Director before suspending this account.");
   if (a.status === status) return ok(`${a.name} is already ${status.toLowerCase()}.`);
   if (a.status === "Pending Invitation" && status === "Active") return invalid("Pending accounts become active when the person first signs in.");
   const from = a.status;
@@ -218,33 +228,44 @@ function validScope(ctx: Ctx, scope: Scope): string | null {
   return null;
 }
 
-export function addRole(ctx: Ctx, accountId: string, roleId: string, scope: Scope, expires?: string, note?: string): CommandResult {
+export function addRole(ctx: Ctx, accountId: string, roleId: string, scope: Scope, expires?: string, note?: string, positionId?: string): CommandResult {
   const a = accountById(ctx, accountId);
   const role = roleOf(roleId, ctx.state.config.rolePermissions);
   if (!a || !role) return invalid("Choose a role.");
+  // a Super Administrator holds a position in the Office; no other role does
+  const position = role.id === ROLE.superAdmin ? POSITIONS.find((p) => p.id === positionId)?.id : undefined;
+  if (role.id === ROLE.superAdmin && !position) return invalid("Choose their position in the Office.");
   // a Student holds the role as just Student, never scoped to a unit
-  if (role.id === ROLE.student) scope = roleScope(role.id, a.unitId);
+  // and a Super Administrator always University-wide
+  if (role.id === ROLE.student || role.id === ROLE.superAdmin) scope = roleScope(role.id, a.unitId);
+  // Administrators and Coordinators belong to an Office or College/Faculty; the Rankings Office's own people are Super Administrators
+  if (role.id === ROLE.admin && scope.units === "all") return invalid("An Administrator heads one University Office or College/Faculty.");
+  if ((role.id === ROLE.admin || role.id === ROLE.coordinator) && scope.units !== "all" && scope.units.includes(HUB_OFFICE))
+    return invalid("The Rankings Office's people are Super Administrators. Choose another Office or College/Faculty.");
   if (a.status === "Deactivated") return invalid(`${a.name} is deactivated. Reactivate the account first.`);
   const blocked = guard(ctx, a, "edit", "assignment.add");
   if (blocked) return blocked;
   const scopeProblem = validScope(ctx, scope);
   if (scopeProblem) return invalid(scopeProblem);
   if (expires && (!isDay(expires) || expires <= ctx.day)) return invalid("Temporary access must end on a future date.");
-  if (a.external && role.id !== ROLE.external) return invalid("External partners can only hold the External role.");
+  if (a.external && role.id !== ROLE.external) return invalid("External partners can only hold the External Contributor role.");
   if (role.id === ROLE.external && !expires) return invalid("External access needs an end date.");
+  const name = roleLabel(role, position);
+  if (role.id === ROLE.superAdmin && a.assignments.some((x) => x.roleId === role.id && (!x.expires || x.expires > ctx.day)))
+    return invalid(`${a.name} is already a Super Administrator. Remove that position first to give another.`);
   if (a.assignments.some((x) => x.roleId === role.id && JSON.stringify(x.scope) === JSON.stringify(scope) && (!x.expires || x.expires > ctx.day)))
     return invalid(`${a.name} already holds ${role.name} with this scope.`);
-  const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units);
+  const check = grantCheck(ctx.actor.grants, role, scope, ctx.state.units, position);
   if (!check.ok) return deny(ctx, "assignment.add", "Access", res(a), check.reason);
-  const label = `${role.name}${role.id === ROLE.student ? "" : ` · ${scopeLabel(scope, ctx.state.units)}`}${expires ? ` · until ${expires}` : ""}`;
+  const label = `${name}${role.id === ROLE.student ? "" : ` · ${assignmentScopeLabel({ roleId: role.id, scope }, ctx.state.units)}`}${expires ? ` · until ${expires}` : ""}`;
   // Raising an existing account above the role it already holds goes through privilege escalation.
   if (a.status !== "Pending Invitation" && role.tier > topTier(grantsOf(ctx, a)) && needsApproval(ctx, "privilege-escalation")) {
-    const req = openRequest(ctx, "privilege-escalation", { kind: "privilege-escalation", accountId: a.id, roleId: role.id, scope, expires }, `${role.name} for ${a.name}`, cleanText(note, 300) || `Requested by ${ctx.actor.name}`);
+    const req = openRequest(ctx, "privilege-escalation", { kind: "privilege-escalation", accountId: a.id, roleId: role.id, position, scope, expires }, `${name} for ${a.name}`, cleanText(note, 300) || `Requested by ${ctx.actor.name}`);
     return ok(`This raises ${a.name}'s access, so it was sent for approval.`, { requestId: req.id });
   }
-  addAssignment(ctx, a, role.id, scope, expires, cleanText(note, 300) || undefined);
+  addAssignment(ctx, a, role.id, scope, expires, cleanText(note, 300) || undefined, position);
   log(ctx, "assignment.add", "Access", res(a), "Success", label);
-  return ok(`${role.name} added.`);
+  return ok(`${name} added.`);
 }
 
 export function removeRole(ctx: Ctx, accountId: string, assignmentId: string): CommandResult {
@@ -255,12 +276,12 @@ export function removeRole(ctx: Ctx, accountId: string, assignmentId: string): C
   const blocked = guard(ctx, a, "edit", "assignment.remove");
   if (blocked) return blocked;
   const role = roleOf(asg.roleId, ctx.state.config.rolePermissions);
-  const lastAdmin = runsHub(asg) && a.assignments.filter((x) => runsHub(x) && (!x.expires || x.expires > ctx.day)).length === 1;
-  if (lastAdmin && a.status === "Active" && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1) return invalid("This is the last active University-wide Administrator.");
+  const lastAdmin = ownsHub(asg) && a.assignments.filter((x) => ownsHub(x) && (!x.expires || x.expires > ctx.day)).length === 1;
+  if (lastAdmin && a.status === "Active" && activeAdmins(ctx).filter((x) => x.id !== a.id).length < 1) return invalid("This is the last active Director.");
   a.assignments = a.assignments.filter((x) => x.id !== assignmentId);
   if (a.activeAssignment === assignmentId) a.activeAssignment = undefined;
-  log(ctx, "assignment.remove", "Access", res(a), "Success", `${role?.name ?? asg.roleId} · ${scopeLabel(asg.scope, ctx.state.units)}`);
-  return ok(`${role?.name ?? "Role"} removed from ${a.name}.`);
+  log(ctx, "assignment.remove", "Access", res(a), "Success", `${role ? roleLabel(role, asg.position) : asg.roleId} · ${assignmentScopeLabel(asg, ctx.state.units)}`);
+  return ok(`${role ? roleLabel(role, asg.position) : "Role"} removed from ${a.name}.`);
 }
 
 /** Recompute grants after a change, for callers that need the new picture in the same transaction. */

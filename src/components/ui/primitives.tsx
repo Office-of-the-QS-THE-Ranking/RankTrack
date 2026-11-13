@@ -42,33 +42,6 @@ export function PageHeader({
   );
 }
 
-export function Crumbs({ items }: { items: { href?: string; label: string }[] }) {
-  return (
-    <nav aria-label="Breadcrumb">
-      <ol className="crumbs">
-        {items.map((c, i) => (
-          <li key={c.label + i} className="row" style={{ gap: 6 }}>
-            {i > 0 && <Icon name="chevron" size={14} />}
-            {c.href ? <Link href={c.href}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-}
-
-export function SectionHead({ title, sub, actions, id }: { title: string; sub?: string; actions?: ReactNode; id?: string }) {
-  return (
-    <div className="section-head">
-      <div>
-        <h2 id={id}>{title}</h2>
-        {sub && <p>{sub}</p>}
-      </div>
-      {actions}
-    </div>
-  );
-}
-
 export function Card({
   title,
   sub,

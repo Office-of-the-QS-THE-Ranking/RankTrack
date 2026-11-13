@@ -100,6 +100,7 @@ export type Database = {
           id: string
           note: string | null
           ord: number
+          position: string | null
           role_id: string
           scope_bodies: string[] | null
           scope_datasets: string[] | null
@@ -114,6 +115,7 @@ export type Database = {
           id: string
           note?: string | null
           ord: number
+          position?: string | null
           role_id: string
           scope_bodies?: string[] | null
           scope_datasets?: string[] | null
@@ -128,6 +130,7 @@ export type Database = {
           id?: string
           note?: string | null
           ord?: number
+          position?: string | null
           role_id?: string
           scope_bodies?: string[] | null
           scope_datasets?: string[] | null
@@ -1322,6 +1325,7 @@ export type Database = {
           action?: string | null
           content: string
           embedding: string
+          fts?: unknown
           hash: string
           href: string
           id: string
@@ -1336,6 +1340,7 @@ export type Database = {
           action?: string | null
           content?: string
           embedding?: string
+          fts?: unknown
           hash?: string
           href?: string
           id?: string
@@ -1359,6 +1364,7 @@ export type Database = {
         }
         Insert: {
           amount_usd: number
+          id?: never
           note?: string | null
           provider: string
           recorded_at?: string
@@ -1366,12 +1372,66 @@ export type Database = {
         }
         Update: {
           amount_usd?: number
+          id?: never
           note?: string | null
           provider?: string
           recorded_at?: string
           recorded_by?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistant_credits_provider_fkey"
+            columns: ["provider"]
+            isOneToOne: false
+            referencedRelation: "assistant_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_jobs: {
+        Row: {
+          backup_model_id: string | null
+          daily_limit: number
+          enabled: boolean
+          id: string
+          model_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          backup_model_id?: string | null
+          daily_limit?: number
+          enabled?: boolean
+          id: string
+          model_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          backup_model_id?: string | null
+          daily_limit?: number
+          enabled?: boolean
+          id?: string
+          model_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_jobs_backup_model_id_fkey"
+            columns: ["backup_model_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_jobs_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistant_model_access: {
         Row: {
@@ -1398,7 +1458,15 @@ export type Database = {
           requested_at?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistant_model_access_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistant_models: {
         Row: {
@@ -1437,7 +1505,15 @@ export type Database = {
           position?: number
           provider?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistant_models_provider_fkey"
+            columns: ["provider"]
+            isOneToOne: false
+            referencedRelation: "assistant_providers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistant_providers: {
         Row: {
@@ -1512,7 +1588,15 @@ export type Database = {
           paused?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistant_settings_fallback_fkey"
+            columns: ["fallback_model"]
+            isOneToOne: false
+            referencedRelation: "assistant_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistant_usage: {
         Row: {
@@ -1521,6 +1605,7 @@ export type Database = {
           cost_usd: number
           id: number
           input_tokens: number
+          job: string
           model_id: string | null
           outcome: string
           output_tokens: number
@@ -1532,7 +1617,9 @@ export type Database = {
           account_id: string
           at?: string
           cost_usd?: number
+          id?: never
           input_tokens?: number
+          job?: string
           model_id?: string | null
           outcome: string
           output_tokens?: number
@@ -1544,7 +1631,9 @@ export type Database = {
           account_id?: string
           at?: string
           cost_usd?: number
+          id?: never
           input_tokens?: number
+          job?: string
           model_id?: string | null
           outcome?: string
           output_tokens?: number
@@ -2094,6 +2183,7 @@ export type Database = {
       }
       evidence: {
         Row: {
+          also_types: string[]
           attachments: Json
           background: string
           beneficiaries: string
@@ -2120,6 +2210,7 @@ export type Database = {
           verified_by: string
         }
         Insert: {
+          also_types?: string[]
           attachments?: Json
           background?: string
           beneficiaries?: string
@@ -2146,6 +2237,7 @@ export type Database = {
           verified_by?: string
         }
         Update: {
+          also_types?: string[]
           attachments?: Json
           background?: string
           beneficiaries?: string
@@ -2265,6 +2357,138 @@ export type Database = {
           id?: string
           name?: string
           ord?: number
+        }
+        Relationships: []
+      }
+      firewall_requests: {
+        Row: {
+          action: string
+          agent: string | null
+          at: string
+          city: string | null
+          country: string | null
+          host: string | null
+          id: number
+          ip: string
+          method: string
+          path: string
+          reason: string | null
+          referrer: string | null
+          rule_id: string | null
+          session: boolean
+        }
+        Insert: {
+          action: string
+          agent?: string | null
+          at?: string
+          city?: string | null
+          country?: string | null
+          host?: string | null
+          id?: never
+          ip: string
+          method: string
+          path: string
+          reason?: string | null
+          referrer?: string | null
+          rule_id?: string | null
+          session?: boolean
+        }
+        Update: {
+          action?: string
+          agent?: string | null
+          at?: string
+          city?: string | null
+          country?: string | null
+          host?: string | null
+          id?: never
+          ip?: string
+          method?: string
+          path?: string
+          reason?: string | null
+          referrer?: string | null
+          rule_id?: string | null
+          session?: boolean
+        }
+        Relationships: []
+      }
+      firewall_rules: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          expires_at: string | null
+          hits: number
+          id: string
+          kind: string
+          last_hit_at: string | null
+          name: string
+          note: string | null
+          value: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          expires_at?: string | null
+          hits?: number
+          id?: string
+          kind: string
+          last_hit_at?: string | null
+          name: string
+          note?: string | null
+          value: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          expires_at?: string | null
+          hits?: number
+          id?: string
+          kind?: string
+          last_hit_at?: string | null
+          name?: string
+          note?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
+      firewall_settings: {
+        Row: {
+          block_scanners: boolean
+          dev_enabled: boolean
+          id: number
+          lockdown: boolean
+          mode: string
+          rate_limit: number
+          retention_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          block_scanners?: boolean
+          dev_enabled?: boolean
+          id?: number
+          lockdown?: boolean
+          mode?: string
+          rate_limit?: number
+          retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          block_scanners?: boolean
+          dev_enabled?: boolean
+          id?: number
+          lockdown?: boolean
+          mode?: string
+          rate_limit?: number
+          retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -2886,6 +3110,7 @@ export type Database = {
       }
       office_entries: {
         Row: {
+          anchor: string | null
           body: string
           href: string | null
           owners: string | null
@@ -2896,6 +3121,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          anchor?: string | null
           body?: string
           href?: string | null
           owners?: string | null
@@ -2906,6 +3132,7 @@ export type Database = {
           title: string
         }
         Update: {
+          anchor?: string | null
           body?: string
           href?: string | null
           owners?: string | null
@@ -2928,6 +3155,7 @@ export type Database = {
           name: string
           phone: string
           profile_date: string
+          purpose: string
           reports_to: string
           street: string
           summary: string
@@ -2943,6 +3171,7 @@ export type Database = {
           name: string
           phone: string
           profile_date: string
+          purpose?: string
           reports_to: string
           street: string
           summary: string
@@ -2958,6 +3187,7 @@ export type Database = {
           name?: string
           phone?: string
           profile_date?: string
+          purpose?: string
           reports_to?: string
           street?: string
           summary?: string
@@ -3832,6 +4062,215 @@ export type Database = {
         }
         Relationships: []
       }
+      review_files: {
+        Row: {
+          bytes: number
+          chars: number
+          evidence_id: string
+          name: string
+          ocr_pages: number
+          page_unit: string
+          pages: number
+          read_at: string
+          read_by: string
+          ruled_at: string | null
+          sha256: string
+          signature: number[] | null
+          src: string
+          status: string
+          summary: Json
+          truncated: boolean
+        }
+        Insert: {
+          bytes: number
+          chars?: number
+          evidence_id: string
+          name: string
+          ocr_pages?: number
+          page_unit?: string
+          pages?: number
+          read_at?: string
+          read_by: string
+          ruled_at?: string | null
+          sha256: string
+          signature?: number[] | null
+          src: string
+          status?: string
+          summary?: Json
+          truncated?: boolean
+        }
+        Update: {
+          bytes?: number
+          chars?: number
+          evidence_id?: string
+          name?: string
+          ocr_pages?: number
+          page_unit?: string
+          pages?: number
+          read_at?: string
+          read_by?: string
+          ruled_at?: string | null
+          sha256?: string
+          signature?: number[] | null
+          src?: string
+          status?: string
+          summary?: Json
+          truncated?: boolean
+        }
+        Relationships: []
+      }
+      review_findings: {
+        Row: {
+          ai: Json | null
+          confidence: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          edition_id: string
+          evidence_id: string
+          figure: Json | null
+          figures: Json
+          id: string
+          indicator_code: string
+          link_id: string | null
+          link_made: boolean
+          negated: boolean
+          pages: number[]
+          quote: string
+          quote_page: number | null
+          score: number
+          src: string
+          status: string
+          terms: string[]
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          ai?: Json | null
+          confidence: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          edition_id: string
+          evidence_id: string
+          figure?: Json | null
+          figures?: Json
+          id?: string
+          indicator_code: string
+          link_id?: string | null
+          link_made?: boolean
+          negated?: boolean
+          pages?: number[]
+          quote?: string
+          quote_page?: number | null
+          score?: number
+          src: string
+          status?: string
+          terms?: string[]
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          ai?: Json | null
+          confidence?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          edition_id?: string
+          evidence_id?: string
+          figure?: Json | null
+          figures?: Json
+          id?: string
+          indicator_code?: string
+          link_id?: string | null
+          link_made?: boolean
+          negated?: boolean
+          pages?: number[]
+          quote?: string
+          quote_page?: number | null
+          score?: number
+          src?: string
+          status?: string
+          terms?: string[]
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_findings_edition_id_indicator_code_fkey"
+            columns: ["edition_id", "indicator_code"]
+            isOneToOne: false
+            referencedRelation: "analytics_indicators"
+            referencedColumns: ["edition_id", "code"]
+          },
+          {
+            foreignKeyName: "review_findings_src_fkey"
+            columns: ["src"]
+            isOneToOne: false
+            referencedRelation: "review_files"
+            referencedColumns: ["src"]
+          },
+        ]
+      }
+      review_pages: {
+        Row: {
+          ocr: boolean
+          page: number
+          sha256: string
+          text: string
+        }
+        Insert: {
+          ocr?: boolean
+          page: number
+          sha256: string
+          text: string
+        }
+        Update: {
+          ocr?: boolean
+          page?: number
+          sha256?: string
+          text?: string
+        }
+        Relationships: []
+      }
+      review_terms: {
+        Row: {
+          added_at: string
+          added_by: string
+          id: string
+          indicator_code: string | null
+          ranking_slug: string | null
+          sdg: number | null
+          term: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string
+          id?: string
+          indicator_code?: string | null
+          ranking_slug?: string | null
+          sdg?: number | null
+          term: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          id?: string
+          indicator_code?: string | null
+          ranking_slug?: string | null
+          sdg?: number | null
+          term?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_terms_ranking_slug_fkey"
+            columns: ["ranking_slug"]
+            isOneToOne: false
+            referencedRelation: "ranking_frameworks"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       sdg_goals: {
         Row: {
           color: string
@@ -4410,16 +4849,22 @@ export type Database = {
       }
       workflow_steps: {
         Row: {
+          approver: string
+          enabled: boolean
           name: string
           ord: number
           workflow_id: string
         }
         Insert: {
+          approver?: string
+          enabled?: boolean
           name: string
           ord: number
           workflow_id: string
         }
         Update: {
+          approver?: string
+          enabled?: boolean
           name?: string
           ord?: number
           workflow_id?: string
@@ -4440,6 +4885,7 @@ export type Database = {
           enabled: boolean
           id: string
           name: string
+          notify: boolean
           ord: number
           separation: boolean
           sla_days: number
@@ -4449,6 +4895,7 @@ export type Database = {
           enabled: boolean
           id: string
           name: string
+          notify?: boolean
           ord: number
           separation: boolean
           sla_days: number
@@ -4458,6 +4905,7 @@ export type Database = {
           enabled?: boolean
           id?: string
           name?: string
+          notify?: boolean
           ord?: number
           separation?: boolean
           sla_days?: number
@@ -4613,6 +5061,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      office_save: {
+        Args: { profile: Json; sections: Json }
+        Returns: undefined
+      }
+      assistant_job_usage: {
+        Args: { p_day_start: string; p_since: string }
+        Returns: {
+          cost_usd: number
+          failed: number
+          input_tokens: number
+          job: string
+          output_tokens: number
+          runs: number
+          runs_today: number
+        }[]
+      }
       assistant_provider_spend: {
         Args: { p_month_start: string }
         Returns: {
@@ -4629,17 +5093,17 @@ export type Database = {
           p_query: string
         }
         Returns: {
-          action: string | null
+          action: string
           content: string
           href: string
           id: string
           level: string
-          module: string | null
+          module: string
           similarity: number
           source_id: string
           text_match: boolean
           title: string
-          unit_id: string | null
+          unit_id: string
         }[]
       }
       assistant_usage_rollup: {
@@ -4656,6 +5120,13 @@ export type Database = {
           role_id: string
           unit_id: string
         }[]
+      }
+      firewall_config: { Args: never; Returns: Json }
+      firewall_log: { Args: { p_rows: Json }; Returns: undefined }
+      firewall_purge: { Args: never; Returns: number }
+      firewall_summary: {
+        Args: { p_from: string; p_step: string }
+        Returns: Json
       }
       hub_before_user_created: { Args: { event: Json }; Returns: Json }
       hub_columns: {

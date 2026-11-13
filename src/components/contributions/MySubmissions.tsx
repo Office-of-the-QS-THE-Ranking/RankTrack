@@ -17,9 +17,9 @@ import { SearchField } from "@/components/ui/search-field";
 import { ContributionRecord } from "./ContributionRecord";
 import { openId, rowId } from "./SubmissionsTable";
 import { EvidenceComposer } from "./EvidenceComposer";
-import { MiniTrack } from "./parts";
+import { MiniTrack, typeLabel, typesOf } from "./parts";
 import { RecordModal } from "./RecordModal";
-import { EmptyView } from "./ValidationQueue";
+import { EmptyView } from "./UnitSubmissions";
 
 const TABS = ["All", "For review", "Needs revision", "Validated"] as const;
 type Tab = (typeof TABS)[number];
@@ -45,7 +45,7 @@ export function MySubmissions({ rows, canSubmit, note }: { rows: EvidenceItem[];
   const shown = rows.filter(
     (e) =>
       (tab === "All" || e.status === tab) &&
-      (!query || [e.title, e.id, e.type, e.period, e.status, ...e.sdgs.map((n) => `SDG ${n} ${sdgNames[n] ?? ""}`)].join(" ").toLowerCase().includes(query)),
+      (!query || [e.title, e.id, ...typesOf(e), e.period, e.status, ...e.sdgs.map((n) => `SDG ${n} ${sdgNames[n] ?? ""}`)].join(" ").toLowerCase().includes(query)),
   );
   const counts = Object.fromEntries(TABS.map((t) => [t, t === "All" ? rows.length : rows.filter((e) => e.status === t).length])) as Record<Tab, number>;
 
@@ -135,7 +135,7 @@ export function MySubmissions({ rows, canSubmit, note }: { rows: EvidenceItem[];
                             {e.title}
                           </button>
                           <span className="table__sub">
-                            {e.type} · <span className="num">{e.id}</span>
+                            <span title={typesOf(e).join(", ")}>{typeLabel(e)}</span> · <span className="num">{e.id}</span>
                           </span>
                         </span>
                       </td>

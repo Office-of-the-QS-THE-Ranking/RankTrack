@@ -27,8 +27,8 @@ export interface Viewer {
   workspaces: Workspace[];
   /** The unit the contributor workspace shows. */
   portal: { unitId: string; unitName: string; programId?: string; programName?: string };
-  /** Administration sections this viewer may open. */
-  admin: ModuleKey[];
+  /** Command & Control sections this viewer may open. */
+  commandControl: ModuleKey[];
   flags: string[];
   features: Record<string, boolean>;
   dataGrants: DataGrant[];

@@ -1,0 +1,279 @@
+/* Command & Control › Agentic Control (components/command-control/sections/AgenticControl.tsx). Everything else on it is the console's own. */
+.agentic-providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+.agentic-provider {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--cmd-line);
+  border-radius: 18px;
+  background: var(--cmd-raise);
+}
+.agentic-provider__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.agentic-provider__name {
+  margin: 0;
+  color: var(--cmd-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.agentic-provider__idle {
+  margin: 0;
+  color: var(--cmd-muted);
+  font-size: 13px;
+}
+.agentic-provider__facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+.agentic-provider__facts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.agentic-provider__facts dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cmd-muted);
+}
+.agentic-provider__facts dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--cmd-text);
+}
+.agentic-provider__meter {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cmd-well);
+}
+.agentic-provider__meter i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cmd-text);
+}
+.agentic-provider__meter i[data-full] {
+  background: var(--danger);
+}
+.agentic-provider__foot {
+  justify-content: flex-start;
+  margin-top: auto;
+}
+.agentic-model--idle td {
+  color: var(--cmd-muted);
+}
+.agentic-control__when {
+  font-size: 20px;
+}
+.agentic-control__inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cmd-muted);
+  font-size: 12.5px;
+}
+.agentic-control__inline > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.agentic-control__inline .select {
+  width: 210px;
+}
+.agentic-control__limit {
+  display: block;
+  width: 112px;
+}
+.agentic-control__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.agentic-control__tools .select {
+  width: 160px;
+}
+.agentic-control__out {
+  align-self: flex-start;
+  width: fit-content;
+  text-decoration: none;
+}
+.agentic-control__settings {
+  gap: 48px;
+}
+.agentic-control__settings-form {
+  gap: 40px;
+}
+.agentic-control__get-key {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.agentic-control__key-help {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 32px;
+  list-style: disc;
+  line-height: 1.45;
+}
+.cmd .agentic-control__key {
+  padding: 0 6px 0 12px;
+  border-color: var(--cmd-line-2);
+  background: var(--cmd-bg);
+  color: var(--cmd-muted);
+}
+.agentic-control__key input {
+  color: var(--cmd-text);
+}
+.agentic-control__key input::-ms-reveal {
+  display: none;
+}
+.agentic-control__key {
+  position: relative;
+}
+.cmd .agentic-control__key:has(input:disabled) {
+  background: var(--cmd-well);
+  cursor: var(--cursor-not-allowed);
+}
+/* Browsers differ on clicks over a disabled input, so they land on the field around it instead. */
+.agentic-control__key input:disabled {
+  pointer-events: none;
+}
+.cmd .agentic-control__key[data-nudged] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+.agentic-control__key[data-nudged] .agentic-control__reveal {
+  color: var(--danger);
+  animation: agentic-control-lock-pulse 1.2s ease-out 2;
+}
+@keyframes agentic-control-lock-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 9px color-mix(in srgb, var(--danger) 0%, transparent);
+  }
+}
+/* Same look as the shared field tooltip, with its tail on the lock. */
+.agentic-control__unlock-tip {
+  position: absolute;
+  right: -1px;
+  bottom: calc(100% + 12px);
+  z-index: 2;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--pick-bg, var(--surface));
+  color: var(--pick-fg, var(--text));
+  box-shadow: var(--pick-shadow, 0 0 0 1px rgb(var(--hair) / 0.08), 0 4px 10px rgb(0 0 0 / 0.05), 0 22px 48px -18px rgb(0 0 0 / 0.3));
+  font-size: var(--fs-13);
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.agentic-control__unlock-tip::after {
+  content: "";
+  position: absolute;
+  right: 15px;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  background: inherit;
+  border-right: 1px solid var(--pick-edge, rgb(var(--hair) / 0.1));
+  border-bottom: 1px solid var(--pick-edge, rgb(var(--hair) / 0.1));
+  transform: rotate(45deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .agentic-control__key[data-nudged] .agentic-control__reveal {
+    animation: none;
+  }
+}
+.agentic-control__key input::placeholder {
+  color: var(--cmd-muted);
+  opacity: 1;
+}
+.agentic-control__key input:disabled::placeholder {
+  letter-spacing: 0.25em;
+}
+.agentic-control__reveal {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: var(--cursor-pointer);
+}
+.agentic-control__reveal:hover {
+  background: var(--cmd-hover);
+  color: var(--cmd-text);
+}
+.cmd .agentic-control__reveal:focus-visible {
+  outline: 1px solid var(--cmd-text);
+  outline-offset: 0;
+}
+@media (pointer: coarse) {
+  .agentic-control__key {
+    height: 44px;
+  }
+  .agentic-control__key input {
+    font-size: var(--fs-16);
+  }
+}
+.agentic-control__plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.agentic-control__plan legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.agentic-control__plan .cmd-field__hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+.agentic-control__steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Jobs: the Assistant's row only says where its model is chosen */
+.agentic-job__note {
+  color: var(--cmd-muted, var(--text-3));
+  font-size: 13px;
+}

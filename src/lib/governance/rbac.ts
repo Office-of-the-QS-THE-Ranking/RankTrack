@@ -3,8 +3,8 @@
  * uses them to decide what to show). A role decides what a user can do; the scope of each assignment
  * decides which records they can reach.
  */
-import { HUB_OFFICE, MODULES, ROLE, STUDENT_HOME, roleOf } from "./catalog";
-import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Role, RoleId, RolePermissions, Scope } from "./types";
+import { MODULES, OFFICE_SCOPE, ROLE, STUDENT_HOME, positionOf, roleOf } from "./catalog";
+import type { Account, Action, Assignment, BodyKey, ModuleKey, OrgUnit, PermissionSet, Position, Role, RoleId, RolePermissions, Scope } from "./types";
 
 export const today = (now = new Date()) => now.toISOString().slice(0, 10);
 
@@ -35,10 +35,10 @@ export function normalize(set: PermissionSet): PermissionSet {
   return out;
 }
 
-/** A role's permissions; with a scope, what it holds there (a University-wide Administrator holds more). */
-export const rolePermissions = (roleId: string, scope?: Pick<Scope, "units">, overrides?: RolePermissions): PermissionSet => {
+/** A role's permissions; a Super Administrator's are those of their position in the Office. */
+export const rolePermissions = (roleId: string, position?: Position, overrides?: RolePermissions): PermissionSet => {
   const role = roleOf(roleId, overrides);
-  return role ? (scope ? permissionsAt(role, scope) : role.permissions) : {};
+  return role ? permissionsOf(role, position) : {};
 };
 
 export const has = (set: PermissionSet, m: ModuleKey, a: Action) => (set[m] ?? []).includes(a);
@@ -96,17 +96,23 @@ export const UNIVERSITY: Scope = { units: "all", rankingBodies: "all", years: "a
 export const unitScope = (unitId: string): Scope => ({ units: [unitId], rankingBodies: "all", years: "all", datasets: "all" });
 
 /**
- * The scope a role starts with in a unit: University-wide for an Administrator of the Rankings Office, else the unit.
- * A Student belongs to no College/Faculty or Office, so theirs is always the Office that keeps Student accounts.
+ * The scope a role starts with in a unit: University-wide for a Super Administrator, else the unit. A Student
+ * belongs to no College/Faculty or Office, so theirs is always the Office that keeps Student accounts.
  */
 export const roleScope = (roleId: string, unitId: string): Scope =>
-  roleId === ROLE.student ? unitScope(STUDENT_HOME) : roleId === ROLE.admin && unitId === HUB_OFFICE ? UNIVERSITY : unitScope(unitId);
+  roleId === ROLE.superAdmin ? UNIVERSITY : roleId === ROLE.student ? unitScope(STUDENT_HOME) : unitScope(unitId);
 
-/** Whether an assignment runs the Hub: an Administrator held University-wide. */
-export const runsHub = (a: Pick<Assignment, "roleId" | "scope">) => a.roleId === ROLE.admin && a.scope.units === "all";
+/** Whether an assignment runs the Hub: a Super Administrator, in any position of the Office. */
+export const runsHub = (a: Pick<Assignment, "roleId">) => a.roleId === ROLE.superAdmin;
 
-/** What a role holds with a given scope: a University-wide assignment may carry more (Role.universityPermissions). */
-export const permissionsAt = (role: Role, scope: Pick<Scope, "units">): PermissionSet => (scope.units === "all" && role.universityPermissions) || role.permissions;
+/** Whether an assignment owns the Hub: the Office's Director. The Hub always keeps at least one active. */
+export const ownsHub = (a: Pick<Assignment, "roleId" | "position">) => a.roleId === ROLE.superAdmin && positionOf(a.position).id === "director";
+
+/** What an assignment of the role holds: a Super Administrator's position decides theirs. */
+export const permissionsOf = (role: Role, position?: Position): PermissionSet => (role.id === ROLE.superAdmin ? positionOf(position).permissions : role.permissions);
+
+/** The role as people read it: "Super Administrator · Director" for the Office's people, else the role's name. */
+export const roleLabel = (role: Pick<Role, "id" | "name">, position?: Position) => (role.id === ROLE.superAdmin ? `${role.name} · ${positionOf(position).name}` : role.name);
 
 export function scopeLabel(scope: Scope, units: OrgUnit[], datasetNames: Record<string, string> = {}): string {
   const parts: string[] = [];
@@ -116,6 +122,10 @@ export function scopeLabel(scope: Scope, units: OrgUnit[], datasetNames: Record<
   if (scope.datasets !== "all") parts.push(scope.datasets.map((d) => datasetNames[d] ?? d).join(", "));
   return parts.join(" · ");
 }
+
+/** What an assignment covers: a Super Administrator's is the Office, whatever its University-wide scope. */
+export const assignmentScopeLabel = (a: Pick<Assignment, "roleId" | "scope">, units: OrgUnit[], datasetNames: Record<string, string> = {}) =>
+  a.roleId === ROLE.superAdmin ? OFFICE_SCOPE : scopeLabel(a.scope, units, datasetNames);
 
 /** What a request touches. Axes left out are not checked. */
 export interface Target {
@@ -129,6 +139,8 @@ export interface Target {
 export interface Grant {
   assignmentId: string;
   roleId: RoleId;
+  /** A Super Administrator's position in the Office. */
+  position?: Position;
   roleName: string;
   perms: PermissionSet;
   units: "all" | string[];
@@ -149,8 +161,9 @@ export function grantsFor(account: Account, units: OrgUnit[], day: string, overr
       {
         assignmentId: a.id,
         roleId: role.id,
-        roleName: role.name,
-        perms: permissionsAt(role, a.scope),
+        ...(role.id === ROLE.superAdmin ? { position: positionOf(a.position).id } : {}),
+        roleName: roleLabel(role, a.position),
+        perms: permissionsOf(role, a.position),
         units: reach,
         scopeUnits: a.scope.units,
         bodies: a.scope.rankingBodies,
@@ -201,9 +214,8 @@ export function actingGrants(account: Account, units: OrgUnit[], day: string, ov
   return acting ? [acting] : [];
 }
 
-/** Only an active Rankings Office Administrator acting University-wide may edit the four roles. */
-export const canEditRolePermissions = (account: Pick<Account, "unitId" | "status">, grants: Grant[]) =>
-  account.status === "Active" && account.unitId === HUB_OFFICE && grants.some((g) => g.roleId === ROLE.admin && g.scopeUnits === "all");
+/** Only an active Director, acting as one, may edit the roles' permissions. */
+export const canEditRolePermissions = (account: Pick<Account, "status">, grants: Grant[]) => account.status === "Active" && grants.some(ownsHub);
 
 /**
  * Nobody can grant more than they hold: the role's permissions must sit inside the actor's own, and the
@@ -211,9 +223,12 @@ export const canEditRolePermissions = (account: Pick<Account, "unitId" | "status
  * with is the exception: Administrators make Coordinators (user, 2026-10-27), whose submission rights they
  * set aside for themselves, since administrators never submit on behalf of units.
  */
-export function grantCheck(actor: Grant[], role: Role, scope: Scope, units: OrgUnit[]): { ok: true } | { ok: false; reason: string } {
+export function grantCheck(actor: Grant[], role: Role, scope: Scope, units: OrgUnit[], position?: Position): { ok: true } | { ok: false; reason: string } {
+  // The Office's people are appointed by its Director only; Administrators head one Office or College/Faculty.
+  if (role.id === ROLE.superAdmin && !actor.some(ownsHub)) return { ok: false, reason: "Only the Director can appoint Super Administrators." };
+  if (role.id === ROLE.admin && scope.units === "all") return { ok: false, reason: "An Administrator heads one University Office or College/Faculty." };
   const outranks = actor.some((g) => has(g.perms, "accounts", "edit") && g.tier > role.tier);
-  const extra = outranks ? [] : beyond(permissionsAt(role, scope), mergedPermissions(actor));
+  const extra = outranks ? [] : beyond(permissionsOf(role, position), mergedPermissions(actor));
   if (extra.length)
     return { ok: false, reason: `You can't assign ${role.name}: it includes permissions you don't hold (${extra.slice(0, 3).map((e) => `${e.module} ${e.action}`).join(", ")}${extra.length > 3 ? "…" : ""}).` };
   const admin = reach(actor, "accounts", "edit");

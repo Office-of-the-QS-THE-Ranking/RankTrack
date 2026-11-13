@@ -6,9 +6,10 @@ import { STAGES, formatDate, type EvidenceItem, type EvidenceStatus } from "@/li
 import { bodyOfMapping } from "@/lib/governance/catalog";
 import { EVIDENCE_FILE_KINDS, type EvidenceFileKind } from "@/lib/governance/evidence-files";
 import type { BodyKey } from "@/lib/governance/types";
+import { reviewerBlock, reviewerFits } from "@/lib/governance/workflow-steps";
 import { useCan, useGovern, useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { useReference, useViews } from "@/components/reference/ReferenceProvider";
-import { Avatar, Hint } from "@/components/admin/ui";
+import { Avatar, Hint } from "@/components/command-control/ui";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Segmented, TabPanel, Tabs } from "@/components/ui/interactive";
 import { Status, Swatch, cx } from "@/components/ui/primitives";
@@ -16,7 +17,12 @@ import { RichText } from "@/components/ui/RichText";
 import { isRich, plainText } from "@/lib/rich-text";
 import { toast } from "@/components/ui/toast";
 import { uploadEvidence } from "./evidence-upload";
-import { KIND, Mark, SUBMISSION_TABS, fileKind, fileSize, filesOf, hostOf, linksOf, splitReach, splitResult, type ShownFile, type SubmissionTab as Tab } from "./parts";
+import { ReviewTab } from "./ReviewTab";
+import { KIND, Mark, SUBMISSION_TABS, fileKind, fileSize, filesOf, hostOf, linksOf, splitReach, splitResult, typesOf, type ShownFile, type SubmissionTab } from "./parts";
+import { usePending } from "@/components/ui/ButtonBusy";
+
+/** The submission's four parts, and Review for the people who validate it (ReviewTab.tsx). */
+type Tab = SubmissionTab | "Review";
 
 const STAGE_ICON: IconName[] = ["inbox", "eye", "check", "layers", "flag"];
 const STAGE_SHORT = ["Received", "Under review", "Accepted", "Included", "Result achieved"];
@@ -53,6 +59,29 @@ function Journey({ stage, status }: { stage: number; status: EvidenceStatus }) {
             </span>
             <span className="cv-journey__label" title={s}>
               {state === "flag" ? "Needs revision" : STAGE_SHORT[k]}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** The Unit submissions pipeline's steps, when it has more than one: approved ones with who approved, the one it waits on. */
+function ReviewSteps({ pipeline }: { pipeline: NonNullable<EvidenceItem["pipeline"]> }) {
+  return (
+    <ol className="cv-steps" aria-label="Review steps">
+      {pipeline.steps.map((s, k) => {
+        const by = pipeline.approvals.find((a) => a.step === s.at);
+        const state = k < pipeline.now ? "done" : k === pipeline.now ? "now" : "next";
+        return (
+          <li key={k} className={`is-${state}`} aria-current={state === "now" ? "step" : undefined}>
+            <i className="cv-steps__mark" aria-hidden="true">
+              {state === "done" && <Icon name="check" size={10} strokeWidth={3} />}
+            </i>
+            <span>
+              <b>{s.name}</b>
+              <small>{state === "done" ? (by?.name ?? "Approved") : s.open || s.approver === "office" ? "Either approver" : s.approver === "director" ? "Director" : "Ranking Specialist"}</small>
             </span>
           </li>
         );
@@ -132,7 +161,8 @@ function FileCard({ file, locked }: { file: ShownFile; locked: boolean }) {
 
 /**
  * One contribution in full, in four tabs: the Overview (where it stands, its background and its figures), the
- * narrative, the evidence (files by kind, links and how it was verified) and the references it cites. Accepting,
+ * narrative, the evidence (files by kind, links and how it was verified) and the references it cites. Whoever may
+ * decide it has a fifth, Review: what its files say, checked against the indicators it counts toward. Accepting,
  * returning and remapping go to the server, which checks the reviewer's role and their ranking-body scope, refuses
  * self-review, notifies the unit and writes the decision to the audit log. The unit answers one sent back for
  * revision here: a reply and an optional corrected file return it to review. `locked` is the Overview's preview:
@@ -159,12 +189,26 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
   const target = { unitId: (sel as typeof sel & { programId?: string }).programId ?? sel.unitSlug, bodies: bodiesOf(sel.mappedTo) };
   const mayReview = can("evidence", "approve", target);
   const own = !!viewer && (sel.submittedById ? sel.submittedById === viewer.id : sel.submittedBy === viewer.name);
-  const decide = !locked && mayReview && !own;
+  // The pipeline step it waits on decides who may take it (engine/records.ts review).
+  const pipe = sel.status === "For review" ? sel.pipeline : undefined;
+  const step = pipe?.steps[pipe.now];
+  const last = !pipe || pipe.now >= pipe.steps.length - 1;
+  const stepWho = step ? (step.open ? "office" : step.approver) : "office";
+  const stepBlock =
+    !viewer || !step || !mayReview || own
+      ? null
+      : !reviewerFits(viewer.grants, stepWho, target)
+        ? reviewerBlock(stepWho)
+        : pipe!.approvals.some((a) => a.by === viewer.id)
+          ? "You approved an earlier step; another reviewer takes this one."
+          : null;
+  const decide = !locked && mayReview && !own && !stepBlock;
   // The unit's answer to a revision request (the Office reviews; it never edits a unit's evidence).
   const answer = !locked && !decide && sel.status === "Needs revision" && can("evidence", "edit", target);
   const [reply, setReply] = useState("");
   const [fix, setFix] = useState<File>();
   const [sending, setSending] = useState(false);
+  usePending(sending);
   const suggestions = useMemo(() => {
     const all = new Set(sel.sdgs.flatMap((s) => SUGGEST[s] ?? []));
     return [...all].filter((s) => !sel.mappedTo.includes(s) && tracked.has(s.split(" · ")[0]));
@@ -177,7 +221,9 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
       }
     : own
       ? { icon: "user", label: "Your submission", why: "You sent this, so another reviewer must decide it." }
-      : null;
+      : stepBlock && step
+        ? { icon: "lock", label: `Waiting on ${step.name}`, why: stepBlock }
+        : null;
 
   const files = useMemo(() => filesOf(sel), [sel]);
   const links = useMemo(() => linksOf(sel), [sel]);
@@ -227,6 +273,7 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
   const overview = (
     <>
       <Journey stage={sel.stage} status={sel.status} />
+      {pipe && pipe.steps.length > 1 && <ReviewSteps pipeline={pipe} />}
 
       {sentBack && (
         <aside className="cv-callout" aria-label="What to change">
@@ -265,7 +312,7 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
             <Icon name="target" size={16} />
           </span>
           <h3 id={hid("res")} className="cv-eyebrow">
-            Result
+            Result highlight
           </h3>
           {sel.result ? (
             <p className="cv-figure">
@@ -546,7 +593,10 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
     <Blank icon="quote" title="No references" sub="Nothing cited yet." />
   );
 
-  const panes: Record<Tab, ReactNode> = { Overview: overview, Narrative: narrative, Evidence: evidence, References: references };
+  // Review reads the files' text, which is for whoever decides this submission and nobody else.
+  const tabs: readonly Tab[] = decide ? [...SUBMISSION_TABS, "Review"] : SUBMISSION_TABS;
+  const at: Tab = tabs.includes(tab) ? tab : "Overview";
+  const panes: Record<Tab, ReactNode> = { Overview: overview, Narrative: narrative, Evidence: evidence, References: references, Review: at === "Review" ? <ReviewTab item={sel} /> : null };
 
   return (
     <article className="cv-doc" aria-labelledby={hid("title")}>
@@ -562,7 +612,7 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
               <span className="cv-doc__unit">{sel.unit}</span>
             )}
             <span className="cv-doc__type">
-              {sel.type} · {sel.period}
+              {typesOf(sel).join(", ")} · {sel.period}
             </span>
           </div>
           <Status status={sel.status} />
@@ -587,21 +637,21 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
 
       <div className="cv-tabbar">
         <Tabs
-          tabs={SUBMISSION_TABS.map((t) => ({
+          tabs={tabs.map((t) => ({
             key: t,
             label: t,
             count: t === "Evidence" ? evidenceCount || undefined : t === "References" ? refs.length || undefined : undefined,
           }))}
-          value={tab}
+          value={at}
           onChange={setTab}
           label="Parts of this submission"
           idBase={tabsId}
         />
       </div>
 
-      <TabPanel idBase={tabsId} index={SUBMISSION_TABS.indexOf(tab)} className="cv-tab">
-        <div key={tab} className="cv-pane">
-          {panes[tab]}
+      <TabPanel idBase={tabsId} index={tabs.indexOf(at)} className="cv-tab">
+        <div key={at} className="cv-pane">
+          {panes[at]}
         </div>
       </TabPanel>
 
@@ -624,8 +674,8 @@ export function ContributionRecord({ item: sel, locked = false }: { item: Eviden
             <button type="button" className="btn btn--sm cv-dock__revise" disabled={pending} onClick={revise}>
               <Icon name="undo" size={16} /> Request revision
             </button>
-            <button type="button" className="btn btn--dark btn--sm" disabled={pending || sel.status === "Validated"} onClick={accept}>
-              <Icon name="check" size={16} /> Accept
+            <button type="button" className="btn btn--dark btn--sm" disabled={pending || sel.status !== "For review"} onClick={accept}>
+              <Icon name="check" size={16} /> {last ? "Accept" : `Approve ${step?.name ?? "step"}`}
             </button>
           </div>
         </form>

@@ -52,12 +52,12 @@ import { readSetup, requestsOf, usedToday, type ModelRecord, type ProviderRecord
 import { liveSourceIds, WORKSPACE } from "./sources";
 
 /** Whether this person runs the assistant: University-wide, holding its manage permission. */
-export const managesAssistant = (viewer: Viewer) => viewer.grants.some((g) => g.units === "all" && !!g.perms.ai?.includes("manage"));
+export const managesAgenticControl = (viewer: Viewer) => viewer.grants.some((g) => g.units === "all" && !!g.perms.ai?.includes("manage"));
 
 const stateOf = (setup: Setup, m: ModelRecord, viewer: Viewer, requests: Map<string, RequestStatus>): ModelState => {
   const p = setup.providers.get(m.provider);
   if (!p) return "off";
-  return modelState(m, { status: p.status, budget: p.monthly_budget_usd, spentMonth: p.spentMonth }, { manager: managesAssistant(viewer), request: requests.get(m.id) });
+  return modelState(m, { status: p.status, budget: p.monthly_budget_usd, spentMonth: p.spentMonth }, { manager: managesAgenticControl(viewer), request: requests.get(m.id) });
 };
 
 /** What the chat's settings show this person. */

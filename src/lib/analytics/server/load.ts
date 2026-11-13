@@ -8,6 +8,8 @@ import "server-only";
 import { cache } from "react";
 import { evidenceList } from "@/lib/governance/records";
 import { readState } from "@/lib/governance/server/store";
+import { pagesLabel } from "@/lib/review/files";
+import { acceptedFigures } from "@/lib/review/server/store";
 import { computeEdition, academicYears } from "../engine";
 import type { Catalog, EditionReport, EvidenceRef, Facts, ValueRow } from "../types";
 import { readActivities, readBenchmarks, readCatalogs, readEditionFacts, readTemplateTotals } from "./db";
@@ -48,6 +50,18 @@ const evidenceRefs = cache(async (): Promise<EvidenceRef[]> => {
 
 const templateTotals = cache(readTemplateTotals);
 
+/** Figures reviewers accepted from evidence for an edition (lib/review): where each is from, never the text around it. */
+async function evidenceFigures(edition: string): Promise<NonNullable<Facts["findings"]>> {
+  try {
+    const rows = await acceptedFigures(edition);
+    return rows.map((r) => ({ code: r.code, value: r.value, from: `Evidence ${r.evidenceId}${pagesLabel(r.unit, [r.page], String(r.page)) ? `, ${pagesLabel(r.unit, [r.page], String(r.page))}` : ""}: ${r.text}` }));
+  } catch (e) {
+    // A report doesn't fail for want of a suggestion.
+    console.error(`Analytics evidence figures: ${e instanceof Error ? e.message : e}`);
+    return [];
+  }
+}
+
 export interface Bundle {
   catalog: Catalog;
   facts: Facts;
@@ -63,15 +77,16 @@ export const bundleFor = cache(async (edition: string): Promise<Bundle | null> =
     .filter((c) => c.edition.ranking === catalog.edition.ranking && c.edition.year < catalog.edition.year)
     .sort((a, b) => b.edition.year - a.edition.year)[0];
   const years = academicYears(catalog.edition.years);
-  const [own, before, activities, bench, evidence, templates] = await Promise.all([
+  const [own, before, activities, bench, evidence, templates, findings] = await Promise.all([
     readEditionFacts([edition]),
     prev ? readEditionFacts([prev.edition.id]) : Promise.resolve(null),
     readActivities(years.length ? years : undefined),
     readBenchmarks([catalog.edition.ranking]),
     evidenceRefs(),
     templateTotals(),
+    evidenceFigures(edition),
   ]);
-  const facts: Facts = { ...own, activities, benchmarks: bench.benchmarks, peers: bench.peers, evidence, templates };
+  const facts: Facts = { ...own, activities, benchmarks: bench.benchmarks, peers: bench.peers, evidence, templates, findings };
   return { catalog, facts, ...(prev && before && { previous: { label: prev.edition.label, values: before.values } }) };
 });
 

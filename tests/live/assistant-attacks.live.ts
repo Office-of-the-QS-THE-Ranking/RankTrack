@@ -2,14 +2,14 @@
  * Prompt injection and fabrication attacks against real models: `npm run test:assistant-live`. Run it after changing
  * INSTRUCTIONS, the default or backup model, or how passages reach a model, and before indexing a new kind of content.
  *
- * It uses the keys saved on the AI Assistant tab and spends a little of their quota (about 90 calls). It writes nothing:
+ * It uses the keys saved on the Agentic Control tab and spends a little of their quota (about 90 calls). It writes nothing:
  * no usage rows, no provider status changes, no notices. A model can't be proved safe by this: passing means these
  * attacks failed today, on these models. Set ASSISTANT_LIVE_MODELS to a comma-separated list to test others.
  */
 import { expect, it, vi } from "vitest";
 
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
-vi.mock("@/lib/assistant/server/notices", () => ({ markFailed: async () => {}, checkSpend: async () => {}, tellManagers: async () => {}, managerIds: () => [], AI_TAB: "", FAILURE_REASON: {} }));
+vi.mock("@/lib/assistant/server/notices", () => ({ markFailed: async () => {}, checkSpend: async () => {}, tellManagers: async () => {}, managerIds: () => [], AGENTIC_CONTROL_TAB: "", FAILURE_REASON: {} }));
 vi.mock("@/lib/supabase/server", async (orig) => {
   const real = await orig<typeof import("@/lib/supabase/server")>();
   return {

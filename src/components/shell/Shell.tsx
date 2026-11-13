@@ -8,6 +8,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { formatAsOf } from "@/lib/data";
+import { PORTAL_EXPANSION, PORTAL_NAME, PORTAL_SUBTITLES } from "@/lib/brand";
+import { OfficeSwap } from "@/components/ui/OfficeSwap";
 import { familyOf } from "@/lib/reference";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { HubData } from "@/lib/governance/hub-types";
@@ -23,7 +25,7 @@ import { SearchPalette } from "./SearchPalette";
 import { NavIcon } from "./NavIcon";
 import { HeaderBreadcrumbs } from "./HeaderBreadcrumbs";
 import { ProfileSettings } from "./ProfileSettings";
-import { SECTIONS as ADMIN_SECTIONS, sectionHref } from "@/components/admin/sections";
+import { SECTIONS as COMMAND_CONTROL_SECTIONS, sectionHref } from "@/components/command-control/sections";
 import { Select } from "@/components/ui/pickers";
 
 /* Loaded after the page: it is WebGL and physics, and nothing on the page waits for it. */
@@ -222,11 +224,12 @@ function useClickAway(open: boolean, close: () => void) {
   return ref;
 }
 
-/** Older links carry ?admin=<section>: send them to that Administration subtab. */
-function AdminDeepLink({ base }: { base: string }) {
+/** Older links carry ?admin=<section> (the console's name before Command & Control): send them to that subtab. */
+function CommandControlDeepLink({ base }: { base: string }) {
   const params = useSearchParams();
   const router = useRouter();
-  const want = params.get("admin");
+  const asked = params.get("admin");
+  const want = asked === "workflows" || asked === "workflow-pipelines" ? "process-pipelines" : asked;
   useEffect(() => {
     if (want) router.replace(want === "home" || want === "overview" ? base : `${base}/${want}`);
   }, [want, base, router]);
@@ -243,11 +246,11 @@ export function Shell({ variant, viewer = null, hub = null, children }: { varian
   );
 }
 
-type Drill = "rankings" | "publications" | "workspace" | "admin" | null;
+type Drill = "rankings" | "publications" | "workspace" | "command-control" | null;
 
 /** The set of tabs a group row opens. */
 const drillOf = (item: NavGroup["items"][number]): Exclude<Drill, null> =>
-  item.admin ? "admin" : item.publicationsBase ? "publications" : item.workspace ? "workspace" : "rankings";
+  item.commandControl ? "command-control" : item.publicationsBase ? "publications" : item.workspace ? "workspace" : "rankings";
 
 function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; viewer: Viewer | null; hub: HubData | null; children: ReactNode }) {
   const pathname = usePathname() ?? "/";
@@ -292,7 +295,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
 
 
   /* What this viewer may see: rows need their permission (within the viewer's unit in the contributor
-     workspace) and their feature switched on in System Configuration; Administration needs an
+     workspace) and their feature switched on in System Configuration; Command & Control needs an
      administration role. */
   const nav: NavGroup[] = useMemo(() => {
     const target = variant === "unit" && viewer ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
@@ -303,9 +306,9 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         items: g.items.filter(
           (item) =>
             can(item.need) &&
-            (!item.workspace || workspaceSubnav(item.workspace).some((c) => can(c.need))) &&
+            (!item.workspace || workspaceSubnav(item.workspace).some((c) => can(c.need) && (!c.feature || feature(viewer, c.feature)))) &&
             (!item.feature || feature(viewer, item.feature)) &&
-            (!item.admin || (!!viewer && viewer.admin.length > 0)),
+            (!item.commandControl || (!!viewer && viewer.commandControl.length > 0)),
         ),
       }))
       .filter((g) => g.items.length);
@@ -333,16 +336,16 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const workspaceItem = nav.flatMap((g) => g.items).find((i) => i.workspace);
   const wsnav = useMemo(() => {
     const target = variant === "unit" && viewer ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
-    return workspaceItem?.workspace ? workspaceSubnav(workspaceItem.workspace).filter((c) => !viewer || viewerCan(viewer, c.need[0], c.need[1], target)) : [];
+    return workspaceItem?.workspace ? workspaceSubnav(workspaceItem.workspace).filter((c) => (!viewer || viewerCan(viewer, c.need[0], c.need[1], target)) && (!c.feature || feature(viewer, c.feature))) : [];
   }, [workspaceItem?.workspace, variant, viewer]);
   const onWorkspace = !!workspaceItem?.workspace && isActive(pathname, workspaceItem.workspace.base);
-  // Administration is a tab for anyone who administers something; its sections replace the main tabs.
-  const adminItem = nav.flatMap((g) => g.items).find((i) => i.admin);
-  const adminSections = useMemo(() => ADMIN_SECTIONS.filter((sec) => !sec.module || !!viewer?.admin.includes(sec.module)), [viewer]);
-  const onAdmin = !!adminItem && isActive(pathname, adminItem.href);
-  const here: Drill = onRankings ? "rankings" : onPublications ? "publications" : onWorkspace ? "workspace" : onAdmin ? "admin" : null;
+  // Command & Control is a tab for anyone who administers something; its sections replace the main tabs.
+  const commandControlItem = nav.flatMap((g) => g.items).find((i) => i.commandControl);
+  const commandControlSections = useMemo(() => COMMAND_CONTROL_SECTIONS.filter((sec) => !sec.module || !!viewer?.commandControl.includes(sec.module)), [viewer]);
+  const onCommandControl = !!commandControlItem && isActive(pathname, commandControlItem.href);
+  const here: Drill = onRankings ? "rankings" : onPublications ? "publications" : onWorkspace ? "workspace" : onCommandControl ? "command-control" : null;
   // Which tab set the sidebar shows: the main sections, or the ranking pages, the Publications sections or
-  // the Administration sections in their place.
+  // the Command & Control sections in their place.
   const [drill, setDrill] = useState<Drill>(here);
   const switched = useRef(false);
   const openDrill = (to: Exclude<Drill, null>) => {
@@ -393,7 +396,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
       if (profileOpen) return;
       const t = e.target as HTMLElement;
       const typing = t.closest("input, textarea, select, [contenteditable=true]");
-      if (document.querySelector(".adm-confirm[open], .assist-panel[aria-modal='true']")) return;
+      if (document.querySelector(".cmd-confirm[open], .assist-panel[aria-modal='true']")) return;
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
         e.preventDefault();
         setSearch(true);
@@ -408,7 +411,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const unread = notes.filter((n) => n.unread).length;
   const publicHref = publicPathFor(pathname);
   const aboutLink = nav.flatMap((group) => group.items).find((item) => item.icon === "about");
-  const viewLabel = variant === "public" ? "Public view" : variant === "office" ? "Office of QS/THE Rankings" : viewer ? `${viewer.portal.unitName}${viewer.portal.programName ? ` · ${viewer.portal.programName}` : ""}` : "Contributor workspace";
+  const viewLabel = variant === "public" ? "Public view" : variant === "office" ? PORTAL_SUBTITLES.join(", ") : viewer ? `${viewer.portal.unitName}${viewer.portal.programName ? ` · ${viewer.portal.programName}` : ""}` : "Contributor workspace";
   const subtitle = viewer ? viewer.roleName : "";
   const years = viewer?.grants.some((g) => g.years === "all") ? "all" : [...new Set(viewer?.grants.flatMap((g) => (g.years === "all" ? [] : g.years)) ?? [])];
   const cycles = (hub?.cycles ?? []).filter((c) => c.status !== "Archived" && (years === "all" || years.includes(c.id)));
@@ -438,13 +441,13 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
           <Link
             href={variant === "public" ? "/" : variant === "office" ? "/admin" : "/portal"}
             className="side__brand"
-            aria-label={rail ? `Rankings and Impact Hub, ${viewLabel}` : undefined}
+            aria-label={rail ? `${PORTAL_NAME}, ${viewLabel}` : undefined}
           >
             <Image className="seal seal--light" src="/brand/ust-seal.png" alt="" width={48} height={48} priority />
             <Image className="seal seal--dark" src="/brand/ust-seal-reverse.png" alt="" width={48} height={48} priority />
             <span className="side__brandtext">
-              <span className="side__name">Rankings and Impact Hub</span>
-              <span className="side__view">{viewLabel}</span>
+              <span className="side__name" title={PORTAL_EXPANSION}>{PORTAL_NAME}</span>
+              {variant === "office" ? <OfficeSwap className="side__view" /> : <span className="side__view">{viewLabel}</span>}
             </span>
           </Link>
           <button
@@ -483,7 +486,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                       return (
                         <li key={item.href}>
                           <div className="side__item">
-                            {item.rankingsBase || item.publicationsBase || item.workspace || item.admin ? (
+                            {item.rankingsBase || item.publicationsBase || item.workspace || item.commandControl ? (
                               <button
                                 type="button"
                                 className={`side__link side__link--group${active ? " is-active" : ""}`}
@@ -495,9 +498,9 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                                   const to = drillOf(item);
                                   setOpened(to);
                                   openDrill(to);
-                                  // Administration and Rankings open their overview with their tabs; Publications and the Workspace their first page.
-                                  const landing = item.admin
-                                    ? onAdmin ? null : item.href
+                                  // Command & Control and Rankings open their overview with their tabs; Publications and the Workspace their first page.
+                                  const landing = item.commandControl
+                                    ? onCommandControl ? null : item.href
                                     : item.publicationsBase && !onPublications
                                       ? pubnav[0]?.href
                                       : item.workspace && !onWorkspace
@@ -668,20 +671,20 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
               </div>
             )}
 
-            {adminItem && (
-              <div className={`side__pane side__pane--sub${drill === "admin" ? " is-current" : ""}`} id="nav-admin">
+            {commandControlItem && (
+              <div className={`side__pane side__pane--sub${drill === "command-control" ? " is-current" : ""}`} id="nav-command-control">
                 <div className="side__crumbs">
                   <button type="button" className="side__back" onClick={closeDrill}>
                     <Icon name="chevron-left" size={16} strokeWidth={2} />
                     All sections
                   </button>
                   <span className="side__crumbsep" aria-hidden="true"><Icon name="chevron" size={14} /></span>
-                  <span className="side__crumb">{adminItem.label}</span>
+                  <span className="side__crumb">{commandControlItem.label}</span>
                 </div>
                 <hr className="side__sep" />
                 <ul className="side__nav">
-                  {adminSections.map((sec) => {
-                    const href = sectionHref(adminItem.href, sec.key);
+                  {commandControlSections.map((sec) => {
+                    const href = sectionHref(commandControlItem.href, sec.key);
                     const active = at === href;
                     return (
                       <li key={sec.key}>
@@ -903,9 +906,9 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
       </div>
 
       <SearchPalette variant={variant} open={search} onClose={closeSearch} />
-      {adminItem && (
+      {commandControlItem && (
         <Suspense fallback={null}>
-          <AdminDeepLink base={adminItem.href} />
+          <CommandControlDeepLink base={commandControlItem.href} />
         </Suspense>
       )}
       {viewer && <IdleGuard idleMinutes={viewer.session.idleMinutes} warnMinutes={viewer.session.warnMinutes} />}
@@ -916,7 +919,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
 
 function Footer({ variant, asOf }: { variant: Variant; asOf?: string }) {
   const { office, credits } = useReference();
-  const about = variant === "office" ? "/admin/about" : "/about";
+  // Inside the workspaces, the Office's policies and contact are in the Knowledge Base's About the Office tab.
+  const about = variant === "office" ? "/admin/knowledge-base" : variant === "unit" ? "/portal/knowledge-base" : "/about";
   return (
     <footer className="foot">
       <div className="foot__in">

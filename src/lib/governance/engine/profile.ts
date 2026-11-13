@@ -3,7 +3,7 @@ import { usedNote } from "../session-limits";
 import { invalid, log, ok } from "./core";
 import { validPrefKey } from "../notification-prefs";
 import { roleOf } from "../catalog";
-import { activeAssignments, actingGrants, scopeLabel } from "../rbac";
+import { activeAssignments, actingGrants, assignmentScopeLabel, roleLabel } from "../rbac";
 
 /** Self-service changes never accept an account ID or access-related fields. */
 export function updateProfile(ctx: Ctx, input: unknown) {
@@ -89,7 +89,7 @@ export function switchRole(ctx: Ctx, assignmentId: unknown) {
   const to = activeAssignments(account, ctx.day).find((a) => a.id === assignmentId);
   if (!to) return invalid("That role is no longer yours. Reload to see your current roles.");
   const role = roleOf(to.roleId);
-  const label = `${role?.name ?? to.roleId} · ${scopeLabel(to.scope, ctx.state.units)}`;
+  const label = `${role ? roleLabel(role, to.position) : to.roleId} · ${assignmentScopeLabel(to, ctx.state.units)}`;
   if (actingGrants(account, ctx.state.units, ctx.day, ctx.state.config.rolePermissions)[0]?.assignmentId === to.id) return ok(`You are already acting as ${label}.`);
   const from = ctx.actor.role;
   account.activeAssignment = to.id;

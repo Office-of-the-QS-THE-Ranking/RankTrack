@@ -1,7 +1,7 @@
 /*
- * Roles & Permissions (Administration › Roles): the four roles as cards, each carrying a fingerprint of its
+ * Roles & Permissions (Command & Control › Roles): the four roles as cards, each carrying a fingerprint of its
  * permissions (modules across, actions down). Clicking a card opens a modal with its
- * description, people and permission matrix (admin.css). Ink is what every holder
+ * description, people and permission matrix (command-control.css). Ink is what every holder
  * of a role gets; gold is what only the Rankings Office's Administrators add, University-wide.
  */
 
@@ -139,8 +139,8 @@
   width: 52px;
   height: 52px;
   border-radius: 15px;
-  background: var(--adm-ink);
-  color: var(--adm-on-ink);
+  background: var(--cmd-ink);
+  color: var(--cmd-on-ink);
   box-shadow: 0 10px 22px -14px rgb(0 0 0 / 0.5);
 }
 .rp-glyph--sm {
@@ -154,16 +154,16 @@
   display: inline-flex;
   align-items: center;
 }
-.rp-faces .adm-avatar {
+.rp-faces .cmd-avatar {
   box-shadow: 0 0 0 2px var(--surface);
 }
-.rp-faces .adm-avatar + .adm-avatar {
+.rp-faces .cmd-avatar + .cmd-avatar {
   margin-left: -5px;
 }
-.rp-role[data-current="true"] .rp-faces .adm-avatar {
+.rp-role[data-current="true"] .rp-faces .cmd-avatar {
   box-shadow: 0 0 0 2px #1d1d1f;
 }
-:root[data-theme="dark"] .rp-role[data-current="true"] .rp-faces .adm-avatar {
+:root[data-theme="dark"] .rp-role[data-current="true"] .rp-faces .cmd-avatar {
   box-shadow: 0 0 0 2px #f5f5f7;
 }
 .rp-faces__n {
@@ -197,40 +197,40 @@
 }
 
 /* ---------- The chosen role ---------- */
-.adm-sheet--modal:has(.rp-detail) {
+.cmd-sheet--modal:has(.rp-detail) {
   width: min(1040px, calc(100% - 32px));
   height: min(760px, calc(100dvh - 48px));
 }
-.adm-sheet--modal:has(.rp-detail) > .adm-sheet__head {
+.cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__head {
   flex-shrink: 0;
 }
-.adm-sheet--modal:has(.rp-detail) > .adm-sheet__body {
+.cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__body {
   min-height: 0;
   scrollbar-gutter: stable;
 }
 /* Match the slim scrolling columns used by the profile modal. */
-.adm-sheet--modal:has(.rp-detail) > .adm-sheet__body,
-.rp-detail .adm-matrix-scroll {
+.cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__body,
+.rp-detail .cmd-matrix-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--hair) / 0.2) transparent;
 }
 @supports selector(::-webkit-scrollbar) {
-  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body,
-  .rp-detail .adm-matrix-scroll {
+  .cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__body,
+  .rp-detail .cmd-matrix-scroll {
     scrollbar-width: auto;
     scrollbar-color: auto;
   }
-  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body::-webkit-scrollbar,
-  .rp-detail .adm-matrix-scroll::-webkit-scrollbar {
+  .cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__body::-webkit-scrollbar,
+  .rp-detail .cmd-matrix-scroll::-webkit-scrollbar {
     width: 4px;
     height: 4px;
   }
-  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body::-webkit-scrollbar-track,
-  .rp-detail .adm-matrix-scroll::-webkit-scrollbar-track {
+  .cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__body::-webkit-scrollbar-track,
+  .rp-detail .cmd-matrix-scroll::-webkit-scrollbar-track {
     background: transparent;
   }
-  .adm-sheet--modal:has(.rp-detail) > .adm-sheet__body::-webkit-scrollbar-thumb,
-  .rp-detail .adm-matrix-scroll::-webkit-scrollbar-thumb {
+  .cmd-sheet--modal:has(.rp-detail) > .cmd-sheet__body::-webkit-scrollbar-thumb,
+  .rp-detail .cmd-matrix-scroll::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: rgb(var(--hair) / 0.2);
   }
@@ -249,7 +249,7 @@
   margin-top: 4px;
   font-size: 13px;
   font-weight: 400;
-  color: var(--adm-muted);
+  color: var(--cmd-muted);
 }
 .rp-role:focus-visible {
   outline: 2px solid var(--text);
@@ -266,7 +266,7 @@
   padding: 4px 6px 0;
 }
 /* Role details live inside the shared modal. */
-.rp-detail .adm-matrix__toggle {
+.rp-detail .cmd-matrix__toggle {
   display: inline-grid;
   place-items: center;
   width: 36px;
@@ -278,14 +278,14 @@
   color: inherit;
   cursor: var(--cursor-pointer);
 }
-.rp-detail .adm-matrix__toggle:hover:not(:disabled) {
+.rp-detail .cmd-matrix__toggle:hover:not(:disabled) {
   background: rgb(var(--hair) / 0.06);
 }
-.rp-detail .adm-matrix__toggle:focus-visible {
+.rp-detail .cmd-matrix__toggle:focus-visible {
   outline: 1px solid var(--text);
   outline-offset: 1px;
 }
-.rp-detail .adm-matrix__toggle:disabled {
+.rp-detail .cmd-matrix__toggle:disabled {
   cursor: default;
 }
 .rp-body {
@@ -293,19 +293,19 @@
   gap: 14px;
   min-width: 0;
 }
-.rp-detail .adm-matrix-wrap {
-  --mx-bg: var(--adm-bg);
+.rp-detail .cmd-matrix-wrap {
+  --mx-bg: var(--cmd-bg);
   margin-inline: -6px;
   border: 0;
-  border-top: 1px solid var(--adm-line);
+  border-top: 1px solid var(--cmd-line);
   border-radius: 0;
 }
-.rp-detail .adm-matrix thead th:first-child,
-.rp-detail .adm-matrix tbody th[scope="row"],
-.rp-detail .adm-matrix__group th {
+.rp-detail .cmd-matrix thead th:first-child,
+.rp-detail .cmd-matrix tbody th[scope="row"],
+.rp-detail .cmd-matrix__group th {
   padding-left: 26px;
 }
-.rp-detail .adm-matrix__group-in {
+.rp-detail .cmd-matrix__group-in {
   left: 26px;
 }
 .rp-body > .content-tabs {
@@ -320,26 +320,26 @@
   justify-content: flex-end;
   gap: 8px 16px;
 }
-.rp-detail .adm-matrix__legend {
+.rp-detail .cmd-matrix__legend {
   justify-content: flex-end;
   padding: 0;
   border: 0;
 }
 .rp-detail .rp-people,
-.rp-detail .adm-empty {
+.rp-detail .cmd-empty {
   margin-bottom: 24px;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .rp-detail :is(.adm-mark--granted, .adm-mark--wide) {
+  .rp-detail :is(.cmd-mark--granted, .cmd-mark--wide) {
     animation: rp-pop 320ms var(--ease-spring) both;
   }
-  .rp-detail td:nth-child(3) .adm-mark { animation-delay: 20ms; }
-  .rp-detail td:nth-child(4) .adm-mark { animation-delay: 40ms; }
-  .rp-detail td:nth-child(5) .adm-mark { animation-delay: 60ms; }
-  .rp-detail td:nth-child(6) .adm-mark { animation-delay: 80ms; }
-  .rp-detail td:nth-child(7) .adm-mark { animation-delay: 100ms; }
-  .rp-detail td:nth-child(8) .adm-mark { animation-delay: 120ms; }
-  .rp-detail td:nth-child(9) .adm-mark { animation-delay: 140ms; }
+  .rp-detail td:nth-child(3) .cmd-mark { animation-delay: 20ms; }
+  .rp-detail td:nth-child(4) .cmd-mark { animation-delay: 40ms; }
+  .rp-detail td:nth-child(5) .cmd-mark { animation-delay: 60ms; }
+  .rp-detail td:nth-child(6) .cmd-mark { animation-delay: 80ms; }
+  .rp-detail td:nth-child(7) .cmd-mark { animation-delay: 100ms; }
+  .rp-detail td:nth-child(8) .cmd-mark { animation-delay: 120ms; }
+  .rp-detail td:nth-child(9) .cmd-mark { animation-delay: 140ms; }
 }
 @keyframes rp-pop {
   from {
@@ -416,7 +416,7 @@
 }
 .rp-left small {
   margin-left: 4px;
-  color: var(--adm-muted);
+  color: var(--cmd-muted);
 }
 .rp-left__bar {
   display: block;
@@ -431,7 +431,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--adm-ink);
+  background: var(--cmd-ink);
 }
 .rp-left.is-near .rp-left__bar i {
   background: var(--review);
@@ -453,33 +453,33 @@
     height: 44px;
     border-radius: 13px;
   }
-  .rp-detail .adm-matrix-wrap {
+  .rp-detail .cmd-matrix-wrap {
     margin-inline: 0;
   }
-  .rp-detail .adm-matrix thead th:first-child,
-  .rp-detail .adm-matrix tbody th[scope="row"],
-  .rp-detail .adm-matrix__group th {
+  .rp-detail .cmd-matrix thead th:first-child,
+  .rp-detail .cmd-matrix tbody th[scope="row"],
+  .rp-detail .cmd-matrix__group th {
     padding-left: 16px;
   }
   /* Module names wrap so more actions fit beside them; the pinned column keeps an edge */
-  .rp-detail .adm-matrix tbody th[scope="row"] {
+  .rp-detail .cmd-matrix tbody th[scope="row"] {
     min-width: 132px;
     max-width: 150px;
     padding-block: 8px;
     line-height: 1.3;
     white-space: normal;
   }
-  .rp-detail .adm-matrix thead th:first-child,
-  .rp-detail .adm-matrix tbody th[scope="row"] {
-    box-shadow: inset -1px 0 0 var(--adm-line);
+  .rp-detail .cmd-matrix thead th:first-child,
+  .rp-detail .cmd-matrix tbody th[scope="row"] {
+    box-shadow: inset -1px 0 0 var(--cmd-line);
   }
-  .rp-detail .adm-matrix__group-in {
+  .rp-detail .cmd-matrix__group-in {
     left: 16px;
   }
 }
 
 @media (max-width: 720px) {
-  .adm-sheet--modal:has(.rp-detail) {
+  .cmd-sheet--modal:has(.rp-detail) {
     width: auto;
     height: min(760px, calc(100dvh - 24px));
   }

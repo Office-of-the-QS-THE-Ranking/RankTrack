@@ -452,22 +452,23 @@ describe("who runs the assistant", () => {
   const today = new Date().toISOString().slice(0, 10);
   const universityWide = (grants: ReturnType<typeof actingGrants>) => grants.some((g) => g.units === "all" && !!g.perms.ai?.includes("manage"));
 
-  it("is a University-wide Administrator, and nobody else", () => {
+  it("is the Director or a Ranking Specialist, and nobody else", () => {
     const w = world();
-    const office = w.person("Office Admin", "office@ust.edu.ph", ROLE.admin, "rankings-office");
+    const director = w.person("Director", "director@ust.edu.ph", ROLE.superAdmin, "rankings-office", false, undefined, "director");
+    const specialist = w.person("Specialist", "specialist@ust.edu.ph", ROLE.superAdmin, "rankings-office", false, undefined, "specialist");
+    const staff = w.person("Staff", "staff@ust.edu.ph", ROLE.superAdmin, "rankings-office", false, undefined, "staff");
     const unitAdmin = w.person("Unit Admin", "unit@ust.edu.ph", ROLE.admin, w.eng.id);
     const coordinator = w.person("Coordinator", "coord@ust.edu.ph", ROLE.coordinator, w.eng.id);
     const student = w.person("Student", "student@ust.edu.ph", ROLE.student, "rankings-office");
     const external = w.person("Guest", "guest@example.org", ROLE.external, "rankings-office", true);
-    const grants = (a: typeof office) => actingGrants(a, w.state.units, today, w.state.config.rolePermissions);
-    expect(universityWide(grants(office))).toBe(true);
-    for (const a of [unitAdmin, coordinator, student, external]) expect(universityWide(grants(a))).toBe(false);
+    const grants = (a: typeof director) => actingGrants(a, w.state.units, today, w.state.config.rolePermissions);
+    for (const a of [director, specialist]) expect(universityWide(grants(a))).toBe(true);
+    for (const a of [staff, unitAdmin, coordinator, student, external]) expect(universityWide(grants(a))).toBe(false);
   });
 
-  it("survives role permissions saved before the assistant existed", () => {
-    const role = roleOf(ROLE.admin, { administrator: { permissions: {}, universityPermissions: { dashboard: ["view"] } } })!;
-    expect(role.universityPermissions?.ai).toEqual(["view", "manage"]);
-    expect(role.permissions.ai).toBeUndefined();
+  it("never reaches an Administrator through saved permissions", () => {
+    const role = roleOf(ROLE.admin, { administrator: { permissions: { dashboard: ["view"], ai: ["view", "manage"], roles: ["view"] } } })!;
+    expect(role.permissions).toEqual({ dashboard: ["view"] });
   });
 });
 
@@ -590,7 +591,7 @@ describe("talking to the providers", () => {
 describe("what the index may contain", () => {
   afterEach(() => vi.doUnmock("@/lib/governance/server/site"));
 
-  it("takes only the listed fields, and marks the portal's Knowledge Center as internal", async () => {
+  it("takes only the listed fields, and marks the portal's Knowledge Base as internal", async () => {
     vi.resetModules();
     vi.doMock("@/lib/governance/server/site", () => ({
       siteData: async () => ({
@@ -612,7 +613,7 @@ describe("what the index may contain", () => {
       }),
     }));
     vi.doMock("@/lib/governance/server/views", () => ({
-      serverViews: async () => ({ office: { name: "The Office", summary: "Summary.", reportsTo: "The Rector", functions: [], vision: "V", mission: "M", objectives: [], deliverables: [], team: [], location: "", landmark: "", street: "", city: "", phone: "", email: "office@ust.edu.ph" } }),
+      serverViews: async () => ({ office: { name: "The Office", summary: "Summary.", reportsTo: "The Rector", functions: [], vision: "V", mission: "M", objectives: [], deliverables: [], team: [], coordination: [], policies: [], faq: [], purpose: "", location: "", landmark: "", street: "", city: "", phone: "", email: "office@ust.edu.ph" } }),
     }));
     const { sourceDocs } = await import("@/lib/assistant/server/sources");
     const docs = await sourceDocs();

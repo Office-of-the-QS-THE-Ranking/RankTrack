@@ -1,5 +1,5 @@
 /*
- * What the Administration console receives: the parts of the governance store this viewer may see,
+ * What the Command & Control console receives: the parts of the governance store this viewer may see,
  * with derived facts filled in on the server.
  */
 import type { RuleResult } from "./quality";

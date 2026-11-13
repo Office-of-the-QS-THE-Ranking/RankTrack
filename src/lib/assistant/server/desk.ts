@@ -1,27 +1,31 @@
 import "server-only";
 
-/* Everything the AI Assistant tab shows. Keys never leave the server: only their last four characters do. */
+/* Everything the Agentic Control tab shows. Keys never leave the server: only their last four characters do. */
 import { ROLES } from "@/lib/governance/catalog";
 import { hub } from "@/lib/governance/server/hub";
 import { adminDb } from "@/lib/supabase/server";
-import { creditsLeft, PROVIDERS, type ProviderId, type RequestStatus } from "../rules";
-import type { AssistantDesk, CreditRow, UsageRow } from "../types";
+import { jobModelProblem, readJob } from "@/lib/review/server/reviewer";
+import { creditsLeft, manilaStart, PROVIDERS, type ProviderId, type RequestStatus } from "../rules";
+import type { AgenticControlDesk, CreditRow, UsageRow } from "../types";
 import { accountKnown, sealedLength } from "./providers";
 import { readSetup } from "./setup";
 
 const USAGE_DAYS = 90;
 
-export async function assistantDesk(): Promise<AssistantDesk> {
+export async function agenticControlDesk(): Promise<AgenticControlDesk> {
   const db = adminDb();
   const since = new Date(Date.now() - USAGE_DAYS * 86_400_000).toISOString();
-  const [setup, h, requests, credits, usage] = await Promise.all([
+  const [setup, h, requests, credits, usage, reviewer, jobUsage] = await Promise.all([
     readSetup(),
     hub(),
     db.from("assistant_model_access").select("*").eq("status", "pending" satisfies RequestStatus).order("requested_at"),
     db.from("assistant_credits").select("*").order("recorded_at", { ascending: false }).limit(50),
     db.rpc("assistant_usage_rollup", { p_since: since }),
+    readJob("reviewer"),
+    db.rpc("assistant_job_usage", { p_since: since, p_day_start: manilaStart("day").toISOString() }),
   ]);
-  if (requests.error || credits.error || usage.error) throw new Error(`Assistant desk: ${(requests.error ?? credits.error ?? usage.error)!.message}`);
+  if (requests.error || credits.error || usage.error || jobUsage.error) throw new Error(`Assistant desk: ${(requests.error ?? credits.error ?? usage.error ?? jobUsage.error)!.message}`);
+  const ran = (jobUsage.data ?? []).find((j) => j.job === "reviewer");
 
   const accounts = new Map(h.state.accounts.map((a) => [a.id, a]));
   const units = new Map(h.state.units.map((u) => [u.id, u.name]));
@@ -67,6 +71,22 @@ export async function assistantDesk(): Promise<AssistantDesk> {
       dailyLimit: m.daily_limit,
       isDefault: m.is_default,
     })),
+    jobs: [
+      {
+        id: "reviewer",
+        label: "Reviewer",
+        does: "Checks the suggestions on a submission’s Review tab against the pages of its files. It reads text only, has no tools and decides nothing.",
+        enabled: reviewer.enabled,
+        modelId: reviewer.model_id,
+        backupModelId: reviewer.backup_model_id,
+        dailyLimit: reviewer.daily_limit,
+        runsToday: Number(ran?.runs_today ?? 0),
+        runs: Number(ran?.runs ?? 0),
+        failed: Number(ran?.failed ?? 0),
+        cost: Number(ran?.cost_usd ?? 0),
+        models: setup.models.map((m) => ({ id: m.id, label: m.label, problem: jobModelProblem(m, setup.providers.get(m.provider)) })),
+      },
+    ],
     requests: (requests.data ?? []).map((r) => {
       const a = accounts.get(r.account_id);
       return { modelId: r.model_id, modelLabel: modelLabel.get(r.model_id) ?? r.model_id, accountId: r.account_id, name: a?.name ?? "Former account", unit: a ? (units.get(a.unitId) ?? "") : "", requestedAt: r.requested_at };

@@ -115,9 +115,10 @@ export function academicYears(years: number[] | undefined): string[] {
 }
 
 function feedValues(ind: CatalogIndicator, facts: Facts, years: string[]): { value: number; from: string }[] {
-  if (!ind.feeds?.length) return [];
   const out: { value: number; from: string }[] = [];
-  for (const f of ind.feeds) {
+  // Figures accepted from evidence are offered for the indicator that takes a number, as the page states them.
+  if (ind.input.type === "number") for (const f of facts.findings ?? []) if (f.code === ind.code) out.push({ value: f.value, from: f.from });
+  for (const f of ind.feeds ?? []) {
     if (f.kind === "activities") {
       const acts = facts.activities.filter(
         (a: Activity) => (!years.length || years.includes(a.year)) && (!f.kinds?.length || f.kinds.includes(a.kind)) && (!f.tags?.length || f.tags.some((t) => a.tags.includes(t))),

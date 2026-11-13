@@ -9,14 +9,14 @@ import { ROLE, roleOf } from "@/lib/governance/catalog";
 import type { Grant } from "@/lib/governance/rbac";
 import type { RoleId } from "@/lib/governance/types";
 
-const grant = (roleId: RoleId, units: "all" | string[], university = false): Grant => {
+const grant = (roleId: RoleId, units: "all" | string[]): Grant => {
   const role = roleOf(roleId)!;
-  return { roleId, tier: role.tier, perms: university ? role.universityPermissions! : role.permissions, units, scopeUnits: units } as Grant;
+  return { roleId, tier: role.tier, perms: role.permissions, units, scopeUnits: units } as Grant;
 };
 
 describe("who gets which tool", () => {
-  it("gives a University-wide Administrator every tool", () => {
-    expect(dataToolsFor([grant(ROLE.admin, "all", true)])).toEqual([...DATA_TOOLS]);
+  it("gives the Office's Director every tool", () => {
+    expect(dataToolsFor([grant(ROLE.superAdmin, "all")])).toEqual([...DATA_TOOLS]);
   });
 
   it("keeps a Coordinator from the University's analytics", () => {
@@ -27,7 +27,7 @@ describe("who gets which tool", () => {
     for (const closed of ["hub_overview", "ranking_detail", "investigate_gaps", "compare_editions", "activity_summary", "benchmarks"] as const) expect(tools).not.toContain(closed);
   });
 
-  it("gives Student Organizers and External partners no live data", () => {
+  it("gives Student Organizers and External Contributors no live data", () => {
     expect(dataToolsFor([grant(ROLE.student, ["org"])])).toEqual([]);
     expect(dataToolsFor([grant(ROLE.external, ["rankings-office"])])).toEqual([]);
   });

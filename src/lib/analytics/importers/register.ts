@@ -49,8 +49,6 @@ export function yearOf(name: string): string | null {
   return null;
 }
 
-export const isRegister = (sheets: Sheet[]) => sheets.some((s) => kindOf(s.name) && yearOf(s.name) && findHeader(s.rows, ["Academic Unit", "Project Title"]));
-
 export function readRegister(sheets: Sheet[], aliases: Record<string, string>): RegisterRead {
   const alias = new Map(Object.entries(aliases).map(([k, v]) => [headerKey(k), v]));
   const activities: RegisterActivity[] = [];

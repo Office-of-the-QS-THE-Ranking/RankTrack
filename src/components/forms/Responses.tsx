@@ -10,7 +10,7 @@
  */
 import { useMemo, useState } from "react";
 import { deleteFormResponses, exportFormResponses, reviewFormResponse } from "@/app/actions/forms";
-import { download } from "@/components/admin/ui";
+import { download } from "@/components/command-control/ui";
 import { RowMenu } from "@/components/publications/PostManager";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Icon } from "@/components/ui/Icon";
@@ -31,6 +31,7 @@ import { FormArt } from "./art";
 import { NameInput } from "./controls";
 import { FieldInput } from "./fields";
 import { ResponseMark } from "./marks";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Shown = "draft" | ResponseStatus | "all";
 
@@ -87,6 +88,7 @@ export function FormResponses({
   const [openId, setOpenId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<FormResponseItem | null>(null);
   const [exporting, setExporting] = useState(false);
+  usePending(exporting);
   const fields = useMemo(() => fieldMap(form.schema.sections, form.schema.review?.fields), [form.schema]);
   const reviewed = (form.schema.review?.stages.length ?? 0) > 0;
   // Without sign-offs a sent response is just Submitted; with copies some aren't sent yet.
@@ -403,6 +405,7 @@ function ReviewPanel({ form, desk, response, onChanged }: { form: FormItem; desk
   const [note, setNote] = useState("");
   const [office, setOffice] = useState<Answers>(response.review.fields);
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const officeChanged = JSON.stringify(office) !== JSON.stringify(response.review.fields);
   const scope = { ...response.answers, ...office };
   const ctx: FormContext = { units: desk.units, answers: scope, fields, sdgNames };

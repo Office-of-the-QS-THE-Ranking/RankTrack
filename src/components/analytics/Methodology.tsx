@@ -8,7 +8,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { download, Hint } from "@/components/admin/ui";
+import { download, Hint } from "@/components/command-control/ui";
 import { RowMenu } from "@/components/publications/PostManager";
 import { Icon } from "@/components/ui/Icon";
 import { DateField, NumberField, Select } from "@/components/ui/pickers";
@@ -215,13 +215,13 @@ function IndicatorSheet({ edition, ind, units, onClose }: { edition: string; ind
               <option value="latest">The latest</option>
             </Select>
           </label>
-          <details className="adm-disclosure">
+          <details className="cmd-disclosure">
             <summary>
-              <span className="adm-disclosure__title">Input and scoring rule</span>
-              <span className="adm-disclosure__meta">{ind.score ? RULES[ind.score.kind] : "Not scored"}</span>
-              <Icon name="chevron-down" size={16} className="adm-disclosure__chev" />
+              <span className="cmd-disclosure__title">Input and scoring rule</span>
+              <span className="cmd-disclosure__meta">{ind.score ? RULES[ind.score.kind] : "Not scored"}</span>
+              <Icon name="chevron-down" size={16} className="cmd-disclosure__chev" />
             </summary>
-            <div className="adm-disclosure__body">
+            <div className="cmd-disclosure__body">
               <label className="an-field">
                 <span>Input</span>
                 <textarea className="textarea an-code" rows={6} spellCheck={false} value={d.input} onChange={(x) => setD({ ...d, input: x.target.value })} />

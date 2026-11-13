@@ -10,7 +10,7 @@ export async function UnitBoard() {
       <ul className="w-board">
         <li className="w-board__lead" data-reveal>
           <h2 id="units-title" className="w-head">
-            Every unit, one result
+            Who contributes
           </h2>
           <p>
             {unitsEngaged
@@ -21,7 +21,9 @@ export async function UnitBoard() {
         {BOARD_UNITS.map((u, i) => (
           <li key={u.slug} className="w-board__tile" data-reveal style={{ ["--d" as string]: `${(i % 4) * 70}ms` }}>
             <span className="w-board__name">{u.name}</span>
-            <span className="w-board__meta">Evidence counts in {u.rankingsServed} rankings</span>
+            <span className="w-board__meta">
+              Evidence counts in {u.rankingsServed} {u.rankingsServed === 1 ? "ranking" : "rankings"}
+            </span>
           </li>
         ))}
       </ul>

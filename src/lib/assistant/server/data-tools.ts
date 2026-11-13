@@ -255,7 +255,7 @@ export async function dataToolsForViewer(viewer: Viewer): Promise<{ tools: ToolS
         "The action plan: what is to be done, by which unit, by when, with its status and progress.",
         params({ ranking: text("Only this ranking slug."), unit: text("Only this unit."), status: text("Only this status.") }),
         () => "Action plan",
-        office ? "/admin/reports" : "/portal",
+        office ? "/admin/workspace/build-a-report" : "/portal",
         async (i) => {
           const seesAll = canWith(viewer.grants, "rankings", "view");
           // A row with no edition is presentation data standing in for an empty plan, never a real action item.
@@ -280,7 +280,7 @@ export async function dataToolsForViewer(viewer: Viewer): Promise<{ tools: ToolS
         `Units ranked by validated submissions, the Hub's leaderboard. Use for who is leading or behind, or which unit submitted most. Categories: academic is ${UNIT_CATEGORY_LABELS.academic}, offices is ${UNIT_CATEGORY_LABELS.offices}, research is ${UNIT_CATEGORY_LABELS.research}.`,
         params({ category: { type: "string", enum: CATEGORIES, description: "Which units to rank: offices for a university office, academic for a college or faculty, research for a research center." } }, ["category"]),
         (i) => `Unit standings: ${UNIT_CATEGORY_LABELS[i.category] ?? UNIT_CATEGORY_LABELS.academic}`,
-        office ? "/admin/units" : "/portal",
+        office ? "/admin/unit-submissions?tab=units" : "/portal",
         async (i) => {
           const category = CATEGORIES.includes(i.category) ? i.category : "academic";
           const facts = await readEditionFacts(editions.map((c) => c.edition.id));
@@ -316,7 +316,7 @@ export async function dataToolsForViewer(viewer: Viewer): Promise<{ tools: ToolS
         "One unit's submissions by status, ranking and evidence level, its indicator answers and its leaderboard place. Pass several units to compare them.",
         params({ units: { type: "array", items: { type: "string" }, maxItems: 5, description: "Unit names or codes, up to five." } }, ["units"]),
         (i) => `Unit detail: ${i.units.slice(0, 3).map((u) => cleanText(u, 40)).join(", ")}`,
-        office ? "/admin/units" : "/portal",
+        office ? "/admin/unit-submissions?tab=units" : "/portal",
         async (i) => {
           const facts = await readEditionFacts(editions.map((c) => c.edition.id));
           const labelOf = new Map(editions.map((c) => [c.edition.id, c.edition.label]));
@@ -352,7 +352,7 @@ export async function dataToolsForViewer(viewer: Viewer): Promise<{ tools: ToolS
         "Find submissions by words, unit, status, ranking or SDG. Returns each one's title, status, stage, mapping and a short summary, which the unit wrote: say so when you use it, and that only Validated ones have passed review.",
         params({ text: text("Words to find in the title, summary or result."), unit: text("Only this unit."), status: text("For review, Validated, Needs revision or Not applicable."), ranking: text("Only those mapped to this ranking, like THE or QS."), sdg: { type: "number", description: "Only this SDG number." } }),
         () => "Evidence submissions",
-        office ? "/admin/contributions" : "/portal/submit",
+        office ? "/admin/unit-submissions" : "/portal/submit",
         async (i) => {
           let rows = h.evidence.filter((e) => canWith(viewer.grants, "evidence", "view", { unitId: (e as { programId?: string }).programId ?? e.unitSlug }));
           if (i.unit) {
@@ -373,7 +373,7 @@ export async function dataToolsForViewer(viewer: Viewer): Promise<{ tools: ToolS
             ...(!canWith(viewer.grants, "evidence", "view", { unitId: "__any__" }) && { scope: "Only the units this person may see are searched." }),
             found: rows.length,
             byStatus: Object.fromEntries(tally(rows, (e) => e.status).map((g) => [g.key, g.count])),
-            submissions: take(rows.map((e) => ({ title: cleanText(e.title, 140), unit: e.unit, type: e.type, period: e.period, submitted: e.submitted, status: e.status, stage: e.stage, evidenceLevel: e.level, mappedTo: e.mappedTo, sdgs: e.sdgs, summary: cleanText(e.summary, 240), result: cleanText(e.result, 160) })), 12),
+            submissions: take(rows.map((e) => ({ title: cleanText(e.title, 140), unit: e.unit, type: e.type, alsoTypes: e.alsoTypes, period: e.period, submitted: e.submitted, status: e.status, stage: e.stage, evidenceLevel: e.level, mappedTo: e.mappedTo, sdgs: e.sdgs, summary: cleanText(e.summary, 240), result: cleanText(e.result, 160) })), 12),
           };
         },
       ),

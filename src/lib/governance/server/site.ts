@@ -46,7 +46,7 @@ export const siteData = cache(async () => {
     articles: documents.filter((d) => d.kind === "article"),
     reports: documents.filter((d) => d.kind === "report"),
     dictionary: h.dictionary,
-    features: { publications: h.feature("public-publications"), recognition: h.feature("public-recognition"), knowledge: h.feature("public-knowledge") },
+    features: { publications: h.feature("public-publications"), recognition: h.feature("public-recognition"), knowledgeBase: h.feature("public-knowledge") },
     privacy: h.privacy,
     notice: h.site.noticeOn ? h.site.notice : "",
     asOf: h.site.asOf,

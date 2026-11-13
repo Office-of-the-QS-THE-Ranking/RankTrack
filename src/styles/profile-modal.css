@@ -1138,3 +1138,148 @@ a.pfm__item-control {
   flex: none;
   margin-left: 0;
 }
+
+/* ---------- Larger window on desktop (user, 2026-11-12) ----------
+   Fills the whole height of the screen's left side, wider, with 15px text and roomier rows. */
+@media (min-width: 721px) {
+  .pfm {
+    inset: 12px auto 12px 12px;
+    width: min(1040px, calc(100vw - 72px));
+    height: auto;
+    margin: 0;
+    font-size: 15px;
+  }
+  .pfm__shell {
+    grid-template-columns: 268px minmax(0, 1fr);
+    gap: 28px;
+    height: 100%;
+    max-height: none;
+    padding: 24px;
+    border-radius: 30px;
+  }
+  .pfm__close {
+    width: 42px;
+    height: 42px;
+    left: calc(100% + 12px);
+  }
+  .pfm__close svg { width: 18px; height: 18px; }
+
+  /* Section list runs the full height, sign out at the foot. */
+  .pfm__nav {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-radius: 22px;
+  }
+  .pfm__nav > .pfm__nav-sep:nth-last-child(2) { margin-top: auto; }
+  .pfm__nav ul { gap: 4px; }
+  .pfm__tab {
+    gap: 13px;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 13px;
+    font-size: 15px;
+  }
+  .pfm__tab svg { width: 19px; height: 19px; }
+  a.pfm__tab > svg:last-child { width: 15px; height: 15px; }
+  .pfm__nav-sep { margin: 10px 8px; }
+  .pfm__switch { width: 38px; height: 22px; }
+  .pfm__switch::after { width: 18px; height: 18px; }
+  .pfm__tab--switch[aria-checked="true"] .pfm__switch::after,
+  .pfm__toggle[aria-checked="true"] .pfm__switch::after { transform: translateX(16px); }
+
+  .pfm__body {
+    margin: -24px -24px -24px 0;
+    padding: 24px 24px 24px 0;
+  }
+
+  /* Hero */
+  .pfm__hero {
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-top: 120px;
+  }
+  .pfm__cover { height: 172px; border-radius: 22px; }
+  .pfm__seal { width: 92px; right: 28px; }
+  .pfm__avatar { width: 104px; height: 104px; margin-left: 22px; border-width: 4px; font-size: 28px; }
+  .pfm__hero-side { gap: 8px; padding-left: 18px; }
+  .pfm__who { margin-top: 56px; font-size: 19px; }
+  .pfm__note { font-size: 15px; }
+  .pfm__pill { height: 30px; padding: 0 13px; font-size: 14px; }
+
+  /* Labels, fields, lists */
+  .pfm__label { font-size: 17px; }
+  .pfm__field { gap: 8px; }
+  .pfm__form fieldset { gap: 18px; }
+  .pfm .pfm__control .input { height: 46px; padding-left: 42px; font-size: 15px; }
+  .pfm__control > svg { left: 14px; width: 18px; height: 18px; }
+  .pfm__control--read { min-height: 46px; padding-left: 42px; }
+  .pfm__rows { gap: 8px; }
+  .pfm__rows li { gap: 13px; padding: 12px 16px; border-radius: 14px; }
+  .pfm__rows b { font-size: 15px; }
+  .pfm__rows li > span > span,
+  .pfm__rows em { font-size: 14px; }
+  .pfm__roles li { min-height: 62px; }
+
+  /* Overview */
+  .pfm__carousel,
+  .pfm__activity { margin-top: 28px; }
+  .pfm__carousel-head { margin-bottom: 14px; }
+  .pfm__carousel-controls { gap: 8px; }
+  .pfm__carousel-controls button { width: 34px; height: 34px; }
+  .pfm__stats { grid-auto-columns: calc((100% - 24px) / 3); gap: 12px; }
+  .pfm__stats li { gap: 10px; min-height: 104px; padding: 18px; border-radius: 18px; }
+  .pfm__stat-head { gap: 8px; font-size: 15px; }
+  .pfm__stat-head svg { width: 18px; height: 18px; }
+  .pfm__stats b { font-size: 30px; }
+  .pfm__badges { grid-auto-columns: calc((100% - 12px) / 2); gap: 12px; }
+  .pfm__badge { gap: 14px; min-height: 84px; padding: 14px 18px; border-radius: 18px; }
+  .pfm__medal { width: 48px; height: 48px; }
+  .pfm__medal svg { width: 20px; height: 20px; }
+  .pfm__badge-text { gap: 5px; }
+  .pfm__badge-text b { font-size: 16px; }
+  .pfm__badge-text > span:not(.pfm__bar) { font-size: 14px; }
+  .pfm__bar { height: 5px; }
+  .pfm__heatmap { padding: 20px; border-radius: 18px; }
+  .pfm__activity-summary b { font-size: 16px; }
+  .pfm__activity-period,
+  .pfm__activity-summary > span { font-size: 14px; }
+  .pfm__heatmap-chart { grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: 18px auto; }
+  .pfm__heatmap-months,
+  .pfm__heatmap-weekdays { font-size: 11px; }
+  .pfm__heatmap-footer { font-size: 12px; }
+  .pfm__heatmap-legend i { width: 11px; height: 11px; }
+  .pfm__activity-note { font-size: 12px; }
+
+  /* Settings-style lists */
+  .pfm__group + .pfm__group { margin-top: 28px; }
+  .pfm__group-title { margin-bottom: 10px; font-size: 14px; }
+  .pfm__group-head { min-height: 36px; margin-bottom: 10px; }
+  .pfm__list { border-radius: 18px; }
+  .pfm__item,
+  .pfm__item-link { gap: 14px; min-height: 72px; padding: 12px 18px; }
+  .pfm__item:has(> .pfm__item-link) { padding: 0; }
+  .pfm__item--log { min-height: 62px; }
+  .pfm__item--compact { min-height: 52px; }
+  .pfm__item-icon { width: 38px; height: 38px; border-radius: 11px; }
+  .pfm__item-icon svg { width: 18px; height: 18px; }
+  .pfm__item-text { gap: 3px; }
+  .pfm__item-text b { font-size: 15px; }
+  .pfm__item-text > span { font-size: 14px; }
+  .pfm .pfm__item-control { height: 38px; min-width: 96px; font-size: 14px; }
+  .pfm .select.pfm__item-control { width: 148px; font-size: 14px; }
+  .pfm__toggle { min-width: 96px; height: 38px; }
+  .pfm__toggles .pfm__toggle,
+  .pfm__toggles--head > span { min-width: 60px; width: 60px; }
+  .pfm__toggles--head { padding-right: 18px; font-size: 14px; }
+  .pfm__seg button { height: 30px; padding: 0 13px; font-size: 14px; }
+  .pfm__tag { height: 21px; padding: 0 8px; font-size: 12px; }
+  .pfm__time,
+  .pfm__value { font-size: 14px; }
+  .pfm__kbd { height: 26px; line-height: 26px; font-size: 14px; }
+  .pfm__empty { padding: 48px 20px; border-radius: 18px; }
+  .pfm__empty p { max-width: 360px; font-size: 14px; }
+  .pfm__actions { gap: 10px; margin-top: 8px; }
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { assistantOptions, requestModelAccess } from "@/app/actions/assistant";
+import { assistantOptions, requestModelAccess } from "@/app/actions/agentic-control";
 import { Icon } from "@/components/ui/Icon";
 import { toast } from "@/components/ui/toast";
 import { useTypedPlaceholder } from "@/components/ui/use-typed-placeholder";

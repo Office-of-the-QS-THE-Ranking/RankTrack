@@ -1,6 +1,6 @@
 # 4. System Features
 
-**System:** UST Rankings and Impact Hub, for the Office of QS/THE Rankings, University of Santo Tomas.
+**System:** PRESTIGE Portal (Performance & Rankings Evaluator of Sustainability, Transparency, & Intelligence for Global Excellence), for the Office of QS/THE Rankings, University of Santo Tomas.
 
 **Scope of this section.** This section specifies the complete, final system. It covers what is already built and what is still to be built, because the Hub is under active development and this document is its plan.
 
@@ -36,18 +36,18 @@ Each module ends with **Scaling provisions**: how the module should grow in capa
 |---|---|---|---|
 | 4.1 | Public Website | 4.18 | Notifications and Email |
 | 4.2 | Authentication and Sessions | 4.19 | Workspace Shell and Search |
-| 4.3 | Access Requests | 4.20 | Administration Overview |
+| 4.3 | Access Requests | 4.20 | Command & Control Overview |
 | 4.4 | Roles, Permissions and Scope | 4.21 | Accounts |
 | 4.5 | Personal Account Window | 4.22 | Organizational Directory |
 | 4.6 | Dashboards | 4.23 | Data Governance |
-| 4.7 | Rankings and Deadlines | 4.24 | Approval Workflows |
+| 4.7 | Rankings and Deadlines | 4.24 | Process Pipelines |
 | 4.8 | Analytics Engine | 4.25 | Privacy and Security |
 | 4.9 | Final Submission Management | 4.26 | Audit Trail |
-| 4.10 | Evidence Contributions and Validation | 4.27 | System Configuration |
+| 4.10 | Unit Submissions | 4.27 | System Configuration |
 | 4.11 | Assistance Requests | 4.28 | Backup and Recovery |
 | 4.12 | Units, Honours and Recognition | 4.29 | Automation and Common Services |
 | 4.13 | Publications | 4.30 | Reputation Survey Contacts |
-| 4.14 | Workspace and Knowledge Center | 4.31 | External Data Connections |
+| 4.14 | Workspace and Knowledge Base | 4.31 | External Data Connections |
 | 4.15 | Digital Forms | 4.32 | System-Wide Scaling |
 | 4.16 | Student Portal and Team Copies | 4.33 | Remaining Work Summary |
 | 4.17 | Reports | | |
@@ -103,10 +103,10 @@ Presents approved ranking, publication and recognition information to anyone, wi
 - **Validation:** Not Found when `public-recognition` is off. Only approved awards appear.
 - **To complete:** Replace presentation award data with awards from the workflow in FR-4.12.7.
 
-**FR-4.1.9 Public Knowledge Center. [Built]** The system shall publish methodologies, a dictionary, templates and deadlines.
+**FR-4.1.9 Public Knowledge Base. [Built]** The system shall publish methodologies, a dictionary, templates and deadlines.
 - **Inputs:** Section and search term.
 - **Processing:** Reads reference data from the database.
-- **Outputs:** Knowledge Center page.
+- **Outputs:** Knowledge Base page.
 - **Validation:** Not Found when `public-knowledge` is off.
 
 **FR-4.1.10 About the Office. [Built]** The system shall publish the Office's mission, ranking portfolio, roles, deliverables, team, data governance, accessibility and contact details, including a methodology disclaimer.
@@ -680,7 +680,7 @@ Covers the last steps of the Office's data-gathering process: compile, Director 
 
 ---
 
-## 4.10 Evidence Contributions and Validation
+## 4.10 Unit Submissions
 
 **FR-4.10.1 Submission table. [Built]** The system shall list a unit's submissions on Submit evidence, with search and status tabs, and open each row's record.
 
@@ -709,7 +709,7 @@ Covers the last steps of the Office's data-gathering process: compile, Director 
 
 **FR-4.10.6 Validation queue. [Built]** The system shall give reviewers tabs Submissions and Analytics.
 - **Inputs:** Search and status filter.
-- **Processing:** Lists records within the reviewer's unit and ranking scope, with a live count in the sidebar. Shows a contribution pipeline by stage.
+- **Processing:** Lists records within the reviewer's unit and ranking scope, with a live count in the sidebar. Shows a submission pipeline by stage.
 - **Outputs:** A review table and pipeline.
 - **Validation:** Requires `evidence: view`.
 
@@ -780,7 +780,7 @@ Covers the last steps of the Office's data-gathering process: compile, Director 
 **FR-4.11.5 Resolution and satisfaction. [Planned]** The system shall record the resolution and ask the unit for a one-question rating.
 
 **Scaling provisions**
-- Turn frequent answers into Knowledge Center FAQ entries from the resolved thread.
+- Turn frequent answers into Knowledge Base FAQ entries from the resolved thread.
 - Route topics to named Office staff automatically.
 - Report common topics per cycle to improve guidance.
 
@@ -897,9 +897,9 @@ Covers Stories & News, Research Articles, and Reports & Insights. States are Dra
 
 ---
 
-## 4.14 Workspace and Knowledge Center
+## 4.14 Workspace and Knowledge Base
 
-Pages: Working Documents, Library, Digital Forms (section 4.15), Archives and Knowledge Center, as sidebar children. Each has its own permission.
+Pages: Working Documents, Library, Digital Forms (section 4.15), Archives and Knowledge Base, as sidebar children. Each has its own permission.
 
 **FR-4.14.1 File shelves. [Built]** The system shall store a unit's working files and the Office's shared library in nested folders.
 - **Inputs:** Owner, shelf (Working or Library), folder, files.
@@ -925,13 +925,13 @@ Pages: Working Documents, Library, Digital Forms (section 4.15), Archives and Kn
 - **Outputs:** A table and editor.
 - **Validation:** Title up to 160 characters. Valid date. 1–10 `https` links. Rankings 12. Authors 12 (80 characters each). Remarks 5,000. Removing takes up to 100 at a time. The Hub never edits the linked document or its sharing.
 
-**FR-4.14.5 Knowledge Center. [Built]** The system shall provide guidance with one shared search over tabs Dictionary, Methodologies, Evidence, Resources and FAQ.
+**FR-4.14.5 Knowledge Base. [Built]** The system shall provide guidance with one shared search over tabs Dictionary, Methodologies, Evidence, Resources and FAQ.
 - **Inputs:** Tab and search term.
 - **Processing:** Shows a deadline countdown and submission calendar, term definitions with linked terms, methodology weights, what reviewers check, the evidence strength ladder, what counts and what does not, templates, training, policies, good practices and questions. Match counts appear on each tab.
 - **Outputs:** Guidance content, with routes to Request assistance or the Office's email.
 - **Validation:** Requires `knowledge: view`, which Student Organizers do not have by default.
 
-**FR-4.14.6 Knowledge Center editing. [Planned]** The system shall let the Office edit guidance on screen.
+**FR-4.14.6 Knowledge Base editing. [Planned]** The system shall let the Office edit guidance on screen.
 - **Inputs:** FAQ, training, policy and good-practice entries; files.
 - **Processing:** Saves entries as drafts, publishes them with an audit entry, and stores them in the reference tables.
 - **Outputs:** Updated content on the workspace and public versions.
@@ -1247,7 +1247,7 @@ Unit Participation (assigned, completed, validated, revisions, rankings served; 
 
 ## 4.19 Workspace Shell and Search
 
-**FR-4.19.1 Navigation. [Built]** The system shall provide a permanent sidebar with permitted pages, expandable children for Rankings, Publications, Workspace and Administration, live counts, and a mobile menu.
+**FR-4.19.1 Navigation. [Built]** The system shall provide a permanent sidebar with permitted pages, expandable children for Rankings, Publications, Workspace and Command & Control, live counts, and a mobile menu.
 - **Inputs:** Viewer's permissions, feature switches.
 - **Processing:** Shows only permitted rows, and a server gate re-checks each page.
 - **Outputs:** Sidebar, icon-only rail remembered per browser, breadcrumbs, and an About link at the foot.
@@ -1291,9 +1291,9 @@ Unit Participation (assigned, completed, validated, revisions, rankings served; 
 
 ---
 
-## 4.20 Administration Overview
+## 4.20 Command & Control Overview
 
-The Administration console has sections: Overview, Accounts, Roles & Permissions, Directory, Data Governance, Privacy & Security, Audit Logs, Workflows, System Configuration, Backup & Recovery. Only University-wide Administrators hold these by default.
+The Command & Control console has sections, in this order: Firewall, Privacy & Security, Account Management, Roles & Permissions, Organizational Directory, Process Pipelines, Data Governance, Agentic Control, System Configuration, Backup & Recovery, Audit Logs. It has no overview page of its own; it opens on Firewall, or on the first section the viewer's role reaches. Only University-wide Administrators hold these by default.
 
 **FR-4.20.1 Console overview. [Built]** The system shall summarize the Hub's health.
 - **Inputs:** Accounts, requests, alerts, backups, audit trail.
@@ -1444,9 +1444,9 @@ Tabs: Datasets, Quality, Dictionary. Thirteen datasets are registered, including
 
 ---
 
-## 4.24 Approval Workflows
+## 4.24 Process Pipelines
 
-Tabs: Waiting for you, All requests, Settings. Workflows: account access, privilege escalation, new units, data access, publication (two steps by default), destructive backup operations, and final submission (FR-4.9.4).
+Tabs: Workflow, Information, Waiting for you, All requests. Workflows: account access, privilege escalation, new units, data access, publication (two steps by default), destructive backup operations, and final submission (FR-4.9.4).
 
 **FR-4.24.1 Configure a workflow. [Built]** The system shall let managers set a workflow's on/off state, response time, separation of duties and steps.
 - **Inputs:** Enabled, days, separation, steps.
@@ -1467,6 +1467,12 @@ Tabs: Waiting for you, All requests, Settings. Workflows: account access, privil
 **FR-4.24.5 Overdue requests. [Planned]** The system shall flag requests past their response time, remind approvers, and escalate to the Director.
 
 **FR-4.24.6 Named approvers. [Planned]** The system shall let a step name who may decide it, such as Ranking Specialist or Director, in addition to any University-wide Administrator.
+
+**FR-4.24.7 Information pipelines. [Built]** The system shall show, on the Information tab, how data is extracted, transformed and loaded: unit evidence, data requests, data imports, methodologies, scores and readiness, ranking deadlines, the public website, the assistant's index, Digital Forms and recovery points.
+- **Inputs:** The pipeline chosen.
+- **Processing:** Draws each pipeline as a node map: its source and what it carries, how it is extracted, the numbered stages that transform it (a person's decision or the Hub's own work), what is held back, where it is loaded and the parts of the Hub that read it. Live counts and times are read from where each pipeline writes. A stage that a workflow pipeline governs opens that workflow.
+- **Outputs:** The map, with live figures; Test run lights the path.
+- **Validation:** Read only. Only counts and times are read, never a row's contents; a figure that can't be read is left out.
 
 **Scaling provisions**
 - Add new workflow kinds by adding a request kind and its apply step.
@@ -1571,7 +1577,7 @@ Tabs: Rankings, Calendar, Workspace, Notifications, Features.
 
 **FR-4.27.7 Dashboard defaults. [Built]** The system shall set the Office's opening view, clock display and deadline warning (3–90 days).
 
-**FR-4.27.8 Feature switches. [Built]** The system shall switch these on or off: Evidence submission, Assistance requests, Report builder, Recognition wall, public Publications, public Recognition, public Knowledge Center.
+**FR-4.27.8 Feature switches. [Built]** The system shall switch these on or off: Evidence submission, Assistance requests, Report builder, Recognition wall, public Publications, public Recognition, public Knowledge Base.
 
 **FR-4.27.9 Feature flags. [Extend]** The system shall stage new features as Off, Selected (named people or units) or Everyone. A Selected flag must name someone. Flags: Automatic ranking matching (FR-4.10.5), Spreadsheet upload (FR-4.8.16), Evidence reuse insights (FR-4.10.12), Story drafting help (FR-4.13.12).
 - **To complete:** Only reuse insights changes behaviour today. The others take effect when their features are built. Rename "Spreadsheet upload in Submit data" to match Data requests.
@@ -1787,7 +1793,7 @@ Every item below is specified above. The grouping suggests a sensible order, but
 | Copy edit history; proposal-to-report link; feed to analytics | FR-4.16.12, FR-4.16.13, FR-4.15.21 |
 | Awards workflow and certificates | FR-4.12.7, FR-4.12.8 |
 | Story drafting; scheduled publishing; version history | FR-4.13.12–FR-4.13.14 |
-| Knowledge Center editing, file versions, training tracking | FR-4.14.6–FR-4.14.8 |
+| Knowledge Base editing, file versions, training tracking | FR-4.14.6–FR-4.14.8 |
 | Campus sustainability map | FR-4.1.16 |
 
 **Release 4: complete governance and connections**

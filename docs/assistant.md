@@ -1,10 +1,10 @@
 # The assistant
 
-The chat behind the orb in `/admin` and `/portal`. It holds general conversations, answers questions about the Hub from the Hub's own content and live records, with what the person asking may see, compares results and works out what is holding them back, and links those answers to their sources. University-wide Administrators run it from **Administration › AI Assistant**.
+The chat behind the orb in `/admin` and `/portal`. It holds general conversations, answers questions about the Hub from the Hub's own content and live records, with what the person asking may see, compares results and works out what is holding them back, and links those answers to their sources. University-wide Administrators run it from **Command & Control › Agentic Control**.
 
 ## Turning it on
 
-1. **Cloudflare.** On the AI Assistant tab, connect Cloudflare with an API token that has Workers AI Read and Edit. It builds the search index, and the first build starts when you connect. The account ID comes from `R2_ACCOUNT_ID`.
+1. **Cloudflare.** On the Agentic Control tab, connect Cloudflare with an API token that has Workers AI Read and Edit. It builds the search index, and the first build starts when you connect. The account ID comes from `R2_ACCOUNT_ID`.
 2. **A chat model.** Connect Google Gemini with a key from AI Studio, and say which plan it's on. Gemini 3.5 Flash-Lite is the default. Gemini 3.8 Flash is listed but off: on a free key it took 49 to 235 seconds and sometimes answered 503, which is past the chat's time limit.
 3. **Check it.** Ask something the site answers, which should show sources, then something general, which should show none.
 4. **Tune if needed.** `MIN_SIMILARITY` and `MIN_SIMILARITY_WITH_WORDS` in `src/lib/assistant/rules.ts` decide which passages reach the model, and were set from real questions. If Hub questions come back as general answers, lower them.
@@ -87,9 +87,9 @@ The asker's name and email aren't sent to a model, and it can't change anything 
 | Published stories, article and report abstracts | Public | Anyone signed in |
 | Public dictionary, evidence standards, questions, policies, calendar (while the section is on) | Public | Anyone signed in |
 | About the Office: purpose, vision, deliverables, team, governance, contact | Public | Anyone signed in |
-| The portal's Knowledge Center questions and policies | Internal | `knowledge.view`, and never a free Google key |
+| The portal's Knowledge Base questions and policies | Internal | `knowledge.view`, and never a free Google key |
 
-Left out of the index on purpose: rankings' strengths, gaps, targets and owners, unit coordinators and emails, drafts, evidence, form responses, Workspace files, methodology packs, demo data, and the text inside PDFs (the Hub has no PDF reader yet). What changes belongs in a live lookup rather than the index, which is only rebuilt daily.
+Left out of the index on purpose: rankings' strengths, gaps, targets and owners, unit coordinators and emails, drafts, evidence, form responses, Workspace files, methodology packs, demo data, and the text inside uploaded files. Evidence files can be read as text on a submission's Review tab, but that text is kept apart for the people who review the submission and for the Reviewer job, and the chat never gets it (`docs/evidence-review.md`, `tests/review-guard.test.ts`). What changes belongs in a live lookup rather than the index, which is only rebuilt daily.
 
 ## What can be looked up live
 
@@ -116,6 +116,10 @@ Not available: accounts, audit logs, what people answered on forms, Workspace fi
 To add a lookup, add it to `DATA_TOOLS` and `dataToolsFor` with the permission its page asks for, then to `all` in `server/data-tools.ts`, listing each field, and add a test. Give results keys that say what they mean (`indicatorsFailingIt`, not `indicators`), and work out in code whatever a model could get wrong from a table.
 
 To add content to the index, add a document in `sourceDocs()`, listing each field, with its `level` and the `module`, `action` and `unitId` a reader must hold. Sessions are a custom cookie, so row-level security can't filter by person. The permission check has to be in the app, and unit-owned content must pass `unitId` because `viewerCan` skips the unit check without it. Add a rule to `canRead` for each new module, and a test.
+
+## Jobs
+
+The chat is one job, the Assistant. The **Reviewer** is another: it checks suggestions on a submission's Review tab against the pages of its files (`docs/evidence-review.md`). Its model is set under Models › Jobs, once, by an Administrator, and must be on a plan that doesn't share data. It shares the providers' keys, prices and budgets with the chat. Its runs are counted apart (`assistant_usage.job`), so they don't use up anyone's daily messages or appear in the chat's usage charts.
 
 ## Costs and credits
 

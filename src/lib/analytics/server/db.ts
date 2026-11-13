@@ -531,10 +531,3 @@ export async function readImports(limit = 200): Promise<ImportRow[]> {
     at: r.at,
   }));
 }
-
-/** A value's history, oldest first. */
-export async function readValueHistory(valueIds: string[]) {
-  if (!valueIds.length) return [];
-  const rows = await all((a, b) => adminDb().from("analytics_value_history").select("*").in("value_id", valueIds).order("at").range(a, b));
-  return rows.map((r) => ({ valueId: r.value_id, at: r.at, by: r.by, action: r.action, value: json(r.value, {}), status: r.status, note: r.note }));
-}

@@ -6,6 +6,7 @@ import { serverViews } from "@/lib/governance/server/views";
  * that measure it light up. Built from radio buttons and CSS :has(), so it works without JavaScript.
  */
 export async function CountsWhere({ id = "cw", headingLevel = 2 }: { id?: string; headingLevel?: 2 | 3 }) {
+  /* The heading says what the board answers; the visitor may be a reader, not a contributor. */
   const { dimsOf } = await serverViews();
   const H = headingLevel === 2 ? "h2" : "h3";
   const { rankings: RANKINGS, counts: COUNTS } = await siteData();
@@ -23,10 +24,10 @@ export async function CountsWhere({ id = "cw", headingLevel = 2 }: { id?: string
       <div className="w-counts__in w-wrap">
         <div className="w-counts__copy">
           <H id={`${id}-title`} className="w-head" data-reveal>
-            Where your work counts
+            Which rankings measure what
           </H>
           <p className="w-lead" data-reveal style={{ ["--d" as string]: "80ms" }}>
-            Choose a kind of work. The rankings that measure it light up, because one validated record counts in every ranking it supports.
+            Choose a kind of work to see which rankings measure it. One verified record counts in every ranking that asks for it.
           </p>
           <fieldset className="w-counts__dims" data-reveal style={{ ["--d" as string]: "160ms" }}>
             <legend className="sr-only">Kind of work</legend>

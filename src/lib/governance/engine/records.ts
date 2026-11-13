@@ -7,6 +7,7 @@ import type { Command, CommandResult } from "../commands";
 import { evidenceBodies, featureOn, mappingActive } from "../derive";
 import { descendants, has } from "../rbac";
 import { EVIDENCE_LIMITS, EVIDENCE_SUMMARY, PUBLIC_URL, cleanFileName, evidenceMime, evidencePath, guessFileKind, isFileKind } from "../evidence-files";
+import { academicYear, academicYears, currentAcademicYear, isTerm, periodLabel } from "@/lib/periods";
 import { cleanRich, isRich, plainText } from "@/lib/rich-text";
 import { evidenceById, evidenceList, requirementUnit } from "../records";
 import type { EvidenceFile, EvidenceLink, EvidenceRecord, EvidenceReference } from "../types";
@@ -14,6 +15,8 @@ import { can, clean, cleanText, deny, invalid, log, nextId, notify, ok, unitById
 import { publishStory } from "./mutations";
 import { needsApproval, openRequest, workflowOn } from "./requests";
 import { raiseAlert } from "./security";
+import { decidedBy, submissionSteps, waitingAt } from "../submission-review";
+import { SUBMISSIONS, reviewerBlock, reviewerFits } from "../workflow-steps";
 
 export const EVIDENCE_TYPES = [
   "Operational data",
@@ -24,6 +27,9 @@ export const EVIDENCE_TYPES = [
   "Teaching and course data",
   "Innovation or intellectual property",
 ];
+
+/** How many kinds one submission may name, the main one included. */
+export const EVIDENCE_MAX_TYPES = 3;
 
 const evRes = (e: { id: string; title: string }) => ({ type: "Evidence", id: e.id, label: e.title });
 
@@ -109,9 +115,15 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
   if (!place) return deny(ctx, "evidence.submit", "Data", target, `You cannot submit evidence for ${unit.name}.`);
   if (clean(i.title).length < 4) return invalid("Give the contribution a title of at least four characters.");
   if (!EVIDENCE_TYPES.includes(i.type)) return invalid("Choose the kind of evidence.");
-  const period = ctx.state.config.periods.find((p) => p.label === i.period);
-  if (!period) return invalid("Choose a reporting period.");
-  if (!period.accepting) return invalid(`${period.label} is closed to submissions.`);
+  const alsoTypes = [...new Set(Array.isArray(i.alsoTypes) ? i.alsoTypes : [])].filter((t) => t !== i.type);
+  if (alsoTypes.some((t) => !EVIDENCE_TYPES.includes(t))) return invalid("Choose kinds of evidence from the list.");
+  if (alsoTypes.length > EVIDENCE_MAX_TYPES - 1) return invalid(`Choose up to ${EVIDENCE_MAX_TYPES} kinds of evidence.`);
+  // Units name the academic year and term; the label they make places the record in calendar years (lib/periods).
+  const ay = academicYear(typeof i.academicYear === "string" ? i.academicYear : "");
+  if (!ay) return invalid("Choose the academic year.");
+  if (!isTerm(i.term)) return invalid("Choose the term.");
+  // Academic years are fixed: every one from 2000–2001 to the year running now.
+  if (!academicYears(new Date(`${ctx.day}T12:00:00`)).includes(ay)) return invalid(`Choose an academic year from 2000–2001 to ${currentAcademicYear(new Date(`${ctx.day}T12:00:00`))}.`);
   // The description arrives as the editor's HTML, cleaned again here; older clients send plain text.
   const raw = typeof i.summary === "string" ? i.summary.replace(/\r\n?/g, "\n") : "";
   const summary = isRich(raw) ? cleanRich(raw) : cleanText(raw, EVIDENCE_SUMMARY.text);
@@ -130,7 +142,7 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
   const background = cleanText(i.background, EVIDENCE_LIMITS.background).replace(/\n{3,}/g, "\n\n");
   const verifiedBy = clean(i.verifiedBy, EVIDENCE_LIMITS.verifiedBy);
   const mapped = [...new Set(i.mappedTo.filter((m) => mappingActive(ctx.state, m)))];
-  if (!mapped.length) return invalid("Keep at least one ranking indicator.");
+  // No match is fine: the Hub maps evidence itself, and the Office adds indicators in review.
   const id = nextId(ctx, "evidence", "EV-", 4);
   const rec: EvidenceRecord = {
     id,
@@ -138,7 +150,8 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
     unitSlug: place.unitSlug,
     programId: place.programId,
     type: i.type,
-    period: period.label,
+    ...(alsoTypes.length ? { alsoTypes } : {}),
+    period: periodLabel(ay, i.term),
     submitted: ctx.day,
     submittedBy: ctx.actor.name,
     submittedById: ctx.actor.id,
@@ -160,10 +173,15 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
   };
   ctx.state.records.evidence[id] = rec;
   log(ctx, "evidence.submit", "Data", evRes(rec), "Success", `${unit.name}${place.programId ? ` · ${unitById(ctx, place.programId)?.name}` : ""} · ${mapped.length} indicators · ${rec.files.length} files`);
-  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: rec.title }, `/admin/contributions?item=${id}`);
+  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: rec.title }, `/admin/unit-submissions?item=${id}`);
   return ok(`Received as ${id}.`, { data: id });
 }
 
+/**
+ * A reviewer's decision, at the step of the Unit submissions pipeline the item waits on. Accepting a step before the
+ * last moves it on, still For review; accepting the last validates it. A revision at any step sends it back to the
+ * unit, and its reply starts again from the first step. Nobody decides their own submission or two of its steps.
+ */
 export function review(ctx: Ctx, id: string, decision: "accept" | "revise", text: string): CommandResult {
   const e = evidenceById(ctx.state, id);
   if (!e) return invalid("That submission no longer exists.");
@@ -174,17 +192,41 @@ export function review(ctx: Ctx, id: string, decision: "accept" | "revise", text
     return deny(ctx, action, "Approval", evRes(e), "You submitted this item, so another reviewer must decide it.");
   const t = cleanText(text, 1000);
   if (decision === "revise" && t.length < 5) return invalid("Say what the unit should change before requesting a revision.");
+  if (decision === "accept" && e.status !== "For review") return invalid(e.status === "Validated" ? "This submission is already accepted." : "This submission is waiting on the unit's revision.");
+  if (decision === "revise" && e.status !== "For review" && e.status !== "Validated") return invalid("This submission is already waiting on the unit's revision.");
+  const steps = submissionSteps(ctx.state, ctx.day);
+  const k = waitingAt(steps, e.review);
+  const step = steps[k];
+  // A validated item can be sent back by any reviewer of it; one under review, by whoever may decide its step.
+  if (e.status === "For review") {
+    if (!reviewerFits(ctx.actor.grants, decidedBy(step), targetOf(e))) return deny(ctx, action, "Approval", evRes(e), reviewerBlock(decidedBy(step)));
+    if (e.review?.approvals.some((a) => a.by === ctx.actor.id)) return deny(ctx, action, "Approval", evRes(e), "You approved an earlier step; another reviewer must take this one.");
+  }
   const unit = unitById(ctx, e.unitSlug);
   const role = `Reviewer, ${unitById(ctx, ctx.actor.account?.unitId ?? "")?.name ?? "Office of QS/THE Rankings"}`;
+  const comments = t ? [...e.comments, { by: ctx.actor.name, role, date: ctx.day, text: t }] : e.comments;
+  const href = `/admin/unit-submissions?item=${e.id}`;
+  if (decision === "accept" && k < steps.length - 1) {
+    const next = steps[k + 1];
+    const { review: _, ...rest } = e;
+    ctx.state.records.evidence[e.id] = { ...rest, stage: Math.max(e.stage, 1), comments, review: { step: next.at, approvals: [...(e.review?.approvals ?? []), { step: step.at, by: ctx.actor.id, at: ctx.iso }] } };
+    log(ctx, "evidence.step", "Approval", evRes(e), "Success", `${step.name} approved (step ${k + 1} of ${steps.length}); next: ${next.name}`);
+    notify(ctx, "office", "tpl-submitted", { unit: unit?.name ?? e.unitSlug, title: `${e.title} (next: ${next.name})` }, href);
+    return ok(`${step.name} approved. Next: ${next.name}.`);
+  }
+  const { review: _, ...rest } = e;
   const next: EvidenceRecord =
     decision === "accept"
-      ? { ...e, status: "Validated", stage: Math.max(e.stage, 2), comments: t ? [...e.comments, { by: ctx.actor.name, role, date: ctx.day, text: t }] : e.comments }
-      : { ...e, status: "Needs revision", stage: 1, comments: [...e.comments, { by: ctx.actor.name, role, date: ctx.day, text: t }] };
+      ? { ...rest, status: "Validated", stage: Math.max(e.stage, 2), comments }
+      : { ...rest, status: "Needs revision", stage: 1, comments };
   ctx.state.records.evidence[e.id] = next;
   const rankings = new Set(next.mappedTo.map((m) => m.split(" · ")[0])).size;
-  log(ctx, action, "Approval", evRes(e), "Success", decision === "accept" ? `Accepted · counts in ${rankings} rankings` : `Revision requested: ${t.slice(0, 140)}`);
-  if (decision === "accept") notify(ctx, `unit:${e.unitSlug}`, "tpl-accepted", { title: e.title, count: rankings }, `/portal/submit#${e.id}`);
-  else notify(ctx, `unit:${e.unitSlug}`, "tpl-revision", { title: e.title, comment: t }, `/portal/submit#${e.id}`);
+  const at = steps.length > 1 && e.status === "For review" ? ` at ${step.name}` : "";
+  log(ctx, action, "Approval", evRes(e), "Success", decision === "accept" ? `Accepted · counts in ${rankings} rankings` : `Revision requested${at}: ${t.slice(0, 140)}`);
+  // The unit always hears what to change; whether it hears of an acceptance is the pipeline's to say.
+  if (decision === "accept") {
+    if (ctx.state.workflows.find((w) => w.id === SUBMISSIONS)?.notify !== false) notify(ctx, `unit:${e.unitSlug}`, "tpl-accepted", { title: e.title, count: rankings }, `/portal/submit#${e.id}`);
+  } else notify(ctx, `unit:${e.unitSlug}`, "tpl-revision", { title: e.title, comment: t }, `/portal/submit#${e.id}`);
   return ok(decision === "accept" ? `Accepted. ${unit?.name ?? "The unit"} will see where it counts.` : `Revision requested from ${unit?.name ?? "the unit"}.`);
 }
 
@@ -217,8 +259,10 @@ export function respond(ctx: Ctx, id: string, text: string, file?: { name: strin
   if (typeof added === "string") return invalid(added);
   const f = added[0]?.name ?? "";
   const unit = unitById(ctx, e.unitSlug);
+  const { review: _, ...rest } = e;
+  // Back in the queue at the pipeline's first step.
   ctx.state.records.evidence[e.id] = {
-    ...e,
+    ...rest,
     status: "For review",
     stage: 1,
     files: f ? [...e.files, f] : e.files,
@@ -226,7 +270,7 @@ export function respond(ctx: Ctx, id: string, text: string, file?: { name: strin
     comments: [...e.comments, { by: ctx.actor.name, role: unit?.name ?? e.unitSlug, date: ctx.day, text: f ? `${t}\n\nAttached: ${f}` : t }],
   };
   log(ctx, "evidence.resubmit", "Data", evRes(e), "Success", f ? `Corrected file ${f}` : "Reply without a new file");
-  notify(ctx, "office", "tpl-submitted", { unit: unit?.name ?? e.unitSlug, title: `${e.title} (resubmitted)` }, `/admin/contributions?item=${e.id}`);
+  notify(ctx, "office", "tpl-submitted", { unit: unit?.name ?? e.unitSlug, title: `${e.title} (resubmitted)` }, `/admin/unit-submissions?item=${e.id}`);
   return ok("Resubmitted. The reviewer has been notified and the item is back in the queue.");
 }
 
@@ -242,7 +286,7 @@ export function submitValues(ctx: Ctx, unitSlug: string, values: { id: string; l
   if (!good.length) return invalid("Every value needs a number and its source document.");
   for (const v of good) ctx.state.records.values[v.id] = { value: v.value.trim(), source: clean(v.source, 200), status: "For review", by: ctx.actor.id, at: ctx.iso };
   log(ctx, "data.submit", "Data", target, "Success", good.map((v) => `${v.label}: ${v.value}`).join("; ").slice(0, 300));
-  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `${good.length} reporting-period ${good.length === 1 ? "value" : "values"}` }, "/admin/contributions");
+  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `${good.length} reporting-period ${good.length === 1 ? "value" : "values"}` }, "/admin/unit-submissions");
   return ok(`${good.length} ${good.length === 1 ? "value" : "values"} sent for validation.`);
 }
 

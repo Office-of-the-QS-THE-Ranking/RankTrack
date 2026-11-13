@@ -373,7 +373,7 @@ export function DigitalForms({ desk, kind: only, title = "Digital Forms" }: { de
           {(close) => (
             <div className="ws-sheet__body">
               <p className="ws-sheet__text">
-                “{publishing.title}” starts taking responses, and they reach the Office of the QS/THE Rankings. Once published, it can’t be edited or deleted.
+                “{publishing.title}” starts taking responses, and they reach the Office of QS/THE Rankings. Once published, it can’t be edited or deleted.
               </p>
               <footer className="ws-sheet__foot">
                 <button type="button" className="btn" onClick={close} autoFocus>

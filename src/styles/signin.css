@@ -4,7 +4,7 @@
  * black-and-gold sky beside a glowing gold hairline and its halftone dots, lit by a champagne crescent moon,
  * over the Main Building, lit for the night, with the Benavides monument before it, both low-poly models
  * (scripts/signin-scene). The building and the monument stand at the left, turned to the right, under the
- * University's name; at the right a full-height sidebar of dark glass, with a gilt seam down its edge, holds the
+ * University's name; at the right a full-height sidebar of solid charcoal holds the
  * Hub's name and the form. On phones the scene is a poster and the sidebar a sheet under it.
  *   Page    layout, the palette for the form's controls, the card and the flow (SignInFlow)
  *   Scene   SignInScene's layers; SceneMotion sets --mx/--my (depth) and lights the canvases (SceneLight)
@@ -135,6 +135,50 @@ body:has(> .signin) {
 .signin:has(.si[data-step="start"]) .signin__display {
   margin-bottom: clamp(36px, 5vh, 48px);
 }
+/* The brand lockup, in the same serif as the later steps' headings (Request Access, Submission Tracker):
+   PRESTIGE in gilt italic and Portal in ivory on one line, and what PRESTIGE stands for under it in ivory. */
+.signin__title {
+  margin-bottom: clamp(40px, 7vh, 72px);
+}
+.signin:has(.si[data-step="start"]) .signin__title .signin__display--name {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.signin__display--name .signin__row {
+  display: inline-block;
+  vertical-align: bottom;
+}
+/* now and then a slow shine passes over the name: a light band drawn into each word's own fill (white over the
+   gilt, pale gold over the ivory), parked off to the left until it moves (pp-shine below) */
+.signin__display--name .signin__row > span {
+  --word-fill: linear-gradient(#fbf6ea, #fbf6ea);
+  --word-shine: #f3c95a;
+  background-image:
+    linear-gradient(105deg, rgb(255 255 255 / 0) 40%, var(--word-shine) 47%, var(--word-shine) 53%, rgb(255 255 255 / 0) 60%),
+    var(--word-fill);
+  background-size: 300% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.signin__display--name .signin__row--gold > span {
+  --word-fill: linear-gradient(100deg, #fff4d6 0%, #f7d98a 30%, #ecb83e 64%, #c98f12 100%);
+  --word-shine: #fffaf0;
+}
+.signin .signin__expansion {
+  max-width: 48ch;
+  margin: 6px 0 0;
+  /* the same plain type as "Keep me signed in" (.si__keep), a size up */
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: normal;
+  color: rgb(var(--label) / 0.78);
+  text-wrap: pretty;
+}
 /* each line rises out of its own slot; the padding keeps the descenders inside it */
 .signin__row {
   display: block;
@@ -188,17 +232,8 @@ body:has(> .signin) {
   transform-origin: left;
 }
 
-/* The sidebar: liquid glass at the right, full height, a gilt seam down its left edge and a beam of light on
-   the seam (below). The Hub's name and the form stand high in it (.signin__side), the offices, version and
-   clock at its foot.
-   The glass is clear rather than smoked (user, 2026-10-24: more see-through): a light frost that keeps the
-   scene's colour (saturated, a touch dimmed), a very thin warm tint, a soft shadow under the type so it reads
-   over the bands (.signin__side), and light on and in it: a bright lip along the edge and the edge's
-   thickness catching the light inside it (the inset shadows), a pool of light in the top corner and a soft
-   band of sheen that drifts across it (::before), and along the seam a lens that bends the scene behind
-   (GlassLens, .signin__lens) */
+/* Match the assistant's near-black background, fading from charcoal to black. */
 .signin__card {
-  --seam: 0 0 0 1px;
   position: relative;
   z-index: 1;
   isolation: isolate;
@@ -207,29 +242,8 @@ body:has(> .signin) {
   flex-direction: column;
   min-height: 100dvh;
   padding: var(--edge) clamp(32px, 3.6vw, 60px);
-  background: linear-gradient(180deg, rgb(24 20 15 / 0.12), rgb(10 9 7 / 0.24));
-  -webkit-backdrop-filter: blur(9px) saturate(1.8) brightness(0.86);
-  backdrop-filter: blur(9px) saturate(1.8) brightness(0.86);
-  box-shadow:
-    inset 1px 0 0 rgb(255 255 255 / 0.2),
-    inset 14px 0 22px -14px rgb(255 246 226 / 0.14),
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    inset 0 -1px 0 rgb(255 255 255 / 0.05),
-    -70px 0 120px -40px rgb(0 0 0 / 0.7);
-}
-.signin__card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .86 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(110% 46% at 0% 0%, rgb(255 255 255 / 0.11), rgb(255 255 255 / 0.03) 46%, transparent 70%),
-    radial-gradient(90% 36% at 100% 100%, rgb(252 191 21 / 0.07), transparent 72%),
-    linear-gradient(112deg, transparent 38%, rgb(255 255 255 / 0.06) 46%, rgb(255 250 236 / 0.025) 52%, transparent 60%);
-  background-size: 160px 160px, 100% 100%, 100% 100%, 300% 100%;
-  background-position: 0 0, 0 0, 0 0, 100% 0;
+  background: linear-gradient(#131313, #000);
+  border-left: 1px solid rgb(255 255 255 / 0.1);
 }
 /* the Hub's name and the form: well above the middle (user, 2026-10-24), as the lower padding lifts it by half
    its height */
@@ -239,29 +253,6 @@ body:has(> .signin) {
   max-width: 420px;
   margin: auto;
   padding: clamp(20px, 3vh, 32px) 0 clamp(48px, 16vh, 180px);
-  text-shadow: 0 1px 14px rgb(0 0 0 / 0.55);
-}
-/* the lens: a strip over the sidebar's seam whose backdrop the SVG filter bends, in Chromium (GlassLens) */
-.signin__lens-defs {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-}
-.signin__lens {
-  display: none;
-  position: absolute;
-  inset: 0 auto 0 0;
-  z-index: 2;
-  width: clamp(36px, 3.4vw, 56px);
-  pointer-events: none;
-}
-.signin__lens[data-on] {
-  display: block;
-  -webkit-backdrop-filter: url(#si-lens) saturate(1.25) brightness(1.08);
-  backdrop-filter: url(#si-lens) saturate(1.25) brightness(1.08);
-  -webkit-mask-image: linear-gradient(90deg, #000 70%, transparent);
-  mask-image: linear-gradient(90deg, #000 70%, transparent);
 }
 /* the foot: the University and its offices at the left; the app's version (package.json) with its stage on a
    small gilt tag, the date and a live clock (FootClock) at the right; under a rule that is gilt where it meets
@@ -344,75 +335,6 @@ body:has(> .signin) {
   box-shadow: 0 0 0 1px rgb(240 207 122 / 0.55);
   opacity: 0;
 }
-/* asked for less see-through glass: a solid sidebar */
-@media (prefers-reduced-transparency: reduce) {
-  .signin__card {
-    background: #100e0b;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-  .signin__lens[data-on] {
-    display: none;
-  }
-}
-.signin__card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  padding: var(--seam);
-  background: linear-gradient(180deg, rgb(255 214 110 / 0.1), rgb(255 214 110 / 0.5) 34%, rgb(252 191 21 / 0.24) 74%, rgb(255 214 110 / 0.06));
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-}
-/* the beam (CardBeam): gold light on the seam, under the form. It rests a little above the seam's middle; with
-   a mouse near, it slides along the seam to the pointer (--bx, --by) and flares as the pointer closes in (--bk,
-   0 to 1): a white-hot heart and a glow off the seam; no spotlight on the glass (user, 2026-10-22) */
-.signin__beam {
-  --bx: 0px;
-  --by: 38%;
-  --bk: 0;
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  filter: drop-shadow(0 0 4px rgb(255 220 130 / calc(var(--bk) * 0.95)))
-    drop-shadow(0 0 18px rgb(252 191 21 / calc(var(--bk) * 0.65)));
-}
-.signin__beam::before,
-.signin__beam::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  padding: var(--seam);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-.signin__beam::before {
-  background: radial-gradient(
-    calc(118px + var(--bk) * 64px) circle at var(--bx) var(--by),
-    rgb(255 230 160 / 0.9),
-    rgb(252 191 21 / 0.34) 56%,
-    transparent
-  );
-}
-.signin__beam::after {
-  background: radial-gradient(72px circle at var(--bx) var(--by), #fffdf6, rgb(255 236 180 / 0.7) 40%, transparent);
-  opacity: var(--bk);
-}
-
 /* Compact glass policy bar at the bottom left, held to the screen like the scene behind it, so a long form
    never carries it out of view. */
 .signin__legal {
@@ -602,7 +524,7 @@ body:has(> .signin) {
 /* The two ways in, stacked: the University's account in gold, and a quieter request action. */
 .si__actions {
   display: grid;
-  gap: 20px;
+  gap: 28px;
 }
 .si__divider {
   display: flex;
@@ -628,7 +550,7 @@ body:has(> .signin) {
   align-items: center;
   justify-self: start;
   gap: 9px;
-  margin: -8px 0 0 2px;
+  margin: 2px 0 0 2px;
   color: rgb(var(--label) / 0.78);
   font-size: 13px;
   line-height: 1;
@@ -645,8 +567,7 @@ body:has(> .signin) {
   outline: 1px solid rgb(var(--label) / 0.6);
   outline-offset: 2px;
 }
-/* the University's account: polished gold set in a dark tray behind a gilt hairline (the outer rings), lit
-   from above, with a short warm shadow; Google's G on a white tile; no arrow (user, 2026-10-22) */
+/* The University's account: polished gold with a soft shadow and Google's G on a white tile. */
 .si__google {
   position: relative;
   isolation: isolate;
@@ -665,31 +586,16 @@ body:has(> .signin) {
   font-weight: 700;
   text-align: left;
   cursor: var(--cursor-pointer);
-  box-shadow:
-    inset 0 1px 0 rgb(255 250 230 / 0.75),
-    inset 0 -1px 0 rgb(122 82 0 / 0.38),
-    inset 0 0 0 1px rgb(255 236 170 / 0.28),
-    0 0 0 3px rgb(12 10 7 / 0.5),
-    0 0 0 4px rgb(243 210 122 / 0.22),
-    0 14px 30px -14px rgb(214 150 0 / 0.6);
+  box-shadow: 0 14px 30px -14px rgb(214 150 0 / 0.6);
   transition:
     transform 420ms var(--ease-out),
     box-shadow 420ms var(--ease-out),
     filter var(--t) var(--ease-out);
   --focus: #fff;
 }
-/* the focus ring stands clear of the tray */
+/* Keep the keyboard focus ring distinct from the button's fill. */
 .si__google:focus-visible {
   outline-offset: 6px;
-}
-/* now and then a sheen passes over it */
-.si__google::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.55) 50%, transparent 65%);
-  transform: translateX(-120%);
 }
 .si__google-mark {
   flex: none;
@@ -719,13 +625,7 @@ body:has(> .signin) {
   .si__google:hover:not(:disabled) {
     transform: translateY(-1px);
     filter: brightness(1.03) saturate(1.04);
-    box-shadow:
-      inset 0 1px 0 rgb(255 250 230 / 0.8),
-      inset 0 -1px 0 rgb(122 82 0 / 0.38),
-      inset 0 0 0 1px rgb(255 236 170 / 0.34),
-      0 0 0 3px rgb(12 10 7 / 0.5),
-      0 0 0 4px rgb(243 210 122 / 0.36),
-      0 20px 38px -16px rgb(214 150 0 / 0.75);
+    box-shadow: 0 20px 38px -16px rgb(214 150 0 / 0.75);
   }
   .si__google:hover:not(:disabled) .si__google-mark {
     transform: scale(1.04);
@@ -943,6 +843,13 @@ body:has(> .signin) {
 /* "Already submitted your request?": the tracker's way in, under the password note */
 .si__note--track {
   margin-top: -6px;
+}
+/* the start step: the notes stand a little further from the buttons and from each other */
+.si[data-step="start"] .si__note {
+  margin-top: 14px;
+}
+.si[data-step="start"] .si__note--track {
+  margin-top: 0;
 }
 .si__link--inline {
   display: inline;
@@ -2000,9 +1907,6 @@ body:has(> .signin) {
   .sx__rail::after {
     animation: sx-rail-shine 6s ease-in-out 1.6s infinite;
   }
-  .si__google::after {
-    animation: si-sheen 6.5s cubic-bezier(0.45, 0, 0.25, 1) 2.6s infinite;
-  }
 
   /* the words: the tag, the Hub's name a line at a time, the card, the foot; each step of the form
      enters afresh, and the code's caret blinks */
@@ -2015,15 +1919,19 @@ body:has(> .signin) {
   .signin__row + .signin__row > span {
     animation-delay: 0.36s;
   }
+  .signin__display--name .signin__row > span {
+    animation:
+      sx-row 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both,
+      pp-shine 10s ease-in-out 2.4s infinite;
+  }
+  .signin__display--name .signin__row + .signin__row > span {
+    animation-delay: 0.36s, 3.6s;
+  }
+  .signin__expansion {
+    animation: sx-up 1s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+  }
   .signin__card {
     animation: sx-side 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
-  }
-  /* the sheen on the glass drifts slowly across and back */
-  .signin__card::before {
-    animation: si-glass 16s ease-in-out 1.6s infinite alternate;
-  }
-  .signin__lens[data-on] {
-    animation: sx-fade 1.2s ease 1.2s both;
   }
   .signin__legal {
     animation: sx-fade 1.4s ease 1s both;
@@ -2105,11 +2013,6 @@ body:has(> .signin) {
   from {
     opacity: 0;
     transform: translateX(48px);
-  }
-}
-@keyframes si-glass {
-  to {
-    background-position: 0 0, 0 0, 0% 0;
   }
 }
 @keyframes sx-sheet {
@@ -2196,13 +2099,13 @@ body:has(> .signin) {
     rotate: 1turn;
   }
 }
-@keyframes si-sheen {
+@keyframes pp-shine {
   0% {
-    transform: translateX(-120%);
+    background-position: 100% 0, 0 0;
   }
-  30%,
+  32%,
   100% {
-    transform: translateX(120%);
+    background-position: 0% 0, 0 0;
   }
 }
 
@@ -2262,26 +2165,13 @@ body:has(> .signin) {
   }
   /* the sidebar becomes a sheet under the poster, its seam along the top */
   .signin__card {
-    --seam: 1px 0 0;
     flex: 1;
     justify-content: flex-start;
     min-height: 0;
     margin-top: clamp(20px, 3vh, 28px);
     padding: 28px max(var(--pad-l), (100% - 560px) / 2) 20px;
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.2),
-      inset 0 14px 22px -14px rgb(255 246 226 / 0.14),
-      0 -40px 80px -40px rgb(0 0 0 / 0.8);
-  }
-  .signin__lens[data-on] {
-    display: none;
-  }
-  .signin__card::after {
-    background: linear-gradient(90deg, rgb(255 214 110 / 0.08), rgb(255 214 110 / 0.5) 36%, rgb(252 191 21 / 0.24) 74%, rgb(255 214 110 / 0.06));
-  }
-  .signin__beam {
-    --bx: 39%;
-    --by: 0px;
+    border-left: 0;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
   }
   .signin__side {
     max-width: none;

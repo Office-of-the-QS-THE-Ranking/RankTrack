@@ -190,7 +190,7 @@ export function recordCheck(ctx: Ctx, readings: Reading[]): CommandResult {
   for (const id of changedPages) {
     const src = ctx.ref.deadlineSources.find((s) => s.id === id)!;
     const slug = src.rules[0]?.slugs[0];
-    tellOffice(ctx, `${src.name} changed. Open it to check for new dates.`, slug ? `/admin/rankings/${slug}#deadlines` : "/admin/administration/config");
+    tellOffice(ctx, `${src.name} changed. Open it to check for new dates.`, slug ? `/admin/rankings/${slug}#deadlines` : "/admin/command-control/config");
   }
   if (fresh.length) log(ctx, "deadline.check", "Configuration", CHECK, "Success", fresh.map((f) => `${short(f.slug)} ${f.label.toLowerCase()} ${f.due}`).join("; ").slice(0, 300));
   if (changedPages.length) log(ctx, "deadline.check", "Configuration", CHECK, "Success", `Changed: ${changedPages.join(", ")}`);

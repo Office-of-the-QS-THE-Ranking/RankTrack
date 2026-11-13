@@ -3,7 +3,7 @@ import "server-only";
 /*
  * The second half of sign-in, after Google (through Supabase Auth) has said who someone is: the Hub decides
  * whether that person may come in, under the same checks as every request (an account from an approved access
- * request or the Administration console, account status, allowed domains, active roles), opens a Hub session and audits the attempt either way. Only the OAuth callback calls it;
+ * request or the Command & Control console, account status, allowed domains, active roles), opens a Hub session and audits the attempt either way. Only the OAuth callback calls it;
  * it is deliberately not a Server Function, which a browser could call with any address.
  */
 import { randomBytes } from "node:crypto";
@@ -12,7 +12,7 @@ import { domainAllowed, workspacesOf } from "../derive";
 import { raiseAlert } from "../engine";
 import { log, type Ctx } from "../engine/core";
 import { addAssignment, createAccount } from "../engine/mutations";
-import { actingGrants, activeAssignments, grantsFor, runsHub, today, UNIVERSITY } from "../rbac";
+import { actingGrants, activeAssignments, grantsFor, ownsHub, today, UNIVERSITY } from "../rbac";
 import type { Account, GovernanceState } from "../types";
 import { runSystem } from "./run";
 import { readState } from "./store";
@@ -43,9 +43,8 @@ export function landing(state: GovernanceState, a: Account, next?: string) {
 }
 
 /**
- * The first Administrator of the Rankings Office (HUB_BOOTSTRAP_ADMIN) is created, or restored, at their Google
- * sign-in while no active Administrator runs the Hub University-wide: on a new Hub, and as the way back in if
- * every one is lost.
+ * The Office's first Director (HUB_BOOTSTRAP_ADMIN) is created, or restored, at their Google sign-in while the Hub
+ * has no active Director: on a new Hub, and as the way back in if every one is lost.
  */
 let bootstrapWarned = false;
 
@@ -53,13 +52,13 @@ function bootstrapAdmin(ctx: Ctx, email: string, name: string) {
   const owner = process.env.HUB_BOOTSTRAP_ADMIN?.trim().toLowerCase();
   if (!owner || email !== owner) return;
   const s = ctx.state;
-  const active = s.accounts.some((a) => a.status === "Active" && activeAssignments(a, ctx.day).some(runsHub));
+  const active = s.accounts.some((a) => a.status === "Active" && activeAssignments(a, ctx.day).some(ownsHub));
   if (active) {
     // Whoever controls that mailbox can take the Hub back whenever no administrator is left; once real ones exist,
     // the variable should go.
     if (!bootstrapWarned && process.env.NODE_ENV === "production") {
       bootstrapWarned = true;
-      console.warn("HUB_BOOTSTRAP_ADMIN is still set though an active Administrator runs the Hub. Remove it from the production environment.");
+      console.warn("HUB_BOOTSTRAP_ADMIN is still set though the Hub has an active Director. Remove it from the production environment.");
     }
     return;
   }
@@ -69,12 +68,12 @@ function bootstrapAdmin(ctx: Ctx, email: string, name: string) {
     existing.statusReason = undefined;
     existing.statusChangedAt = ctx.iso;
     // Active too, so the way back in lands in the Office workspace whatever role they had switched to.
-    existing.activeAssignment = (activeAssignments(existing, ctx.day).find(runsHub) ?? addAssignment(ctx, existing, ROLE.admin, UNIVERSITY)).id;
-    log(ctx, "account.bootstrap", "Account", res(existing), "Success", "Administrator restored: no one ran the Hub");
+    existing.activeAssignment = (activeAssignments(existing, ctx.day).find(ownsHub) ?? addAssignment(ctx, existing, ROLE.superAdmin, UNIVERSITY, undefined, undefined, "director")).id;
+    log(ctx, "account.bootstrap", "Account", res(existing), "Success", "Director restored: the Hub had no active Director");
     return;
   }
-  const a = createAccount(ctx, { name: name || email, email, title: "Administrator", unitId: HUB_OFFICE, roleId: ROLE.admin, scope: UNIVERSITY });
-  log(ctx, "account.bootstrap", "Account", res(a), "Success", "First Administrator, created at first sign-in");
+  const a = createAccount(ctx, { name: name || email, email, title: "Director", unitId: HUB_OFFICE, roleId: ROLE.superAdmin, position: "director", scope: UNIVERSITY });
+  log(ctx, "account.bootstrap", "Account", res(a), "Success", "First Director, created at first sign-in");
 }
 
 /** Only Google's own photo host, over HTTPS, at a size that stays sharp on high-density screens. */

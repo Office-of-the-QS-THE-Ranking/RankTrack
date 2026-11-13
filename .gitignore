@@ -24,3 +24,6 @@ supabase/.branches
 
 # Local debug screenshots
 shots/
+
+# The evidence reader's workers and language data, copied from node_modules by scripts/ocr-assets.mjs
+public/ocr

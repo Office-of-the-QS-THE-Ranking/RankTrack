@@ -7,7 +7,7 @@
  * back with the Office's note. The unit's activities (service learning, outreach, advocacy) are kept here too.
  */
 import { useState } from "react";
-import { Hint } from "@/components/admin/ui";
+import { Hint } from "@/components/command-control/ui";
 import { Icon } from "@/components/ui/Icon";
 import { TabPanel, Tabs } from "@/components/ui/interactive";
 import { NumberField, Select } from "@/components/ui/pickers";

@@ -132,6 +132,3 @@ export function readWorkbook(zip: Zip): Sheet[] {
   }
   return out;
 }
-
-/** Whether bytes look like a ZIP-based Office file. */
-export const isZip = (b: Uint8Array) => b.length > 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;

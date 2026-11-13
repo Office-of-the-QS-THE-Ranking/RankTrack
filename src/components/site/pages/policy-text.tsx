@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { PolicySection } from "./PolicyPage";
+import { PORTAL_EXPANSION, PORTAL_NAME } from "@/lib/brand";
 
 /*
  * The Terms of use and Data privacy notice. FIRST DRAFT, written from what the Hub actually does (2026-11-09), for the
@@ -36,7 +37,7 @@ export function termsSections(c: PolicyContact): PolicySection[] {
       title: "About these terms",
       body: (
         <>
-          <p>The UST Rankings Hub is run by the {c.officeName} of the University of Santo Tomas (UST). It has a public website and a signed-in portal where units and partners contribute to the University’s work on international rankings.</p>
+          <p>The {PORTAL_NAME} ({PORTAL_EXPANSION}) is run by the {c.officeName} of the University of Santo Tomas (UST). It has a public website and a signed-in portal where units and partners contribute to the University’s work on international rankings.</p>
           <p>By using the Hub you agree to these terms. If you don’t agree, please don’t use it. Our <a href="/privacy">Data privacy notice</a> explains how personal data is handled.</p>
         </>
       ),
@@ -166,7 +167,7 @@ export function privacySections(c: PolicyContact): PolicySection[] {
       title: "Who we are",
       body: (
         <>
-          <p>The University of Santo Tomas, through its {c.officeName}, runs the UST Rankings Hub and is responsible for the personal data in it. We handle personal data under the Data Privacy Act of 2012 (Republic Act No. 10173).</p>
+          <p>The University of Santo Tomas, through its {c.officeName}, runs the {PORTAL_NAME} and is responsible for the personal data in it. We handle personal data under the Data Privacy Act of 2012 (Republic Act No. 10173).</p>
           <p>Questions or requests about your personal data go to the {c.officer} at {mail(c.officerEmail)}.</p>
         </>
       ),

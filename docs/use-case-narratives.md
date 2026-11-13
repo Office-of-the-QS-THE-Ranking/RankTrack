@@ -1,6 +1,6 @@
-# UST Rankings and Impact Hub: Use Case Narratives
+# PRESTIGE Portal: Use Case Narratives
 
-**System:** UST Rankings and Impact Hub (repository: RankTrack), for the Office of QS/THE Rankings, University of Santo Tomas.
+**System:** PRESTIGE Portal (Performance & Rankings Evaluator of Sustainability, Transparency, & Intelligence for Global Excellence; repository: RankTrack), for the Office of QS/THE Rankings, University of Santo Tomas.
 
 **Basis:** Source code and project documents as of 2 November 2026, including the analytics engine, which is not yet committed to Git. Behaviour on the deployed site was not separately observed. Requirement IDs (FR-…) refer to [the system features section of the SRS](srs-system-features.md).
 
@@ -57,7 +57,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-003 | Read Stories & News | Public visitor |
 | UC-004 | Read a research article or report | Public visitor |
 | UC-005 | View the public Recognition page | Public visitor |
-| UC-006 | Consult the public Knowledge Center | Public visitor |
+| UC-006 | Consult the public Knowledge Base | Public visitor |
 | UC-007 | Read the Office and policy pages | Public visitor |
 | UC-008 | Search the public site | Public visitor |
 | UC-009 | See a site notice | Public visitor, Any signed-in user |
@@ -183,7 +183,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-089 | Delete a post or document | Office Administrator, Coordinator |
 | UC-090 | Read a post's audience | Office Administrator, Coordinator |
 
-**J. Workspace and Knowledge Center**
+**J. Workspace and Knowledge Base**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -192,7 +192,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-093 | Rename or move files and folders | Office Administrator, Coordinator |
 | UC-094 | Archive, restore or delete files | Office Administrator, Coordinator |
 | UC-095 | Track a working document as a link | Office Administrator, Coordinator |
-| UC-096 | Use the Knowledge Center inside a workspace | Office Administrator, Unit Administrator, Coordinator, External guest |
+| UC-096 | Use the Knowledge Base inside a workspace | Office Administrator, Unit Administrator, Coordinator, External guest |
 
 **K. Digital Forms**
 
@@ -236,11 +236,11 @@ These apply throughout and are not repeated in each narrative.
 | UC-122 | Print a report or save it as PDF | Office Administrator |
 | UC-123 | Request a report's release | Office Administrator |
 
-**N. Administration: overview and accounts**
+**N. Command & Control: overview and accounts**
 
 | ID | Use case | Actors |
 |---|---|---|
-| UC-124 | Check the Administration overview | Office Administrator |
+| UC-124 | Check the Command & Control overview | Office Administrator |
 | UC-125 | Invite an account | Office Administrator |
 | UC-126 | Re-send or cancel an invitation | Office Administrator |
 | UC-127 | Suspend, reactivate or deactivate an account | Office Administrator |
@@ -252,7 +252,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-133 | Review inactive accounts | Office Administrator |
 | UC-134 | Look at access requests with domain evidence | Office Administrator |
 
-**O. Administration: roles and directory**
+**O. Command & Control: roles and directory**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -264,7 +264,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-140 | Archive or reactivate a unit | Office Administrator |
 | UC-141 | Merge one unit into another | Office Administrator |
 
-**P. Administration: data governance**
+**P. Command & Control: data governance**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -275,7 +275,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-146 | Maintain the data dictionary | Office Administrator |
 | UC-147 | Run a retention review | Office Administrator |
 
-**Q. Administration: approval workflows**
+**Q. Command & Control: process pipelines**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -284,7 +284,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-150 | Decide an approval request | Office Administrator |
 | UC-151 | Withdraw a pending request | Office Administrator |
 
-**R. Administration: privacy, security and audit**
+**R. Command & Control: privacy, security and audit**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -299,7 +299,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-160 | Verify the audit chain | Office Administrator |
 | UC-161 | Export audit entries | Office Administrator |
 
-**S. Administration: system configuration**
+**S. Command & Control: system configuration**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -312,7 +312,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-168 | Switch features and staged flags | Office Administrator |
 | UC-169 | Set the site notice | Office Administrator |
 
-**T. Administration: backup and recovery**
+**T. Command & Control: backup and recovery**
 
 | ID | Use case | Actors |
 |---|---|---|
@@ -481,7 +481,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.1.4
 
-### UC-006 — Consult the public Knowledge Center
+### UC-006 — Consult the public Knowledge Base
 
 **Actors:** Public visitor
 
@@ -491,7 +491,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. The visitor opens Knowledge Center and chooses a section.
+1. The visitor opens Knowledge Base and chooses a section.
 2. The visitor searches where search is offered.
 3. The system shows the matching reference data and the deadline calendar.
 4. The visitor reads the content or follows a resource.
@@ -2125,7 +2125,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. The person starts the request from Shared with you (guests), from the export prompt in Reports, or from "Access to a dataset" in Approval Workflows.
+1. The person starts the request from Shared with you (guests), from the export prompt in Reports, or from "Access to a dataset" in Process Pipelines.
 2. The person chooses the dataset, View or Export, an end date and a justification.
 3. The system opens a data-access request and shows its reference.
 4. On approval (UC-150), the system creates a time-limited grant.
@@ -2438,7 +2438,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.10.8
 
-## J. Workspace and Knowledge Center
+## J. Workspace and Knowledge Base
 
 ### UC-091 — Upload files and create folders
 
@@ -2560,7 +2560,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.11.4
 
-### UC-096 — Use the Knowledge Center inside a workspace
+### UC-096 — Use the Knowledge Base inside a workspace
 
 **Actors:** Office Administrator, Unit Administrator, Coordinator, External guest
 
@@ -2570,7 +2570,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. The person opens Workspace, then Knowledge Center.
+1. The person opens Workspace, then Knowledge Base.
 2. The person chooses Dictionary, Methodologies, Evidence, Resources or FAQ, and types in the one shared search.
 3. The system shows match counts per tab and the deadline panel.
 
@@ -3228,19 +3228,19 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.14.4, FR-4.20.3
 
-## N. Administration: overview and accounts
+## N. Command & Control: overview and accounts
 
-### UC-124 — Check the Administration overview
+### UC-124 — Check the Command & Control overview
 
 **Actors:** Office Administrator
 
 **Goal:** See system health and go to a section.
 
-**Preconditions:** The person can view at least one Administration module.
+**Preconditions:** The person can view at least one Command & Control module.
 
 **Main flow:**
 
-1. The administrator opens Administration.
+1. The administrator opens Command & Control.
 2. The system shows system health and statistics, and the sections the person may use.
 3. The administrator opens a section.
 
@@ -3472,7 +3472,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.16.5
 
-## O. Administration: roles and directory
+## O. Command & Control: roles and directory
 
 ### UC-135 — Review or change what a role may do
 
@@ -3634,7 +3634,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.18.3
 
-## P. Administration: data governance
+## P. Command & Control: data governance
 
 ### UC-142 — Update a dataset's governance details
 
@@ -3737,7 +3737,7 @@ These apply throughout and are not repeated in each narrative.
 
 - E1. A definition outside 10 to 600 characters, or a unit of measure over 40: refused.
 
-**Postconditions:** The term is updated, including in the Knowledge Center.
+**Postconditions:** The term is updated, including in the Knowledge Base.
 
 **Traces to:** FR-4.19.4
 
@@ -3758,7 +3758,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.19.5
 
-## Q. Administration: approval workflows
+## Q. Command & Control: process pipelines
 
 ### UC-148 — Configure an approval workflow
 
@@ -3770,7 +3770,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. In Approval Workflows, the administrator chooses one of the six workflows: account access, privilege escalation, new units, data access, publication or destructive backup operations.
+1. In Process Pipelines, the administrator chooses one of the six workflows: account access, privilege escalation, new units, data access, publication or destructive backup operations.
 2. The administrator changes its on/off state, response time, separation of duties or steps.
 3. The system validates, saves and audits it.
 
@@ -3793,7 +3793,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Main flow:**
 
-1. In Approval Workflows, the person starts a new request: Access to a dataset, A role for someone, or An account for someone.
+1. In Process Pipelines, the person starts a new request: Access to a dataset, A role for someone, or An account for someone.
 2. The person fills in the details and a justification.
 3. The system checks the request by kind, opens it with its due date, audits it and notifies the Office.
 
@@ -3860,7 +3860,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.20.4
 
-## R. Administration: privacy, security and audit
+## R. Command & Control: privacy, security and audit
 
 ### UC-152 — Change a security policy
 
@@ -4067,7 +4067,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.21.7
 
-## S. Administration: system configuration
+## S. Command & Control: system configuration
 
 ### UC-162 — Manage ranking bodies and tracked rankings
 
@@ -4248,7 +4248,7 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.22.8
 
-## T. Administration: backup and recovery
+## T. Command & Control: backup and recovery
 
 ### UC-170 — Run a backup
 

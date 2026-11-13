@@ -439,7 +439,7 @@ describe("digital forms", () => {
   it("lets the people who run forms change them, in order, and keeps them in the store", () => {
     const w = world();
     const coord = w.person("Ana Reyes", "ana@ust.edu.ph", ROLE.coordinator, w.eng.id);
-    const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+    const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
     const details = { title: COMDEV_PROPOSAL.title, kind: COMDEV_PROPOSAL.kind, description: COMDEV_PROPOSAL.description, reference: COMDEV_PROPOSAL.reference };
     // The Office's forms are its editors'.
     expect(execute(w.ctxFor(coord), { type: "form.save", ...details, schema }).ok).toBe(false);

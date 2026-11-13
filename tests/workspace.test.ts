@@ -13,7 +13,7 @@ function setup() {
   const w = world();
   const coord = w.person("Ana Reyes", "ana@ust.edu.ph", ROLE.coordinator, w.eng.id);
   const other = w.person("Ben Cruz", "ben@ust.edu.ph", ROLE.coordinator, w.sci.id);
-  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
   const ctx = { coord: () => w.ctxFor(coord), other: () => w.ctxFor(other), admin: () => w.ctxFor(admin) };
   /** A new folder of the engineering unit's (or, with `shared`, the Office's) on a shelf, by id. */
   const folder = (shelf: "working" | "library", name = `Folder ${shelf}`, shared = false) => {
@@ -195,7 +195,7 @@ describe("workspace", () => {
     expect(execute(w.other(), { type: "workdoc.delete", ids: [w.state.records.workingDocs[0].id] }).ok).toBe(false);
   });
 
-  it("keeps the Office's own working documents to its Knowledge Center editors", () => {
+  it("keeps the Office's own working documents to its Knowledge Base editors", () => {
     const w = setup();
     const doc = { title: "Cycle plan", date: "2026-10-20", rankings: [], status: "Draft" as const, links: ["https://docs.google.com/document/d/1/edit"] };
     expect(execute(w.coord(), { type: "workdoc.save", ...doc }).ok).toBe(false);

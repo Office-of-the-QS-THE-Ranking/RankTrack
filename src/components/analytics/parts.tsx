@@ -13,12 +13,14 @@ import type { LinkView } from "@/lib/analytics/desk-types";
 import { pts } from "@/lib/analytics/format";
 import { shortUrl } from "@/lib/analytics/links";
 import type { BandHit, EvidenceSpec, IndicatorState, InputSpec, Points, Value } from "@/lib/analytics/types";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 export type ActionResult<T = unknown> = { ok: boolean; message: string; data?: T };
 
 /** Run a server action, show its outcome as a toast, and say whether it worked. */
 export function useRun() {
   const [pending, start] = useTransition();
+  usePending(pending);
   const run = <T,>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> =>
     new Promise((resolve) =>
       start(async () => {
@@ -304,10 +306,4 @@ export function MoreRow({ shown, total, onMore }: { shown: number; total: number
       </span>
     </div>
   );
-}
-
-/** A toggle the page keeps in its own state. */
-export function useToggle(initial = false) {
-  const [on, set] = useState(initial);
-  return [on, () => set((v) => !v), set] as const;
 }

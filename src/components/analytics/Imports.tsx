@@ -7,7 +7,7 @@
  * WURI case files. Unit names: how registers name units. Log: every file read, with its fingerprint.
  */
 import { useRef, useState } from "react";
-import { Disclosure, Hint } from "@/components/admin/ui";
+import { Disclosure, Hint } from "@/components/command-control/ui";
 import { RowMenu } from "@/components/publications/PostManager";
 import { Icon } from "@/components/ui/Icon";
 import { TabPanel, Tabs } from "@/components/ui/interactive";

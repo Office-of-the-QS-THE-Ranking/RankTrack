@@ -7,27 +7,18 @@ import "server-only";
  */
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
+import { clientAddress } from "@/lib/firewall/ip";
 import { adminDb } from "@/lib/supabase/server";
 
-/**
- * The request header that carries the client's address, set (and overwritten) by the proxy in front of the Hub:
- * Vercel's x-real-ip by default there, HUB_CLIENT_IP_HEADER elsewhere (cf-connecting-ip behind Cloudflare, for
- * one). A header the client itself can send is never trusted.
- */
-const TRUSTED = (process.env.HUB_CLIENT_IP_HEADER ?? (process.env.VERCEL ? "x-real-ip" : "")).toLowerCase();
 let warned = false;
 
 /** A stable, anonymous key for the client making this request. */
 export async function clientKey() {
   const h = await headers();
-  let address = TRUSTED ? h.get(TRUSTED)?.split(",")[0]?.trim() : undefined;
-  if (!address) {
-    // Without a trusted header, the nearest proxy's entry: the last one in X-Forwarded-For, which it appended.
-    address = h.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
-    if (!warned && process.env.NODE_ENV === "production") {
-      warned = true;
-      console.warn("Rate limits: set HUB_CLIENT_IP_HEADER to the header your proxy sets with the client's address; clients are told apart less reliably without it.");
-    }
+  const { address, trusted } = clientAddress((name) => h.get(name));
+  if (!trusted && !warned && process.env.NODE_ENV === "production") {
+    warned = true;
+    console.warn("Rate limits: set HUB_CLIENT_IP_HEADER to the header your proxy sets with the client's address; clients are told apart less reliably without it.");
   }
   return createHash("sha256").update(`hub-client|${address}`).digest("base64url").slice(0, 22);
 }

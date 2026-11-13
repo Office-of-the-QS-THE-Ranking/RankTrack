@@ -11,7 +11,7 @@ import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { useHub, useRankings, useViewer } from "@/components/hub/HubProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Stars } from "@/components/site/Stars";
-import { NAV, knowledgeHref, publicationsSubnav, rankingOverviewTabs, workspaceSubnav, type NavLink, type Variant } from "./nav";
+import { NAV, knowledgeBaseHref, publicationsSubnav, rankingOverviewTabs, workspaceSubnav, type NavLink, type Variant } from "./nav";
 import { officeStoryPath, storyPath } from "@/lib/publications";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import type { Views } from "@/lib/reference";
@@ -38,7 +38,7 @@ interface Hit {
 const MORE = "Search";
 
 /* The index follows governance: pages the viewer's role opens, rankings that are tracked, and only the
-   evidence, units and stories the viewer can reach. Dictionary terms only when the Knowledge Center is
+   evidence, units and stories the viewer can reach. Dictionary terms only when the Knowledge Base is
    one of those pages. */
 function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], viewer: Viewer | null, { dictionary, families }: Pick<Views, "dictionary" | "families">): Entry[] {
   const DICTIONARY = hub?.dictionary ?? dictionary;
@@ -52,7 +52,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
     g.items
       .filter((i) => can(i.need) && (!i.feature || feature(viewer, i.feature)))
       .flatMap((i): Entry[] => {
-        const ws = i.workspace ? workspaceSubnav(i.workspace).filter((c) => can(c.need)) : [];
+        const ws = i.workspace ? workspaceSubnav(i.workspace).filter((c) => can(c.need) && (!c.feature || feature(viewer, c.feature))) : [];
         if (i.workspace && !ws.length) return [];
         return [
           { group: "Pages", label: i.label, href: i.href, icon: i.icon },
@@ -82,7 +82,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
       color: families[r.family].color,
     })),
   );
-  const knowledge = knowledgeHref(variant);
+  const knowledge = knowledgeBaseHref(variant);
   const terms: Entry[] = pages.some((p) => p.href === knowledge)
     ? DICTIONARY.map((d) => ({
         group: "Indicator dictionary",
@@ -110,7 +110,7 @@ function buildIndex(variant: Variant, hub: HubData | null, RANKINGS: Ranking[], 
     group: "Evidence",
     label: e.title,
     sub: `${e.id} · ${e.status}`,
-    href: variant === "office" ? `/admin/contributions?item=${e.id}` : `/portal/submit#${e.id}`,
+    href: variant === "office" ? `/admin/unit-submissions?item=${e.id}` : `/portal/submit#${e.id}`,
     icon: "evidence",
   }));
   return [...pages, ...rankings, ...indicators, ...units, ...evidence, ...(variant === "office" ? stories : []), ...terms];
@@ -195,7 +195,7 @@ export function SearchPalette({ variant, open, onClose }: { variant: Variant; op
   const viewer = useViewer();
   const rankings = useRankings();
   const index = useMemo(() => buildIndex(variant, hub, rankings, viewer, views), [variant, hub, rankings, viewer, views]);
-  const knowledge = knowledgeHref(variant);
+  const knowledge = knowledgeBaseHref(variant);
   const canBrowse = index.some((e) => e.group === "Pages" && e.href === knowledge);
   const phrase = fold(q.trim()).replace(/\s+/g, " ");
 

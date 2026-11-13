@@ -1691,7 +1691,7 @@ dialog.pc::backdrop {
     background-color var(--t-fast) ease,
     color var(--t-fast) ease;
 }
-.dz-row__btn:hover:not(:disabled) {
+.dz-row__btn:hover:not(:disabled):not([aria-pressed="true"]) {
   background: rgb(var(--hair) / 0.06);
   color: var(--text);
 }

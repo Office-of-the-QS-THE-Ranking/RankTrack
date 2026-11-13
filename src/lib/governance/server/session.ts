@@ -9,15 +9,21 @@ import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { cache } from "react";
-import { ADMIN_MODULES, ROLE, roleOf } from "../catalog";
+import { COMMAND_CONTROL_MODULES, ROLE, roleOf } from "../catalog";
 import { flagOn, portalScope, workspacesOf } from "../derive";
-import { actingGrants, activeAssignments, canWith, initials, mergedPermissions, scopeLabel, today } from "../rbac";
-import type { Account, GovernanceState, Session } from "../types";
+import { actingGrants, activeAssignments, assignmentScopeLabel, canWith, initials, mergedPermissions, roleLabel, today } from "../rbac";
+import type { Account, Assignment, GovernanceState, Session } from "../types";
 import { idleLimit, sessionExpired } from "../session-limits";
 import type { Viewer } from "../viewer";
 import { readState, touch } from "./store";
 
 const SECURE = process.env.NODE_ENV === "production";
+
+/** "Super Administrator · Director" for the Office's people, else the role's own name. */
+const nameOfRole = (a: Pick<Assignment, "roleId" | "position">) => {
+  const role = roleOf(a.roleId);
+  return role ? roleLabel(role, a.position) : a.roleId;
+};
 
 /**
  * The cookie holding the session token. In production it is a __Host- cookie: sent only over HTTPS, only to
@@ -98,9 +104,9 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
     roles: activeAssignments(account, day).map((a) => ({
       assignmentId: a.id,
       id: a.roleId,
-      name: roleOf(a.roleId)?.name ?? a.roleId,
+      name: nameOfRole(a),
       // Students belong to no College/Faculty or Office: their role is just Student.
-      scope: a.roleId === ROLE.student ? "" : scopeLabel(a.scope, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))),
+      scope: a.roleId === ROLE.student ? "" : assignmentScopeLabel(a, state.units, Object.fromEntries(state.datasets.map((d) => [d.id, d.name]))),
       expires: a.expires,
       active: a.id === acting?.assignmentId,
     })),
@@ -114,8 +120,8 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
       programId,
       programName: programId ? unitName(programId) : undefined,
     },
-    // The Administration console opens on the sections the viewer may see; only University-wide Administrators have any.
-    admin: ADMIN_MODULES.filter((m) => canWith(grants, m, "view")),
+    // The Command & Control console opens on the sections the viewer may see, and only while they act as a Super Administrator.
+    commandControl: grants.some((g) => g.roleId === ROLE.superAdmin) ? COMMAND_CONTROL_MODULES.filter((m) => canWith(grants, m, "view")) : [],
     flags: state.config.flags.filter((f) => flagOn(state, f.id, account)).map((f) => f.id),
     features: Object.fromEntries(state.config.features.map((f) => [f.id, f.enabled])),
     dataGrants: (account.dataGrants ?? []).filter((g) => g.until > day),

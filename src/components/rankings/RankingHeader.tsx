@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import type { CSSProperties } from "react";
 import { daysUntil, formatAsOf, formatDate, readinessLevel, type Indicator, type Ranking } from "@/lib/data";
 import type { RankingAction } from "@/lib/analytics/desk-types";
 import { familyOf } from "@/lib/reference";
 import { Tile } from "@/components/dashboard/Tile";
 import { Icon } from "@/components/ui/Icon";
-import { Crumbs, Direction, Pattern, cx } from "@/components/ui/primitives";
-import { useReference, useViews } from "@/components/reference/ReferenceProvider";
+import { Direction, cx } from "@/components/ui/primitives";
+import { useReference } from "@/components/reference/ReferenceProvider";
 import { DeadlineControl } from "./DeadlineDrawer";
 import { Gauge, RankArc, weightOf } from "./RankingCharts";
 
@@ -85,52 +84,5 @@ export function RankingHero({ ranking: r, asOf }: { ranking: Ranking; asOf?: str
         </div>
       </Tile>
     </div>
-  );
-}
-
-export function PublicRankingHeader({ ranking: r }: { ranking: Ranking }) {
-  const { families, groupOf, latestEdition } = useViews();
-  const fam = families[r.family];
-  return (
-    <header className="card rhead" style={{ ["--band" as string]: fam.band } as CSSProperties}>
-      <span className="rhead__band" aria-hidden="true" />
-      <Pattern className="rhead__pattern" fade="left" />
-      <div className="rhead__in">
-        <Crumbs items={[{ href: "/rankings", label: "Rankings" }, { href: "/rankings", label: groupOf(r.slug) }, { label: r.short }]} />
-        <div className="rhead__row">
-          <div className="rhead__titles">
-            <p className="rhead__fam">
-              <i className="sw sw--lg" style={{ background: fam.band }} aria-hidden="true" />
-              {fam.name}
-            </p>
-            <h1 className="rhead__title">{r.name}</h1>
-            <p className="rhead__msg">{r.publicNote}</p>
-          </div>
-          <div className="ph__actions">
-            <Link href="/publications/stories" className="btn">
-              Related stories
-            </Link>
-          </div>
-        </div>
-      </div>
-      <div className="fq fq--flush">
-        <div className="fq__cell">
-          <p className="fq__q">Where is UST now?</p>
-          <p className="fq__big">{r.current || "—"}</p>
-          <p className="fq__note">{r.current ? `${latestEdition} edition` : "Not yet published"}</p>
-        </div>
-        <div className="fq__cell">
-          <p className="fq__q">What changed?</p>
-          <p className="fq__mid">
-            <Direction dir={r.direction} />
-          </p>
-          <p className="fq__note">{r.direction === "new" ? "Baseline year" : r.direction === "none" ? "Nothing to compare yet" : <>From {r.previous}</>}</p>
-        </div>
-        <div className="fq__cell fq__cell--wide">
-          <p className="fq__q">What does it measure?</p>
-          <p className="fq__note fq__note--strong">{r.measures}.</p>
-        </div>
-      </div>
-    </header>
   );
 }

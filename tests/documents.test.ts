@@ -31,7 +31,7 @@ const input = (extra: Partial<DocumentInput> = {}): DocumentInput => ({
 /** One Hub administrator, alone, so publishing needs no second approver. */
 function office() {
   const w = world();
-  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.admin, w.university.id, false, UNIVERSITY);
+  const admin = w.person("Maria Santos", "a@ust.edu.ph", ROLE.superAdmin, w.university.id, false, UNIVERSITY, "specialist");
   return { ...w, ctx: () => makeCtx(w.state, actorFor(w.state, admin), REF) };
 }
 

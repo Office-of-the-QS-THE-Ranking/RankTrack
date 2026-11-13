@@ -3,7 +3,7 @@ import { workspaceSubnav, NAV } from "@/components/shell/nav";
 import { getViewer } from "@/lib/governance/server/session";
 import { viewerCan } from "@/lib/governance/viewer";
 
-/** The Workspace opens on the first page the viewer may use (the Knowledge Center for someone without the shelves); the sidebar lists the rest. */
+/** The Workspace opens on the first page the viewer may use (the Knowledge Base for someone without the shelves); the sidebar lists the rest. */
 export default async function WorkspacePage() {
   const viewer = await getViewer();
   const target = viewer ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};

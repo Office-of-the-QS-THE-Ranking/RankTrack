@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { calendarOf } from "@/lib/calendar";
 import type { ReactNode } from "react";
 import { RECOGNITION, STAGES, daysUntil, formatDate, type EvidenceStatus } from "@/lib/data";
 import type { RankingAction } from "@/lib/analytics/desk-types";
@@ -155,6 +156,8 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
       />
 
       <div className="ov-bento ud-bento">
+        <NextDeadline id="ud-next" calendar={calendarOf(deadlines, h.state.config.calendar)} href={() => "/portal/submit"} />
+
         <Standings id="ud-standings" standing={standing} />
 
         <Tile id="ud-ready" title="Submission-ready" className="ud-ready">
@@ -171,8 +174,6 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
           <TickMeter value={pct} label="Submission-ready" />
           <StatusMix items={items} />
         </Tile>
-
-        <NextDeadline id="ud-next" rankings={deadlines} href={() => "/portal/workspace/knowledge"} />
 
         <Tile
           id="ud-todo"

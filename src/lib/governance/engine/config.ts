@@ -3,6 +3,7 @@
  * templates, dashboard defaults, feature availability and feature flags.
  */
 import type { Command, CommandResult } from "../commands";
+import { academicYear } from "@/lib/periods";
 import { bodyOfRanking } from "@/lib/reference";
 import { accountById, can, clean, cleanText, deny, invalid, isDay, log, ok, unitById, type Ctx } from "./core";
 
@@ -124,14 +125,16 @@ export function configure(ctx: Ctx, cmd: Extract<Command, { type: `config.${stri
       if (g) return g;
       const changes: string[] = [];
       if (cmd.accepting !== undefined && cmd.accepting !== p.accepting) {
-        if (!cmd.accepting && c.periods.filter((x) => x.accepting).length <= 1) return invalid("Keep at least one reporting period open for submissions.");
+        if (!cmd.accepting && c.periods.filter((x) => x.accepting).length <= 1) return invalid("Keep at least one academic year open for submissions.");
         p.accepting = cmd.accepting;
         changes.push(cmd.accepting ? "accepting submissions" : "closed to submissions");
       }
-      if (cmd.label !== undefined && clean(cmd.label, 60) !== p.label) {
-        if (clean(cmd.label, 60).length < 4) return invalid("Label the period.");
-        changes.push(`label “${p.label}” → “${clean(cmd.label, 60)}”`);
-        p.label = clean(cmd.label, 60);
+      if (cmd.label !== undefined && academicYear(cmd.label) !== p.label) {
+        const ay = academicYear(cmd.label);
+        if (!ay) return invalid("Academic years are written like 2026–2027.");
+        if (c.periods.some((x) => x !== p && x.label === ay)) return invalid(`${ay} is already listed.`);
+        changes.push(`label “${p.label}” → “${ay}”`);
+        p.label = ay;
       }
       if (cmd.note !== undefined && clean(cmd.note, 120) !== p.note) {
         p.note = clean(cmd.note, 120);
@@ -144,13 +147,15 @@ export function configure(ctx: Ctx, cmd: Extract<Command, { type: `config.${stri
     case "config.periodAdd": {
       const g = guard(ctx, "config.periodAdd", "new", cmd.label);
       if (g) return g;
-      const label = clean(cmd.label, 60);
-      if (label.length < 4) return invalid("Label the period, for example Calendar year 2026.");
-      if (c.periods.some((p) => p.label.toLowerCase() === label.toLowerCase())) return invalid(`${label} already exists.`);
-      const id = label.replace(/[^A-Za-z0-9]/g, "").slice(0, 12).toUpperCase() + c.periods.length;
-      c.periods.push({ id, label, note: clean(cmd.note, 120), accepting: true });
+      // Reporting periods are the academic years units may submit evidence for; terms place it in calendar years.
+      const label = academicYear(cmd.label);
+      if (!label) return invalid("Academic years are written like 2026–2027.");
+      if (c.periods.some((p) => p.label === label)) return invalid(`${label} is already listed.`);
+      let id = `AY${label.slice(2, 4)}${label.slice(7, 9)}`;
+      if (c.periods.some((p) => p.id === id)) id += c.periods.length;
+      c.periods = [...c.periods, { id, label, note: clean(cmd.note, 120), accepting: true }].sort((x, y) => y.label.localeCompare(x.label));
       log(ctx, "config.periodAdd", "Configuration", SETTING(id, label), "Success", "Accepting submissions");
-      return ok(`${label} added and accepting submissions.`);
+      return ok(`Academic year ${label} is open for submissions.`);
     }
     case "config.uploads": {
       const g = guard(ctx, "config.uploads", "uploads", "Upload limits");

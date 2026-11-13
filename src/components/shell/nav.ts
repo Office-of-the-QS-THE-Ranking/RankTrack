@@ -19,15 +19,15 @@ export interface NavLink {
   overviewTabs?: string;
   /** Base path for the Publications sub-menu (Stories & News, Research Articles, Reports & Insights). */
   publicationsBase?: string;
-  /** Base path for the Workspace sub-menu (its shelves, Digital Forms, Archives and the Knowledge Center), and the
+  /** Base path for the Workspace sub-menu (its shelves, Digital Forms, Archives and the Knowledge Base), and the
       permission its shelves need. The row shows when any of its pages does. */
   workspace?: { base: string; office?: boolean; need: [ModuleKey, Action] };
   /** The permission the row needs. Rows the viewer cannot use are not shown. */
   need?: [ModuleKey, Action];
   /** The System Configuration feature the row depends on. */
   feature?: string;
-  /** Shown only to people who administer something (any Administration section). */
-  admin?: boolean;
+  /** Shown only to people who administer something (any Command & Control section). */
+  commandControl?: boolean;
 }
 
 export interface NavGroup {
@@ -35,15 +35,16 @@ export interface NavGroup {
   items: NavLink[];
 }
 
-/* Main navigation from the proposal: Dashboard, Rankings, Contributions, Publications, Recognition (a
-   Dashboard tab in the office workspace), Workspace (with the Knowledge Center), Reports, About the Office. Each has
+/* Main navigation from the proposal: Dashboard, Rankings, Unit Submissions, Publications, Recognition (a
+   Dashboard tab in the office workspace), Workspace (with Build a Report), Knowledge Base, About the Office. Each has
    one job: the Dashboard summarises and links on, Rankings holds how the University scores (a ranking's page, plus an
-   overview whose tabs work across rankings), Units is who contributes, and Reports produces the documents. Rankings,
-   Publications, Workspace and Administration open their own sets of tabs in the sidebar. A Coordinator's contributions
-   are Submit evidence and their unit's Publications. Administration is shown to people who administer something; About
-   the Office sits apart at the foot. A Student (the Secretary of a student organization, commission or council) has
-   the Student Portal's pages only (forms submit is theirs alone): Dashboard, Assignments, Project Proposals,
-   Evaluation Forms, Registrations, Terminal Reports. */
+   overview whose tabs work across rankings), Unit Submissions reviews what units send and, in its Units tab, who
+   contributes, and Build a Report produces the documents. Rankings, Publications, Workspace and Command & Control open
+   their own sets of tabs in the sidebar. A Coordinator's contributions are Submit evidence and their unit's
+   Publications. Command & Control is shown to people who administer something. What the website's About page says is
+   edited in the Knowledge Base's About the Office tab. A Student (the Secretary of a student organization, commission
+   or council) has the Student Portal's pages only (forms submit is theirs alone): Dashboard, Assignments, Project
+   Proposals, Evaluation Forms, Registrations, Terminal Reports. */
 export const NAV: Record<Variant, NavGroup[]> = {
   public: [
     {
@@ -52,7 +53,7 @@ export const NAV: Record<Variant, NavGroup[]> = {
         { href: "/rankings", label: "Rankings", icon: "rankings", rankingsBase: "/rankings" },
         { href: "/publications", label: "Publications", icon: "publications", publicationsBase: "/publications" },
         { href: "/recognition", label: "Recognition", icon: "recognition" },
-        { href: "/knowledge", label: "Knowledge Center", icon: "knowledge" },
+        { href: "/knowledge-base", label: "Knowledge Base", icon: "knowledge" },
         { href: "/about", label: "About the Office", icon: "about" },
       ],
     },
@@ -62,13 +63,11 @@ export const NAV: Record<Variant, NavGroup[]> = {
       items: [
         { href: "/admin", label: "Dashboard", icon: "dashboard", exact: true, need: ["dashboard", "view"] },
         { href: "/admin/rankings", label: "Rankings", icon: "rankings", rankingsBase: "/admin/rankings", overviewTabs: "/admin/rankings", need: ["rankings", "view"] },
-        { href: "/admin/contributions", label: "Contributions", icon: "contributions", count: "review", need: ["evidence", "view"] },
-        { href: "/admin/units", label: "Units", icon: "units", need: ["units", "view"] },
+        { href: "/admin/unit-submissions", label: "Unit Submissions", icon: "contributions", count: "review", need: ["evidence", "view"] },
         { href: "/admin/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/admin/publications" },
         { href: "/admin/workspace", label: "Workspace", icon: "folder", workspace: { base: "/admin/workspace", office: true, need: ["knowledge", "edit"] } },
-        { href: "/admin/reports", label: "Reports", icon: "reports", need: ["reports", "view"], feature: "reports" },
-        { href: "/admin/administration", label: "Administration", icon: "sliders", admin: true },
-        { href: "/admin/about", label: "About the Office", icon: "about" },
+        { href: "/admin/knowledge-base", label: "Knowledge Base", icon: "knowledge", need: ["knowledge", "view"] },
+        { href: "/admin/command-control", label: "Command & Control", icon: "sliders", commandControl: true },
       ],
     },
   ],
@@ -95,11 +94,14 @@ export const NAV: Record<Variant, NavGroup[]> = {
     },
     {
       label: "Resources",
-      items: [{ href: "/portal/workspace", label: "Workspace", icon: "folder", workspace: { base: "/portal/workspace", need: ["evidence", "view"] } }],
+      items: [
+        { href: "/portal/workspace", label: "Workspace", icon: "folder", workspace: { base: "/portal/workspace", need: ["evidence", "view"] } },
+        { href: "/portal/knowledge-base", label: "Knowledge Base", icon: "knowledge", need: ["knowledge", "view"] },
+      ],
     },
     {
       label: "Manage",
-      items: [{ href: "/portal/administration", label: "Administration", icon: "sliders", admin: true }],
+      items: [{ href: "/portal/command-control", label: "Command & Control", icon: "sliders", commandControl: true }],
     },
   ],
 };
@@ -127,6 +129,8 @@ export interface SubLink {
   label: string;
   icon: IconName;
   need: [ModuleKey, Action];
+  /** The System Configuration feature the page depends on. */
+  feature?: string;
 }
 
 /* The Rankings overview's content tabs, which work across rankings rather than on one: each edition's scorecard, where
@@ -141,15 +145,15 @@ export const rankingOverviewTabs = (base: string): SubLink[] => [
   { href: `${base}/imports`, label: "Data imports", icon: "upload", need: ["rankings", "manage"] },
 ];
 
-/* The Workspace pages: its shelves, Digital Forms, Archives, then the Knowledge Center. Each keeps its own
-   permission, so someone who may read the Knowledge Center but not the shelves still finds it here. */
+/* The Workspace pages: its shelves, Digital Forms, Archives, then (in the Office's) Build a Report. Each keeps its
+   own permission. The Knowledge Base is a main tab of its own. */
 export const workspaceSubnav = ({ base, office = false, need }: NonNullable<NavLink["workspace"]>): SubLink[] => [
   ...workspaceViews(office).map((v) => ({ href: `${base}/${v}`, label: workspaceViewLabel(v), icon: WORKSPACE_ICONS[v], need })),
-  { href: `${base}/knowledge`, label: "Knowledge Center", icon: "knowledge", need: ["knowledge", "view"] },
+  ...(office ? [{ href: `${base}/build-a-report`, label: "Build a Report", icon: "reports" as IconName, need: ["reports", "view"] as [ModuleKey, Action], feature: "reports" }] : []),
 ];
 
-/** Where the Knowledge Center lives on each side. */
-export const knowledgeHref = (variant: Variant) => (variant === "office" ? "/admin/workspace/knowledge" : variant === "unit" ? "/portal/workspace/knowledge" : "/knowledge");
+/** Where the Knowledge Base lives on each side. */
+export const knowledgeBaseHref = (variant: Variant) => (variant === "office" ? "/admin/knowledge-base" : variant === "unit" ? "/portal/knowledge-base" : "/knowledge-base");
 
 /** Every page the navigation guards, the Workspace's own pages included, for the server-side Gate. */
 export const navPages = (variant: Variant): Pick<NavLink, "href" | "need" | "feature">[] =>
@@ -166,25 +170,12 @@ export function publicPathFor(path: string): string {
   if (path.startsWith("/admin/rankings")) return "/rankings";
   const pub = path.match(/^\/(?:admin|portal)\/publications\/(stories|research|reports)/);
   if (pub) return `/publications/${pub[1]}`;
-  if (/^\/(admin|portal)\/workspace\/knowledge/.test(path)) return "/knowledge";
-  for (const seg of ["publications", "recognition", "about"]) {
+  if (/^\/(admin|portal)\/knowledge-base/.test(path)) return "/knowledge-base";
+  if (/^\/(admin|portal)\/about/.test(path)) return "/about";
+  for (const seg of ["publications", "recognition"]) {
     if (path.startsWith(`/admin/${seg}`) || path.startsWith(`/portal/${seg}`)) return `/${seg}`;
   }
   return "/";
-}
-
-export function internalPathFor(path: string): string {
-  const m = path.match(/^\/rankings\/([^/]+)/);
-  if (m) return `/admin/rankings/${m[1]}`;
-  if (path.startsWith("/rankings")) return "/admin/rankings";
-  const pub = path.match(/^\/publications\/(stories|research|reports)/);
-  if (pub) return `/admin/publications/${pub[1]}`;
-  if (path.startsWith("/recognition")) return "/admin?view=recognition";
-  if (path.startsWith("/knowledge")) return knowledgeHref("office");
-  for (const seg of ["publications", "about"]) {
-    if (path.startsWith(`/${seg}`)) return `/admin/${seg}`;
-  }
-  return "/admin";
 }
 
 export const isActive = (pathname: string, href: string, exact?: boolean) =>

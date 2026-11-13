@@ -30,6 +30,7 @@ import { INCOMPLETE, STATUS_LABEL } from "@/lib/forms/review";
 import { portalCatalog, type CatalogFilter, type CatalogOrder } from "@/lib/forms/portal-catalog";
 import type { ResponseStatus } from "@/lib/forms/types";
 import type { CopyDesk as Desk, PortalForm, StudentCopy } from "@/lib/governance/hub-types";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Stand = "draft" | ResponseStatus;
 type Sort = { by: "ref" | "status" | "edited"; dir: 1 | -1 };
@@ -236,6 +237,7 @@ function BuildSheet({ desk, words, onClose }: { desk: Desk; words: (typeof WORDS
   const [access, setAccess] = useState<CopyAccess>("private");
   const [members, setMembers] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const [built, setBuilt] = useState<{ ref: string; url: string } | null>(null);
   const form = desk.forms.find((f) => f.id === formId);
   const choices = useMemo(() => portalCatalog(desk.forms, desk.copies, query, filter, order), [desk.forms, desk.copies, query, filter, order]);

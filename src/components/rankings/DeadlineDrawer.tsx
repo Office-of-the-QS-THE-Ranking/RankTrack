@@ -13,6 +13,7 @@ import { Drawer } from "@/components/ui/interactive";
 import { DateField } from "@/components/ui/pickers";
 import { cx } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 type Row = { key: string; id?: string; label: string; due: string };
 
@@ -90,6 +91,7 @@ function DeadlineForm({ formId, ranking, desk, onDirty, onDone }: { formId: stri
   const router = useRouter();
   const { run, pending } = useGovern();
   const [checking, startCheck] = useTransition();
+  usePending(checking);
   const findings = desk.findings.filter((f) => f.slug === ranking.slug);
   const origin = desk.origin[ranking.slug];
   const source = desk.sources.find((s) => s.slugs.includes(ranking.slug));

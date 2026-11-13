@@ -4,26 +4,19 @@ import { siteData } from "@/lib/governance/server/site";
 import { PageHero } from "../PageHero";
 import { PageTabs } from "../PageTabs";
 import { PhotoBand } from "../PhotoBand";
-import { GOVERNANCE } from "./site-copy";
 import { serverViews } from "@/lib/governance/server/views";
+import { ABOUT_PARTS } from "@/lib/office-about";
 
-const TABS = [
-  { id: "mission", label: "Purpose" },
-  { id: "vision", label: "Vision & mission" },
-  { id: "portfolio", label: "Rankings" },
-  { id: "deliverables", label: "Deliverables" },
-  { id: "since-1611", label: "Since 1611" },
-  { id: "process", label: "How it works" },
-  { id: "team", label: "Team" },
-  { id: "governance", label: "Data governance" },
-  { id: "privacy", label: "Policies" },
-  { id: "contact", label: "Contact" },
-];
+const TABS = ABOUT_PARTS.map((p) => ({ id: p.anchor, label: p.label }));
 
-/** About the Office of the QS/THE Rankings. */
+/**
+ * About the Office of QS/THE Rankings. Everything but the ranking portfolio is edited in the Knowledge Base's
+ * About tab; the portfolio lists the rankings System Configuration tracks and publishes, by ranking body.
+ */
 export async function AboutPage() {
   const { office, photos } = await serverViews();
-  const { privacy } = await siteData();
+  const { privacy, bodies, rankings } = await siteData();
+  const noticeDate = new Date(privacy.noticeUpdated + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
   return (
     <>
       <PageHero
@@ -61,7 +54,7 @@ export async function AboutPage() {
               Our purpose
             </h2>
             <p className="w-lead" data-reveal style={{ ["--d" as string]: "90ms" }}>
-              The Office addresses current and emerging challenges in UST’s international ranking performance, strengthening the University’s competitiveness and appeal on the global stage.
+              {office.purpose}
             </p>
           </div>
           <ul className="w-mission__list">
@@ -92,14 +85,25 @@ export async function AboutPage() {
         <div className="w-intro w-grid">
           <h2 id="portfolio-title" className="w-head" data-reveal>Our ranking portfolio</h2>
           <div className="w-intro__aside" data-reveal>
-            <p className="w-lead">The Office’s scope covers these ten ranking, rating and special-project frameworks, as listed in the September 2026 office profile.</p>
+            <p className="w-lead">
+              The Office tracks {rankings.length} {rankings.length === 1 ? "ranking" : "rankings, ratings and special projects"} on this site, from {bodies.length} {bodies.length === 1 ? "ranking body" : "ranking bodies"}.
+            </p>
           </div>
         </div>
-        <ul className="w-office-portfolio">
-          {office.portfolio.map((ranking) => (
-            <li key={ranking.name} data-reveal><Link href={ranking.href} className="w-link">{ranking.name}</Link></li>
+        <dl className="w-rows">
+          {bodies.map((b) => (
+            <div key={b.id} data-reveal>
+              <dt>{b.name}</dt>
+              <dd>
+                <ul className="w-office-portfolio w-office-portfolio--list">
+                  {b.rankings.map((r) => (
+                    <li key={r.slug}><Link href={`/rankings/${r.slug}`} className="w-link">{r.name}</Link></li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
           ))}
-        </ul>
+        </dl>
       </section>
 
       <section id="deliverables" className="w-band w-band--gold" aria-labelledby="deliverables-title">
@@ -134,19 +138,6 @@ export async function AboutPage() {
         </div>
       </section>
 
-      <section id="process" className="w-section w-wrap" aria-labelledby="process2-title">
-        <h2 id="process2-title" className="w-head w-rows__title" data-reveal>How the work is shared</h2>
-        <dl className="w-rows">
-          {office.workplan.map((task) => (
-            <div key={task.title} data-reveal>
-              <dt>{task.title}</dt>
-              <dd><p>{task.owners}</p><p className="w-office-timing">{task.timing}</p></dd>
-            </div>
-          ))}
-        </dl>
-        <p className="w-office-note" data-reveal>Data collection and submission review follow the Calendar of Activities. <Link href="/knowledge#calendar" className="w-link">View the calendar</Link>.</p>
-      </section>
-
       <PhotoBand photo={photos.night} caption="Lamps on a rain-wet walk behind the Main Building at night." />
 
       <section id="team" className="w-section w-wrap" aria-labelledby="team-title">
@@ -155,7 +146,7 @@ export async function AboutPage() {
             Meet the Office
           </h2>
           <div className="w-intro__aside" data-reveal style={{ ["--d" as string]: "90ms" }}>
-            <p className="w-lead">The organizational structure in the 19 September 2026 presentation lists the Director, Office Clerk, Office Assistant and two Ranking Specialist positions.</p>
+            <p className="w-lead">{office.team.length} roles carry the Office’s work, under the {office.reportsTo}.</p>
           </div>
         </div>
         <ul className="w-team">
@@ -167,6 +158,20 @@ export async function AboutPage() {
             </li>
           ))}
         </ul>
+        {office.workplan.length > 0 && (
+          <div className="w-office-sub">
+            <h3 className="w-head w-rows__title" data-reveal>How the work is shared</h3>
+            <dl className="w-rows">
+              {office.workplan.map((task) => (
+                <div key={task.title} data-reveal>
+                  <dt>{task.title}</dt>
+                  <dd><p>{task.owners}</p><p className="w-office-timing">{task.timing}</p></dd>
+                </div>
+              ))}
+            </dl>
+            <p className="w-office-note" data-reveal>Data collection and submission review follow the Calendar of Activities. <Link href="/knowledge-base#calendar" className="w-link">View the calendar</Link>.</p>
+          </div>
+        )}
       </section>
 
       <section id="governance" className="w-band w-band--gold" aria-labelledby="gov-title">
@@ -175,7 +180,7 @@ export async function AboutPage() {
             Reporting and coordination
           </h2>
           <ol className="w-gov__list">
-            {GOVERNANCE.map(([who, does], i) => (
+            {office.coordination.map(({ title: who, text: does }, i) => (
               <li key={who} data-reveal style={{ ["--d" as string]: `${i * 70}ms` }}>
                 <span className="w-gov__who">{who}</span>
                 <span className="w-gov__does">{does}</span>
@@ -185,34 +190,24 @@ export async function AboutPage() {
         </div>
       </section>
 
-      <section className="w-section w-wrap" aria-labelledby="policies-title">
+      <section id="policies" className="w-section w-wrap" aria-labelledby="policies-title">
         <h2 id="policies-title" className="w-head w-rows__title" data-reveal>
           Privacy, access and method
         </h2>
         <dl className="w-rows">
-          <div id="privacy" data-reveal>
-            <dt>Data privacy statement</dt>
-            <dd>
-              Personal data in submissions is processed under the Data Privacy Act of 2012 (Republic Act No. 10173). Only approved data, documents and
-              narratives appear on this site; confidential evidence stays in the internal workspace, where every change is logged. Questions or requests
-              about your personal data go to the {privacy.officer} at <a href={`mailto:${privacy.email}`}>{privacy.email}</a>. Notice updated{" "}
-              {new Date(privacy.noticeUpdated + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}.
-            </dd>
-          </div>
-          <div id="accessibility" data-reveal>
-            <dt>Accessibility</dt>
-            <dd>
-              This site aims to meet WCAG 2.2 AA: keyboard access throughout, visible focus, text alternatives and tables beside every chart, and
-              results stated in words, never by colour alone. Report a barrier to the Office by email.
-            </dd>
-          </div>
-          <div id="disclaimer" data-reveal>
-            <dt>Methodology disclaimer</dt>
-            <dd>
-              Results belong to the ranking bodies and follow their published methods. The Office reports them as published and does not alter them.
-              Figures for the current cycle that are not yet published are placeholders for review.
-            </dd>
-          </div>
+          {office.policies.map((p) => (
+            <div key={p.anchor || p.title} id={p.anchor || undefined} data-reveal>
+              <dt>{p.title}</dt>
+              <dd>
+                {p.text}
+                {p.anchor === "privacy" && (
+                  <>
+                    {" "}Questions or requests about your personal data go to the {privacy.officer} at <a href={`mailto:${privacy.email}`}>{privacy.email}</a>. Notice updated {noticeDate}.
+                  </>
+                )}
+              </dd>
+            </div>
+          ))}
         </dl>
       </section>
 
@@ -260,6 +255,24 @@ export async function AboutPage() {
           </address>
         </div>
       </section>
+
+      {office.faq.length > 0 && (
+        <section id="faq" className="w-band w-band--ink w-on-dark" aria-labelledby="about-faq-title">
+          <div className="w-wrap w-grid w-faq">
+            <h2 id="about-faq-title" className="w-head w-faq__title" data-reveal>
+              Questions people ask
+            </h2>
+            <div className="w-faq__list">
+              {office.faq.map(({ q, a }, i) => (
+                <details key={q} className="w-faq__item" data-reveal style={{ ["--d" as string]: `${i * 60}ms` }} open={i === 0}>
+                  <summary>{q}</summary>
+                  <p>{a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </>
   );
 }

@@ -2,7 +2,7 @@ import "server-only";
 
 /*
  * The four providers behind one shape: a sealed key, a chat model, a way to test a key, and the embeddings the index is
- * built with. Keys are pasted on the AI Assistant tab, kept encrypted, and never leave this server: no provider offers a
+ * built with. Keys are pasted on the Agentic Control tab, kept encrypted, and never leave this server: no provider offers a
  * sign-in that links an account to another site. The browser only ever talks to /api/chat.
  */
 import { createAnthropic } from "@ai-sdk/anthropic";

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { formatDate, type EvidenceStatus } from "@/lib/data";
 import { meritOf, rankingsOf, type Season } from "@/lib/merit";
+import { typeLabel } from "@/components/contributions/parts";
 import { ClickableTableRow } from "@/components/ui/ClickableTableRow";
 import { Icon } from "@/components/ui/Icon";
 import { Segmented } from "@/components/ui/interactive";
@@ -59,11 +60,11 @@ export function Submissions({ season }: { season: Season }) {
                 const merit = meritOf(e);
                 const counts = rankingsOf(e);
                 return (
-                  <ClickableTableRow key={e.id} href={`/admin/contributions?item=${e.id}`}>
+                  <ClickableTableRow key={e.id} href={`/admin/unit-submissions?item=${e.id}`}>
                     <td>
                       <span className="up-sub__title">{e.title}</span>
                       <span className="table__sub">
-                        <span className="num">{e.id}</span> · {e.type}
+                        <span className="num">{e.id}</span> · {typeLabel(e)}
                         {counts.length > 0 && ` · ${counts.join(", ")}`}
                       </span>
                     </td>
@@ -78,7 +79,7 @@ export function Submissions({ season }: { season: Season }) {
                       {merit ? <span className="up-merit">+{merit}</span> : <span className="muted">—</span>}
                     </td>
                     <td className="r">
-                      <Link href={`/admin/contributions?item=${e.id}`} className="btn btn--ghost btn--sm btn--icon" aria-label={`Open ${e.id} in the review queue`}>
+                      <Link href={`/admin/unit-submissions?item=${e.id}`} className="btn btn--ghost btn--sm btn--icon" aria-label={`Open ${e.id} in the review queue`}>
                         <Icon name="chevron" size={16} />
                       </Link>
                     </td>

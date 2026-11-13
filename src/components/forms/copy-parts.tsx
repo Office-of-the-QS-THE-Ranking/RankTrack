@@ -5,7 +5,7 @@
  * Hub's own account), who can open a copy, the people added to a private one, faces for who is here, and the sheet
  * where a copy's owner changes its name and sharing and answers requests for access. Copies opened on this device are remembered for the start page.
  */
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { answerFormCopyRequest, setFormCopySharing, signOutOfForm } from "@/app/actions/form-copies";
 import { findCopyPeople } from "@/app/actions/form-people";
@@ -18,6 +18,7 @@ import { COPY_LIMITS, copyEmail, copyPath, initials, signInMessage, type CopyAcc
 import { LOOKUP_MIN, type PersonMatch } from "@/lib/forms/people-lookup";
 import type { CopyRequest, FormWho } from "@/lib/governance/hub-types";
 import type { Peer } from "./useCopy";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 /** Back from Google (?signin=…): told once as a toast, and taken off the address. */
 export function SignInReturn({ result }: { result?: string }) {
@@ -45,6 +46,8 @@ function FaceContent({ name, src }: { name: string; src?: string }) {
 export function WhoBox({ who, back, cta = "Continue with Google" }: { who: FormWho | null; back: string; cta?: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  usePending(busy || refreshing);
   if (who) {
     return (
       <div className="fr-who">
@@ -70,7 +73,7 @@ export function WhoBox({ who, back, cta = "Continue with Google" }: { who: FormW
               const r = await signOutOfForm().catch(() => null);
               if (r) forgetCopies();
               toast(r ? "You signed out." : "Could not sign out. Check your connection and try again.", r ? "ok" : "error");
-              router.refresh();
+              startRefresh(() => router.refresh());
               setBusy(false);
             }}
           >
@@ -354,6 +357,7 @@ export function Faces({ you, avatar, here, onGo, max = 4 }: { you: string; avata
 /** People who asked to open a private copy, each let in or turned down at once. */
 function AccessRequests({ code, token, requests, onAnswered }: { code: string; token: string; requests: CopyRequest[]; onAnswered: (email: string, allowed: boolean, r: { members?: string[]; requests: CopyRequest[] }) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
+  usePending(busy);
   const answer = async (email: string, allow: boolean) => {
     setBusy(email);
     const r = await answerFormCopyRequest({ code, token, email, allow }).catch(() => ({ ok: false as const, message: "The Hub could not be reached. Check your connection and try again." }));
@@ -417,6 +421,7 @@ export function SharingSheet({
   const [access, setAccess] = useState(sharing.access);
   const [members, setMembers] = useState(sharing.members);
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const [revoking, setRevoking] = useState<string | null>(null);
   // Names and faces for the People list: from the Hub and the directory, else as people asked.
   const known: Record<string, { name?: string; photo?: string }> = { ...faces };

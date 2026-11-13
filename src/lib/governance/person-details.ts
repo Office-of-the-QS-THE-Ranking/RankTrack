@@ -14,6 +14,7 @@ import {
   SPECIFY,
   SPECIFY_LABEL,
   THOMASIAN_AFFILIATION,
+  INVITE_ROLES,
   UST_ROLES,
   asksWebsite,
   cleanWebsite,
@@ -26,7 +27,7 @@ import {
   type Section,
   type Voice,
 } from "./access-requests";
-import { ROLE, STUDENT_HOME } from "./catalog";
+import { HUB_OFFICE, ROLE, STUDENT_HOME } from "./catalog";
 import { requestUnits } from "./directory";
 import { clean, isEmail } from "./engine/core";
 import type { AccountProfile, OrgUnit, RoleId } from "./types";
@@ -82,7 +83,7 @@ export const personTitle = (p: Person) =>
   p.roleId === ROLE.student && p.profile.organization
     ? `Secretary, ${p.profile.organization}`
     : p.roleId
-      ? (UST_ROLES.find((r) => r.id === p.roleId)?.name ?? "")
+      ? (INVITE_ROLES.find((r) => r.id === p.roleId)?.name ?? "")
       : p.profile.organization || p.profile.affiliation;
 
 /** The answers checked on their own, or what to fix as a sentence. */
@@ -101,7 +102,8 @@ export function readPerson(input: PersonInput, voice: Voice): Person | string {
   if (input.salutation !== NO_SALUTATION && !(SALUTATIONS.includes(salutation) || (input.salutation === OTHER_SALUTATION && /\p{L}/u.test(salutation))))
     return "Choose a salutation, or Prefer not to specify.";
   if (!isEmail(email)) return thomasian ? `Enter ${your} UST email address.` : `Enter ${your} institution email address.`;
-  const role = thomasian ? UST_ROLES.find((r) => r.id === input.roleId) : undefined;
+  // only an administrator inviting someone may name the Office's own role
+  const role = thomasian ? (voice === "other" ? INVITE_ROLES : UST_ROLES).find((r) => r.id === input.roleId) : undefined;
   if (thomasian && !role) return `Choose ${your} role: Administrator, Coordinator or Student Organizer.`;
   const section = role ? sectionsFor(role.id).find((x) => x === input.section) : undefined;
   if (role && sectionsFor(role.id).length && !section) return "Choose University Office or College/Faculty.";
@@ -149,9 +151,15 @@ export function placePerson(p: Person, { domains, units, voice }: { domains: str
     const home = units.find((u) => u.id === STUDENT_HOME && u.status === "Active");
     return home ? { unit: home } : "Student Organizer accounts are kept with the Office, which isn't an active unit in the Directory.";
   }
+  // Super Administrators are the Office's own people
+  if (p.roleId === ROLE.superAdmin) {
+    const office = units.find((u) => u.id === HUB_OFFICE && u.status === "Active");
+    return office ? { unit: office } : "The Rankings Office isn't an active unit in the Directory.";
+  }
   const label = SECTIONS.find((x) => x.key === p.section)?.label;
   const allowed = label ? (requestUnits(units).find((g) => g.label === label)?.units ?? []) : [];
   const unit = allowed.some((u) => u.id === p.unitId) ? units.find((u) => u.id === p.unitId) : undefined;
   if (!unit) return p.section === "offices" ? `Choose ${your} office.` : `Choose ${your} college or faculty.`;
+  if (unit.id === HUB_OFFICE) return "The Rankings Office's people are Super Administrators. Choose another office.";
   return { unit };
 }

@@ -2,7 +2,7 @@
  * The starting state of the governance store: the University directory (from Supabase's unit_directory),
  * datasets, policies, workflows and configuration, and nothing else. No accounts, records, requests or history: the first University
  * Administrator is created at their first Google sign-in (bootstrapAdmin in server/signin.ts) and
- * invites everyone else from the Administration console. The roles are fixed in catalog.ts.
+ * invites everyone else from the Command & Control console. The roles are fixed in catalog.ts.
  */
 import type { Reference } from "@/lib/reference";
 import { importUstDirectory } from "./directory";
@@ -202,61 +202,80 @@ const TERMS: [term: string, datasetId: string, unitOfMeasure: string][] = [
 
 /* ---------- Workflows ---------- */
 
+/** Evidence from the units: always on, and never decided by the person who sent it (workflow-steps.ts LOCKED). */
+export const UNIT_SUBMISSIONS: Workflow = {
+  id: "unit-submissions",
+  name: "Unit submissions",
+  description: "Evidence a College/Faculty, Office or partner sends. It counts toward the rankings, merit and honours only after its last review step.",
+  enabled: true,
+  steps: [{ name: "Evidence review", enabled: true, approver: "office" }],
+  slaDays: 5,
+  separation: true,
+  notify: true,
+};
+
 export const WORKFLOWS: Workflow[] = [
   {
     id: "account-access",
     name: "Account access requests",
     description: "Someone asks for an account from the sign-in page, or an administrator asks for one on a colleague's behalf.",
     enabled: true,
-    steps: [{ name: "Account review" }],
+    steps: [{ name: "Account review", enabled: true, approver: "office" }],
     slaDays: 3,
     separation: true,
+    notify: true,
   },
   {
     id: "privilege-escalation",
     name: "Privilege escalation",
     description: "Giving an active account a role above the one it holds, such as making a Coordinator an Administrator.",
     enabled: true,
-    steps: [{ name: "Second administrator sign-off" }],
+    steps: [{ name: "Second administrator sign-off", enabled: true, approver: "office" }],
     slaDays: 2,
     separation: true,
+    notify: true,
   },
   {
     id: "org-unit",
     name: "New organizational units",
     description: "Adding a college, faculty, department, programme, office or research centre to the directory.",
     enabled: true,
-    steps: [{ name: "Directory review" }],
+    steps: [{ name: "Directory review", enabled: true, approver: "office" }],
     slaDays: 5,
     separation: true,
+    notify: true,
   },
   {
     id: "data-access",
     name: "Data access requests",
     description: "Temporary access to, or an export of, a dataset the requester cannot already reach.",
     enabled: true,
-    steps: [{ name: "Data oversight review" }],
+    steps: [{ name: "Data oversight review", enabled: true, approver: "office" }],
     slaDays: 3,
     separation: true,
+    notify: true,
   },
   {
     id: "publication",
     name: "Publication of rankings reports and stories",
     description: "Nothing reaches the public website or leaves the Office without two approvals.",
     enabled: true,
-    steps: [{ name: "Evidence review" }, { name: "Publication approval" }],
+    steps: [{ name: "Evidence review", enabled: true, approver: "office" }, { name: "Publication approval", enabled: true, approver: "office" }],
     slaDays: 5,
     separation: true,
+    notify: true,
   },
   {
     id: "destructive",
     name: "Destructive backup operations",
-    description: "Restoring the platform from a recovery point, or deleting one. A second University-wide Administrator must agree.",
+    description: "Restoring the platform from a recovery point, or deleting one. A second Director or Ranking Specialist must agree.",
     enabled: true,
-    steps: [{ name: "Second administrator sign-off" }],
+    steps: [{ name: "Second administrator sign-off", enabled: true, approver: "office" }],
     slaDays: 1,
     separation: true,
+    notify: true,
   },
+  UNIT_SUBMISSIONS,
 ];
 
 /* ---------- The document ---------- */
@@ -320,14 +339,12 @@ export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = 
         { id: "2024–2025", current: false },
       ],
       periods: [
-        { id: "CY2025", label: "Calendar year 2025", note: "THE Impact, QS Sustainability, UI GreenMetric", accepting: true },
-        { id: "FY2025", label: "Financial year 2025", note: "THE WUR and THE by Subject income data", accepting: true },
-        { id: "AY2526", label: "Academic year 2025–2026", note: "QS staff and student data", accepting: true },
-        { id: "CY2024", label: "Calendar year 2024", note: "Only for corrections to last cycle", accepting: true },
+        { id: "AY2526", label: "2025–2026", note: "", accepting: true },
+        { id: "AY2425", label: "2024–2025", note: "Only for corrections to last cycle", accepting: true },
       ],
       uploads: { maxFileMB: 25, maxFiles: 10, types: ["PDF", "XLSX", "CSV", "DOCX", "PNG", "JPG"] },
       templates: [
-        { id: "tpl-invite", name: "Invitation", event: "An administrator invites someone", channel: "Email", subject: "You're invited to the UST Rankings and Impact Hub", body: "{name}, {inviter} invited you to the {unit} workspace as {role}. Sign in with your UST Google account to accept.", enabled: true },
+        { id: "tpl-invite", name: "Invitation", event: "An administrator invites someone", channel: "Email", subject: "You're invited to the PRESTIGE Portal", body: "{name}, {inviter} invited you to the {unit} workspace as {role}. Sign in with your UST Google account to accept.", enabled: true },
         { id: "tpl-submitted", name: "New submission", event: "A unit submits evidence", channel: "In-app", subject: "New submission from {unit}", body: "{unit} submitted “{title}”.", enabled: true },
         { id: "tpl-accepted", name: "Evidence accepted", event: "A reviewer accepts evidence", channel: "Email and in-app", subject: "Accepted: {title}", body: "“{title}” was accepted and now counts in {count} rankings.", enabled: true },
         { id: "tpl-revision", name: "Revision requested", event: "A reviewer requests a revision", channel: "Email and in-app", subject: "Revision requested: {title}", body: "A reviewer asked for a revision on “{title}”: {comment}", enabled: true },
@@ -348,7 +365,7 @@ export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = 
         { id: "recognition-internal", name: "Recognition wall", description: "Unit recognition inside the workspace.", area: "Office workspace", enabled: true },
         { id: "public-publications", name: "Publications", description: "Stories & News, Research Articles and Reports & Insights on the public website.", area: "Public website", enabled: true },
         { id: "public-recognition", name: "Recognition page", description: "The public Recognition page.", area: "Public website", enabled: true },
-        { id: "public-knowledge", name: "Knowledge Center", description: "Methodologies, dictionary and templates on the public website.", area: "Public website", enabled: true },
+        { id: "public-knowledge", name: "Knowledge Base", description: "Methodologies, dictionary and templates on the public website.", area: "Public website", enabled: true },
       ],
       flags: [
         { id: "smart-matching", name: "Automatic ranking matching", description: "Submit evidence suggests every ranking that can reuse the evidence and maps it automatically.", mode: "Off", accounts: [], units: [], updatedAt: at },

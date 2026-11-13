@@ -3,11 +3,11 @@
  * DecompressionStream, so only what the Hub needs travels to the server. A template's rows never leave this
  * computer: they are counted here and only the counts are sent.
  */
-import { readCsv, docxText, docxTables } from "./text";
+import { readCsv, docxText } from "./text";
 import { readWorkbook, WORKBOOK_PARTS, type Sheet } from "./xlsx";
 import { openZip, type InflateAsync } from "./zip";
 
-const inflate: InflateAsync = async (data, max) => {
+export const inflate: InflateAsync = async (data, max) => {
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -62,9 +62,6 @@ async function documentXml(file: File) {
 
 /** A Word document's text, one paragraph per line. */
 export const readDocxText = async (file: File) => docxText(await documentXml(file));
-
-/** A Word document's tables. */
-export const readDocxTablesIn = async (file: File) => docxTables(await documentXml(file));
 
 /** Sheets cut down to what may travel to the server: text and numbers, at most `rows` rows each. */
 export function portable(sheets: Sheet[], rows = 5000): Sheet[] {

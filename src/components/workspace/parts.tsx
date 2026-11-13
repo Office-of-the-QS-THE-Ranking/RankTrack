@@ -15,6 +15,7 @@ import { fileExt } from "@/lib/governance/evidence-files";
 import type { WorkspaceFolderItem, WorkspaceItem } from "@/lib/governance/hub-types";
 import type { WorkspaceShelf } from "@/lib/governance/types";
 import { fileFamily, folderTree, shelfLabel } from "@/lib/governance/workspace";
+import { usePending } from "@/components/ui/ButtonBusy";
 
 export function FileGlyph({
   name,
@@ -211,6 +212,7 @@ export function MoveSheet({
   const [shelf, setShelf] = useState<WorkspaceShelf>(file.shelf);
   const [pick, setPick] = useState(file.folderId ?? "");
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   return (
     <Sheet title="Move file" onClose={onClose}>
       {(close) => (
@@ -282,6 +284,7 @@ export function DeleteSheet({
   onClose: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  usePending(busy);
   const one = files.length === 1;
   return (
     <Sheet

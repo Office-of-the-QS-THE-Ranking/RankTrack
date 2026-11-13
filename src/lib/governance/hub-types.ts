@@ -66,7 +66,7 @@ export interface UnitProfileData {
   currentCycle: string;
   /** The "evidence reuse insights" experiment. */
   insights: boolean;
-  /** University-wide Administrators may edit the name, addresses and coordinator. */
+  /** The Director and Ranking Specialists may edit the name, addresses and coordinator. */
   canEdit: boolean;
   /** Who may be named coordinator; filled only for those who can edit. */
   people: { id: string; name: string; email: string; unitCode: string; here: boolean }[];

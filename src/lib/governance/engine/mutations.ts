@@ -6,7 +6,7 @@ import { roleOf } from "../catalog";
 import { roleScope } from "../rbac";
 import { documentPublicPath, publicationsPath, storyPath } from "@/lib/publications";
 import { DOC_NOUN } from "../documents";
-import type { Account, AccountProfile, Assignment, DataGrant, DocumentRecord, OrgKind, OrgUnit, PostRecord, RoleId, Scope } from "../types";
+import type { Account, AccountProfile, Assignment, DataGrant, DocumentRecord, OrgKind, OrgUnit, PostRecord, Position, RoleId, Scope } from "../types";
 import { log, nextId, notify, unitById, type Ctx } from "./core";
 
 export function defaultScope(roleId: RoleId, unitId: string): Scope {
@@ -15,13 +15,14 @@ export function defaultScope(roleId: RoleId, unitId: string): Scope {
 
 export function createAccount(
   ctx: Ctx,
-  input: { name: string; email: string; title: string; unitId: string; roleId: RoleId; scope?: Scope; expires?: string; external?: boolean; profile?: AccountProfile },
+  input: { name: string; email: string; title: string; unitId: string; roleId: RoleId; position?: Position; scope?: Scope; expires?: string; external?: boolean; profile?: AccountProfile },
   note?: string,
 ): Account {
   const id = nextId(ctx, "account", "ACC-");
   const assignment: Assignment = {
     id: nextId(ctx, "assignment", "AS-"),
     roleId: input.roleId,
+    ...(input.position ? { position: input.position } : {}),
     scope: input.scope ?? defaultScope(input.roleId, input.unitId),
     grantedBy: ctx.actor.id,
     grantedAt: ctx.iso,
@@ -48,8 +49,8 @@ export function createAccount(
   return account;
 }
 
-export function addAssignment(ctx: Ctx, account: Account, roleId: RoleId, scope: Scope, expires?: string, note?: string): Assignment {
-  const a: Assignment = { id: nextId(ctx, "assignment", "AS-"), roleId, scope, grantedBy: ctx.actor.id, grantedAt: ctx.iso, expires: expires || undefined, note };
+export function addAssignment(ctx: Ctx, account: Account, roleId: RoleId, scope: Scope, expires?: string, note?: string, position?: Position): Assignment {
+  const a: Assignment = { id: nextId(ctx, "assignment", "AS-"), roleId, ...(position ? { position } : {}), scope, grantedBy: ctx.actor.id, grantedAt: ctx.iso, expires: expires || undefined, note };
   account.assignments.push(a);
   return a;
 }

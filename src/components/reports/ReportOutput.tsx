@@ -6,7 +6,7 @@
  * use this, so a report leaves the same way, under the same rules, from wherever it is read.
  */
 import { useState } from "react";
-import { download } from "@/components/admin/ui";
+import { download } from "@/components/command-control/ui";
 import { useCan, useGovern, useHub, useViewer } from "@/components/hub/HubProvider";
 import { Icon } from "@/components/ui/Icon";
 import { DateField } from "@/components/ui/pickers";

@@ -1,7 +1,6 @@
-import { AboutOffice } from "@/components/about/AboutOffice";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "About the Office" };
-
+/* About the Office left the sidebar (2026-11-13): it is the Knowledge Base's About the Office tab now. */
 export default function About() {
-  return <AboutOffice mode="internal" />;
+  redirect("/admin/knowledge-base#about");
 }
