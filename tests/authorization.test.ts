@@ -5,28 +5,6 @@ import { ROLE } from "@/lib/governance/catalog";
 import type { EvidenceRecord } from "@/lib/governance/types";
 import { ref, world } from "./helpers";
 
-describe("assistance requests", () => {
-  it("are refused for someone who doesn't contribute for the unit", () => {
-    const w = world();
-    const student = w.person("Student", "student@ust.edu.ph", ROLE.student, w.eng.id);
-    const r = execute(w.ctxFor(student), { type: "assistance.request", unitSlug: w.eng.id, topic: "Help", urgent: true, message: "Please help with the submission." });
-    expect(r.ok).toBe(false);
-    expect(w.state.records.assistance).toHaveLength(0);
-  });
-
-  it("are refused for another unit's coordinator", () => {
-    const w = world();
-    const other = w.person("Other", "other@ust.edu.ph", ROLE.coordinator, w.sci.id);
-    expect(execute(w.ctxFor(other), { type: "assistance.request", unitSlug: w.eng.id, topic: "Help", urgent: false, message: "Please help with the submission." }).ok).toBe(false);
-  });
-
-  it("go through for the unit's own coordinator", () => {
-    const w = world();
-    const own = w.person("Own", "own@ust.edu.ph", ROLE.coordinator, w.eng.id);
-    expect(execute(w.ctxFor(own), { type: "assistance.request", unitSlug: w.eng.id, topic: "Help", urgent: false, message: "Please help with the submission." }).ok).toBe(true);
-  });
-});
-
 describe("reporting-period values", () => {
   it("are refused for requirements that aren't the unit's", () => {
     const w = world();

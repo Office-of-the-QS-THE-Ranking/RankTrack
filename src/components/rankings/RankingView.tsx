@@ -618,11 +618,6 @@ export function RankingView({
                               <dd>{u.validated}</dd>
                             </div>
                           </dl>
-                          {u.assistance && (
-                            <span className="rk-unit__help">
-                              <Icon name="help" size={13} /> Help asked
-                            </span>
-                          )}
                         </Link>
                       </li>
                     );

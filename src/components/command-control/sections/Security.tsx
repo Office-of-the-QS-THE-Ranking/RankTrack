@@ -1141,75 +1141,94 @@ function AlertsAndIncidents({ sec, reporting, onDone }: { sec: SecurityPolicy; r
   const { data } = useConsole();
   const act = useAct();
   const edit = viewerCan(data.viewer, "security", "edit");
-  const [filter, setFilter] = useState<"Open" | "All">("Open");
-  const alerts = filter === "Open" ? sec.alerts.filter((a) => a.status !== "Resolved") : sec.alerts;
+  const [view, setView] = useState<"Alerts" | "Incidents">("Alerts");
+  const alerts = sec.alerts;
   const sev = (s: string) => sec.alerts.filter((a) => a.status === "Open" && a.severity === s).length;
   return (
     <div className="sp-bento">
       <Tile
-        id="sp-alerts"
-        className="sp-span-7"
-        title={<Head icon="bell">Alerts</Head>}
-        aside={<Segmented label="Which alerts" value={filter} onChange={setFilter} options={["Open", "All"]} />}
+        id="sp-monitoring"
+        title={<Head icon={view === "Alerts" ? "bell" : "flag"}>{view}</Head>}
+        aside={<Tabs label="Alerts and incidents" idBase="sp-monitoring-view" value={view} onChange={setView} tabs={["Alerts", "Incidents"]} />}
       >
-        <div className="sp-sev" aria-label="Open alerts by severity">
-          {(["High", "Medium", "Low"] as const).map((s) => (
-            <span key={s} className="sp-sev__item" data-sev={s.toLowerCase()}>
-              <i aria-hidden="true" />
-              {s}
-              <b className="num">{sev(s)}</b>
-            </span>
-          ))}
-        </div>
-        {alerts.length ? (
-          <ul className="sp-feed">
-            {alerts.map((a) => (
-              <li key={a.id} className="sp-alert" data-sev={a.severity.toLowerCase()} data-done={a.status === "Resolved" || undefined}>
-                <span className="sp-alert__icon" aria-hidden="true">
-                  <Icon name={ALERT_ICON[a.kind] ?? "alert"} size={15} />
+        <TabPanel idBase="sp-monitoring-view" index={view === "Alerts" ? 0 : 1} className="sp-panel">
+          {view === "Alerts" && <>
+            <div className="sp-sev" aria-label="Open alerts by severity">
+              {(["High", "Medium", "Low"] as const).map((s) => (
+                <span key={s} className="sp-sev__item" data-sev={s.toLowerCase()}>
+                  <i aria-hidden="true" />
+                  {s}
+                  <b className="num">{sev(s)}</b>
                 </span>
-                <span className="sp-alert__main">
-                  <span className="sp-alert__top">
-                    <b>{a.kind}</b>
-                    <StatusPill value={a.severity} />
-                  </span>
-                  <span className="sp-alert__detail">{a.detail}</span>
-                  <small className="sp-muted">
-                    {fmtAgo(a.at, data.now)}
-                    {a.accountId ? ` · ${data.people.find((p) => p.id === a.accountId)?.name ?? a.accountId}` : ""}
-                  </small>
+              ))}
+            </div>
+            {alerts.length ? (
+              <div className="cmd-table-wrap sp-monitoring-wrap">
+                <table className="cmd-table sp-monitoring-table" aria-label="Security alerts">
+                  <thead>
+                    <tr>
+                      <th scope="col">Alert</th>
+                      <th scope="col">Time</th>
+                      <th scope="col">Priority Level</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alerts.map((a) => (
+                      <tr key={a.id} className="sp-monitoring-row" data-sev={a.severity.toLowerCase()} data-done={a.status === "Resolved" || undefined}>
+                        <td>
+                          <div className="sp-monitoring-title">
+                            <span className="sp-alert__icon" aria-hidden="true">
+                              <Icon name={ALERT_ICON[a.kind] ?? "alert"} size={15} />
+                            </span>
+                            <div className="sp-alert__main">
+                              <b>{a.kind}</b>
+                              <span className="sp-alert__detail">{a.detail}</span>
+                              {a.accountId && <small className="sp-muted">{data.people.find((p) => p.id === a.accountId)?.name ?? a.accountId}</small>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="sp-monitoring-time"><time dateTime={a.at}>{fmtAgo(a.at, data.now)}</time></td>
+                        <td><StatusPill value={a.severity} /></td>
+                        <td><StatusPill value={a.status} /></td>
+                        <td>
+                          <div className="sp-alert__acts">
+                            {(!edit || a.status === "Resolved") && <span className="sp-muted" aria-label="No actions available">—</span>}
+                            {edit && a.status === "Open" && (
+                              <button type="button" className="btn btn--sm" onClick={() => void act({ type: "alert.update", id: a.id, status: "Acknowledged" })}>
+                                Acknowledge
+                              </button>
+                            )}
+                            {edit && a.status !== "Resolved" && (
+                              <button type="button" className="btn btn--sm btn--dark" onClick={() => void act({ type: "alert.update", id: a.id, status: "Resolved" })}>
+                                Resolve
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="sp-empty sp-empty--calm">
+                <span className="sp-empty__art" aria-hidden="true">
+                  <Icon name="shield-check" size={26} />
                 </span>
-                <span className="sp-alert__acts">
-                  {a.status !== "Open" && <StatusPill value={a.status} />}
-                  {edit && a.status === "Open" && (
-                    <button type="button" className="btn btn--sm" onClick={() => void act({ type: "alert.update", id: a.id, status: "Acknowledged" })}>
-                      Acknowledge
-                    </button>
-                  )}
-                  {edit && a.status !== "Resolved" && (
-                    <button type="button" className="btn btn--sm btn--dark" onClick={() => void act({ type: "alert.update", id: a.id, status: "Resolved" })}>
-                      Resolve
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="sp-empty sp-empty--calm">
-            <span className="sp-empty__art" aria-hidden="true">
-              <Icon name="shield-check" size={26} />
-            </span>
-            <b>All quiet</b>
-          </div>
-        )}
+                <b>All quiet</b>
+              </div>
+            )}
+          </>}
+          <Incidents sec={sec} visible={view === "Incidents"} reporting={reporting} onDone={onDone} />
+        </TabPanel>
       </Tile>
-      <Incidents sec={sec} reporting={reporting} onDone={onDone} />
     </div>
   );
 }
 
-function Incidents({ sec, reporting, onDone }: { sec: SecurityPolicy; reporting: boolean; onDone: () => void }) {
+function Incidents({ sec, visible, reporting, onDone }: { sec: SecurityPolicy; visible: boolean; reporting: boolean; onDone: () => void }) {
   const { data } = useConsole();
   const act = useAct();
   const [sel, setSel] = useState<string | null>(null);
@@ -1222,38 +1241,50 @@ function Incidents({ sec, reporting, onDone }: { sec: SecurityPolicy; reporting:
   const edit = viewerCan(data.viewer, "security", "edit");
   return (
     <>
-      <Tile id="sp-incidents" className="sp-span-5" title={<Head icon="flag">Incidents</Head>}>
+      {visible && <>
         {sec.incidents.length ? (
-          <ul className="sp-incs">
-            {sec.incidents.map((i) => {
-              const at = STAGES.indexOf(i.status);
-              return (
-                <li key={i.id}>
-                  <button type="button" className="sp-inc" data-sev={i.severity.toLowerCase()} data-closed={i.status === "Closed" || undefined} onClick={() => setSel(i.id)}>
-                    <span className="sp-inc__top">
-                      <StatusPill value={i.severity} />
-                      {i.personalData && (
-                        <span className="sp-tag">
-                          <Icon name="user" size={11} /> Personal data
-                        </span>
-                      )}
-                      <small className="sp-muted">{fmtDate(i.reported)}</small>
-                    </span>
-                    <b className="sp-inc__title">{i.title}</b>
-                    <span className="sp-stages" aria-label={`Stage: ${i.status}`}>
-                      {STAGES.map((s, n) => (
-                        <i key={s} data-done={n <= at || undefined} data-now={n === at || undefined} title={s} />
-                      ))}
-                    </span>
-                    <span className="sp-inc__foot">
-                      <span>{i.status}</span>
-                      {i.escalatedTo && <span className="sp-muted">→ {i.escalatedTo}</span>}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="cmd-table-wrap sp-monitoring-wrap">
+            <table className="cmd-table sp-monitoring-table" aria-label="Security incidents">
+              <thead>
+                <tr>
+                  <th scope="col">Incident</th>
+                  <th scope="col">Time</th>
+                  <th scope="col">Priority Level</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sec.incidents.map((i) => {
+                  const at = STAGES.indexOf(i.status);
+                  return (
+                    <tr key={i.id} className="sp-monitoring-row" data-sev={i.severity.toLowerCase()} data-done={i.status === "Closed" || undefined}>
+                      <td>
+                        <div className="sp-alert__main">
+                          <b>{i.title}</b>
+                          {i.personalData && <span className="sp-tag"><Icon name="user" size={11} /> Personal data</span>}
+                          {i.escalatedTo && <small className="sp-muted">→ {i.escalatedTo}</small>}
+                        </div>
+                      </td>
+                      <td className="sp-monitoring-time"><time dateTime={i.reported}>{fmtAgo(i.reported, data.now)}</time></td>
+                      <td><StatusPill value={i.severity} /></td>
+                      <td>
+                        <div className="sp-alert__main">
+                          <StatusPill value={i.status} />
+                          <span className="sp-stages" aria-label={`Stage: ${i.status}`}>
+                            {STAGES.map((s, n) => (
+                              <i key={s} data-done={n <= at || undefined} data-now={n === at || undefined} title={s} />
+                            ))}
+                          </span>
+                        </div>
+                      </td>
+                      <td><button type="button" className="btn btn--sm" aria-label={`View incident: ${i.title}`} onClick={() => setSel(i.id)}>View</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="sp-empty sp-empty--calm">
             <span className="sp-empty__art" aria-hidden="true">
@@ -1262,7 +1293,7 @@ function Incidents({ sec, reporting, onDone }: { sec: SecurityPolicy; reporting:
             <b>No incidents</b>
           </div>
         )}
-      </Tile>
+      </>}
 
       <Sheet
         open={reporting}

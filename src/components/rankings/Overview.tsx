@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { EVIDENCE as ALL_EVIDENCE, type EvidenceItem, type Ranking } from "@/lib/data";
-import { GlowingEffect } from "@/components/ui/GlowingEffect";
 import { Icon } from "@/components/ui/Icon";
 import { Card, Direction, MeterRow, PageHeader, Status, Swatch } from "@/components/ui/primitives";
 import { DimensionMatrix } from "./DimensionMatrix";
@@ -49,7 +48,7 @@ export function RankingsOverview({
         />
       )}
 
-      <Card title="Current UST positions" sub={internal ? undefined : "Published results, latest edition"} icon="rankings" bodyClass="card__body--flush" glow={embedded}>
+      <Card title="Current UST positions" sub={internal ? undefined : "Published results, latest edition"} icon="rankings" bodyClass="card__body--flush">
         <div className="table-wrap">
           <table className="table table--hover table--stack">
             <thead>
@@ -104,7 +103,6 @@ export function RankingsOverview({
       <section aria-label="Rankings portfolio map" className="portfolio">
         {groups.filter((g) => rankingsInGroup(g.label).length).map((g) => (
           <div key={g.label} className="card portfolio__group">
-            {embedded && <GlowingEffect />}
             <h2 className="portfolio__title">
               <Swatch family={rankingsInGroup(g.label)[0].family} bar />
               {g.label}
@@ -124,14 +122,14 @@ export function RankingsOverview({
         ))}
       </section>
 
-      <DimensionMatrix base={base} slugs={RANKINGS.map((r) => r.slug)} glow={embedded} />
+      <DimensionMatrix base={base} slugs={RANKINGS.map((r) => r.slug)} />
 
       <div className="grid cols-2 grid--stretch">
         <Card
           title="Common institutional indicators"
           sub="One definition, several rankings"
           icon="target"
-          glow={embedded}
+         
           foot={
             <Link href={knowledge} className="link">
               Open the indicator dictionary <Icon name="arrow" size={14} />
@@ -155,7 +153,7 @@ export function RankingsOverview({
             })}
           </ul>
         </Card>
-        <Card title="Annual submission calendar" sub="When each ranking body collects data" icon="calendar" tone="dark" glow={embedded}>
+        <Card title="Annual submission calendar" sub="When each ranking body collects data" icon="calendar" tone="dark">
           <ol className="cal">
             {calendar.map((c) => (
               <li key={c.month}>
@@ -177,7 +175,7 @@ export function RankingsOverview({
           sub="Validated and in-review evidence that counts in more than one ranking"
           icon="layers"
           bodyClass="card__body--flush"
-          glow={embedded}
+         
         >
           <div className="table-wrap">
             <table className="table matrix evmap">

@@ -5201,15 +5201,18 @@ html:has(.site.fr) {
   align-items: center;
   gap: 8px;
 }
-.fm-window__tabs {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 100%;
+/* Toolbar under the head: content tabs on the left, the open tab's filters and search on the right. */
+.fm-window__bar {
+  flex: none;
+  padding: 16px 28px 0;
+}
+.fm-window__slot {
+  display: contents;
 }
 .fm-window__body {
   flex: 1;
   min-height: 0;
-  padding: 22px 28px 40px;
+  padding: 16px 28px 40px;
   overflow-y: auto;
   overscroll-behavior: contain;
   outline: none;
@@ -6398,9 +6401,8 @@ html:has(.site.fr) {
   .fm-window__title {
     white-space: normal;
   }
-  .fm-window__tabs {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .fm-window__bar {
+    padding: 12px 14px 0;
   }
   .fm-window__body {
     padding: 16px 14px 32px;

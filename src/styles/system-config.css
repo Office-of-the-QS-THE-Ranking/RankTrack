@@ -20,9 +20,6 @@
 .sc-view:focus-visible {
   outline: none;
 }
-.sc .ov-tile > .glow {
-  display: none;
-}
 .sc .ov-tile {
   padding: 0;
   border: 1px solid var(--cmd-line);

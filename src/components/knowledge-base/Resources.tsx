@@ -60,7 +60,7 @@ export function Resources({
   return (
     <div className="kb-res">
       {templates.length > 0 && (
-        <Tile glow={false} id="templates" title="Templates" className="kb-tpl-tile">
+        <Tile id="templates" title="Templates" className="kb-tpl-tile">
           <ul className="kb-tpls">
             {templates.map((t, i) => (
               <li key={t.file} style={{ ["--i" as string]: i } as CSSProperties}>
@@ -82,7 +82,7 @@ export function Resources({
       )}
 
       {training.length > 0 && (
-        <Tile glow={false} id="training" title="Training" className="kb-train-tile">
+        <Tile id="training" title="Training" className="kb-train-tile">
           <ul className="kb-media-list">
             {training.map((t) => (
               <li key={t.title}>
@@ -109,7 +109,7 @@ export function Resources({
       )}
 
       {policies.length > 0 && (
-        <Tile glow={false} id="policies" title="Policies and frameworks" className="kb-pol-tile">
+        <Tile id="policies" title="Policies and frameworks" className="kb-pol-tile">
           <ul className="kb-docs">
             {policies.map(([name, text]) => (
               <li key={name} className="kb-doc">
@@ -130,7 +130,7 @@ export function Resources({
       )}
 
       {practices && (
-        <Tile glow={false} id="practices" title="Good practices" className="kb-prac-tile">
+        <Tile id="practices" title="Good practices" className="kb-prac-tile">
           {practices.length ? (
             <ul className="kb-prac">
               {practices.map((s) => (

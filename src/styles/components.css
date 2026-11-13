@@ -1938,11 +1938,11 @@ a.list__main:hover {
   }
 }
 
-/* ---------- Toasts: top right, 8 s, one system for the whole Hub (ui/toast.tsx) ---------- */
+/* ---------- Toasts: bottom right, 4 s, one system for the whole Hub (ui/toast.tsx) ---------- */
 .toasts {
   /* a manual popover, so it sits in the top layer: reset the UA popover box */
   position: fixed;
-  inset: max(16px, env(safe-area-inset-top)) 16px auto auto;
+  inset: auto 16px max(16px, env(safe-area-inset-bottom)) auto;
   width: min(420px, calc(100vw - 32px));
   height: auto;
   margin: 0;
@@ -1953,9 +1953,14 @@ a.list__main:hover {
   overflow: visible;
   pointer-events: none;
 }
+/* No backdrop: the page behind stays as it is. */
+.toasts::backdrop {
+  display: none;
+}
+/* Newest sits at the bottom, nearest the corner; older ones move up. */
 .toasts ol {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -2090,7 +2095,7 @@ a.list__main:hover {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(24px) scale(0.98);
+    transform: translateY(16px) scale(0.98);
   }
 }
 @keyframes toast-out {

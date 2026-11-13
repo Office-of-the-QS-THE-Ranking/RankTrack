@@ -2,7 +2,7 @@
 
 /*
  * The one way the Hub tells people something happened: "Changes saved.", "You signed out.", "Could not
- * send." Toasts stack at the top right and close on their own after TOAST_MS (the timer holds while the
+ * send." Toasts stack at the bottom right and close on their own after TOAST_MS (the timer holds while the
  * pointer or focus is on one). Call toast() from any client code; <Toaster /> sits once in the root
  * layout. The stack is a manual popover so it shows above modal dialogs and drawers too.
  */
@@ -13,7 +13,7 @@ import { Icon } from "./Icon";
 export type ToastTone = "ok" | "error" | "info";
 
 /** How long a toast stays up. The house rule (AGENTS.md); don't change it per call. */
-export const TOAST_MS = 8000;
+export const TOAST_MS = 4000;
 const MAX = 4;
 const LEAVE_MS = 200;
 
@@ -63,7 +63,7 @@ export function Toaster() {
     if (!el || typeof el.showPopover !== "function") return;
     if (el.matches(":popover-open")) el.hidePopover();
     el.showPopover();
-  }, [newest?.id]);
+  }, [newest]);
 
   // Clear, then fill, so a repeated message is read out again. An open modal dialog makes the rest of
   // the page inert, so the announcement is made from inside it.

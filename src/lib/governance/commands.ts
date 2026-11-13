@@ -226,7 +226,6 @@ export type Command =
   | { type: "form.duplicate"; id: string }
   | { type: "form.delete"; id: string }
   | { type: "innovation.propose"; unitSlug: string; name: string; category: string }
-  | { type: "assistance.request"; unitSlug: string; topic: string; urgent: boolean; message: string }
   | { type: "report.export"; report: string; cycle: string; rows: number; datasets: string[] }
   | { type: "report.publish"; report: string; cycle: string; justification: string }
   | { type: "notice.read" };

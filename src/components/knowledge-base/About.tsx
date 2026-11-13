@@ -67,7 +67,7 @@ export function About({ term }: { term: string }) {
 
   return (
     <div className="kb-about">
-      <Tile glow={false} id="kb-about-rail" title="About the Office" className="kb-about__rail" aside={<InfoTooltip label="About this tab">Shown on the website’s About page. The ranking portfolio follows System Configuration.</InfoTooltip>}>
+      <Tile id="kb-about-rail" title="About the Office" className="kb-about__rail" aside={<InfoTooltip label="About this tab">Shown on the website’s About page. The ranking portfolio follows System Configuration.</InfoTooltip>}>
         <nav aria-label="Parts of the About page">
           <ul className="kb-about__parts">
             {shown.map((p) => (
@@ -215,7 +215,7 @@ function Part({ part, label, saved, editable }: { part: AboutPart; label: string
 
   const savable = editable && part !== "portfolio";
   return (
-    <Tile glow={false} id="kb-about-part" title={label} className="kb-about__main">
+    <Tile id="kb-about-part" title={label} className="kb-about__main">
       <form className="kb-about__form" onSubmit={submit}>
         {body}
         {savable && (

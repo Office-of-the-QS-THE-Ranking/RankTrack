@@ -1,6 +1,7 @@
 /*
- * Executive overview (/admin): one bento of tiles. Each tile is a glass bezel round a solid core, and its
- * rim lights toward the pointer (Aceternity's glowing effect, .glow in components.css). Gold and ink pair
+ * Executive overview (/admin): one bento of tiles. On the Dashboard tab each tile is a glass bezel round a solid
+ * core, and its rim lights toward the pointer (Aceternity's glowing effect, .glow in components.css); every
+ * other tab draws the same Tile as a plain card (.ov-tile--plain). Gold and ink pair
  * up in every chart: gold is readiness, ink the goals and the other measures. Family colours stay on the
  * dots that name a ranking.
  */
@@ -56,8 +57,8 @@
     grid-column: span 6;
   }
 }
-/* Row one: the next deadline, readiness, units engaged and data requests, a quarter each; a third each without
-   data requests. The calendar takes the whole row under them. */
+/* Row one: the next deadline and readiness, half each. The calendar takes the whole row under them, then units
+   engaged and data requests share row three (units alone takes it without data requests). */
 .ov-bento > .dashboard-deadlines.ov-next-cell {
   grid-column: span 12;
 }
@@ -66,21 +67,13 @@
   .ov-bento > .ov-hero {
     grid-column: span 6;
   }
+  .ov-bento:not(:has(> .ov-reqs)) > .ov-units {
+    grid-column: span 12;
+  }
 }
 @container content (min-width: 960px) {
-  .ov-bento > .ov-hero,
-  .ov-bento > .dashboard-deadlines.ov-next-cell {
-    grid-column: span 3;
-  }
-  .ov-bento:not(:has(> .ov-reqs)) > :is(.ov-next-cell, .ov-hero, .ov-units) {
-    grid-column: span 4;
-  }
   .ov-bento > .ov-next {
     grid-column: span 6;
-  }
-  .ov-bento > .ov-units,
-  .ov-bento > .ov-reqs {
-    grid-column: span 3;
   }
   .ov-bento > .ov-rank {
     grid-column: span 5;
@@ -99,6 +92,20 @@
   border-radius: var(--r-xl);
   background: rgb(var(--glass) / 0.4);
   box-shadow: inset 0 0 0 1px rgb(var(--hair) / 0.07);
+}
+/* Every tab but the Dashboard (a Tile without `glow`): a plain card with one edge, no bezel and no lit rim.
+   The core is the card, so a page that recolours its core (an onyx tile) keeps a single edge. */
+.ov-tile--plain {
+  padding: 0;
+  border-radius: var(--r-lg);
+  background: none;
+  box-shadow: none;
+}
+.ov-tile--plain > .ov-tile__core {
+  border-radius: var(--r-lg);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 3px 12px -8px rgb(0 0 0 / 0.12);
 }
 /* Tooltips rise over the neighbouring tiles */
 .ov-tile:hover,

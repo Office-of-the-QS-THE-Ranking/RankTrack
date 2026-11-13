@@ -8,7 +8,6 @@ import {
   type EvidenceStatus,
   type Indicator,
 } from "@/lib/data";
-import { GlowingEffect } from "./GlowingEffect";
 import { RankingChip, RankingName, Sdg, Swatch } from "./identity";
 import { Icon, type IconName } from "./Icon";
 
@@ -55,7 +54,6 @@ export function Card({
   bodyClass,
   headingLevel = 2,
   label,
-  glow,
 }: {
   title?: ReactNode;
   sub?: ReactNode;
@@ -69,13 +67,10 @@ export function Card({
   bodyClass?: string;
   headingLevel?: 2 | 3;
   label?: string;
-  /** Light the rim toward the pointer, as the dashboard's tiles do. */
-  glow?: boolean;
 }) {
   const H = headingLevel === 3 ? "h3" : "h2";
   return (
     <section className={cx("card", tone && `card--${tone}`, className)} id={id} aria-label={!title ? label : undefined}>
-      {glow && <GlowingEffect />}
       {(title || actions) && (
         <header className="card__head">
           <div className="card__titles">

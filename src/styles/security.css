@@ -1,7 +1,7 @@
 /*
  * Command & Control › Privacy & Security (components/command-control/sections/Security.tsx).
  * Overview: an onyx posture hero (tick dial with a radar sweep, six protection layers) over a bento of
- * glowing Tiles (overview.css). Other tabs draw each setting as what it does, with its control beside it.
+ * plain Tiles (overview.css). Other tabs draw each setting as what it does, with its control beside it.
  * The hero is onyx in both themes; everything else takes the console's colours.
  */
 
@@ -45,9 +45,6 @@
   background: var(--cmd-raise);
   box-shadow: none;
   color: var(--cmd-text);
-}
-.sp .ov-tile > .glow {
-  display: none;
 }
 .sp .ov-tile > .ov-tile__core {
   padding: 16px 18px 18px;
@@ -1574,65 +1571,98 @@
   border-radius: 50%;
   background: var(--sev);
 }
-.sp-sev__item[data-sev="high"],
-.sp-alert[data-sev="high"],
-.sp-inc[data-sev="high"],
-.sp-inc[data-sev="critical"] {
+.sp-sev__item[data-sev="high"] {
   --sev: var(--sp-danger);
 }
-.sp-sev__item[data-sev="medium"],
-.sp-alert[data-sev="medium"],
-.sp-inc[data-sev="medium"] {
+.sp-sev__item[data-sev="medium"] {
   --sev: var(--sp-warn);
 }
-.sp-sev__item[data-sev="low"],
-.sp-alert[data-sev="low"],
-.sp-inc[data-sev="low"] {
+.sp-sev__item[data-sev="low"] {
   --sev: var(--review, #0062c4);
 }
 
-.sp-feed {
-  position: relative;
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.sp-monitoring-wrap {
+  width: 100%;
+  min-width: 0;
+  background: var(--sp-well);
+  border-radius: 12px;
 }
-.sp-alert {
+.sp-monitoring-table {
+  table-layout: fixed;
+  min-width: 840px;
+  line-height: 1.4;
+}
+.sp-monitoring-table th,
+.sp-monitoring-table td {
+  padding: 9px 12px;
+}
+.sp-monitoring-table th {
+  background: var(--cmd-raise);
+}
+.sp-monitoring-table th:nth-child(2) {
+  width: 100px;
+}
+.sp-monitoring-table th:nth-child(3) {
+  width: 112px;
+}
+.sp-monitoring-table th:nth-child(4) {
+  width: 148px;
+}
+.sp-monitoring-table th:last-child {
+  width: 224px;
+  text-align: right;
+}
+.sp-monitoring-table td:last-child {
+  text-align: right;
+}
+.sp-monitoring-table .btn--sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 400;
+}
+.sp-monitoring-row {
   --sev: var(--sp-muted);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--sev) 7%, transparent), transparent 40%), var(--sp-well);
-  box-shadow: inset 3px 0 0 var(--sev), inset 0 0 0 1px var(--sp-line);
 }
-.sp-alert[data-done] {
+.sp-monitoring-row[data-sev="high"],
+.sp-monitoring-row[data-sev="critical"] {
+  --sev: var(--sp-danger);
+}
+.sp-monitoring-row[data-sev="medium"] {
+  --sev: var(--sp-warn);
+}
+.sp-monitoring-row[data-sev="low"] {
+  --sev: var(--review, #0062c4);
+}
+.sp-monitoring-row td {
+  transition: opacity 160ms ease, background-color 160ms ease;
+}
+.sp-monitoring-row[data-done] td {
   opacity: 0.6;
+}
+.sp-monitoring-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .sp-alert__icon {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--sev) 14%, transparent);
   color: var(--sev);
 }
 .sp-alert__main {
   display: grid;
-  gap: 3px;
+  justify-items: start;
+  gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
-.sp-alert__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.sp-alert__top b {
+.sp-alert__main b {
   font-size: 13.5px;
   font-weight: 600;
 }
@@ -1640,73 +1670,26 @@
   font-size: 13px;
   color: var(--cmd-text-2);
 }
-.sp-alert__main small {
-  font-size: 12px;
+.sp-monitoring-time {
+  white-space: nowrap;
+  color: var(--sp-muted);
+  font-variant-numeric: tabular-nums;
 }
 .sp-alert__acts {
-  grid-column: 2;
   display: flex;
-  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
-.sp-alert__acts:empty {
-  display: none;
+.sp-monitoring-table .sp-stages {
+  width: 100%;
+  min-width: 90px;
 }
-@container content (min-width: 1100px) {
-  .sp-alert {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-  }
-  .sp-alert__acts {
-    grid-column: auto;
-  }
+.sp-monitoring-row[data-done] .sp-stages i[data-done] {
+  background: var(--sp-ok);
 }
 
-.sp-incs {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.sp-inc {
-  --sev: var(--sp-muted);
-  display: grid;
-  gap: 8px;
-  width: 100%;
-  padding: 13px 14px;
-  border: 0;
-  border-radius: 16px;
-  background: var(--sp-well);
-  box-shadow: inset 0 0 0 1px var(--sp-line);
-  color: var(--sp-ink);
-  font: inherit;
-  text-align: left;
-  cursor: var(--cursor-pointer);
-}
-@media (hover: hover) {
-  .sp-inc:hover {
-    background: var(--cmd-hover);
-  }
-}
-.sp-inc[data-closed] {
-  opacity: 0.62;
-}
-.sp-inc__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.sp-inc__top small {
-  margin-left: auto;
-  font-size: 12px;
-}
-.sp-inc__title {
-  font-size: 13.5px;
-  font-weight: 600;
-}
 .sp-tag {
   display: inline-flex;
   align-items: center;
@@ -1732,19 +1715,10 @@
 .sp-stages i[data-done] {
   background: var(--sev);
 }
-.sp-inc[data-closed] .sp-stages i[data-done] {
-  background: var(--sp-ok);
-}
 .sp-stages i[data-now] {
   box-shadow: 0 0 6px color-mix(in srgb, var(--sev) 70%, transparent);
 }
-.sp-inc__foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-}
+
 
 /* Incident sheet: stage tracker */
 .sp-tracker {
@@ -2018,7 +1992,6 @@
 }
 .sp-signal,
 .sp-pia,
-.sp-inc,
 .sp-tog,
 .sp-review {
   transition:
@@ -2050,7 +2023,6 @@
   }
 
   .sp-signal:hover,
-  .sp-inc:hover,
   .sp-pia:not(:disabled):hover {
     background: var(--cmd-hover);
     box-shadow: inset 0 0 0 1px var(--cmd-line-2);
@@ -2061,7 +2033,6 @@
       inset 0 0 0 1px var(--cmd-line-2);
   }
   .sp-signal:hover .sp-signal__label,
-  .sp-inc:hover .sp-inc__title,
   .sp-pia:not(:disabled):hover b {
     color: var(--sp-ink);
   }
@@ -2096,8 +2067,7 @@
 /* Keyboard focus looks like hover, with a neutral edge (never a gold halo) */
 .sp-signal:focus-visible,
 .sp-review:focus-visible,
-.sp-pia:focus-visible,
-.sp-inc:focus-visible {
+.sp-pia:focus-visible {
   outline: 1px solid var(--sp-ink);
   outline-offset: 2px;
   background: var(--cmd-hover);
@@ -2113,6 +2083,26 @@
   .sp-go {
     transform: none;
     transition: opacity var(--t) ease;
+  }
+}
+
+/* Keep attention on the active row while preserving keyboard focus. */
+.sp-monitoring-row:focus-within td {
+  opacity: 1;
+  background: var(--cmd-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sp-monitoring-row:hover td {
+    opacity: 1;
+    background: var(--cmd-hover);
+  }
+  .sp-monitoring-table tbody:has(> tr:hover) > tr:not(:hover):not(:focus-within) td {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-monitoring-row td {
+    transition: none;
   }
 }
 

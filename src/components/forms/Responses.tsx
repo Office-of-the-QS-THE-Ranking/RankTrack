@@ -9,6 +9,7 @@
  * only the office fills in. Every review is checked and audited on the server (app/actions/forms.ts).
  */
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { deleteFormResponses, exportFormResponses, reviewFormResponse } from "@/app/actions/forms";
 import { download } from "@/components/command-control/ui";
 import { RowMenu } from "@/components/publications/PostManager";
@@ -73,7 +74,10 @@ export function FormResponses({
   reload,
   link,
   onCopy,
+  toolbar,
 }: {
+  /** The window's toolbar beside its content tabs, where the filters, export and search go. */
+  toolbar: HTMLElement | null;
   form: FormItem;
   desk: FormsDesk;
   responses: FormResponseItem[] | null;
@@ -142,8 +146,9 @@ export function FormResponses({
 
   return (
     <div className="fm-responses">
-      <div className="content-tabs">
-        <div className="content-tabs__controls">
+      {toolbar &&
+        createPortal(
+          <>
           <div className="content-tabs__actions">
             {statused && list.length > 0 && (
               <Segmented<Shown>
@@ -174,8 +179,9 @@ export function FormResponses({
               <SearchField value={q} onChange={setQ} placeholder="Search responses" label="Search responses" examples={["Search by reference", "Search by name", "Search by title"]} />
             </div>
           )}
-        </div>
-      </div>
+          </>,
+          toolbar,
+        )}
 
       {!list.length ? (
         <div className="ws-empty fm-empty">

@@ -1,6 +1,6 @@
 /*
  * Workspace records written through the governance layer: evidence, reporting-period values, story and
- * innovation proposals, assistance requests, report exports and notifications. Each is authorized by
+ * innovation proposals, report exports and notifications. Each is authorized by
  * role and by organizational scope, and audited.
  */
 import type { Command, CommandResult } from "../commands";
@@ -351,21 +351,6 @@ export function proposeInnovation(ctx: Ctx, unitSlug: string, name: string, cate
   log(ctx, "innovation.propose", "Data", { type: "Innovation", id, label: clean(name) }, "Success", `${clean(category)} · ${unit.name}`);
   notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `innovation proposal “${clean(name)}”` }, "/admin/publications/stories");
   return ok(`Innovation ${id} entered the pipeline.`, { data: id });
-}
-
-export function requestAssistance(ctx: Ctx, unitSlug: string, topic: string, urgent: boolean, message: string): CommandResult {
-  const unit = unitById(ctx, unitSlug);
-  if (!unit) return invalid("Choose the unit.");
-  if (!featureOn(ctx.state, "assistance")) return invalid("Assistance requests are switched off in System Configuration.");
-  // Only people who contribute for the unit ask for help on its behalf.
-  const canContribute = placement(ctx, unit.id, "evidence", "submit") || placement(ctx, unit.id, "data", "submit") || placement(ctx, unit.id, "stories", "create");
-  if (!canContribute) return deny(ctx, "assistance.request", "Data", { type: "Assistance request", id: "new", label: clean(topic) || "Assistance" }, `You cannot ask for assistance on behalf of ${unit.name}.`);
-  if (!clean(topic) || cleanText(message).length < 10) return invalid("Choose a topic and write at least a sentence.");
-  const id = nextId(ctx, "assistance", "AR-", 4);
-  ctx.state.records.assistance.unshift({ id, topic: clean(topic), unitSlug: unit.id, by: ctx.actor.id, at: ctx.iso, urgent });
-  log(ctx, "assistance.request", "Data", { type: "Assistance request", id, label: clean(topic) }, "Success", `${unit.name}${urgent ? " · urgent" : ""}`);
-  notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `assistance request: ${clean(topic)}${urgent ? " (urgent)" : ""}` }, "/admin/units/" + unit.id);
-  return ok(`Request ${id} sent.`, { data: id });
 }
 
 export function exportReport(ctx: Ctx, report: string, cycle: string, rows: number, datasets: string[]): CommandResult {

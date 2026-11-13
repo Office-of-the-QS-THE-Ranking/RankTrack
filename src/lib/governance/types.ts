@@ -924,7 +924,6 @@ export interface Records {
   /** Reports approved for publication outside the Office. */
   publishedReports: { id: string; title: string; at: ISOTime; by: string }[];
   innovations: { id: string; name: string; unitSlug: string; by: string; at: ISOTime; category: string }[];
-  assistance: { id: string; topic: string; unitSlug: string; by: string; at: ISOTime; urgent: boolean }[];
   /** Grants of temporary dataset access created by approved data access requests. */
   counters: Record<string, number>;
 }

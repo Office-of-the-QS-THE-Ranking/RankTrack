@@ -268,8 +268,6 @@ export function execute(ctx: Ctx, cmd: Command): CommandResult {
       return forms.deleteForm(ctx, cmd);
     case "innovation.propose":
       return records.proposeInnovation(ctx, cmd.unitSlug, cmd.name, cmd.category);
-    case "assistance.request":
-      return records.requestAssistance(ctx, cmd.unitSlug, cmd.topic, cmd.urgent, cmd.message);
     case "report.export":
       return records.exportReport(ctx, cmd.report, cmd.cycle, cmd.rows, cmd.datasets);
     case "report.publish":

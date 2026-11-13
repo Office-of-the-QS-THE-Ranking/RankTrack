@@ -35,7 +35,6 @@ export function buildUnits(state: GovernanceState, evidence: EvidenceItem[], cat
       validated: validated.length,
       revisions: mine.filter((item) => item.status === "Needs revision").length,
       rankingsServed: new Set(validated.flatMap((item) => item.mappedTo.map((mapping) => mapping.split(" · ")[0]))).size,
-      assistance: state.records.assistance.some((request) => reach.includes(request.unitSlug)),
     }];
   });
 }

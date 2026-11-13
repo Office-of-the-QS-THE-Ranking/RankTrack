@@ -96,7 +96,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
       )}
 
       <div className="ov-bento rw-bento">
-        <Tile id="awards" className="rw-awards">
+        <Tile glow={embedded} id="awards" className="rw-awards">
           <header className="rw-awards__head">
             <p className="rw-awards__cycle">{h.currentCycle}</p>
             <h2 id="awards" className="rw-awards__title">
@@ -126,7 +126,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
           )}
         </Tile>
 
-        <Tile id="achievements" title="Moved up" className="rw-up">
+        <Tile glow={embedded} id="achievements" title="Moved up" className="rw-up">
           {movers.length ? (
             <ul className="rw-up__list" style={{ ["--cols" as string]: Math.min(4, movers.length) } as CSSProperties}>
               {movers.map((r) => (
@@ -151,6 +151,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
         </Tile>
 
         <Tile
+          glow={embedded}
           id="units"
           title="Top contributors"
           className="rw-top"
@@ -197,7 +198,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
           )}
         </Tile>
 
-        <Tile id="champions" title="Evidence champions" className="rw-champs">
+        <Tile glow={embedded} id="champions" title="Evidence champions" className="rw-champs">
           {champions.length ? (
             <ul className="rw-people">
               {champions.map((u) => (
@@ -221,6 +222,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
         </Tile>
 
         <Tile
+          glow={embedded}
           id="international"
           title={
             <>
@@ -244,7 +246,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
           )}
         </Tile>
 
-        <Tile id="innovation" title="Innovation leaders" className="rw-inno">
+        <Tile glow={embedded} id="innovation" title="Innovation leaders" className="rw-inno">
           {innovation.length ? (
             <ul className="rw-stories">
               {innovation.map((s) => (
@@ -266,6 +268,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
         </Tile>
 
         <Tile
+          glow={embedded}
           id="sustainability"
           title="Sustainability partners"
           className="rw-green"
@@ -291,7 +294,7 @@ export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "
           )}
         </Tile>
 
-        <Tile id="archive" title="Archive" className="rw-archive">
+        <Tile glow={embedded} id="archive" title="Archive" className="rw-archive">
           {ARCHIVE.length ? (
             <ul className="rw-cycles">
               {ARCHIVE.map((a) => (

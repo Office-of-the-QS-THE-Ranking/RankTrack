@@ -3,8 +3,9 @@
  * Coordinators run it, its Administrators read it), or by a Student, the Secretary of a student organization,
  * commission or council (their own Evaluation Form or Registration Form).
  *
- * - The Office's Proposal and Terminal Report forms are filled in as team copies, which Students build from the
- *   Student Portal once the Office publishes the form there. Nobody starts a copy from the form's own link.
+ * - Proposal and Terminal Report forms, the Office's or a unit's (SIMBAHAYAN holds the Community Development Project
+ *   Proposal, user 2026-11-13), are filled in as team copies, which Students build from the Student Portal once the
+ *   form is published there. Nobody starts a copy from the form's own link.
  * - Surveys come from the Office or a unit; published to the Student Portal they are the Students' assignments.
  * - Evaluation Forms and Registration Forms are made by Students, Coordinators or the Office. They're fixed once
  *   published (no changes, no deleting), since their responses feed the Office's data from then on; the Office
@@ -31,10 +32,10 @@ export const PORTAL_KINDS: readonly FormKind[] = ["proposal", "terminal-report",
 /** Fixed once published: their responses feed the Office's data from then on. */
 export const LOCK_KINDS: readonly FormKind[] = ["evaluation", "registration"];
 
-/** What each holder may make: the Office any kind, a unit all but the proposals and terminal reports the Office issues, a Student evaluations and registrations. */
+/** What each holder may make: the Office and a unit any kind, a Student evaluations and registrations. */
 export const HOLDER_KINDS: Record<FormHolder, readonly FormKind[]> = {
   office: FORM_KINDS.map((k) => k.key),
-  unit: ["survey", "registration", "application", "evaluation"],
+  unit: FORM_KINDS.map((k) => k.key),
   student: ["evaluation", "registration"],
 };
 
@@ -114,7 +115,7 @@ export function formRights(grants: Grant[], accountId: string, f: Form): FormRig
         edit: runs && !locked,
         remove: draft && inUnit(grants, "delete", id),
         status: runs || oversees("manage"),
-        portal: f.kind === "survey" && inUnit(grants, "manage", id),
+        portal: PORTAL_KINDS.includes(f.kind) && inUnit(grants, "manage", id),
         duplicate: HOLDER_KINDS.unit.includes(f.kind) && inUnit(grants, "create", id),
         read: inUnit(grants, "view", id) || oversees("view"),
         review: inUnit(grants, "approve", id),

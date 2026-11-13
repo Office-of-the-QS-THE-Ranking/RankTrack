@@ -102,6 +102,17 @@ function strengthOf(tint: string) {
   return lum > 0.6 ? "20%" : "7%";
 }
 
+/*
+ * This layer runs as soon as the root layout hydrates, but a streamed page segment can still be
+ * server HTML waiting for React. Stamping data-fx-host or appending <button-fx> there makes React
+ * report a hydration mismatch, so a button is left alone until React has claimed it (React tags
+ * every node it owns with __reactFiber$ / __reactProps$ keys).
+ */
+function hydrated(el: HTMLElement) {
+  for (const key in el) if (key.startsWith("__reactFiber$") || key.startsWith("__reactProps$")) return true;
+  return false;
+}
+
 function part(parent: HTMLElement, name: string) {
   const el = document.createElement("i");
   el.dataset.part = name;
@@ -130,7 +141,7 @@ export function ButtonFx() {
     };
 
     const accept = (el: HTMLElement | null) => {
-      if (!el || el.closest('[data-fx="off"]') || el.matches(':disabled, [aria-disabled="true"], [aria-busy="true"]')) return null;
+      if (!el || !hydrated(el) || el.closest('[data-fx="off"]') || el.matches(':disabled, [aria-disabled="true"], [aria-busy="true"]')) return null;
       const c = getComputedStyle(el);
       if (c.display === "contents") return null;
       const r = el.getBoundingClientRect();

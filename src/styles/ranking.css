@@ -1289,7 +1289,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
     "mark name ring"
-    "stats stats help";
+    "stats stats stats";
   align-items: center;
   gap: 14px;
   height: 100%;
@@ -1378,19 +1378,6 @@
   font-size: 17px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-.rk .rk-unit__help {
-  grid-area: help;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: var(--gold-cream);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--gold-ink);
-  white-space: nowrap;
 }
 
 /* ---------- Action plan ---------- */

@@ -20,7 +20,7 @@ const mean = (xs: number[]) => (xs.length ? Math.round(xs.reduce((n, x) => n + x
 async function RequestsTile() {
   const { open, requested, sent, overdue } = await requestsBrief();
   return (
-    <Tile id="ov-reqs" title="Data requests" className="ov-reqs" href="/admin/rankings/data-requests">
+    <Tile glow id="ov-reqs" title="Data requests" className="ov-reqs" href="/admin/rankings/data-requests">
       {open ? (
         <>
           <div className="ov-figrow">
@@ -48,6 +48,7 @@ async function ActionsTile({ warningDays }: { warningDays: number }) {
   const shown = open.slice(0, 5);
   return (
     <Tile
+      glow
       id="ov-act"
       title={
         <>
@@ -110,7 +111,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
     <div className="ov-bento">
       <NextDeadlineTile id="ov-next" calendar={calendar} href={(slug) => `/admin/rankings/${slug}`} />
 
-      <Tile id="ov-ready" title="Readiness" className="ov-hero" href="/admin/rankings">
+      <Tile glow id="ov-ready" title="Readiness" className="ov-hero" href="/admin/rankings">
         <div className="ov-figrow">
           <p className="ov-hero__value">
             {readiness}
@@ -125,7 +126,9 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
         <StatusMix items={evidence} />
       </Tile>
 
-      <Tile id="ov-units" title="Units engaged" className="ov-units" href="/admin/unit-submissions?tab=units">
+      <SubmissionCalendar id="ov-next-calendar" calendar={calendar} />
+
+      <Tile glow id="ov-units" title="Units engaged" className="ov-units" href="/admin/unit-submissions?tab=units">
         {units.length ? (
           <>
             <p className="ov-value">
@@ -146,7 +149,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
       {scoring && (
         <Suspense
           fallback={
-            <Tile id="ov-reqs" title="Data requests" className="ov-reqs" href="/admin/rankings/data-requests">
+            <Tile glow id="ov-reqs" title="Data requests" className="ov-reqs" href="/admin/rankings/data-requests">
               <span />
             </Tile>
           }
@@ -155,16 +158,14 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
         </Suspense>
       )}
 
-      <SubmissionCalendar id="ov-next-calendar" calendar={calendar} />
-
-      <Tile id="ov-rk" className="ov-rank">
+      <Tile glow id="ov-rk" className="ov-rank">
         <ReadinessChart goal={GOAL} />
       </Tile>
 
       {scoring && (
         <Suspense
           fallback={
-            <Tile id="ov-act" title="Open actions" className="ov-acts">
+            <Tile glow id="ov-act" title="Open actions" className="ov-acts">
               <span />
             </Tile>
           }

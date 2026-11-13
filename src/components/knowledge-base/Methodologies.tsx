@@ -27,7 +27,6 @@ export function Methodologies({ rankings, families, href }: { rankings: Ranking[
         const shade = (k: number) => `color-mix(in oklab, ${color} ${Math.round(100 - (k * 62) / Math.max(1, inds.length - 1))}%, var(--surface))`;
         return (
           <Tile
-            glow={false}
             key={r.slug}
             id={`kb-r-${r.slug}`}
             className="kb-rank"

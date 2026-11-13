@@ -104,11 +104,6 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
           </span>
         </div>
         <div className="ov__actions">
-          {h.feature("assistance") && (
-            <Link href="/portal/assistance" className="btn btn--sm">
-              <Icon name="help" size={16} /> Assistance
-            </Link>
-          )}
           {can.submit && unit.status === "Active" && (
             <Link href="/portal/submit" className="btn btn--sm btn--primary">
               <Icon name="upload" size={16} /> Submit evidence
@@ -160,7 +155,7 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
 
         <Standings id="ud-standings" standing={standing} />
 
-        <Tile id="ud-ready" title="Submission-ready" className="ud-ready">
+        <Tile glow id="ud-ready" title="Submission-ready" className="ud-ready">
           <div className="ov-figrow">
             <p className="ov-value ud-big">
               {pct}
@@ -176,6 +171,7 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
         </Tile>
 
         <Tile
+          glow
           id="ud-todo"
           title={
             <>
@@ -209,7 +205,7 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
           )}
         </Tile>
 
-        <Tile id="ud-honours" className="ud-hon">
+        <Tile glow id="ud-honours" className="ud-hon">
           <header className="ov-tile__head">
             <h2 id="ud-honours" className="ov-tile__title">
               Honours
@@ -255,11 +251,11 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
           </ul>
         </Tile>
 
-        <Tile id="ud-flow" title="Your submissions" className="ud-flow" aside={<span className="ud-aside">{count(sent.length, "sent", "sent")}</span>}>
+        <Tile glow id="ud-flow" title="Your submissions" className="ud-flow" aside={<span className="ud-aside">{count(sent.length, "sent", "sent")}</span>}>
           <PipelineFlow steps={steps} label="Your submissions by stage" />
         </Tile>
 
-        <Tile id="ud-reach" title="Where it counts" className="ud-reach">
+        <Tile glow id="ud-reach" title="Where it counts" className="ud-reach">
           {reach.length ? (
             <ul className="ov-bars">
               {reach.map(({ r, n }) => (
