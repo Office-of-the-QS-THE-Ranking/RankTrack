@@ -10,11 +10,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Notifications and alerts are toasts
 
-Every notification or alert is a toast at the top right that closes itself after 8 seconds. That covers anything reporting an outcome or event: "You signed out.", "Changes saved.", "Request sent.", "Could not save: …".
+Every notification or alert is a toast at the bottom right that closes itself after 4 seconds. That covers anything reporting an outcome or event: "You signed out.", "Changes saved.", "Request sent.", "Could not save: …".
 
 - Call `toast(message, tone)` from `src/components/ui/toast.tsx`. Tone is `"ok"`, `"error"` or `"info"`. For a server result, use `toast(r.message, r.ok ? "ok" : "error")`. In the Command & Control console, `notify` and `useAct` call the same toast.
 - `<Toaster />` is mounted once in `src/app/layout.tsx`. Don't mount another. For an outcome, don't build a local toast, a banner, a `Notice`, or a status line inside the page.
-- Don't override the timing or position. `TOAST_MS` is 8000 ms for every toast. The timer pauses while the pointer or keyboard focus is on a toast, and each toast has a close button. Toasts stack newest first, up to four. A repeated message restarts its timer instead of adding a copy. They sit 16px from the top right (full width minus 16px gutters on phones) and show above modal dialogs.
+- Don't override the timing or position. `TOAST_MS` is 4000 ms for every toast. The timer pauses while the pointer or keyboard focus is on a toast, and each toast has a close button. Toasts stack newest at the bottom, up to four. A repeated message restarts its timer instead of adding a copy. They sit 16px from the bottom right (full width minus 16px gutters on phones) and show above modal dialogs.
+- Toasts never dim or blur the page behind them. Don't add an overlay or backdrop.
 - When a message arrives with a redirect (for example `/signin?ended=signed-out`), show it as a toast on arrival and remove the parameter from the URL.
 - These stay inline and are not toasts: validation for the field someone is filling in (shown next to that field), standing page context (read-only, locked, scope or data warnings), the admin-set site notice banner, the bell's notification inbox, and a form's own confirmation screen that replaces the form after it is sent.
 

@@ -37,7 +37,7 @@ export function nextClose(rankings: Ranking[]) {
 export function Welcome({ name, line, action, badge }: { name: string; line: string; action?: { href: string; label: string }; badge?: ReactNode }) {
   const first = name ? firstName(name) : "";
   return (
-    <Tile id="ov-hello" className="ov-welcome">
+    <Tile glow id="ov-hello" className="ov-welcome">
       <div className="ov-welcome__text">
         <h2 id="ov-hello" className="ov-welcome__title">
           {greeting()}

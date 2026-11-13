@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PUBLISHED_STORIES as STATIC_STORIES } from "@/lib/data";
-import { useFeature, useHub, useRankings, useVariant } from "@/components/hub/HubProvider";
+import { useHub, useRankings, useVariant } from "@/components/hub/HubProvider";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { QueueArt } from "@/components/contributions/QueueArt";
 import { Tile } from "@/components/dashboard/Tile";
@@ -69,7 +68,6 @@ export function KnowledgeBase() {
   const { dictionary, evidenceLevels, families, office } = useViews();
   const hub = useHub();
   const inOffice = useVariant() === "office";
-  const assistance = useFeature("assistance");
   const DICTIONARY = hub?.dictionary ?? dictionary;
   const RANKINGS = useRankings();
   const params = useSearchParams();
@@ -180,7 +178,7 @@ export function KnowledgeBase() {
             <Resources templates={templates} training={training} policies={policies} practices={term && !practices.length ? null : practices} email={office.email} storyHref={storyHref} />
           ) : (
             <div className="kb-faq-grid">
-              <Tile glow={false} id="faq" title="Questions" className="kb-faq-tile">
+              <Tile id="faq" title="Questions" className="kb-faq-tile">
                 <div className="kb-faq">
                   {faq.map(({ q: qq, a }) => (
                     <details key={qq}>
@@ -194,21 +192,15 @@ export function KnowledgeBase() {
                 </div>
               </Tile>
               {!inOffice && (
-                <Tile glow={false} id="kb-ask-h" className="kb-ask">
+                <Tile id="kb-ask-h" className="kb-ask">
                   <Icon name="mail" size={24} />
                   <h2 id="kb-ask-h" className="kb-ask__title">
                     Need a hand?
                   </h2>
                   <p className="kb-ask__text">Contact the Office for help with your unit’s evidence or a ranking requirement.</p>
-                  {assistance ? (
-                    <Link href="/portal/assistance" className="btn btn--primary">
-                      Ask the Office
-                    </Link>
-                  ) : (
-                    <a href={`mailto:${office.email}`} className="btn btn--primary">
-                      <Icon name="mail" size={16} /> Email the Office
-                    </a>
-                  )}
+                  <a href={`mailto:${office.email}`} className="btn btn--primary">
+                    <Icon name="mail" size={16} /> Email the Office
+                  </a>
                 </Tile>
               )}
             </div>
@@ -223,7 +215,7 @@ export function KnowledgeBase() {
 function NoMatch({ query, found, onOpen }: { query: string; found: Record<Tab, number>; onOpen: (t: Tab) => void }) {
   const elsewhere = TABS.filter((t) => found[t.key] > 0);
   return (
-    <Tile glow={false} id="kb-none-h" className="kb-none">
+    <Tile id="kb-none-h" className="kb-none">
       <div className="kb-none__body">
         <QueueArt kind={query ? "search" : "start"} />
         <h2 id="kb-none-h" className="kb-none__title">

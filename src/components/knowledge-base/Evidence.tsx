@@ -13,7 +13,7 @@ export function Evidence({ checks, examples, steps }: { checks: typeof CHECKS; e
   return (
     <div className="kb-ev">
       {checks.length > 0 && (
-        <Tile glow={false} id="standards" title="What reviewers check" className="kb-checks-tile">
+        <Tile id="standards" title="What reviewers check" className="kb-checks-tile">
           <ol className="kb-checks">
             {checks.map((c) => (
               <li key={c.title} className="kb-check" style={{ ["--i" as string]: CHECKS.indexOf(c) } as CSSProperties}>
@@ -32,7 +32,7 @@ export function Evidence({ checks, examples, steps }: { checks: typeof CHECKS; e
       )}
 
       {steps.length > 0 && (
-        <Tile glow={false} id="kb-ladder-h" title="Evidence strength" className="kb-ladder-tile">
+        <Tile id="kb-ladder-h" title="Evidence strength" className="kb-ladder-tile">
           <ol className="kb-stairs" style={{ ["--n" as string]: steps.length } as CSSProperties}>
             {steps.map((s, k) => (
               <li key={s} style={{ ["--k" as string]: k } as CSSProperties} aria-label={`Level ${k + 1}: ${s}`}>
@@ -52,7 +52,7 @@ export function Evidence({ checks, examples, steps }: { checks: typeof CHECKS; e
       )}
 
       {examples.length > 0 && (
-        <Tile glow={false} id="kb-ex-h" title="Counts, and doesn’t" className="kb-ex-tile">
+        <Tile id="kb-ex-h" title="Counts, and doesn’t" className="kb-ex-tile">
           <ul className="kb-ex">
             {examples.map((e) => (
               <li key={e.topic} className="kb-pair">

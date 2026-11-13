@@ -35,7 +35,7 @@ export function Dictionary({
 
   return (
     <div className="kb-dict">
-      <Tile glow={false} id="kb-terms-h" className="kb-terms">
+      <Tile id="kb-terms-h" className="kb-terms">
         <header className="kb-terms__head">
           <h2 id="kb-terms-h">Terms</h2>
           <span>{terms.length}</span>
@@ -63,7 +63,7 @@ export function Dictionary({
         </ul>
       </Tile>
 
-      <Tile glow={false} id="kb-term-h" className="kb-entry">
+      <Tile id="kb-term-h" className="kb-entry">
         <article key={selected.term} className="kb-entry__doc">
           <span className="kb-entry__label">Indicator dictionary</span>
           <header className="kb-entry__head">

@@ -72,7 +72,6 @@ export function UnitParticipation({ units, category, query }: { units: HubUnit[]
                     <th className="r">Validated</th>
                     <th className="r">Revisions</th>
                     <th className="r">Rankings served</th>
-                    <th>Assistance</th>
                     <th>
                       <span className="sr-only">Open</span>
                     </th>
@@ -106,9 +105,6 @@ export function UnitParticipation({ units, category, query }: { units: HubUnit[]
                         </td>
                         <td data-label="Rankings served" className="r num">
                           {u.rankingsServed}
-                        </td>
-                        <td data-label="Assistance">
-                          {u.assistance ? <span className="chip chip--gold">Requested</span> : <span className="muted">—</span>}
                         </td>
                         <td className="r">
                           <Link href={`/admin/units/${u.slug}`} className="btn btn--ghost btn--sm btn--icon" aria-label={`Open ${u.name}`} scroll={kind !== "Faculty or college"}>

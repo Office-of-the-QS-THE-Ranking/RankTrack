@@ -360,7 +360,6 @@ export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = 
         { id: "data-entry", name: "Reporting-period data entry", description: "Submit data: values with their source documents.", area: "Contributor workspace", enabled: true },
         { id: "story-proposals", name: "Impact story proposals", description: "Units propose stories for the public library.", area: "Contributor workspace", enabled: true },
         { id: "innovation-proposals", name: "Innovation pipeline proposals", description: "Units propose innovations for the WURI pipeline.", area: "Contributor workspace", enabled: true },
-        { id: "assistance", name: "Assistance requests", description: "Units ask the Office for help.", area: "Contributor workspace", enabled: true },
         { id: "reports", name: "Report builder", description: "Filtered reports with CSV export.", area: "Office workspace", enabled: true },
         { id: "recognition-internal", name: "Recognition wall", description: "Unit recognition inside the workspace.", area: "Office workspace", enabled: true },
         { id: "public-publications", name: "Publications", description: "Stories & News, Research Articles and Reports & Insights on the public website.", area: "Public website", enabled: true },
@@ -399,8 +398,7 @@ export function buildSeed(ref: Pick<Reference, "directory" | "rankings">, now = 
       values: {},
       publishedReports: [],
       innovations: [],
-      assistance: [],
-      counters: { evidence: 0, request: 0, account: 0, story: 0, post: 0, document: 0, workspace: 0, workspaceFolder: 0, form: 0, innovation: 0, assistance: 0, incident: 0, alert: 0, point: 0, test: 0, dsr: 0, pia: 0, review: 0, unit: 0, notice: 0, import: 0, assignment: 0 },
+      counters: { evidence: 0, request: 0, account: 0, story: 0, post: 0, document: 0, workspace: 0, workspaceFolder: 0, form: 0, innovation: 0, incident: 0, alert: 0, point: 0, test: 0, dsr: 0, pia: 0, review: 0, unit: 0, notice: 0, import: 0, assignment: 0 },
     },
     notices: [],
   };

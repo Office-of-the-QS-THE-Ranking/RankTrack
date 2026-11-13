@@ -28,7 +28,6 @@ export async function portalContext() {
     validated: 0,
     revisions: 0,
     rankingsServed: 0,
-    assistance: false,
     code: org?.code ?? viewer.portal.unitId.toUpperCase(),
     status: org?.status ?? "Active",
     emails: org?.emails ?? [],

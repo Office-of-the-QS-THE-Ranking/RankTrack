@@ -1275,36 +1275,6 @@ export type Database = {
           },
         ]
       }
-      assistance_requests: {
-        Row: {
-          at: string
-          by: string
-          id: string
-          ord: number
-          topic: string
-          unit_id: string
-          urgent: boolean
-        }
-        Insert: {
-          at: string
-          by: string
-          id: string
-          ord: number
-          topic: string
-          unit_id: string
-          urgent?: boolean
-        }
-        Update: {
-          at?: string
-          by?: string
-          id?: string
-          ord?: number
-          topic?: string
-          unit_id?: string
-          urgent?: boolean
-        }
-        Relationships: []
-      }
       assistant_chunks: {
         Row: {
           action: string | null

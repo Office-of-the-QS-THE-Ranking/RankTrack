@@ -125,7 +125,7 @@ export function Standings({ id, standing }: { id: string; standing: Standing }) 
   const shown = [...keep].sort((a, b) => a - b);
 
   return (
-    <Tile id={id} className="ud-stand">
+    <Tile glow id={id} className="ud-stand">
       <header className="ov-tile__head">
         <h2 id={id} className="ov-tile__title">
           <Icon name="recognition" size={17} className="ud-stand__icon" />

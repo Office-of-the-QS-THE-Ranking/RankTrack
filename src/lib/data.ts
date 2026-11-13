@@ -95,7 +95,6 @@ export interface Unit {
   validated: number;
   revisions: number;
   rankingsServed: number;
-  assistance: boolean;
 }
 
 /* Required actions (Action center) */

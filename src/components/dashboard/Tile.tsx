@@ -5,9 +5,9 @@ import { Icon } from "@/components/ui/Icon";
 import { cx } from "@/components/ui/primitives";
 
 /**
- * A dashboard tile: a glass bezel whose rim lights toward the pointer, round a solid core. With `href` the
- * whole core is one link; otherwise `aside` holds the tile's own control. Without `title` the content draws
- * its own header, whose heading carries `id`.
+ * A tile: a plain card with one edge everywhere but the Dashboard tab. There `glow` makes it a glass bezel whose
+ * rim lights toward the pointer, round a solid core. With `href` the whole core is one link; otherwise `aside`
+ * holds the tile's own control. Without `title` the content draws its own header, whose heading carries `id`.
  */
 export function Tile({
   id,
@@ -15,7 +15,7 @@ export function Tile({
   className,
   href,
   aside,
-  glow = true,
+  glow = false,
   children,
 }: {
   id: string;
@@ -23,6 +23,7 @@ export function Tile({
   className?: string;
   href?: string;
   aside?: ReactNode;
+  /** The Dashboard tab's gradient rim. Only Dashboard tiles set it. */
   glow?: boolean;
   children: ReactNode;
 }) {
@@ -35,7 +36,7 @@ export function Tile({
     </header>
   );
   return (
-    <section className={cx("ov-tile", className)} aria-labelledby={id}>
+    <section className={cx("ov-tile", !glow && "ov-tile--plain", className)} aria-labelledby={id}>
       {glow && <GlowingEffect />}
       {href ? (
         <Link href={href} className="ov-tile__core">

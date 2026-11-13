@@ -754,35 +754,9 @@ Covers the last steps of the Office's data-gathering process: compile, Director 
 
 ---
 
-## 4.11 Assistance Requests
+## 4.11 Assistance Requests (removed)
 
-**FR-4.11.1 Request assistance. [Extend]** The system shall let a unit's contributor ask the Office for help, with quick answers and the Coordinator's details alongside.
-- **Inputs:** Topic, related requirement and ranking, urgency, message, optional attachment.
-- **Processing:** Assigns a reference, stores the request and notifies the Office.
-- **Outputs:** A reference (AR-####) and a toast.
-- **Validation:** Must contribute for the unit. Topic required. Message at least 10 characters. The `assistance` feature must be on.
-- **To complete:** Store the message, which is validated and then discarded today. Add attachments.
-
-**FR-4.11.2 Office assistance queue. [Planned]** The system shall give the Office a queue of requests.
-- **Inputs:** Filters by status, urgency, unit and owner.
-- **Processing:** Lets staff assign an owner and set a status: Open, In progress, Waiting on unit, Resolved, Closed. Urgent requests sort first.
-- **Outputs:** A queue with counts in the sidebar.
-- **Validation:** Requires a new assistance permission. Status changes are audited.
-
-**FR-4.11.3 Conversation. [Planned]** The system shall keep replies and files on the request and notify each side.
-- **Inputs:** Reply text; file.
-- **Processing:** Appends to the thread and sends a notice and email.
-- **Outputs:** A dated thread visible to the unit and the Office.
-- **Validation:** Reply at least 2 characters. Files follow the upload limits. Closed requests accept no replies until reopened.
-
-**FR-4.11.4 Service targets. [Planned]** The system shall flag requests past a response target (*default* 3 working days, 1 for urgent) and include them in the Office's to-do list.
-
-**FR-4.11.5 Resolution and satisfaction. [Planned]** The system shall record the resolution and ask the unit for a one-question rating.
-
-**Scaling provisions**
-- Turn frequent answers into Knowledge Base FAQ entries from the resolved thread.
-- Route topics to named Office staff automatically.
-- Report common topics per cycle to improve guidance.
+Removed on 2026-11-13. Units no longer request assistance in the Hub: the page, the `assistance.request` command, the `assistance` feature switch and the `assistance_requests` table are gone. Units contact the Office by email from the Knowledge Base. The number is kept so later sections keep theirs.
 
 ---
 
@@ -928,7 +902,7 @@ Pages: Working Documents, Library, Digital Forms (section 4.15), Archives and Kn
 **FR-4.14.5 Knowledge Base. [Built]** The system shall provide guidance with one shared search over tabs Dictionary, Methodologies, Evidence, Resources and FAQ.
 - **Inputs:** Tab and search term.
 - **Processing:** Shows a deadline countdown and submission calendar, term definitions with linked terms, methodology weights, what reviewers check, the evidence strength ladder, what counts and what does not, templates, training, policies, good practices and questions. Match counts appear on each tab.
-- **Outputs:** Guidance content, with routes to Request assistance or the Office's email.
+- **Outputs:** Guidance content, with a route to the Office's email.
 - **Validation:** Requires `knowledge: view`, which Student Organizers do not have by default.
 
 **FR-4.14.6 Knowledge Base editing. [Planned]** The system shall let the Office edit guidance on screen.
@@ -1227,14 +1201,13 @@ Unit Participation (assigned, completed, validated, revisions, rankings served; 
 | Request decided | Request decision | The requester |
 | Deadline approaching | Deadline reminder | The unit and Office |
 | Data requested, reminded, returned, escalated | Data request templates | The unit or Office |
-| Assistance reply | Assistance | The unit or Office |
 | Form sign-off due; form response arrived | Forms | Signatory; form runners |
 
 - **Validation:** The message must be sent before any screen says it was sent. Screens stating "sent" are corrected if delivery fails.
 
 **FR-4.18.4 Digests. [Planned]** The system shall offer a daily or weekly email summary in place of single emails, per person.
 
-**FR-4.18.5 Outcome messages. [Built]** The system shall report every outcome as a top-right toast that closes after 8 seconds, pauses on hover or focus, stacks up to four, and restarts rather than repeats. A message arriving with a redirect is shown once, and its URL parameter is removed.
+**FR-4.18.5 Outcome messages. [Built]** The system shall report every outcome as a top-right toast that closes after 4 seconds, pauses on hover or focus, stacks up to four, and restarts rather than repeats. A message arriving with a redirect is shown once, and its URL parameter is removed.
 
 **FR-4.18.6 Notice retention. [Extend]** The system shall keep notices for a set period. It keeps the newest 300 overall today.
 - **To complete:** Move to a per-recipient store with pagination and a configurable retention period, so one busy recipient cannot crowd out another.
@@ -1577,7 +1550,7 @@ Tabs: Rankings, Calendar, Workspace, Notifications, Features.
 
 **FR-4.27.7 Dashboard defaults. [Built]** The system shall set the Office's opening view, clock display and deadline warning (3–90 days).
 
-**FR-4.27.8 Feature switches. [Built]** The system shall switch these on or off: Evidence submission, Assistance requests, Report builder, Recognition wall, public Publications, public Recognition, public Knowledge Base.
+**FR-4.27.8 Feature switches. [Built]** The system shall switch these on or off: Evidence submission, Report builder, Recognition wall, public Publications, public Recognition, public Knowledge Base.
 
 **FR-4.27.9 Feature flags. [Extend]** The system shall stage new features as Off, Selected (named people or units) or Everyone. A Selected flag must name someone. Flags: Automatic ranking matching (FR-4.10.5), Spreadsheet upload (FR-4.8.16), Evidence reuse insights (FR-4.10.12), Story drafting help (FR-4.13.12).
 - **To complete:** Only reuse insights changes behaviour today. The others take effect when their features are built. Rename "Spreadsheet upload in Submit data" to match Data requests.
@@ -1764,7 +1737,6 @@ Every item below is specified above. The grouping suggests a sensible order, but
 | Item | Requirement |
 |---|---|
 | Email delivery, and invitation, receipt, decision and security emails | FR-4.18.2, FR-4.18.3, FR-4.3.1, FR-4.3.7, FR-4.21.1 |
-| Assistance message storage, Office queue and conversation | FR-4.11.1–FR-4.11.5 |
 | Sign-in lockout and multi-factor enforcement | FR-4.2.2, FR-4.2.3, FR-4.25.1 |
 | Governed PDF for reports | FR-4.17.4 |
 | Replace illustrative diagnostics, recognition and report figures | FR-4.7.3, FR-4.7.5, FR-4.17.2, FR-4.1.8 |

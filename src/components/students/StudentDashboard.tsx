@@ -110,7 +110,7 @@ export function StudentDashboard({ viewer, data }: { viewer: Viewer; data: Stude
       />
 
       <div className="ov-bento st-bento">
-        <Tile id="st-proposals" title="Project Proposals" href="/portal/proposals" className="st-proposals">
+        <Tile glow id="st-proposals" title="Project Proposals" href="/portal/proposals" className="st-proposals">
           <div className="ov-figrow">
             <p className="ov-value">
               {proposals.length}
@@ -125,6 +125,7 @@ export function StudentDashboard({ viewer, data }: { viewer: Viewer; data: Stude
         </Tile>
 
         <Tile
+          glow
           id="st-tasks"
           title={
             <>
@@ -151,7 +152,7 @@ export function StudentDashboard({ viewer, data }: { viewer: Viewer; data: Stude
           )}
         </Tile>
 
-        <Tile id="st-reports" title="Terminal Reports" href="/portal/terminal-reports" className="st-reports">
+        <Tile glow id="st-reports" title="Terminal Reports" href="/portal/terminal-reports" className="st-reports">
           <div className="ov-figrow">
             <p className="ov-value">
               {reports.length}
@@ -165,7 +166,7 @@ export function StudentDashboard({ viewer, data }: { viewer: Viewer; data: Stude
           {reports.length ? <CopyMix copies={reports} /> : <p className="ov-none">{data.reports.forms.length ? "Report on a finished project." : "Terminal report forms come soon."}</p>}
         </Tile>
 
-        <Tile id="st-forms" title="Your forms" className="st-forms-tile">
+        <Tile glow id="st-forms" title="Your forms" className="st-forms-tile">
           <ul className="st-own">
             {(["evaluation", "registration"] as const).map((k) => {
               const list = forms[k];
@@ -186,7 +187,7 @@ export function StudentDashboard({ viewer, data }: { viewer: Viewer; data: Stude
           </ul>
         </Tile>
 
-        <Tile id="st-recent" title="Recently edited" className="ov-acts st-recent">
+        <Tile glow id="st-recent" title="Recently edited" className="ov-acts st-recent">
           {copies.length ? (
             <ul className="ov-acts__list">
               {copies.slice(0, 5).map((c) => (

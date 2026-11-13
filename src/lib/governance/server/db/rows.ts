@@ -93,7 +93,6 @@ export const TABLES = {
   requirement_values: ["requirement_id"],
   published_reports: ["id"],
   innovations: ["id"],
-  assistance_requests: ["id"],
   id_counters: ["name"],
   notices: ["id"],
   notice_reads: ["notice_id", "account_id"],
@@ -690,9 +689,6 @@ function recordRows(r: Records, t: Tables) {
   r.innovations.forEach((x, i, all) =>
     t.innovations.push({ id: x.id, ord: prependOrd(i, all.length), name: x.name, unit_id: x.unitSlug, by: x.by, at: x.at, category: x.category }),
   );
-  r.assistance.forEach((x, i, all) =>
-    t.assistance_requests.push({ id: x.id, ord: prependOrd(i, all.length), topic: x.topic, unit_id: x.unitSlug, by: x.by, at: x.at, urgent: x.urgent }),
-  );
   for (const [name, value] of Object.entries(r.counters)) t.id_counters.push({ name, value });
 }
 
@@ -1204,14 +1200,6 @@ export function fromRows(t: Tables): Stored {
       by: str(x.by),
       at: iso(x.at),
       category: str(x.category),
-    })),
-    assistance: sorted(t.assistance_requests, "prepend").map((x) => ({
-      id: str(x.id),
-      topic: str(x.topic),
-      unitSlug: str(x.unit_id),
-      by: str(x.by),
-      at: iso(x.at),
-      urgent: !!x.urgent,
     })),
     counters: Object.fromEntries(t.id_counters.map((c) => [str(c.name), num(c.value)])),
   };

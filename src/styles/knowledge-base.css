@@ -19,18 +19,6 @@
   gap: 16px;
   min-width: 0;
 }
-/* Plain card surfaces, scoped to the Knowledge Base. */
-.kc .ov-tile {
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: 0 3px 12px -8px rgb(0 0 0 / 0.12);
-}
-.kc .ov-tile__core {
-  border-radius: 19px;
-  box-shadow: none;
-}
 .kb-intro {
   display: flex;
   flex-wrap: wrap;

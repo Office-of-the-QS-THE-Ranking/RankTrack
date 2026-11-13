@@ -44,7 +44,8 @@ describe("the Student role", () => {
   it("lets each role make only its own kinds of form", () => {
     const { w, admin, coord, dean, sec, grants } = people();
     expect(creatable(grants(admin), "office")).toContain("proposal");
-    expect(creatable(grants(coord), "unit", w.eng.id)).toEqual(["survey", "registration", "application", "evaluation"]);
+    // A unit makes every kind, proposals and terminal reports included (SIMBAHAYAN holds the ComDev proposal).
+    expect([...creatable(grants(coord), "unit", w.eng.id)].sort()).toEqual([...creatable(grants(admin), "office")].sort());
     expect(creatable(grants(coord), "unit", w.sci.id)).toEqual([]);
     expect(creatable(grants(coord), "office")).toEqual([]);
     expect(creatable(grants(dean), "unit", w.eng.id)).toEqual([]);
@@ -94,9 +95,13 @@ describe("a Student's own forms", () => {
 });
 
 describe("a unit's forms", () => {
-  it("are its Coordinators' (never the Office's proposals), read by its Administrators and, once published, the Office", () => {
+  it("are its Coordinators', proposals included, read by its Administrators and, once published, the Office", () => {
     const { w, admin, coord, dean, sec, run, grants } = people();
-    expect(run(coord, { type: "form.save", unitId: w.eng.id, title: "Project proposal", kind: "proposal", schema }).message).toMatch(/come from the Office/);
+    expect(run(coord, { type: "form.save", unitId: w.eng.id, title: "Project proposal", kind: "proposal", schema }).ok).toBe(true);
+    const [proposal] = w.state.records.forms;
+    expect([proposal.unitId, proposal.copies]).toEqual([w.eng.id, true]);
+    expect(formRights(grants(coord), coord.id, proposal)).toMatchObject({ edit: true, portal: true, review: true });
+    expect(formRights(grants(admin), admin.id, proposal)).toMatchObject({ edit: false, portal: false });
     expect(run(coord, { type: "form.save", unitId: w.eng.id, title: "Alumni survey", kind: "survey", schema }).ok).toBe(true);
     const [survey] = w.state.records.forms;
     expect(formRights(grants(coord), coord.id, survey)).toMatchObject({ edit: true, remove: true, portal: true, read: true, review: true, export: true, clear: true });

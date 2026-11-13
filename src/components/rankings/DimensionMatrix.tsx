@@ -13,7 +13,7 @@ const words = ["no", "one", "two", "three", "four", "five", "six", "seven", "eig
 
 /** Which institutional dimensions each ranking measures. Selecting a dimension explains why the
  *  same evidence can support several rankings. */
-export function DimensionMatrix({ base, slugs, glow }: { base: string; slugs?: string[]; glow?: boolean }) {
+export function DimensionMatrix({ base, slugs }: { base: string; slugs?: string[] }) {
   const { dimensionNotes, dimensions, matrix, rankings } = useViews();
   const [dim, setDim] = useState<Dimension | null>("Research");
   // Only the rankings System Configuration tracks (or shows publicly) are compared.
@@ -23,7 +23,6 @@ export function DimensionMatrix({ base, slugs, glow }: { base: string; slugs?: s
 
   return (
     <Card
-      glow={glow}
       title={
         <>
           Comparison of methodologies

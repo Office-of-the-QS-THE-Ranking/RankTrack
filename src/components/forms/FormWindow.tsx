@@ -1,7 +1,8 @@
 "use client";
 
 /*
- * One digital form in a full-size window. Its head names it and holds its content tabs and actions.
+ * One digital form in a full-size window. Its head names it and holds its actions; the content tabs lead the toolbar
+ * under it, with the open tab's filters and search to their right.
  * Details: the responder link (or, for a form filled in as copies, the Student Portal) with the response control
  * and the Publish to Student Portal switch, the numbers, and a map of the questions it asks with the sign-offs its
  * responses go through. Responses and Analytics are for the people who may read them (Responses.tsx,
@@ -82,6 +83,7 @@ export function FormWindow({
   const [tab, setTab] = useState<Tab>("Details");
   const [responses, setResponses] = useState<FormResponseItem[] | null>(null);
   const [editing, setEditing] = useState(false);
+  const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
 
   const reads = form.may.read;
   const load = useCallback(async () => {
@@ -125,21 +127,6 @@ export function FormWindow({
           </span>
           <h2 className="fm-window__title">{form.title}</h2>
         </div>
-        {reads && (
-          <div className="fm-window__tabs">
-            <Tabs<Tab>
-              label="Form"
-              idBase={tabsId}
-              tabs={[
-                { key: "Details", label: "Details", icon: "clipboard" },
-                { key: "Responses", label: "Responses", icon: "inbox", count: (responses?.length ?? form.responses?.total) || undefined },
-                { key: "Analytics", label: "Analytics", icon: "rankings" },
-              ]}
-              value={tab}
-              onChange={setTab}
-            />
-          </div>
-        )}
         <div className="fm-window__actions">
           {(draft || form.copies) && (form.may.edit || reads) && (
             <a className="btn content-tabs__action" href={link} target="_blank" rel="noopener noreferrer">
@@ -163,10 +150,28 @@ export function FormWindow({
         </div>
       </header>
 
+      {reads && (
+        // The content tabs lead the toolbar under the head; the open tab places its own filters and search beside them.
+        <div className="fm-window__bar">
+          <Tabs<Tab>
+            label="Form"
+            idBase={tabsId}
+            tabs={[
+              { key: "Details", label: "Details", icon: "clipboard" },
+              { key: "Responses", label: "Responses", icon: "inbox", count: (responses?.length ?? form.responses?.total) || undefined },
+              { key: "Analytics", label: "Analytics", icon: "rankings" },
+            ]}
+            value={tab}
+            onChange={setTab}
+            actions={<div ref={setToolbar} className="fm-window__slot" />}
+          />
+        </div>
+      )}
+
       {reads ? (
         <TabPanel idBase={tabsId} index={TABS.indexOf(tab)} className="fm-window__body">
           {tab === "Details" && details}
-          {tab === "Responses" && <FormResponses form={form} desk={desk} responses={responses} onChange={setResponses} reload={load} link={link} onCopy={onCopy} />}
+          {tab === "Responses" && <FormResponses toolbar={toolbar} form={form} desk={desk} responses={responses} onChange={setResponses} reload={load} link={link} onCopy={onCopy} />}
           {tab === "Analytics" && <FormAnalytics form={form} desk={desk} responses={sent} onCopy={onCopy} />}
         </TabPanel>
       ) : (

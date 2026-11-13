@@ -64,7 +64,7 @@ const weekday = (iso: string) => WEEKDAYS[new Date(`${iso}T00:00:00Z`).getUTCDay
 /** The deadline closest ahead, set out like a notice: what closes, the days remaining and the date in full, then what follows. */
 export function DeadlineCard({ id, next, after, href }: { id: string; next: Deadline | null; after: Deadline[]; href?: string }) {
   return (
-    <Tile id={id} className="kb-next" href={href}>
+    <Tile glow id={id} className="kb-next" href={href}>
       <h2 id={id} className="kb-next__eyebrow">
         Next deadline
       </h2>
@@ -113,7 +113,7 @@ export function DeadlineCard({ id, next, after, href }: { id: string; next: Dead
 /** The cycle's months on one rail, each deadline a dot in its family's colour, with today marked. */
 export function CycleCalendar({ id, months, next, todayAt }: { id: string; months: CycleMonth[]; next: Deadline | null; todayAt: number | null }) {
   return (
-    <Tile id={id} title="Submission calendar" className="kb-cal-tile" aside={<span className="kb-aside">{span(months)}</span>}>
+    <Tile glow id={id} title="Submission calendar" className="kb-cal-tile" aside={<span className="kb-aside">{span(months)}</span>}>
       {months.length ? (
         <div className="kb-cal-scroll">
           <div className="kb-cal" style={{ ["--n" as string]: months.length } as CSSProperties}>

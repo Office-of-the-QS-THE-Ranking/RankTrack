@@ -86,7 +86,7 @@ export const studentUnit = (viewer: Viewer) => viewer.grants.find((g) => g.roleI
 
 /**
  * A page's Digital Forms. The Office's: its own, then every unit's and Student's form once out of draft. A unit's:
- * its own with the Office's open forms beside them (not the proposals and terminal reports Students copy from the
+ * its own (proposals and terminal reports included) with the Office's open forms beside them (not the proposals and terminal reports Students copy from the
  * Student Portal). A Student's: their own forms of one kind.
  */
 export async function formsDesk(viewer: Viewer, where: DeskOf): Promise<FormsDesk> {

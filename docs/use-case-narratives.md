@@ -36,7 +36,7 @@ These apply throughout and are not repeated in each narrative.
 |---|---|
 | CR-1 | **Session.** Every page and command re-checks the session. A person whose session has ended goes to `/signin`, and an unsaved action reports "Your session has ended". |
 | CR-2 | **Authorization.** The server checks role, action and scope on every page and command. Hidden navigation is not the control. A page reached by address shows "Not part of your role". A refused command returns its reason and is audited as Denied. Only the active role's permissions count. |
-| CR-3 | **Feedback.** Every outcome is a toast at the top right that closes after 8 seconds. A field that fails its check shows a red edge, a shake and a warning triangle, and the first failing field gets focus. When a check fails, nothing is saved. |
+| CR-3 | **Feedback.** Every outcome is a toast at the bottom right that closes after 4 seconds. A field that fails its check shows a red edge, a shake and a warning triangle, and the first failing field gets focus. When a check fails, nothing is saved. |
 | CR-4 | **Audit.** Every governed change, sign-in and export is written to the hash-chained audit trail. Ordinary invalid input is not. |
 | CR-5 | **Rate limits.** Per account per minute: 120 commands, 30 uploads, 10 exports. Over the limit, the action is refused with a request to try again shortly. |
 | CR-6 | **Feature switches.** A switched-off feature shows "switched off" in a workspace and Not Found on the public site. |
@@ -157,7 +157,7 @@ These apply throughout and are not repeated in each narrative.
 | UC-073 | Request a revision | Office Administrator |
 | UC-074 | Change a record's ranking indicators | Office Administrator |
 | UC-075 | Respond to a revision and resubmit | Coordinator |
-| UC-076 | Ask the Office for assistance | Coordinator |
+| UC-076 | Ask the Office for assistance (removed) | — |
 | UC-077 | Request temporary data access | External guest, Office Administrator |
 
 **H. Units and recognition**
@@ -2093,27 +2093,9 @@ These apply throughout and are not repeated in each narrative.
 
 **Traces to:** FR-4.8.5
 
-### UC-076 — Ask the Office for assistance
+### UC-076 — Ask the Office for assistance (removed)
 
-**Actors:** Coordinator
-
-**Goal:** Get help on behalf of the unit.
-
-**Preconditions:** The person may contribute for the unit, and `assistance` is on.
-
-**Main flow:**
-
-1. The Coordinator opens Request assistance and enters a topic, urgency and message.
-2. The system assigns AR-####, keeps the topic and urgency, notifies the Office and shows a toast.
-
-**Exceptions:**
-
-- E1. No topic, or a message under 10 characters: refused.
-- E2. The person only reads the unit: refused and audited.
-
-**Postconditions:** The Office has a notice. The message itself is validated and then discarded, and no conversation is tracked. A person needs to follow up outside this flow.
-
-**Traces to:** FR-4.8.6
+Removed on 2026-11-13 with Request assistance. Units email the Office instead.
 
 ### UC-077 — Request temporary data access
 
@@ -4471,7 +4453,6 @@ These are real situations a reader may expect, but no complete use case exists f
 |---|---|---|
 | Receiving an invitation, receipt, suspension or deadline email | No mail service is connected. "Re-send" only updates a date. | UC-125, UC-126, UC-010 |
 | A second sign-in factor or account lockout enforced by the Hub | The policies can be saved, but neither is enforced. The Hub relies on Google's own 2-Step Verification. | UC-152 |
-| The Office following up an assistance request in the Hub | The message is validated and discarded, and only the topic and urgency are kept. No conversation or resolution is tracked. | UC-076 |
 | A Coordinator deleting or rewriting a submitted evidence record | Coordinators hold `evidence: delete`, but no such command exists. They can only respond to a revision. | UC-075 |
 | Coordinators, Unit Administrators or External guests building reports | They hold `reports: view`, but Reports exists only in the Office workspace. Guests see only a list of released reports. | UC-120, UC-030 |
 | Marking an access request "under review" | The command works on the server, but no current screen calls it. The tracker shows all pending requests as Under review. | UC-134, UC-013 |

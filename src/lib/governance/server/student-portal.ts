@@ -23,9 +23,9 @@ import { formProgress, type CheckContext } from "@/lib/forms/check";
 
 const questionsIn = (f: FormRecord) => f.schema.sections.reduce((n, s) => n + s.fields.filter((x) => x.type !== "note").length, 0);
 
-/** The Office's forms of a kind that Students may build copies of now: published to the Student Portal and taking responses. */
+/** The Office's and units' forms of a kind that Students may build copies of now: published to the Student Portal and taking responses. */
 export function copyForms(forms: FormRecord[], kind: FormKind): FormRecord[] {
-  return forms.filter((f) => f.kind === kind && COPY_KINDS.includes(kind) && !f.unitId && !f.ownerId && f.copies && f.students && takesResponses(f));
+  return forms.filter((f) => f.kind === kind && COPY_KINDS.includes(kind) && !f.ownerId && f.copies && f.students && takesResponses(f));
 }
 
 const portalForm = (f: FormRecord, issuer?: string): PortalForm => ({
@@ -101,7 +101,7 @@ async function copiesFor(viewer: Viewer, forms: FormRecord[], ctx: CheckContext)
 /** The Project Proposals or Terminal Reports page: the forms to build a copy of, and the copies built. */
 export async function copyDesk(viewer: Viewer, kind: FormKind): Promise<CopyDesk> {
   const state = await readState();
-  const ofKind = state.records.forms.filter((f) => f.kind === kind && !f.unitId && !f.ownerId && f.copies);
+  const ofKind = state.records.forms.filter((f) => f.kind === kind && !f.ownerId && f.copies);
   const issuer = (f: FormRecord) => (f.issuerId ? state.units.find((u) => u.id === f.issuerId)?.name : undefined);
   return {
     kind,

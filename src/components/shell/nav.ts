@@ -88,8 +88,6 @@ export const NAV: Record<Variant, NavGroup[]> = {
         { href: "/portal/requests", label: "Data requests", icon: "inbox", need: ["data", "view"] },
         // The unit's own posts, articles and reports, each approved by the Rankings Office before it goes live.
         { href: "/portal/publications", label: "Publications", icon: "publications", need: ["posts", "view"], publicationsBase: "/portal/publications" },
-        // Only a unit's contributors ask for assistance on its behalf (the command checks the same).
-        { href: "/portal/assistance", label: "Request assistance", icon: "help", need: ["evidence", "submit"], feature: "assistance" },
       ],
     },
     {

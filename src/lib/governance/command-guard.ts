@@ -8,7 +8,7 @@ import type { Command } from "./commands";
 const TYPES = [
   "role.permissions",
   "account.invite", "account.keep", "account.reauth", "account.resend", "account.revoke", "account.status", "account.transfer", "account.update",
-  "alert.update", "assignment.add", "assignment.remove", "assistance.request", "audit.export", "audit.verify",
+  "alert.update", "assignment.add", "assignment.remove", "audit.export", "audit.verify",
   "backup.request", "backup.run", "backup.schedule", "backup.test",
   "config.body", "config.bodyAdd", "config.cycle", "config.cycleAdd", "config.dashboard", "config.feature", "config.flag", "config.period",
   "config.periodAdd", "config.ranking", "config.site", "config.template", "config.uploads", "config.year", "config.yearAdd",
