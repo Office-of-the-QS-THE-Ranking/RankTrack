@@ -26,7 +26,7 @@ async function serve(bucket: Bucket, path: string, cache: string, download?: str
   if (download) {
     // An uploaded document is always a download, in a sandbox: it can never run as a page of the Hub.
     headers["Content-Disposition"] = `attachment; filename*=UTF-8''${encodeURIComponent(download)}`;
-    headers["Content-Security-Policy"] = "sandbox; default-src 'none'";
+    headers["Content-Security-Policy"] = "sandbox; default-src 'none'; frame-ancestors 'none'";
   }
   return new Response(file.body, { headers });
 }

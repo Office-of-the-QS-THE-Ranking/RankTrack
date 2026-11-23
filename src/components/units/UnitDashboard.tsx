@@ -1,9 +1,9 @@
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { calendarOf } from "@/lib/calendar";
 import type { ReactNode } from "react";
 import { RECOGNITION, STAGES, daysUntil, formatDate, type EvidenceStatus } from "@/lib/data";
 import type { RankingAction } from "@/lib/analytics/desk-types";
-import type { PortalContext } from "@/lib/governance/server/portal";
+import type { PortalContext } from "@/lib/governance/portal-build";
 import { flag } from "@/lib/governance/viewer";
 import { achievementsOf, metalOf, rankingsOf, seasonOf, seasonsOf } from "@/lib/merit";
 import { Icon } from "@/components/ui/Icon";
@@ -151,7 +151,7 @@ export function UnitDashboard({ ctx, plan }: { ctx: PortalContext; plan: Ranking
       />
 
       <div className="ov-bento ud-bento">
-        <NextDeadline id="ud-next" calendar={calendarOf(deadlines, h.state.config.calendar)} href={() => "/portal/submit"} />
+        <NextDeadline id="ud-next" calendar={calendarOf(deadlines, h.state.config.calendar)} families={h.ref.families} href={() => "/portal/submit"} />
 
         <Standings id="ud-standings" standing={standing} />
 

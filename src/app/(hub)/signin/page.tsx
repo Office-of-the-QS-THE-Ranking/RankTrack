@@ -12,7 +12,7 @@ import { normalizeReference } from "@/lib/governance/request-tracker";
 import { getViewer } from "@/lib/governance/server/session";
 import { safeNext } from "@/lib/governance/server/signin";
 import { readState } from "@/lib/governance/server/store";
-import pkg from "../../../package.json";
+import pkg from "../../../../package.json";
 
 /** The release stage shown after the version (package.json) in the sidebar's foot. */
 const STAGE = "Alpha";

@@ -4,14 +4,14 @@ import { closeModal, openModal } from "@/components/ui/modal-motion";
 
 import { useEffect, useId, useRef, useState, type ReactNode, useTransition } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { clearCookiesAndSignOut, exportMyData, loadDevices, loadLogs, loadOverview, loadPrivacy, saveNotificationPrefs, saveProfile, saveSessionPrefs, signOutDevice, switchActiveRole, signOutOtherDevices, type DeviceRow, type LogRow, type PrivacyInfo } from "@/app/actions/profile";
+import Link from "@/components/hub/paths";
+import { useWorkspaceRouter as useRouter } from "@/components/hub/paths";
+import { clearCookiesAndSignOut, exportMyData, loadDevices, loadLogs, loadOverview, loadPrivacy, saveNotificationPrefs, saveProfile, saveSessionPrefs, signOutDevice, switchActiveRole, signOutOtherDevices, type DeviceRow, type LogRow, type PrivacyInfo } from "@/components/hub/runtime/profile";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { ActivityDay, Badge, OverviewStats } from "@/lib/governance/account-overview";
 import { idleChoices } from "@/lib/governance/session-limits";
 import { NOTIFY_KINDS, prefKey, type NotifyChannel, type NotifyKind } from "@/lib/governance/notification-prefs";
-import { signOut } from "@/app/actions/session";
+import { signOut } from "@/components/hub/runtime/session";
 import type { Viewer } from "@/lib/governance/viewer";
 import { Face } from "@/components/ui/Face";
 import { Icon } from "@/components/ui/Icon";

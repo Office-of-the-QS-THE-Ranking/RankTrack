@@ -42,7 +42,7 @@ import { EVIDENCE_FILE_KINDS, EVIDENCE_LIMITS, EVIDENCE_SUMMARY, PUBLIC_URL, gue
 import { initials } from "@/lib/governance/rbac";
 import { TERMS, TERM_MONTHS, isTerm, academicYears, type Term } from "@/lib/periods";
 import { plainText } from "@/lib/rich-text";
-import { uploadEvidence } from "./evidence-upload";
+import { uploadEvidence } from "@/components/hub/runtime/evidence";
 import { KIND, SUBMISSION_TABS, fileKind, type SubmissionTab as Tab } from "./parts";
 import { StageTrack } from "./StageTrack";
 import { usePending } from "@/components/ui/ButtonBusy";

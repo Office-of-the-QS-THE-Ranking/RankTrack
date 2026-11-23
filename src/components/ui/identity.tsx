@@ -1,7 +1,7 @@
 "use client";
 
 /* Ranking and SDG identity marks: their colours and names are reference data (lib/reference.ts). */
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import type { CSSProperties } from "react";
 import { inkOn, type FamilyKey } from "@/lib/data";
 import { familyOf } from "@/lib/reference";

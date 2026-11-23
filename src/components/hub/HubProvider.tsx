@@ -7,7 +7,7 @@
  */
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useState, useTransition, type ReactNode } from "react";
-import { govern } from "@/app/actions/governance";
+import { govern } from "@/components/hub/runtime/governance";
 import type { Ranking } from "@/lib/data";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { Command, CommandResult } from "@/lib/governance/commands";

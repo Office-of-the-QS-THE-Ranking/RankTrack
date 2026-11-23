@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { STAGES, formatDate, type EvidenceItem, type EvidenceStatus } from "@/lib/data";
 import { bodyOfMapping } from "@/lib/governance/catalog";
@@ -16,7 +16,7 @@ import { Status, Swatch, cx } from "@/components/ui/primitives";
 import { RichText } from "@/components/ui/RichText";
 import { isRich, plainText } from "@/lib/rich-text";
 import { toast } from "@/components/ui/toast";
-import { uploadEvidence } from "./evidence-upload";
+import { uploadEvidence } from "@/components/hub/runtime/evidence";
 import { ReviewTab } from "./ReviewTab";
 import { KIND, Mark, SUBMISSION_TABS, fileKind, fileSize, filesOf, hostOf, linksOf, splitReach, splitResult, typesOf, type ShownFile, type SubmissionTab } from "./parts";
 import { usePending } from "@/components/ui/ButtonBusy";

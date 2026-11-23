@@ -1,10 +1,9 @@
 import type { CalendarItem } from "@/lib/calendar";
-import { serverViews } from "@/lib/governance/server/views";
+import type { Family } from "@/lib/reference";
 import { CycleCalendar, DeadlineCard, cycle } from "./Deadlines";
 
 /** The next collection date and the selected cycle's full submission calendar. */
-export async function NextDeadline({ id, calendar, href }: { id: string; calendar: CalendarItem[]; href: (slug: string) => string }) {
-  const { families } = await serverViews();
+export function NextDeadline({ id, calendar, families, href }: { id: string; calendar: CalendarItem[]; families: Record<string, Family>; href: (slug: string) => string }) {
   const { months, items, next, todayAt } = cycle(calendar, families);
   const nextItem = next && calendar.find((item) => item.key === next.key);
 
@@ -17,8 +16,7 @@ export async function NextDeadline({ id, calendar, href }: { id: string; calenda
 }
 
 /** The next-deadline card on its own, for a dashboard that sets it in a row of other tiles. */
-export async function NextDeadlineTile({ id, calendar, href }: { id: string; calendar: CalendarItem[]; href: (slug: string) => string }) {
-  const { families } = await serverViews();
+export function NextDeadlineTile({ id, calendar, families, href }: { id: string; calendar: CalendarItem[]; families: Record<string, Family>; href: (slug: string) => string }) {
   const { items, next } = cycle(calendar, families);
   const nextItem = next && calendar.find((item) => item.key === next.key);
 
@@ -30,8 +28,7 @@ export async function NextDeadlineTile({ id, calendar, href }: { id: string; cal
 }
 
 /** The cycle's submission calendar on its own, across a full dashboard row. */
-export async function SubmissionCalendar({ id, calendar }: { id: string; calendar: CalendarItem[] }) {
-  const { families } = await serverViews();
+export function SubmissionCalendar({ id, calendar, families }: { id: string; calendar: CalendarItem[]; families: Record<string, Family> }) {
   const { months, next, todayAt } = cycle(calendar, families);
 
   return (

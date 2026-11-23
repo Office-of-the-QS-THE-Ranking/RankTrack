@@ -1,10 +1,10 @@
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import type { ReactNode } from "react";
 // imported rather than referenced by path: the URL then carries the file's hash, so a re-render is never served stale
 import building from "../../../public/images/main-building-3d.webp";
 import { daysUntil, type Ranking } from "@/lib/data";
-import type { Hub } from "@/lib/governance/server/hub";
+import type { Hub } from "@/lib/governance/hub-build";
 import { viewerCan, type Viewer } from "@/lib/governance/viewer";
 import { Tile } from "./Tile";
 

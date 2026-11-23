@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { useState } from "react";
 import type { UnitKind } from "@/lib/data";
 import type { HubUnit } from "@/lib/governance/hub-types";

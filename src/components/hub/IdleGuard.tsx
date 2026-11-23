@@ -10,7 +10,7 @@ import { closeModal, openModal } from "@/components/ui/modal-motion";
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { heartbeat, signOut } from "@/app/actions/session";
+import { heartbeat, signOut } from "@/components/hub/runtime/session";
 import { Icon } from "@/components/ui/Icon";
 
 const EVENTS = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"] as const;

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { Ranking } from "@/lib/data";

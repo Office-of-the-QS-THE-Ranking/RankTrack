@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import Link, { useScreenPathname } from "@/components/hub/paths";
+import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { NAV, rankingOverviewTabs, type Variant } from "./nav";
 import { useViews } from "@/components/reference/ReferenceProvider";
@@ -9,7 +9,7 @@ import { PUBLICATION_SECTIONS } from "@/lib/publications";
 
 export function HeaderBreadcrumbs({ variant }: { variant: Variant }) {
   const { rankings } = useViews();
-  const pathname = usePathname();
+  const pathname = useScreenPathname();
   const searchParams = useSearchParams();
   const navItems = NAV[variant].flatMap((group) => group.items);
   const segments = pathname.split("/").filter(Boolean);

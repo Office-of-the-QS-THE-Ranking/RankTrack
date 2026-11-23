@@ -1,10 +1,10 @@
 "use client";
 
 import { THEME_BOOT, THEME_KEY } from "@/lib/boot-scripts";
-import dynamic from "next/dynamic";
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "@/components/hub/paths";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useWorkspacePaths, useWorkspaceRouter as useRouter } from "@/components/hub/paths";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { formatAsOf } from "@/lib/data";
@@ -14,12 +14,13 @@ import { familyOf } from "@/lib/reference";
 import { useReference } from "@/components/reference/ReferenceProvider";
 import type { HubData } from "@/lib/governance/hub-types";
 import { feature, viewerCan, type Viewer } from "@/lib/governance/viewer";
-import { signOut } from "@/app/actions/session";
+import { signOut } from "@/components/hub/runtime/session";
 import { Face } from "@/components/ui/Face";
 import { Icon } from "@/components/ui/Icon";
 import { InlineScript } from "@/components/site/InlineScript";
 import { HubProvider, useGovern } from "@/components/hub/HubProvider";
 import { IdleGuard } from "@/components/hub/IdleGuard";
+import { useHubRuntime } from "@/components/hub/runtime";
 import { NAV, isActive, isOverviewTab, publicationsSubnav, publicPathFor, rankingSubnav, workspaceSubnav, type NavGroup, type NavLink, type Variant } from "./nav";
 import { SearchPalette } from "./SearchPalette";
 import { NavIcon } from "./NavIcon";
@@ -28,8 +29,6 @@ import { ProfileSettings } from "./ProfileSettings";
 import { SECTIONS as COMMAND_CONTROL_SECTIONS, sectionHref } from "@/components/command-control/sections";
 import { Select } from "@/components/ui/pickers";
 
-/* Loaded after the page: it is WebGL and physics, and nothing on the page waits for it. */
-const Assistant = dynamic(() => import("@/components/assistant/Assistant"), { ssr: false });
 
 type Theme = "light" | "dark";
 // Applies the saved (or system) appearance before the first paint, so dark mode never flashes light.
@@ -272,6 +271,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   const [cycle, setCycle] = useState(hub?.currentCycle ?? "");
   const [theme, toggleTheme] = useTheme();
   const { run } = useGovern();
+  // The assistant comes with the runtime: the Hub's orb, or none in the portal demo.
+  const { Assistant } = useHubRuntime();
   const [nowMs, setNowMs] = useState(0);
   useEffect(() => setNowMs(Date.now()), [bell, hub]);
   // Desktop sidebar: full, or a narrow strip of icons. Remembered per browser.
@@ -297,6 +298,8 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
   /* What this viewer may see: rows need their permission (within the viewer's unit in the contributor
      workspace) and their feature switched on in System Configuration; Command & Control needs an
      administration role. */
+  // In the portal demo the rows lead to its own pages (rows it doesn't cover stay, and say so when clicked).
+  const paths = useWorkspacePaths();
   const nav: NavGroup[] = useMemo(() => {
     const target = variant === "unit" && viewer ? { unitId: viewer.portal.programId ?? viewer.portal.unitId } : {};
     const can = (need?: NavLink["need"]) => !need || !viewer || viewerCan(viewer, need[0], need[1], target);
@@ -309,10 +312,10 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
             (!item.workspace || workspaceSubnav(item.workspace).some((c) => can(c.need) && (!c.feature || feature(viewer, c.feature)))) &&
             (!item.feature || feature(viewer, item.feature)) &&
             (!item.commandControl || (!!viewer && viewer.commandControl.length > 0)),
-        ),
+        ).map((item) => ({ ...item, href: paths(item.href) ?? item.href })),
       }))
       .filter((g) => g.items.length);
-  }, [variant, viewer]);
+  }, [variant, viewer, paths]);
 
   const counts = useMemo(
     () => ({
@@ -912,7 +915,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
         </Suspense>
       )}
       {viewer && <IdleGuard idleMinutes={viewer.session.idleMinutes} warnMinutes={viewer.session.warnMinutes} />}
-      {assistant && viewer && <Assistant name={viewer.name} />}
+      {assistant && viewer && Assistant && <Assistant name={viewer.name} />}
     </div>
   );
 }

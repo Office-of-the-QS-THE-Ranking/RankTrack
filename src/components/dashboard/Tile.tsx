@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import type { ReactNode } from "react";
 import { GlowingEffect } from "@/components/ui/GlowingEffect";
 import { Icon } from "@/components/ui/Icon";

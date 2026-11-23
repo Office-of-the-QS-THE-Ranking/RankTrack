@@ -8,9 +8,9 @@
  * indicator; a figure chosen with it is only offered beside that indicator. The AI check, when the Office has turned
  * it on, gives a second opinion on the open suggestions and decides nothing.
  */
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { addReviewTerm, decideFinding, forgetReading, openReview, removeReviewTerm, reviewTerms, sendPages, startReading } from "@/app/actions/review";
+import { addReviewTerm, decideFinding, forgetReading, openReview, removeReviewTerm, reviewTerms, sendPages, startReading } from "@/components/hub/runtime/review";
 import { Hint } from "@/components/command-control/ui";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";

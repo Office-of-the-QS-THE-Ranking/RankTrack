@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { Icon } from "@/components/ui/Icon";
 import { Empty, MeterRow } from "@/components/ui/primitives";
 import { UnitMark } from "./UnitMark";

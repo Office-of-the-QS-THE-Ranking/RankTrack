@@ -1,9 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import type { CSSProperties } from "react";
 import { RECOGNITION, WURI_PLACEMENTS } from "@/lib/data";
 import type { HubUnit } from "@/lib/governance/hub-types";
-import { hub } from "@/lib/governance/server/hub";
+import type { Hub } from "@/lib/governance/hub-build";
 import { buildUnitLeaderboard } from "@/lib/governance/unit-leaderboard";
 import { Tile } from "@/components/dashboard/Tile";
 import { Medal } from "@/components/units/profile/Medal";
@@ -57,10 +57,9 @@ function None({ icon, children }: { icon: IconName; children: string }) {
  * units, coordinators and programmes behind them, on the dashboard's tiles. Recognition follows verified
  * evidence quality, measurable outcomes and collaboration (proposal §8).
  */
-export async function RecognitionWall({ mode, embedded }: { mode: "internal" | "public"; embedded?: boolean }) {
+export function RecognitionWall({ h, mode, embedded }: { h: Hub; mode: "internal" | "public"; embedded?: boolean }) {
   const internal = mode === "internal";
   // Units follow the Organizational Directory (active ones are recognised); rankings follow configuration.
-  const h = await hub();
   const units = h.activeUnits;
   const unitHref = (u: HubUnit | undefined) => (internal && u ? `/admin/units/${u.slug}` : undefined);
   const unitLink = (u: HubUnit) => {

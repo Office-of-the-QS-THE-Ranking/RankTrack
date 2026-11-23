@@ -2,8 +2,8 @@
 
 import { closeModal, openModal } from "@/components/ui/modal-motion";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/hub/paths";
+import { useWorkspaceRouter as useRouter } from "@/components/hub/paths";
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { EVIDENCE as STATIC_EVIDENCE, STORIES as STATIC_STORIES, type Ranking } from "@/lib/data";
 import type { HubData } from "@/lib/governance/hub-types";

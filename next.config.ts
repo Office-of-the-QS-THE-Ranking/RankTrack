@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import { FRAME_DENY_SOURCE } from "./src/lib/framing";
 
 /** Sent with every response, pages and files alike. The Content Security Policy is set per request in src/proxy.ts. */
 const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
@@ -63,12 +63,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
+      // Framing is refused everywhere but the public pages and the portal demo, which src/proxy.ts lets PORTFOLIO_ORIGINS
+      // embed (Content-Security-Policy frame-ancestors). The workspaces, sign-in, forms, APIs and media keep DENY.
+      { source: FRAME_DENY_SOURCE, headers: [{ key: "X-Frame-Options", value: "DENY" }] },
       { source: "/ocr/:path*", headers: [{ key: "Content-Security-Policy", value: OCR_POLICY }] },
     ];
   },
   devIndicators: false,
   turbopack: { root: path.resolve(__dirname) },
   experimental: {
+    // Two root layouts (app/(hub) and the portal demo's app/(demo)): unmatched addresses get app/global-not-found.tsx.
+    globalNotFound: true,
     // A workspace tab visited in the last 30 s opens from memory instead of rendering again. Every
     // change made through a server action revalidates the layout, which clears this cache.
     staleTimes: { dynamic: 30 },

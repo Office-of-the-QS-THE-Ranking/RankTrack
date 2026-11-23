@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useWorkspaceRouter as useRouter } from "@/components/hub/paths";
 
 export function ClickableTableRow({ href, children }: { href?: string; children: ReactNode }) {
   const router = useRouter();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useWorkspaceRouter as useRouter } from "@/components/hub/paths";
 import { Tabs } from "@/components/ui/interactive";
 
 export type DashboardView = "submissions" | "recognition";

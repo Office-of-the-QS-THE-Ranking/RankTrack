@@ -1,10 +1,10 @@
-import Link from "next/link";
+import Link from "@/components/hub/paths";
 import { calendarOf } from "@/lib/calendar";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { daysUntil } from "@/lib/data";
-import type { Hub } from "@/lib/governance/server/hub";
+import type { Hub } from "@/lib/governance/hub-build";
 import { viewerCan, type Viewer } from "@/lib/governance/viewer";
-import { rankingActions, requestsBrief } from "@/lib/analytics/server/desk";
+import type { RankingAction, RequestsBrief } from "@/lib/analytics/desk-types";
 import { Due, Empty, PlanStatus, RankingName, cx } from "@/components/ui/primitives";
 import { StatusMix, TickMeter } from "./Gauges";
 import { NextDeadlineTile, SubmissionCalendar } from "./NextDeadline";
@@ -17,8 +17,8 @@ const GOAL = 80;
 const mean = (xs: number[]) => (xs.length ? Math.round(xs.reduce((n, x) => n + x, 0) / xs.length) : 0);
 
 /** What the Office has asked of units and how much has come back. The detail is on Rankings › Data requests. */
-async function RequestsTile() {
-  const { open, requested, sent, overdue } = await requestsBrief();
+export function RequestsTileView({ brief }: { brief: RequestsBrief }) {
+  const { open, requested, sent, overdue } = brief;
   return (
     <Tile glow id="ov-reqs" title="Data requests" className="ov-reqs" href="/admin/rankings/data-requests">
       {open ? (
@@ -43,8 +43,8 @@ async function RequestsTile() {
 }
 
 /** The plan's next steps, soonest first. Each opens its ranking's Action plan, where the whole plan is. */
-async function ActionsTile({ warningDays }: { warningDays: number }) {
-  const open = (await rankingActions()).filter((a) => a.status !== "Complete");
+export function ActionsTileView({ actions, warningDays }: { actions: RankingAction[]; warningDays: number }) {
+  const open = actions.filter((a) => a.status !== "Complete");
   const shown = open.slice(0, 5);
   return (
     <Tile
@@ -93,9 +93,10 @@ async function ActionsTile({ warningDays }: { warningDays: number }) {
 
 /**
  * The Submissions view of the executive dashboard: a quick look at where things stand. It holds nothing of its own;
- * each tile summarises a page and links to it.
+ * each tile summarises a page and links to it. The Data requests and Open actions tiles come from the analytics engine,
+ * so the page passes them in (SubmissionsBoardTiles.tsx on the server; the portal demo passes its fixtures).
  */
-export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null }) {
+export function SubmissionsBoard({ h, viewer, requests, actions }: { h: Hub; viewer: Viewer | null; requests: ReactNode; actions: ReactNode }) {
   const evidence = h.evidence.filter((e) => viewerCan(viewer, "evidence", "view", { unitId: e.unitSlug }));
   const readiness = mean(h.rankings.map((r) => r.readiness));
   // The plan and the data requests are scoring data, for those who may read Rankings.
@@ -109,7 +110,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
 
   return (
     <div className="ov-bento">
-      <NextDeadlineTile id="ov-next" calendar={calendar} href={(slug) => `/admin/rankings/${slug}`} />
+      <NextDeadlineTile id="ov-next" calendar={calendar} families={h.ref.families} href={(slug) => `/admin/rankings/${slug}`} />
 
       <Tile glow id="ov-ready" title="Readiness" className="ov-hero" href="/admin/rankings">
         <div className="ov-figrow">
@@ -126,7 +127,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
         <StatusMix items={evidence} />
       </Tile>
 
-      <SubmissionCalendar id="ov-next-calendar" calendar={calendar} />
+      <SubmissionCalendar id="ov-next-calendar" calendar={calendar} families={h.ref.families} />
 
       <Tile glow id="ov-units" title="Units engaged" className="ov-units" href="/admin/unit-submissions?tab=units">
         {units.length ? (
@@ -154,7 +155,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
             </Tile>
           }
         >
-          <RequestsTile />
+          {requests}
         </Suspense>
       )}
 
@@ -170,7 +171,7 @@ export function SubmissionsBoard({ h, viewer }: { h: Hub; viewer: Viewer | null 
             </Tile>
           }
         >
-          <ActionsTile warningDays={h.dashboard.deadlineWarningDays} />
+          {actions}
         </Suspense>
       )}
     </div>
