@@ -146,7 +146,7 @@ export function startBridge(options: BridgeOptions): () => void {
       requestAnimationFrame(frame);
     });
 
-  const pointer = (el: HTMLElement, type: string, bubbles: boolean) => {
+  const pointer = (el: Element, type: string, bubbles: boolean) => {
     const r = el.getBoundingClientRect();
     const init = { bubbles, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, view: window };
     el.dispatchEvent(type.startsWith("pointer") ? new PointerEvent(type, { ...init, pointerType: "mouse" }) : new MouseEvent(type, init));
@@ -160,6 +160,8 @@ export function startBridge(options: BridgeOptions): () => void {
    */
   const HOVER = "data-autopilot-hover";
   const ACTIVE = "data-autopilot-active";
+  /** The visitor's own pointer, passed on by the portfolio while the autopilot flies (see "pointer"). */
+  const VISITOR = "data-autopilot-visitor";
   let mirror: CSSStyleSheet | null = null;
   let mirrorKey = "";
 
@@ -185,7 +187,8 @@ export function startBridge(options: BridgeOptions): () => void {
     splitList(selector)
       .map((part) => (part.includes("&") ? part.replace(/&/g, `:is(${parent})`) : `:is(${parent}) ${part}`))
       .join(", ");
-  const toMirror = (selector: string) => selector.replace(/:hover\b/g, `[${HOVER}]`).replace(/:active\b/g, `[${ACTIVE}]`);
+  const toMirror = (selector: string) =>
+    selector.replace(/:hover\b/g, `:is([${HOVER}], [${VISITOR}])`).replace(/:active\b/g, `[${ACTIVE}]`);
 
   const mirrorRules = (rules: CSSRuleList, parent: string | null): string => {
     let out = "";
@@ -259,6 +262,51 @@ export function startBridge(options: BridgeOptions): () => void {
     }
   };
 
+  /** The visitor's pointer, over the page at (x, y) in its viewport, or off it. */
+  let pointed: Element | null = null;
+  const visitorAt = (x: number | null, y: number | null) => {
+    const el = x === null || y === null ? null : document.elementFromPoint(x, y);
+    if (el === pointed) return el;
+    if (pointed) {
+      for (const type of ["pointerout", "mouseout"]) pointer(pointed, type, true);
+    }
+    pointed = el;
+    if (el) ensureMirror();
+    mark(VISITOR, el);
+    if (el) for (const type of ["pointerover", "mouseover"]) pointer(el, type, true);
+    return el;
+  };
+
+  /** Clicks an element the way a pointer does: pressed for a moment, then the click. Links that may not be framed are refused. */
+  const press = async (el: Element) => {
+    const link = el.closest<HTMLAnchorElement>("a[href]");
+    let url: URL | null = null;
+    if (link) {
+      url = new URL(link.href, location.href);
+      if (url.origin !== location.origin || !allow(url.pathname)) return false;
+      if ((link.target && link.target !== "_self") || link.hasAttribute("download")) return false;
+    }
+    ensureMirror();
+    mark(ACTIVE, el);
+    await new Promise((resolve) => window.setTimeout(resolve, 130));
+    mark(ACTIVE, null);
+    hover(null);
+    // A link the site's router doesn't handle itself (a plain <a>) would load a whole new page in the
+    // frame; with `navigate`, it opens in place instead. Listening on window, last, sees what the
+    // site's own handlers did first.
+    const inPlace = (event: MouseEvent) => {
+      window.removeEventListener("click", inPlace);
+      if (!url || event.defaultPrevented || !options.navigate) return;
+      event.preventDefault();
+      options.navigate(url.pathname + url.search + url.hash);
+    };
+    window.addEventListener("click", inPlace);
+    if (el instanceof HTMLElement) el.click();
+    else el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    window.removeEventListener("click", inPlace);
+    return true;
+  };
+
   const go = (to: string) => {
     const url = new URL(to, location.href);
     if (url.origin !== location.origin || !allow(url.pathname)) return false;
@@ -288,28 +336,22 @@ export function startBridge(options: BridgeOptions): () => void {
       }
       case "click": {
         const el = typeof data.link === "number" ? elements[data.link] : null;
-        if (!el || !el.isConnected) return false;
-        const url = new URL((el as HTMLAnchorElement).href, location.href);
-        if (url.origin !== location.origin || !allow(url.pathname)) return false;
-        // Pressed for a moment, as a real click is.
-        ensureMirror();
-        mark(ACTIVE, el);
-        await new Promise((resolve) => window.setTimeout(resolve, 130));
-        mark(ACTIVE, null);
-        hover(null);
-        // A link the site's router doesn't handle itself (a plain <a>) would load a whole new page in the
-        // frame; with `navigate`, it opens in place instead. Listening on window, last, sees what the
-        // site's own handlers did first.
-        const inPlace = (event: MouseEvent) => {
-          window.removeEventListener("click", inPlace);
-          if (event.defaultPrevented || !options.navigate) return;
-          event.preventDefault();
-          options.navigate(url.pathname + url.search + url.hash);
-        };
-        window.addEventListener("click", inPlace);
-        el.click();
-        window.removeEventListener("click", inPlace);
-        return true;
+        return el && el.isConnected ? press(el) : false;
+      }
+      case "pointer": {
+        // The visitor's pointer moving over the page: its hover effects, and the cursor it should show.
+        const x = typeof data.x === "number" ? data.x : null;
+        const y = typeof data.y === "number" ? data.y : null;
+        const el = visitorAt(x, y);
+        if (!el) return { cursor: "default" };
+        const cursor = getComputedStyle(el).cursor;
+        return { cursor: cursor === "auto" ? (el.closest("a[href], button, [role=button]") ? "pointer" : "default") : cursor };
+      }
+      case "clickAt": {
+        // The visitor's click that took the controls, passed on to what was under it.
+        const el = document.elementFromPoint(Number(data.x) || 0, Number(data.y) || 0);
+        visitorAt(null, null);
+        return el ? press(el) : false;
       }
       case "go":
         return go(String(data.path ?? "/"));
@@ -343,6 +385,7 @@ export function startBridge(options: BridgeOptions): () => void {
     if (now !== lastPath) {
       lastPath = now;
       hover(null);
+      visitorAt(null, null);
       // Give the new page a frame or two to draw before it's measured.
       requestAnimationFrame(() => requestAnimationFrame(() => post({ event: "route", ...state() })));
     }
