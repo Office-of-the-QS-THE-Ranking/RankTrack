@@ -2,12 +2,14 @@ import { connection } from "next/server";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
 import { RealRuntime } from "@/components/hub/RealRuntime";
+import { AutopilotBridge } from "@/components/site/AutopilotBridge";
 import { ButtonBusy } from "@/components/ui/ButtonBusy";
 import { ButtonFx } from "@/components/ui/ButtonFx";
 import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
 import { FieldErrors } from "@/components/ui/validation";
 import { reference } from "@/lib/governance/server/reference";
+import { portfolioOrigins } from "@/lib/framing";
 import { sans, serif } from "@/app/fonts";
 import "@/styles/all";
 
@@ -34,6 +36,7 @@ export async function HubDocument({ children }: { children: React.ReactNode }) {
         <CursorFx />
         <ButtonFx />
         <ButtonBusy />
+        <AutopilotBridge origins={portfolioOrigins()} />
         <SpeedInsights />
       </body>
     </html>

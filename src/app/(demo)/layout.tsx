@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import { ReferenceProvider } from "@/components/reference/ReferenceProvider";
+import { AutopilotBridge } from "@/components/site/AutopilotBridge";
 import { ButtonBusy } from "@/components/ui/ButtonBusy";
 import { ButtonFx } from "@/components/ui/ButtonFx";
 import { CursorFx } from "@/components/ui/CursorFx";
@@ -8,6 +9,7 @@ import { Toaster } from "@/components/ui/toast";
 import { FieldErrors } from "@/components/ui/validation";
 import { demoReference } from "@/lib/demo-portal/reference";
 import { PORTAL_NAME } from "@/lib/brand";
+import { portfolioOrigins } from "@/lib/framing";
 import { sans, serif } from "@/app/fonts";
 import "@/styles/all";
 import "@/styles/demo-portal.css";
@@ -40,6 +42,7 @@ export default async function DemoDocument({ children }: { children: React.React
         <CursorFx />
         <ButtonFx />
         <ButtonBusy />
+        <AutopilotBridge origins={portfolioOrigins()} />
       </body>
     </html>
   );
