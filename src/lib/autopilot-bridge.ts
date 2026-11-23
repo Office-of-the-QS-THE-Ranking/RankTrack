@@ -152,16 +152,108 @@ export function startBridge(options: BridgeOptions): () => void {
     el.dispatchEvent(type.startsWith("pointer") ? new PointerEvent(type, { ...init, pointerType: "mouse" }) : new MouseEvent(type, init));
   };
 
+  /*
+   * Hover styles. A script can't put an element in :hover, so the site's :hover and :active rules are
+   * copied onto attributes the bridge can set (same specificity, later in the cascade), and the
+   * pointed-at element and its ancestors get them, as a real pointer's would. Mirrors are rebuilt when
+   * the site's stylesheets change (a new page brings its own).
+   */
+  const HOVER = "data-autopilot-hover";
+  const ACTIVE = "data-autopilot-active";
+  let mirror: CSSStyleSheet | null = null;
+  let mirrorKey = "";
+
+  /** Splits a selector list at its top-level commas. */
+  const splitList = (list: string) => {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < list.length; i++) {
+      const c = list[i];
+      if (c === "(" || c === "[") depth++;
+      else if (c === ")" || c === "]") depth--;
+      else if (c === "," && depth === 0) {
+        parts.push(list.slice(start, i));
+        start = i + 1;
+      }
+    }
+    parts.push(list.slice(start));
+    return parts.map((p) => p.trim()).filter(Boolean);
+  };
+  /** A nested rule's selector, written out in full. */
+  const unnest = (selector: string, parent: string) =>
+    splitList(selector)
+      .map((part) => (part.includes("&") ? part.replace(/&/g, `:is(${parent})`) : `:is(${parent}) ${part}`))
+      .join(", ");
+  const toMirror = (selector: string) => selector.replace(/:hover\b/g, `[${HOVER}]`).replace(/:active\b/g, `[${ACTIVE}]`);
+
+  const mirrorRules = (rules: CSSRuleList, parent: string | null): string => {
+    let out = "";
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSStyleRule) {
+        const selector = parent ? unnest(rule.selectorText, parent) : rule.selectorText;
+        if (/:hover|:active/.test(selector) && rule.style.length) out += `${toMirror(selector)}{${rule.style.cssText}}`;
+        if (rule.cssRules?.length) out += mirrorRules(rule.cssRules, selector);
+      } else if (rule instanceof CSSMediaRule || rule instanceof CSSSupportsRule) {
+        const inner = mirrorRules(rule.cssRules, parent);
+        if (inner) out += `@${rule instanceof CSSMediaRule ? "media" : "supports"} ${rule.conditionText}{${inner}}`;
+      } else if (typeof CSSContainerRule !== "undefined" && rule instanceof CSSContainerRule) {
+        const inner = mirrorRules(rule.cssRules, parent);
+        if (inner) out += `@container ${rule.conditionText}{${inner}}`;
+      } else if (typeof CSSLayerBlockRule !== "undefined" && rule instanceof CSSLayerBlockRule) {
+        const inner = mirrorRules(rule.cssRules, parent);
+        // A named layer keeps its place in the site's layer order; an anonymous one can't be named again.
+        if (inner) out += rule.name ? `@layer ${rule.name}{${inner}}` : inner;
+      }
+    }
+    return out;
+  };
+
+  const sheetRules = (sheet: CSSStyleSheet) => {
+    try {
+      return sheet.cssRules;
+    } catch {
+      return null; // a stylesheet from another origin (web fonts) can't be read, and has no hovers of the site's
+    }
+  };
+
+  const ensureMirror = () => {
+    const sheets = Array.from(document.styleSheets);
+    const key = sheets.map((sheet) => `${sheet.href ?? "inline"}:${sheetRules(sheet)?.length ?? 0}`).join("|");
+    if (key === mirrorKey) return;
+    mirrorKey = key;
+    let css = "";
+    for (const sheet of sheets) {
+      const rules = sheetRules(sheet);
+      if (rules) css += mirrorRules(rules, null);
+    }
+    try {
+      if (!mirror) {
+        mirror = new CSSStyleSheet();
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, mirror];
+      }
+      mirror.replaceSync(css);
+    } catch {
+      // No constructable stylesheets: the pointer events below still run the site's own hover scripts.
+    }
+  };
+
+  /** Puts `attr` on an element and every ancestor, as the pointer's state is, or clears it. */
+  const mark = (attr: string, el: Element | null) => {
+    for (const node of document.querySelectorAll(`[${attr}]`)) node.removeAttribute(attr);
+    for (let node = el; node; node = node.parentElement) node.setAttribute(attr, "");
+  };
+
   const hover = (el: HTMLElement | null) => {
     if (hovered === el) return;
     if (hovered) {
       for (const type of ["pointerout", "mouseout"]) pointer(hovered, type, true);
       for (const type of ["pointerleave", "mouseleave"]) pointer(hovered, type, false);
-      delete hovered.dataset.autopilotHover;
     }
     hovered = el;
+    if (el) ensureMirror();
+    mark(HOVER, el);
     if (el) {
-      el.dataset.autopilotHover = "";
       for (const type of ["pointerover", "mouseover"]) pointer(el, type, true);
       for (const type of ["pointerenter", "mouseenter"]) pointer(el, type, false);
     }
@@ -199,6 +291,11 @@ export function startBridge(options: BridgeOptions): () => void {
         if (!el || !el.isConnected) return false;
         const url = new URL((el as HTMLAnchorElement).href, location.href);
         if (url.origin !== location.origin || !allow(url.pathname)) return false;
+        // Pressed for a moment, as a real click is.
+        ensureMirror();
+        mark(ACTIVE, el);
+        await new Promise((resolve) => window.setTimeout(resolve, 130));
+        mark(ACTIVE, null);
         hover(null);
         // A link the site's router doesn't handle itself (a plain <a>) would load a whole new page in the
         // frame; with `navigate`, it opens in place instead. Listening on window, last, sees what the
@@ -297,5 +394,6 @@ export function startBridge(options: BridgeOptions): () => void {
     window.removeEventListener("message", onMessage);
     window.removeEventListener("pagehide", onLeave);
     hover(null);
+    if (mirror) document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => sheet !== mirror);
   };
 }
