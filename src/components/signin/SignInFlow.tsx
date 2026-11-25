@@ -5,7 +5,7 @@
  * /auth/callback, where the Hub applies its own checks (account status, allowed domains, active roles) and
  * sends anyone it turns away back here with the reason.
  */
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { emailVerified, startGoogleSignIn } from "@/app/actions/session";
 import { GoogleMark } from "@/components/ui/GoogleMark";
 import { Icon } from "@/components/ui/Icon";
@@ -13,7 +13,7 @@ import { toast, type ToastTone } from "@/components/ui/toast";
 import { DRAFT_KEY, verifyMessage, type RequestUnit } from "@/lib/governance/access-requests";
 import { EMPTY_DRAFT, RequestAccessForm } from "./RequestAccessForm";
 import { SubmissionTracker } from "./SubmissionTracker";
-import { PORTAL_EXPANSION, PORTAL_WORD } from "@/lib/brand";
+import { FlowHeading, type Step } from "./FlowHeading";
 import { usePending } from "@/components/ui/ButtonBusy";
 
 /** This browser's last "Keep me signed in" choice. */
@@ -42,41 +42,6 @@ const REFUSED: Record<string, [string, ToastTone]> = {
   cancelled: ["Sign-in was cancelled.", "info"],
   google: ["Google sign-in didn’t complete. Try again.", "error"],
 };
-
-type Step = "start" | "request" | "track";
-
-/** Each step's heading: two words, one of them in gilt italic. The start step is the portal's name on one row,
-    the gilt word first, with what it stands for under it. */
-const HEADINGS: Record<Step, { lines: [string, string]; gold: 0 | 1 }> = {
-  start: { lines: [PORTAL_WORD, "Portal"], gold: 0 },
-  request: { lines: ["Request", "Access"], gold: 1 },
-  track: { lines: ["Submission", "Tracker"], gold: 1 },
-};
-
-/** The active step keeps the sidebar's ivory and gold serif heading. */
-function FlowHeading({ step = "start" }: { step?: Step }) {
-  const { lines, gold } = HEADINGS[step];
-  const start = step === "start";
-  const heading = (
-    <h1 className={`signin__display${start ? " signin__display--name" : ""}`}>
-      {lines.map((line, i) => (
-        <Fragment key={line}>
-          {i > 0 && " "}
-          <span className={`signin__row${i === gold ? " signin__row--gold" : ""}`}>
-            <span>{line}</span>
-          </span>
-        </Fragment>
-      ))}
-    </h1>
-  );
-  if (!start) return heading;
-  return (
-    <div className="signin__title">
-      {heading}
-      <p className="signin__expansion">{PORTAL_EXPANSION}</p>
-    </div>
-  );
-}
 
 export function SignInFlow({
   next,

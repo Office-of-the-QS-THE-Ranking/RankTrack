@@ -568,6 +568,10 @@ body:has(> .signin) {
   outline-offset: 2px;
 }
 /* The University's account: polished gold with a soft shadow and Google's G on a white tile. */
+/* the portal demo's sign-in (components/demo-portal/DemoSignIn) makes it a link to the dashboard */
+a.si__google {
+  text-decoration: none;
+}
 .si__google {
   position: relative;
   isolation: isolate;
