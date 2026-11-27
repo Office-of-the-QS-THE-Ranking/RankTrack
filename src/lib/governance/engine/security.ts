@@ -7,7 +7,7 @@ import { ROLE, roleOf } from "../catalog";
 import type { Command, CommandResult } from "../commands";
 import { addDays } from "../derive";
 import type { SecurityAlert, SubjectRequest } from "../types";
-import { accountById, actorFor, can, clean, cleanText, deny, invalid, isDay, isEmail, log, nextId, ok, type Ctx } from "./core";
+import { accountById, actorFor, can, clean, cleanText, deny, invalid, isDay, isEmail, log, nextId, notify, ok, type Ctx } from "./core";
 import { revokeSessions } from "./mutations";
 
 const POLICY = { type: "Policy", id: "security", label: "Privacy and security policy" };
@@ -144,6 +144,7 @@ export function completeReview(ctx: Ctx, id: string): CommandResult {
     a.statusChangedAt = ctx.iso;
     revokeSessions(ctx, a.id);
     log(ctx, "account.suspend", "Account", { type: "Account", id: a.id, label: a.name }, "Success", `Access review ${r.id}: not recertified`);
+    notify(ctx, a.id, "tpl-suspended", { name: a.name, reason: `Access not recertified in ${r.name}.` }, "/signin");
   }
   r.status = "Complete";
   log(ctx, "review.complete", "Security", { type: "Access review", id, label: r.name }, "Success", `${r.accountIds.length - revoked.length} kept · ${revoked.length} suspended`);

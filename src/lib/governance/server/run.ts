@@ -17,6 +17,8 @@ import { workspacePath } from "../workspace";
 import { canWith } from "../rbac";
 import { emblemPath } from "../unit-emblems";
 import type { GovernanceState } from "../types";
+import { dispatchMail } from "@/lib/mail/server/outbox";
+import { resolveMail, type MailJob } from "@/lib/mail/recipients";
 import { anchorAudit } from "./db/audit";
 import { mediaInUse } from "./media";
 import { reference } from "./reference";
@@ -150,7 +152,12 @@ function safely(body: Body, ctx: Ctx): CommandResult {
   }
 }
 
-async function commitWith(draft: GovernanceState, current: GovernanceState, actorOf: (s: GovernanceState) => Actor, body: Body, verified?: Verified) {
+/**
+ * `mail` receives the emails the command asked for, as people and addresses, once it has succeeded: nothing for a
+ * refusal. It is called on every attempt, so a transaction that runs again replaces what the first try gathered.
+ */
+async function commitWith(draft: GovernanceState, current: GovernanceState, actorOf: (s: GovernanceState) => Actor, body: Body, verified: Verified | undefined, mail: (jobs: MailJob[]) => void) {
+  mail([]);
   const now = new Date();
   const ref = await reference();
   upkeep(draft, ref, now);
@@ -161,6 +168,7 @@ async function commitWith(draft: GovernanceState, current: GovernanceState, acto
   if (result.ok) {
     seal(draft, ctx.drafts);
     if (ctx.drafts.some((d) => d.category !== "Session" && d.category !== "Backup")) scheduledBackup(draft, ref, now);
+    if (ctx.mail.length) mail(resolveMail(draft, ctx.mail, ctx.actor.id, ctx.day));
     return { commit: draft, result };
   }
   // Keep the refusal on record; drop everything else the command touched, including its queued side effects.
@@ -184,6 +192,7 @@ async function verifyFor(accountId: string | null, cmd: Command | Body): Promise
 /** Run a command as an account (or as a guest for access requests). */
 export async function run(accountId: string | null, cmd: Command | Body): Promise<CommandResult> {
   const verified = await verifyFor(accountId, cmd);
+  let mail: MailJob[] = [];
   const result = await transact((draft, current) =>
     commitWith(
       draft,
@@ -194,15 +203,20 @@ export async function run(accountId: string | null, cmd: Command | Body): Promis
       },
       typeof cmd === "function" ? cmd : (ctx) => execute(ctx, cmd),
       verified,
+      (jobs) => (mail = jobs),
     ),
   );
   void anchorAudit();
+  // Only now that the change is committed: an email never announces something that didn't happen.
+  dispatchMail(mail);
   return result;
 }
 
 /** Run a body as the system itself (sign-in bookkeeping, automatic suspensions). */
 export async function runSystem(body: Body): Promise<CommandResult> {
-  const result = await transact((draft, current) => commitWith(draft, current, () => SYSTEM, body));
+  let mail: MailJob[] = [];
+  const result = await transact((draft, current) => commitWith(draft, current, () => SYSTEM, body, undefined, (jobs) => (mail = jobs)));
   void anchorAudit();
+  dispatchMail(mail);
   return result;
 }

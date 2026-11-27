@@ -34,6 +34,8 @@ import { readState } from "@/lib/governance/server/store";
 import { copyForms } from "@/lib/governance/server/student-portal";
 import { endSession } from "./session";
 import type { Json } from "@/lib/supabase/database.types";
+import { mailDate } from "@/lib/mail/messages";
+import { mailTemplate } from "@/lib/mail/server/send";
 import { adminDb } from "@/lib/supabase/server";
 
 type Why = "gone" | "denied" | "sent";
@@ -311,6 +313,9 @@ export async function submitFormCopy(input: { code: string; token: string; conse
     return { ok: false, message: "Your copy couldn’t be sent. Try again in a moment." };
   }
   if (!data?.length) return { ok: false, message: "Someone on your team changed this copy just now. Check the latest answers, then send it again." };
+  // The receipt goes to whoever started the copy and the people they added: all signed in with Google to be here.
+  const team = [row.owner_email, ...(row.members ?? [])].filter((e): e is string => !!e).map((email) => ({ email, ...(email === row.owner_email && row.owner_name ? { name: row.owner_name } : {}) }));
+  await mailTemplate("tpl-form-receipt", team, { form: form.title, reference: row.ref, date: mailDate(at) }, copyPath(form.code, input.token), `form-receipt:${row.ref}`);
   return { ok: true, ref: row.ref, at };
 }
 

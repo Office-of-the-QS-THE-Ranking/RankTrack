@@ -16,6 +16,7 @@ import {
   invalid,
   isDay,
   log,
+  notify,
   ok,
   unitById,
   type Ctx,
@@ -68,6 +69,14 @@ function readInvite(ctx: Ctx, input: InviteInput): { person: Person; unit: OrgUn
   return { person, unit, roleId, position, external };
 }
 
+/** The invitation email: who invited them, to which unit, as what. Students belong to no unit, so theirs names none. */
+function sendInvitation(ctx: Ctx, a: Account) {
+  const asg = a.assignments[0];
+  const role = asg && roleOf(asg.roleId, ctx.state.config.rolePermissions);
+  const unit = asg?.roleId === ROLE.student ? "" : (unitById(ctx, a.unitId)?.name ?? "");
+  notify(ctx, a.id, "tpl-invite", { name: a.name, inviter: ctx.actor.name, unit, role: role ? roleLabel(role, asg.position) : "" }, "/signin");
+}
+
 export function invite(ctx: Ctx, input: InviteInput): CommandResult {
   const read = readInvite(ctx, input);
   if (typeof read === "string") return invalid(read);
@@ -94,6 +103,7 @@ export function invite(ctx: Ctx, input: InviteInput): CommandResult {
     profile: person.profile,
   });
   log(ctx, "account.invite", "Account", res(account), "Success", `${roleLabel(role, position)} · ${assignmentScopeLabel({ roleId: role.id, scope }, ctx.state.units)}${input.expires ? ` · until ${input.expires}` : ""}`);
+  sendInvitation(ctx, account);
   return ok(`Invitation sent to ${account.email}.`, { data: account.id });
 }
 
@@ -139,6 +149,7 @@ export function setStatus(ctx: Ctx, id: string, status: "Active" | "Suspended" |
   if (status === "Active") a.keptActive = { at: ctx.iso, by: ctx.actor.id };
   const verb = status === "Active" ? "reactivate" : status === "Suspended" ? "suspend" : from === "Pending Invitation" ? "cancel-invitation" : "deactivate";
   log(ctx, `account.${verb}`, "Account", res(a), "Success", [why, revoked ? `${revoked} active ${revoked === 1 ? "session" : "sessions"} ended` : ""].filter(Boolean).join(" · "));
+  if (status === "Suspended") notify(ctx, a.id, "tpl-suspended", { name: a.name, reason: /[.!?]$/.test(why) ? why : `${why}.` }, "/signin");
   return ok(
     status === "Active"
       ? `${a.name} is active again.`
@@ -158,6 +169,7 @@ export function resend(ctx: Ctx, id: string): CommandResult {
   if (blocked) return blocked;
   a.invitedAt = ctx.iso;
   log(ctx, "account.resend", "Account", res(a), "Success", a.email);
+  sendInvitation(ctx, a);
   return ok(`Invitation re-sent to ${a.email}.`);
 }
 

@@ -910,6 +910,240 @@
   flex: none;
 }
 
+/* ---------- Email (ConfigEmail.tsx) ---------- */
+
+@container sc (min-width: 900px) {
+  .sc-bento > .sc-mail-conn,
+  .sc-bento > .sc-mail-log {
+    grid-column: span 5;
+  }
+  .sc-bento > .sc-mail-figs,
+  .sc-bento > .sc-mail-look {
+    grid-column: span 7;
+  }
+}
+.sc-mail-conn > .ov-tile__core,
+.sc-mail-figs > .ov-tile__core,
+.sc-mail-log > .ov-tile__core,
+.sc-mail-look > .ov-tile__core {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sc-mail-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sc-mail-state__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sc-mail-state__text b {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.sc-mail-state__text small {
+  font-size: 12.5px;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+.sc-mail-facts {
+  display: grid;
+  margin: 0;
+}
+.sc-mail-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-top: 1px solid var(--sc-line);
+  font-size: 13.5px;
+}
+.sc-mail-facts dt {
+  flex: none;
+  color: var(--text-3);
+}
+.sc-mail-facts dd {
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.sc-mail-facts dd span {
+  color: var(--text-3);
+}
+.sc-mail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sc-mail-actions:empty {
+  display: none;
+}
+.sc-mail-limits {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--sc-line);
+}
+.sc-mail-limits .sc-knob > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Disconnect sits apart from the two buttons that keep the connection. */
+.sc-mail-off {
+  margin-right: auto;
+}
+
+.sc-mail-nums {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 28px;
+}
+.sc-mail-nums .ov-value {
+  margin: 0 auto 0 0;
+}
+.sc-mail-nums .ov-stat[data-tone="danger"] b {
+  color: var(--danger);
+}
+/* The month fills whatever height the row gives the tile. */
+.sc-mail-figs .cmd-bars {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 132px;
+}
+.sc-mail-figs .cmd-bars__plot {
+  flex: 1;
+  height: auto;
+  gap: 3px;
+}
+.sc-mail-figs .cmd-bars__bar {
+  border-radius: 4px 4px 2px 2px;
+  background: var(--text);
+}
+
+.sc-mail-pick {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.sc-mail-pick .select {
+  width: auto;
+  max-width: 220px;
+}
+/* The desk an email lies on: the frame is the message itself, drawn by the same code that sends it. */
+.sc-mail-stage {
+  display: grid;
+  justify-items: center;
+  padding: 0;
+  border-radius: 14px;
+  background: var(--sc-well);
+  box-shadow: inset 0 0 0 1px var(--sc-line);
+  overflow: hidden;
+}
+/* The message follows the Portal's theme, not the computer's: a frame reads its colour scheme from this property. */
+.sc-mail-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #f3efe6;
+  color-scheme: light;
+}
+:root[data-theme="dark"] .sc-mail-frame {
+  background: #0b0a09;
+  color-scheme: dark;
+}
+.sc-mail-stage[data-width="Phone"] {
+  padding: 18px 12px;
+}
+.sc-mail-stage[data-width="Phone"] .sc-mail-frame {
+  width: min(390px, 100%);
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 1px var(--sc-line),
+    0 18px 40px -24px rgb(0 0 0 / 0.35);
+}
+.cmd-sheet .sc-mail-stage {
+  flex: none;
+}
+
+/* The list is as tall as what it holds, not as the preview beside it. */
+.sc-bento > .sc-mail-log {
+  align-self: start;
+}
+.sc-mail-rows {
+  max-height: 560px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-right: -6px;
+  padding-right: 6px;
+}
+.sc-mail-rows > li {
+  padding: 0;
+}
+.sc-mail-rows > li:first-child {
+  padding-top: 0;
+}
+.sc-mail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-pointer);
+}
+.sc-mail-row:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: -1px;
+  border-radius: 10px;
+}
+.sc-mail-row__main {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.sc-mail-row__main b,
+.sc-mail-row__main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sc-mail-row__main b {
+  font-size: 14px;
+  font-weight: 500;
+}
+.sc-mail-row__main small {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+@media (hover: hover) {
+  .sc-mail-row:hover .sc-mail-row__main b {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+.cmd-mail b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sc-view {
     animation: none;

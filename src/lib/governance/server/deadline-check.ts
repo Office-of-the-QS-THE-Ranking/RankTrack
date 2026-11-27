@@ -9,7 +9,8 @@ import { createHash } from "node:crypto";
 import type { DeadlineSource } from "@/lib/reference";
 import type { CommandResult } from "../commands";
 import { fillUrl, readSentence, readTable, readWatch, type Reading } from "../deadline-read";
-import { recordCheck } from "../engine/deadlines";
+import { manilaDay } from "@/lib/forms/format";
+import { recordCheck, remindDeadlines } from "../engine/deadlines";
 import { reference } from "./reference";
 import { run, runSystem } from "./run";
 
@@ -84,6 +85,11 @@ export async function readSources(today = new Date().toISOString().slice(0, 10))
 export async function checkAsSystem(): Promise<CommandResult> {
   const readings = await readSources();
   return runSystem((ctx) => recordCheck(ctx, readings));
+}
+
+/** The daily round's reminders to the Office that a ranking is about to close (engine/deadlines.ts). */
+export async function remindAsSystem(): Promise<CommandResult> {
+  return runSystem((ctx) => remindDeadlines(ctx, manilaDay()));
 }
 
 /** Check now, as the person who asked; recordCheck refuses anyone who may not change deadlines. */

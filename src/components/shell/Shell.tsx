@@ -35,6 +35,42 @@ type Theme = "light" | "dark";
 const WIPE_MS = 620;
 const FADE_MS = 500;
 
+/** Keep the back button still while a long breadcrumb rolls between its ends. */
+function RollingBreadcrumb({ children }: { children: string }) {
+  const viewport = useRef<HTMLSpanElement>(null);
+  const label = useRef<HTMLSpanElement>(null);
+  const [overflow, setOverflow] = useState(0);
+
+  useEffect(() => {
+    const frame = viewport.current;
+    const text = label.current;
+    if (!frame || !text) return;
+    const measure = () => setOverflow(Math.max(0, text.scrollWidth - frame.clientWidth));
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    observer.observe(text);
+    measure();
+    return () => observer.disconnect();
+  }, [children]);
+
+  return (
+    <span className="side__crumb side__crumb--rolling">
+      <span
+        ref={viewport}
+        className="side__crumb-window"
+        data-overflow={overflow > 0 || undefined}
+        tabIndex={overflow > 0 ? 0 : undefined}
+        style={{
+          "--crumb-travel": `${-overflow}px`,
+          "--crumb-duration": `${Math.max(8, overflow / 6)}s`,
+        } as CSSProperties}
+      >
+        <span ref={label} className="side__crumb-label">{children}</span>
+      </span>
+    </span>
+  );
+}
+
 function useTheme() {
   const [theme, setTheme] = useState<Theme>("light");
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -682,7 +718,7 @@ function ShellFrame({ variant, viewer, hub, children }: { variant: Variant; view
                     All sections
                   </button>
                   <span className="side__crumbsep" aria-hidden="true"><Icon name="chevron" size={14} /></span>
-                  <span className="side__crumb">{commandControlItem.label}</span>
+                  <RollingBreadcrumb>{commandControlItem.label}</RollingBreadcrumb>
                 </div>
                 <hr className="side__sep" />
                 <ul className="side__nav">

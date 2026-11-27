@@ -9,7 +9,8 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ROLE } from "@/lib/governance/catalog";
-import { clean, isDay, isEmail, log } from "@/lib/governance/engine/core";
+import { clean, emailTo, isDay, isEmail, log } from "@/lib/governance/engine/core";
+import { mailDate } from "@/lib/mail/messages";
 import { personTitle, placePerson, readPerson } from "@/lib/governance/person-details";
 import { openRequest } from "@/lib/governance/engine/requests";
 import { allow, clientKey } from "@/lib/governance/server/limits";
@@ -166,10 +167,11 @@ export async function requestAccess(input: {
       `Account for ${name}, ${(person.roleId !== ROLE.student && unit?.name) || profile.organization || profile.affiliation}`,
       "",
     );
+    // the receipt, with the tracker's link, to the address the request came from
+    emailTo(ctx, { email, name }, "tpl-access-received", { name, reference: req.id, date: mailDate(ctx.iso), email, affiliation: profile.organization || profile.affiliation }, `/signin?track=${req.id}`, `access-received:${req.id}`);
     return { ok: true, message: req.id };
   });
   revalidatePath("/", "layout");
-  // The receipt is also to be emailed to the requester once the Hub's outgoing mail is set up.
   return out.ok
     ? { ok: true, message: `Your request is with the administrators. Once it is approved, sign in with ${email}.`, reference: out.message, at }
     : { ok: false, message: out.message };

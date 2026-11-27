@@ -53,8 +53,9 @@ export function updateNotificationPrefs(ctx: Ctx, input: unknown) {
   if (!Array.isArray(off) || !off.every(validPrefKey)) return invalid("Choose which notifications to receive.");
   const next = [...new Set(off)].sort();
   const before = account.notifyPrefs ?? {};
-  if (!!before.email === email && (before.off ?? []).join() === next.join()) return ok("Your notification settings are already up to date.");
-  account.notifyPrefs = email || next.length ? { ...(email ? { email: true } : {}), ...(next.length ? { off: next } : {}) } : undefined;
+  // email is on unless switched off, so only "off" is kept
+  if ((before.email !== false) === email && (before.off ?? []).join() === next.join()) return ok("Your notification settings are already up to date.");
+  account.notifyPrefs = !email || next.length ? { ...(email ? {} : { email: false }), ...(next.length ? { off: next } : {}) } : undefined;
   log(ctx, "notify.preferences", "Account", { type: "Account", id: account.id, label: account.name }, "Success", `Email ${email ? "on" : "off"}${next.length ? ` · ${next.length} switched off` : ""}`);
   return ok("Your notification settings have been saved.");
 }

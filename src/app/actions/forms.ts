@@ -29,6 +29,8 @@ import { filesForms } from "@/lib/forms/access";
 import type { FormRecord } from "@/lib/governance/types";
 import type { Json } from "@/lib/supabase/database.types";
 import { adminDb } from "@/lib/supabase/server";
+import { mailDate } from "@/lib/mail/messages";
+import { mailTemplate } from "@/lib/mail/server/send";
 
 type Fail = { ok: false; message: string };
 
@@ -136,7 +138,10 @@ export async function submitFormResponse(input: { code: string; answers: unknown
     console.error(`Form ${form.id}: ${error ? error.message : "no row"}`);
     return { ok: false, message: "Your response couldn’t be saved. Try again in a moment." };
   }
-  return { ok: true, ref: row.ref, at: new Date(row.submitted_at).toISOString() };
+  const at = new Date(row.submitted_at).toISOString();
+  // A receipt goes only to someone signed in: an address typed into a public form is never mailed.
+  if (student) await mailTemplate("tpl-form-receipt", [{ email: student.email, name: student.name }], { form: form.title, reference: row.ref, date: mailDate(at) }, undefined, `form-receipt:${row.ref}`);
+  return { ok: true, ref: row.ref, at };
 }
 
 /* ---------- Running a form ---------- */
@@ -145,7 +150,7 @@ export async function loadFormResponses(formId: string): Promise<{ ok: true; res
   const who = await runFor(formId, "read");
   if ("ok" in who) return who;
   try {
-    return { ok: true, responses: await responsesOf(who.form.id, true) };
+    return { ok: true, responses: await responsesOf(who.form.id, true, rightsFor(who.viewer, who.form).edit) };
   } catch (e) {
     console.error(e);
     return { ok: false, message: "Responses can’t be loaded right now. Try again in a moment." };

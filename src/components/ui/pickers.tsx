@@ -491,6 +491,23 @@ export function DateField({ value, onChange, min, max, className = "input", plac
   const jump = useRef(false);
   const base = useId();
   const { anchor, pop } = usePopover(open, () => setOpen(false), false);
+  // What the trigger reads, in the chosen format. A range stays on one line: when its long months don't fit the
+  // field, it reads with short months instead.
+  const shown = (format: "short" | "long") => (isIso(value) ? `${formatPicked(value, format)}${range ? ` – ${isIso(rangeEnd) ? formatPicked(rangeEnd, format) : "Last day"}` : ""}` : placeholder);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const sizerRef = useRef<HTMLSpanElement>(null);
+  const [tight, setTight] = useState(false);
+  const fits = range && displayFormat === "long";
+  useLayoutEffect(() => {
+    const label = labelRef.current;
+    const sizer = sizerRef.current;
+    if (!fits || !label || !sizer) return;
+    const check = () => setTight(sizer.offsetWidth > label.clientWidth + 0.5);
+    check();
+    const watch = new ResizeObserver(check);
+    watch.observe(label);
+    return () => watch.disconnect();
+  }, [fits, value, rangeEnd]);
 
   const within = (iso: string) => (!min || iso >= min) && (!max || iso <= max);
   const clamp = (iso: string) => (min && iso < min ? min : max && iso > max ? max : iso);
@@ -769,7 +786,10 @@ export function DateField({ value, onChange, min, max, className = "input", plac
           }
         }}
       >
-        <span className="pick-trigger__label">{isIso(value) ? `${formatPicked(value, displayFormat)}${range ? ` – ${isIso(rangeEnd) ? formatPicked(rangeEnd, displayFormat) : "Last day"}` : ""}` : placeholder}</span>
+        <span ref={labelRef} className="pick-trigger__label">
+          {shown(fits && tight ? "short" : displayFormat)}
+          {fits && <span ref={sizerRef} className="pick-date__sizer" aria-hidden="true">{shown("long")}</span>}
+        </span>
         <Icon name="calendar" size={16} className="pick-date__icon" />
       </button>
       <Proxy name={name} value={range ? isIso(value) && isIso(rangeEnd) ? `${value}/${rangeEnd}` : "" : value} required={required} disabled={disabled} missing={range ? "Choose the first and last day." : "Choose a date."} />

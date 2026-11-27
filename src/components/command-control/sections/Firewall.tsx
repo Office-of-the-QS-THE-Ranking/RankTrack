@@ -2,8 +2,9 @@
 
 /*
  * Command & Control › Firewall: the Hub's own firewall (lib/firewall), so the Office inspects and filters traffic the
- * same way wherever the Hub is hosted. Overview is the live traffic picture, Requests the raw log, Rules what to
- * block or allow, Settings the operating mode and records. The page polls /api/firewall every 10 seconds while
+ * same way wherever the Hub is hosted. Overview is the live traffic picture, Analytics who visits which pages
+ * (FirewallAnalytics.tsx, lib/web-analytics), Requests the raw log, Rules what to block or allow, Settings the
+ * operating mode, records and page analytics. The page polls /api/firewall every 10 seconds while
  * Live is on and the tab is visible. Styles: firewall.css (fw-*), with the sp-* pieces from security.css.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
@@ -16,14 +17,16 @@ import { NumberField, Select } from "@/components/ui/pickers";
 import { DENIED, RANGES, type FirewallDesk, type FirewallMode, type FirewallRange, type FirewallRequest, type FirewallRule, type FirewallView, type RequestAction, type RequestFilter, type RuleAction, type RuleKind, type TopRow } from "@/lib/firewall/types";
 import { EmptyNote, Field, Hint, KV, Pill, RowMenu, SearchField, Sheet, Switch, Tabs, fmtAgo, plural, useConsole } from "../ui";
 import { usePending } from "@/components/ui/ButtonBusy";
+import type { WaDesk } from "@/lib/web-analytics/types";
+import { AnalyticsArea, AnalyticsPanel, AnalyticsSettings, useAnalytics, type Analytics } from "./FirewallAnalytics";
 
-type Tab = "Overview" | "Requests" | "Rules" | "Settings";
+type Tab = "Overview" | "Analytics" | "Requests" | "Rules" | "Settings";
 type Result = { ok: boolean; message: string; data?: FirewallDesk };
-const TABS: Tab[] = ["Overview", "Requests", "Rules", "Settings"];
+const TABS: Tab[] = ["Overview", "Analytics", "Requests", "Rules", "Settings"];
 const POLL_MS = 10_000;
 
 const regions = typeof Intl !== "undefined" && "DisplayNames" in Intl ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
-const countryName = (code: string | null | undefined) => {
+export const countryName = (code: string | null | undefined) => {
   if (!code) return "Unknown";
   try {
     return regions?.of(code) ?? code;
@@ -31,9 +34,9 @@ const countryName = (code: string | null | undefined) => {
     return code;
   }
 };
-const compact = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}K` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
+export const compact = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}K` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
 /** Manila wall-clock time, computed by hand so the server and browser agree. */
-const manila = (iso: string, withDate = false) => {
+export const manila = (iso: string, withDate = false) => {
   const d = new Date(Date.parse(iso) + 8 * 3_600_000);
   const p = (n: number) => String(n).padStart(2, "0");
   const time = `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
@@ -41,7 +44,7 @@ const manila = (iso: string, withDate = false) => {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]} · ${time}`;
 };
-const tick = (iso: string, stepMs: number) => {
+export const tick = (iso: string, stepMs: number) => {
   const d = new Date(Date.parse(iso) + 8 * 3_600_000);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const p = (n: number) => String(n).padStart(2, "0");
@@ -96,11 +99,12 @@ const EXPIRES = [
   { value: "30d", label: "30 days" },
 ];
 
-export function Firewall({ initial }: { initial: FirewallDesk }) {
+export function Firewall({ initial, analytics: analyticsDesk }: { initial: FirewallDesk; analytics: WaDesk }) {
   const { notify, confirm } = useConsole();
   const [desk, setDesk] = useState(initial);
   const [tab, setTab] = useState<Tab>("Overview");
   const [live, setLive] = useState(true);
+  const analytics = useAnalytics(analyticsDesk, live, tab === "Analytics");
   const [busy, setBusy] = useState(false);
   usePending(busy);
   const [adding, setAdding] = useState<Partial<NewRule> | null>(null);
@@ -162,6 +166,7 @@ export function Firewall({ initial }: { initial: FirewallDesk }) {
   const denied = desk.summary.denied;
   const actions = (
     <>
+      {tab === "Analytics" && <AnalyticsArea a={analytics} />}
       {tab === "Requests" && (
         <Segmented
           label="Which requests"
@@ -198,6 +203,7 @@ export function Firewall({ initial }: { initial: FirewallDesk }) {
         search={tab === "Requests" ? <SearchField value={q} onChange={setQ} placeholder="Search address, path or reason" label="Search requests" examples={["203.0.113.7", "/wp-login", "Scanner"]} shortcuts /> : undefined}
         tabs={[
           { key: "Overview", label: "Overview" },
+          { key: "Analytics", label: "Analytics" },
           { key: "Requests", label: "Requests", count: denied || undefined, countTone: "alert" },
           { key: "Rules", label: "Rules", count: desk.rules.length + 2 },
           { key: "Settings", label: "Settings" },
@@ -233,7 +239,8 @@ export function Firewall({ initial }: { initial: FirewallDesk }) {
             }}
           />
         )}
-        {tab === "Settings" && <Settings desk={desk} busy={busy} save={(patch) => act(saveFirewallSettings(patch, view.current))} />}
+        {tab === "Analytics" && <AnalyticsPanel a={analytics} onSettings={() => setTab("Settings")} />}
+        {tab === "Settings" && <Settings desk={desk} busy={busy} analytics={analytics} save={(patch) => act(saveFirewallSettings(patch, view.current))} />}
       </TabPanel>
 
       <RequestSheet
@@ -582,7 +589,7 @@ function Overview({ desk, onRange, onBlock, onAllow, onShow, onRules }: { desk: 
   );
 }
 
-const Head = ({ icon, children }: { icon: IconName; children: ReactNode }) => (
+export const Head = ({ icon, children }: { icon: IconName; children: ReactNode }) => (
   <>
     <span className="sp-glyph" aria-hidden="true">
       <Icon name={icon} size={16} />
@@ -607,7 +614,7 @@ function Meter({ row, max }: { row: TopRow; max: number }) {
   );
 }
 
-function Quiet({ icon, text, ok }: { icon: IconName; text: string; ok?: boolean }) {
+export function Quiet({ icon, text, ok }: { icon: IconName; text: string; ok?: boolean }) {
   return (
     <div className={`sp-empty${ok ? " sp-empty--calm" : ""}`}>
       <span className="sp-empty__art" aria-hidden="true">
@@ -803,7 +810,7 @@ function RuleStatus({ enabled }: { enabled: boolean }) {
 }
 
 /** Keep edits local until submitted; a live poll with the same saved value never resets a draft. */
-function NumberSetting({
+export function NumberSetting({
   value,
   min,
   max,
@@ -1128,7 +1135,7 @@ function RuleSheet({ draft, you, onClose, onSave }: { draft: Partial<NewRule> | 
 
 /* ---------- Settings ---------- */
 
-function Settings({ desk, busy, save }: { desk: FirewallDesk; busy: boolean; save: (patch: Record<string, unknown>) => Promise<boolean> }) {
+function Settings({ desk, busy, analytics, save }: { desk: FirewallDesk; busy: boolean; analytics: Analytics; save: (patch: Record<string, unknown>) => Promise<boolean> }) {
   const { confirm } = useConsole();
   const st = desk.settings;
   const setMode = async (m: FirewallMode) => {
@@ -1255,6 +1262,7 @@ function Settings({ desk, busy, save }: { desk: FirewallDesk; busy: boolean; sav
           </div>
         </Tile>
       </div>
+      <AnalyticsSettings a={analytics} />
       {!desk.canEdit && <EmptyNote icon="eye" title="View only" />}
     </div>
   );

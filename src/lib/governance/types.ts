@@ -123,7 +123,7 @@ export interface Account {
    * sign-out, and the cookie outlives the browser). The policy's longest session always applies.
    */
   sessionPrefs?: { idleMinutes?: number; stay?: boolean };
-  /** The person's own notification choices: email on or off, and the kind:channel pairs switched off. */
+  /** The person's own notification choices: email is on unless switched off (email: false), and the kind:channel pairs switched off. */
   notifyPrefs?: { email?: boolean; off?: string[] };
   statusReason?: string;
   statusChangedAt?: ISOTime;

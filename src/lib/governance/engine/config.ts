@@ -5,9 +5,13 @@
 import type { Command, CommandResult } from "../commands";
 import { academicYear } from "@/lib/periods";
 import { bodyOfRanking } from "@/lib/reference";
+import { isDirect } from "@/lib/mail/messages";
+import type { NotificationTemplate } from "../types";
 import { accountById, can, clean, cleanText, deny, invalid, isDay, log, ok, unitById, type Ctx } from "./core";
 
 const SETTING = (id: string, label: string) => ({ type: "Setting", id, label });
+
+const CHANNELS: NotificationTemplate["channel"][] = ["Email", "In-app", "Email and in-app"];
 
 const ALLOWED_TYPES = ["PDF", "XLSX", "XLS", "CSV", "DOCX", "DOC", "PPTX", "PNG", "JPG", "JPEG", "ZIP", "TXT"];
 
@@ -191,6 +195,13 @@ export function configure(ctx: Ctx, cmd: Extract<Command, { type: `config.${stri
       if (cmd.enabled !== undefined && cmd.enabled !== t.enabled) {
         t.enabled = cmd.enabled;
         changes.push(cmd.enabled ? "switched on" : "switched off");
+      }
+      if (cmd.channel !== undefined && cmd.channel !== t.channel) {
+        if (!CHANNELS.includes(cmd.channel)) return invalid("Choose where the message goes.");
+        // a receipt or an answer for someone with no account has no bell to show in
+        if (isDirect(t.id) && cmd.channel !== "Email") return invalid(`${t.name} goes to people without an account, so it is sent by email only.`);
+        changes.push(`${t.channel} → ${cmd.channel}`);
+        t.channel = cmd.channel;
       }
       if (!changes.length) return ok("No changes.");
       log(ctx, "config.template", "Configuration", SETTING(t.id, t.name), "Success", changes.join(", "));
