@@ -48,6 +48,15 @@ const STAMP = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", 
 /** 27 Oct 2026, 11:42 pm, in Manila. */
 export const stampLabel = (iso: string) => STAMP.format(new Date(iso));
 
+const STAMP_DAY = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Manila" });
+const STAMP_TIME = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" });
+
+/** A moment in Manila as its day and its time apart, for a table cell that stacks them. */
+export function stampParts(iso: string) {
+  const at = new Date(iso);
+  return { day: STAMP_DAY.format(at), time: STAMP_TIME.format(at) };
+}
+
 /** A noun for a count: person → people, activity → activities, phase → phases. */
 export const nounFor = (n: number, one: string) => (n === 1 ? one : one === "person" ? "people" : /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : /(s|x|ch|sh)$/.test(one) ? `${one}es` : `${one}s`);
 

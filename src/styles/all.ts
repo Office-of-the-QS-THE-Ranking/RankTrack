@@ -44,6 +44,7 @@ import "@/styles/roles.css";
 import "@/styles/process-pipelines.css";
 import "@/styles/security.css";
 import "@/styles/firewall.css";
+import "@/styles/web-analytics.css";
 import "@/styles/system-config.css";
 import "@/styles/build-a-report.css";
 import "@/styles/modal-motion.css";

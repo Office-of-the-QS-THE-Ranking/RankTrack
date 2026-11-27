@@ -18,8 +18,8 @@ const SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET_KEY;
 const FRESH_MS = 15_000;
 const PURGE_MS = 3_600_000;
-/** The Firewall page's own polling, and Next.js internals (live reload in development): recording them would only drown the log. */
-const QUIET = /^\/(?:api\/firewall(?:\/|$)|_next\/)/;
+/** The Firewall page's own polling (requests and analytics), and Next.js internals (live reload in development): recording them would only drown the log. */
+const QUIET = /^\/(?:api\/(?:firewall|web-analytics)(?:\/|$)|_next\/)/;
 const SESSION_COOKIES = ["__Host-hub_session", "hub_session"];
 
 export type FirewallOff = "switched-off" | "development" | "no-database";

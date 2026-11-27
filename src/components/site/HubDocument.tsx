@@ -7,6 +7,7 @@ import { ButtonBusy } from "@/components/ui/ButtonBusy";
 import { ButtonFx } from "@/components/ui/ButtonFx";
 import { CursorFx } from "@/components/ui/CursorFx";
 import { Toaster } from "@/components/ui/toast";
+import { WebAnalytics } from "@/components/ui/WebAnalytics";
 import { FieldErrors } from "@/components/ui/validation";
 import { reference } from "@/lib/governance/server/reference";
 import { portfolioOrigins } from "@/lib/framing";
@@ -37,6 +38,7 @@ export async function HubDocument({ children }: { children: React.ReactNode }) {
         <ButtonFx />
         <ButtonBusy />
         <AutopilotBridge origins={portfolioOrigins()} />
+        <WebAnalytics />
         <SpeedInsights />
       </body>
     </html>

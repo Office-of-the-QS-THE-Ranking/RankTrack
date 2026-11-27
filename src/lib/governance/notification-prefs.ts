@@ -15,19 +15,33 @@ export interface NotifyKind {
 }
 
 export const NOTIFY_KINDS: NotifyKind[] = [
-  { key: "submissions", label: "New submissions", hint: "Evidence, data and proposals sent to the Office", templates: ["tpl-submitted"] },
-  { key: "reviews", label: "Review results", hint: "Evidence accepted or sent back for revision", templates: ["tpl-accepted", "tpl-revision"] },
+  { key: "submissions", label: "New submissions", hint: "Evidence, data and proposals sent to the Office, and the receipt for your own", templates: ["tpl-submitted", "tpl-receipt", "tpl-data-sent"] },
+  { key: "reviews", label: "Review results", hint: "Evidence and data accepted or sent back for revision", templates: ["tpl-accepted", "tpl-revision", "tpl-data-returned", "tpl-data-thanks"] },
   { key: "requests", label: "Request decisions", hint: "Approval requests approved or rejected", templates: ["tpl-decision"] },
   { key: "published", label: "Publications", hint: "Stories and posts that reach the public website", templates: ["tpl-published"] },
-  { key: "deadlines", label: "Deadlines", hint: "Data collection about to close, and new dates found on the ranking bodies' websites", templates: ["tpl-deadline", "tpl-deadline-found"] },
-  { key: "account", label: "Account and security", hint: "Invitations, suspensions and privacy requests", templates: ["tpl-invite", "tpl-suspended"], required: true },
+  {
+    key: "deadlines",
+    label: "Deadlines",
+    hint: "Data requests and their reminders, data collection about to close, and new dates found on the ranking bodies' websites",
+    templates: ["tpl-deadline", "tpl-deadline-found", "tpl-data-request", "tpl-data-reminder", "tpl-data-escalated"],
+  },
+  {
+    key: "account",
+    label: "Account and security",
+    hint: "Invitations, suspensions, privacy requests and receipts for what you send",
+    templates: ["tpl-invite", "tpl-suspended", "tpl-access-received", "tpl-access-approved", "tpl-access-declined", "tpl-form-receipt"],
+    required: true,
+  },
 ];
 
-/** Stored per account: whether email is on, and the kind:channel pairs switched off. */
+/** Stored per account: email is on unless it was switched off (email: false), and the kind:channel pairs switched off. */
 export interface NotifyPrefs {
   email?: boolean;
   off?: string[];
 }
+
+/** Whether the person takes notifications by email at all: yes, until they switch it off. */
+export const emailOn = (prefs: NotifyPrefs | undefined) => prefs?.email !== false;
 
 export const prefKey = (kind: string, channel: NotifyChannel) => `${kind}:${channel}`;
 
@@ -37,8 +51,9 @@ export const validPrefKey = (s: unknown): s is string => typeof s === "string" &
 
 /** Whether a notification from this template should reach the person on this channel. */
 export function wantsNotice(prefs: NotifyPrefs | undefined, templateId: string | undefined, channel: NotifyChannel) {
-  if (channel === "email" && !prefs?.email) return false;
   const kind = templateId ? NOTIFY_KINDS.find((k) => k.templates.includes(templateId)) : undefined;
-  if (!kind || kind.required) return true;
+  if (kind?.required) return true;
+  if (channel === "email" && !emailOn(prefs)) return false;
+  if (!kind) return true;
   return !prefs?.off?.includes(prefKey(kind.key, channel));
 }

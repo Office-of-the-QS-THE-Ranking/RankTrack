@@ -185,11 +185,14 @@ type ResponseRow = {
   label: string | null;
   owner_name: string | null;
   owner_email: string | null;
+  edited: { by?: string | null; at?: string } | null;
+  token: string | null;
 };
 
-const COLUMNS = "id, ref, answers, review, status, respondent, submitted_at, updated_at, label, owner_name, owner_email";
+const COLUMNS = "id, ref, answers, review, status, respondent, submitted_at, updated_at, label, owner_name, owner_email, edited, token";
 
-const toItem = (r: ResponseRow): FormResponseItem => ({
+/** One response row as the window reads it; `links` adds a team copy's own link, for those who may edit the form. */
+const toItem = (r: ResponseRow, links = false): FormResponseItem => ({
   id: r.id,
   ref: r.ref,
   answers: r.answers ?? {},
@@ -199,15 +202,20 @@ const toItem = (r: ResponseRow): FormResponseItem => ({
   submittedAt: new Date(r.submitted_at).toISOString(),
   updatedAt: new Date(r.updated_at).toISOString(),
   ...(r.label && { copy: { label: r.label, owner: r.owner_name || r.owner_email || "" } }),
+  ...(r.edited?.at && { edited: { by: r.edited.by?.trim() || "", at: new Date(r.edited.at).toISOString() } }),
+  ...(links && r.label && r.token && { token: r.token }),
 });
 
-/** A form's sent responses, newest first, or with `copies` its team copies still being filled in too. */
-export async function responsesOf(formId: string, copies = false): Promise<FormResponseItem[]> {
+/**
+ * A form's sent responses, newest first, or with `copies` its team copies still being filled in too. `links` gives
+ * each team copy its secret link: only for those who may edit the form, since the link opens the copy to change.
+ */
+export async function responsesOf(formId: string, copies = false, links = false): Promise<FormResponseItem[]> {
   let query = adminDb().from("form_responses").select(COLUMNS).eq("form_id", formId);
   if (!copies) query = query.neq("status", "draft");
   const { data, error } = await query.order("submitted_at", { ascending: false }).limit(5000);
   if (error) throw new Error(`Form responses: ${error.message}`);
-  return ((data ?? []) as unknown as ResponseRow[]).map(toItem);
+  return ((data ?? []) as unknown as ResponseRow[]).map((r) => toItem(r, links));
 }
 
 /** One sent response of a form, or null; a team copy can be reviewed once it's sent. */

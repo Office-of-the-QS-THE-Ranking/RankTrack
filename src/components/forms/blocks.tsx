@@ -290,7 +290,7 @@ export function TableInput({ spec, value, onChange, ctx, onRowRemoved }: InputPr
 /* ---------- Counts ---------- */
 
 /** Distinct group colors, shared by the legend dots and mix bar. */
-const MIX = ["#f2b705", "#3977cf", "#288c83", "#8b65bd", "#d57652", "#c65b85", "#7b8797"];
+const MIX = ["#4da8ff", "#5e5ce6", "#288c83", "#8b65bd", "#d57652", "#c65b85", "#7b8797"];
 
 export function CountsInput({ spec, value, onChange, ctx }: InputProps<CountsSpec>) {
   const group = useRef<HTMLDivElement>(null);

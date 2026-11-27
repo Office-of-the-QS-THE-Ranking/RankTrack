@@ -21,12 +21,14 @@ import { DateField, NumberField, Select } from "@/components/ui/pickers";
 import { UnitSelect } from "../parts";
 import { Field, Hint, ReadOnly, Sheet, Switch, Tabs, fmtDate, useAct, useConsole } from "../ui";
 import { usePending } from "@/components/ui/ButtonBusy";
+import { fillText, isDirect, SAMPLE_VARS } from "@/lib/mail/messages";
+import { Email, MailFrame, previewHtml, previewOrigin } from "./ConfigEmail";
 
 type Cfg = NonNullable<ConsoleData["config"]>;
-type TabKey = "rankings" | "deadlines" | "cycles" | "workspace" | "messages" | "features";
+type TabKey = "rankings" | "deadlines" | "cycles" | "workspace" | "messages" | "email" | "features";
 type Watch = "Read" | "Waiting" | "Failed" | "Manual";
 
-const KEYS: TabKey[] = ["rankings", "deadlines", "cycles", "workspace", "messages", "features"];
+const KEYS: TabKey[] = ["rankings", "deadlines", "cycles", "workspace", "messages", "email", "features"];
 const ID_BASE = "sc";
 const DAY_MS = 86_400_000;
 const WINDOW = 90;
@@ -126,6 +128,7 @@ export function Config() {
     { key: "cycles" as const, label: "Cycles" },
     { key: "workspace" as const, label: "Workspace" },
     { key: "messages" as const, label: "Messages" },
+    { key: "email" as const, label: "Email" },
     { key: "features" as const, label: "Features" },
   ];
 
@@ -150,6 +153,7 @@ export function Config() {
         {tab === "cycles" && <Cycles />}
         {tab === "workspace" && <Workspace />}
         {tab === "messages" && <Messages />}
+        {tab === "email" && <Email />}
         {tab === "features" && <Features />}
       </TabPanel>
     </div>
@@ -539,22 +543,9 @@ function Dashboards() {
 
 /* ---------- Messages ---------- */
 
-const SAMPLE: Record<string, string> = {
-  name: "Dr. J. Santiago",
-  inviter: "Engr. Nestor R. Ong",
-  unit: "Faculty of Engineering",
-  role: "Coordinator",
-  title: "Flood-resilience design studio",
-  comment: "Please attach the barangay resolution.",
-  count: "3",
-  decision: "approved",
-  approver: "Engr. Rodablas P. Nicolas",
-  ranking: "UI GreenMetric",
-  days: "10",
-  open: "2",
-  reason: "Five failed sign-ins.",
-};
-const fill = (s: string) => s.replace(/\{(\w+)\}/g, (_, k) => SAMPLE[k] ?? `{${k}}`);
+/** A message with stand-in values, as its reader would see it. */
+const fill = (s: string) => fillText(s, SAMPLE_VARS);
+const CHANNELS: NotificationTemplate["channel"][] = ["Email and in-app", "Email", "In-app"];
 
 function Messages() {
   return (
@@ -596,9 +587,9 @@ function Templates() {
   const edit = viewerCan(data.viewer, "config", "edit");
   const templates = data.config!.templates;
   const [sel, setSel] = useState<NotificationTemplate | null>(null);
-  const [f, setF] = useState({ subject: "", body: "" });
+  const [f, setF] = useState<{ subject: string; body: string; channel: NotificationTemplate["channel"] }>({ subject: "", body: "", channel: "In-app" });
   useEffect(() => {
-    if (sel) setF({ subject: sel.subject, body: sel.body });
+    if (sel) setF({ subject: sel.subject, body: sel.body, channel: sel.channel });
   }, [sel]);
   return (
     <Tile id="sc-templates" title="Emails and alerts" className="sc-templates" aside={<span className="kb-aside">{templates.filter((t) => t.enabled).length} of {templates.length} on</span>}>
@@ -621,7 +612,8 @@ function Templates() {
         open={!!sel}
         onClose={() => setSel(null)}
         title={sel?.name ?? ""}
-        sub={sel ? `${sel.event} · ${sel.channel}` : undefined}
+        sub={sel?.event}
+        wide={f.channel !== "In-app"}
         footer={
           edit && (
             <>
@@ -654,10 +646,24 @@ function Templates() {
         >
           <textarea className="textarea" value={f.body} disabled={!edit} onChange={(e) => setF({ ...f, body: e.target.value })} />
         </Field>
-        <div className="cmd-mail" aria-label="Preview">
-          <b>{fill(f.subject)}</b>
-          <p>{fill(f.body)}</p>
-        </div>
+        <Field label="Sent as" hint={sel && isDirect(sel.id) ? "Goes to people without an account, so by email only." : undefined}>
+          <Select className="select" value={f.channel} disabled={!edit || (!!sel && isDirect(sel.id))} onChange={(v) => setF({ ...f, channel: v as NotificationTemplate["channel"] })} aria-label="Sent as">
+            {CHANNELS.map((c) => (
+              <option key={c} value={c}>
+                {c === "In-app" ? "A notice in the Portal" : c === "Email" ? "An email" : "An email and a notice"}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {f.channel !== "Email" && (
+          <div className="cmd-mail" aria-label="Notice preview">
+            <b>
+              <Icon name="bell" size={13} /> In the Portal
+            </b>
+            <p>{fill(f.body)}</p>
+          </div>
+        )}
+        {f.channel !== "In-app" && sel && <MailFrame html={previewHtml({ id: sel.id, subject: f.subject, body: f.body }, previewOrigin())} title={`Email preview of ${sel.name}`} />}
       </Sheet>
     </Tile>
   );

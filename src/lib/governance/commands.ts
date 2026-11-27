@@ -13,6 +13,7 @@ import type {
   ExportPolicy,
   FeatureFlag,
   Incident,
+  NotificationTemplate,
   OrgKind,
   PostMedia,
   PrivacyAssessment,
@@ -143,7 +144,7 @@ export type Command =
   | { type: "config.period"; id: string; accepting?: boolean; label?: string; note?: string }
   | { type: "config.periodAdd"; label: string; note: string }
   | { type: "config.uploads"; value: SystemConfig["uploads"] }
-  | { type: "config.template"; id: string; subject?: string; body?: string; enabled?: boolean }
+  | { type: "config.template"; id: string; subject?: string; body?: string; enabled?: boolean; channel?: NotificationTemplate["channel"] }
   | { type: "config.dashboard"; value: Partial<SystemConfig["dashboard"]> }
   | { type: "config.feature"; id: string; enabled: boolean }
   | { type: "config.flag"; id: string; mode?: FeatureFlag["mode"]; accounts?: string[]; units?: string[] }

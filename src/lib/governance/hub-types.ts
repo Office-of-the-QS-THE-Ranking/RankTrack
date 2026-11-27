@@ -368,6 +368,10 @@ export interface FormResponseItem {
   updatedAt: string;
   /** A team copy: its name and who started it. */
   copy?: { label: string; owner: string };
+  /** The last change to a team copy and who made it (the name on that page; empty when it didn't say). */
+  edited?: { by: string; at: string };
+  /** A team copy's secret link token, for those who may edit the form only. */
+  token?: string;
 }
 
 /** A response that has been sent: what the review, analytics and export work on. */

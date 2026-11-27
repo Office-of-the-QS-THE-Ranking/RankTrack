@@ -6,7 +6,8 @@
 import type { Command, CommandResult } from "../commands";
 import { DEADLINE_LABEL, type Reading } from "../deadline-read";
 import type { DeadlineFinding, Notice, RankingConfig } from "../types";
-import { can, clean, deny, invalid, isDay, log, nextId, ok, type Ctx } from "./core";
+import { bodyOfRanking } from "@/lib/reference";
+import { can, clean, deny, invalid, isDay, log, nextId, notify, ok, type Ctx } from "./core";
 
 const RESOURCE = (slug: string, label: string) => ({ type: "Ranking calendar", id: slug, label });
 const CHECK = { type: "Deadline check", id: "deadline-check", label: "Deadline check" };
@@ -31,10 +32,15 @@ function guard(ctx: Ctx, action: string, slug: string, label: string): CommandRe
   return can(ctx, "config", "edit") ? null : deny(ctx, action, "Configuration", RESOURCE(slug, label), "Your role cannot change ranking deadlines.");
 }
 
-/** Post a notice to the Office under the "new date found" template, when it is switched on. */
-function tellOffice(ctx: Ctx, text: string, href: string) {
+/**
+ * Post a notice to the Office under the "new date found" template, when it is switched on. With `vars` (a date
+ * that was read), the template's own words also go out by email if its channel says so.
+ */
+function tellOffice(ctx: Ctx, text: string, href: string, vars?: Record<string, string>) {
   const t = ctx.state.config.templates.find((x) => x.id === "tpl-deadline-found");
-  if (!t?.enabled || t.channel === "Email") return;
+  if (!t?.enabled) return;
+  if (vars && t.channel !== "In-app") ctx.mail.push({ to: "office", templateId: t.id, vars, href });
+  if (t.channel === "Email") return;
   const notice: Notice = { id: nextId(ctx, "notice", "NT-"), at: ctx.iso, to: "office", text, href, templateId: t.id, readBy: [] };
   ctx.state.notices.unshift(notice);
   ctx.state.notices = ctx.state.notices.slice(0, 300);
@@ -185,7 +191,8 @@ export function recordCheck(ctx: Ctx, readings: Reading[]): CommandResult {
   const short = (slug: string) => ctx.ref.rankings.find((x) => x.slug === slug)?.short ?? slug;
   for (const f of fresh.slice(0, 6)) {
     const src = ctx.ref.deadlineSources.find((s) => s.id === f.sourceId);
-    tellOffice(ctx, `${short(f.slug)}: ${f.label.toLowerCase()} ${day(f.due)} on ${src?.name ?? "the ranking body's website"}. Apply it or dismiss it on the ranking's page.`, `/admin/rankings/${f.slug}#deadlines`);
+    const source = src?.name ?? "the ranking body's website";
+    tellOffice(ctx, `${short(f.slug)}: ${f.label.toLowerCase()} ${day(f.due)} on ${source}. Apply it or dismiss it on the ranking's page.`, `/admin/rankings/${f.slug}#deadlines`, { ranking: short(f.slug), label: f.label.toLowerCase(), date: day(f.due), source });
   }
   for (const id of changedPages) {
     const src = ctx.ref.deadlineSources.find((s) => s.id === id)!;
@@ -200,4 +207,34 @@ export function recordCheck(ctx: Ctx, readings: Reading[]): CommandResult {
   const parts = [fresh.length ? `${fresh.length} new ${fresh.length === 1 ? "date" : "dates"} found.` : "No new dates."];
   if (unread) parts.push(`${unread} ${unread === 1 ? "source" : "sources"} couldn't be read.`);
   return ok(parts.join(" "), { data: { found: fresh.length, failed: unread } });
+}
+
+/* ---------- Reminders ---------- */
+
+/** Days before a ranking closes on which the Office is reminded, besides the first day of the dashboards' warning window. */
+const REMIND_DAYS = [7, 3, 1];
+
+/**
+ * The daily round's reminders: each tracked ranking whose data collection closes in exactly the warning window,
+ * a week, three days or a day is announced to the Office under the "deadline reminder" template. `today` is the
+ * Manila day. Run twice in a day, it reminds once.
+ */
+export function remindDeadlines(ctx: Ctx, today: string): CommandResult {
+  const c = ctx.state.config;
+  const bodyOn = new Set(c.bodies.filter((b) => b.enabled).map((b) => b.key));
+  const marks = new Set([c.dashboard.deadlineWarningDays, ...REMIND_DAYS]);
+  const sent: string[] = [];
+  for (const meta of ctx.ref.rankings) {
+    const rc = c.rankings.find((x) => x.slug === meta.slug);
+    const body = bodyOfRanking(ctx.ref, meta.slug);
+    if (!rc?.enabled || !isDay(rc.deadline) || !body || !bodyOn.has(body)) continue;
+    const days = Math.round((Date.parse(`${rc.deadline}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+    if (!marks.has(days)) continue;
+    const href = `/admin/rankings/${meta.slug}`;
+    // already announced today, if the template also posts to the bell
+    if (ctx.state.notices.some((n) => n.templateId === "tpl-deadline" && n.href === href && n.at.slice(0, 10) === ctx.iso.slice(0, 10))) continue;
+    notify(ctx, "office", "tpl-deadline", { ranking: meta.name, days: days === 1 ? "1 day" : `${days} days`, date: day(rc.deadline) }, href, `deadline:${meta.slug}:${rc.deadline}:${days}`);
+    sent.push(meta.short);
+  }
+  return ok(sent.length ? `Deadline reminders: ${sent.join(", ")}.` : "No deadline reminders today.");
 }

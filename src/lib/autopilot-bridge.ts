@@ -43,6 +43,19 @@ export function startBridge(options: BridgeOptions): () => void {
     // A cross-origin parent can't be read: that's the portfolio.
   }
 
+  // The portfolio's window draws its own hairline scrollbar over the frame, so the page's own is hidden.
+  let framedSheet: CSSStyleSheet | null = null;
+  try {
+    framedSheet = new CSSStyleSheet();
+    framedSheet.replaceSync(
+      "html, body { scrollbar-width: none !important; }" +
+        " html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }",
+    );
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, framedSheet];
+  } catch {
+    framedSheet = null; // No constructable stylesheets: the page keeps its scrollbar.
+  }
+
   const allow = options.allow ?? (() => true);
   const jump = options.scrollTo ?? ((y: number) => window.scrollTo({ top: y, behavior: "instant" }));
   const visualY = options.visualY ?? (() => window.scrollY);
@@ -437,6 +450,6 @@ export function startBridge(options: BridgeOptions): () => void {
     window.removeEventListener("message", onMessage);
     window.removeEventListener("pagehide", onLeave);
     hover(null);
-    if (mirror) document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => sheet !== mirror);
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => sheet !== mirror && sheet !== framedSheet);
   };
 }

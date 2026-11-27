@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { managesAgenticControl } from "@/lib/assistant/server/chat";
 import { agenticControlDesk } from "@/lib/assistant/server/desk";
 import { firewallDesk } from "@/lib/firewall/server";
+import { webAnalyticsDesk } from "@/lib/web-analytics/server";
 import { consoleData } from "@/lib/governance/server/console";
 import { getViewer } from "@/lib/governance/server/session";
 import { viewerCan } from "@/lib/governance/viewer";
@@ -52,7 +53,8 @@ export async function CommandControlSection({ params }: { params: Promise<{ sect
   if (info.key === "firewall") {
     const viewer = await getViewer();
     if (!viewer || !viewerCan(viewer, "security", "view")) notFound();
-    return <Firewall initial={await firewallDesk(viewer)} />;
+    const [initial, analytics] = await Promise.all([firewallDesk(viewer), webAnalyticsDesk(viewer)]);
+    return <Firewall initial={initial} analytics={analytics} />;
   }
   return <SectionView section={info.key} />;
 }

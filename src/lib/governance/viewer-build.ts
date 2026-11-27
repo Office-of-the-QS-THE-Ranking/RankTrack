@@ -72,7 +72,7 @@ export function buildViewer(state: GovernanceState, account: Account, session: S
       stay: !!account.sessionPrefs?.stay,
       mfa: session.mfa,
     },
-    notify: { email: !!account.notifyPrefs?.email, off: account.notifyPrefs?.off ?? [] },
+    notify: { email: account.notifyPrefs?.email !== false, off: account.notifyPrefs?.off ?? [] },
   };
 }
 

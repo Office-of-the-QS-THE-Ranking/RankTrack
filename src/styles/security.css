@@ -1,8 +1,7 @@
 /*
  * Command & Control › Privacy & Security (components/command-control/sections/Security.tsx).
- * Overview: an onyx posture hero (tick dial with a radar sweep, six protection layers) over a bento of
- * plain Tiles (overview.css). Other tabs draw each setting as what it does, with its control beside it.
- * The hero is onyx in both themes; everything else takes the console's colours.
+ * Summary surfaces and metrics reuse Firewall's fw-* styles. Policy controls and detail views
+ * use the console's shared tiles, fields and colours in both themes.
  */
 
 /* The tokens also reach sheets, which open in the console's overlay layer (admin/ui.tsx, Layer). */
@@ -36,6 +35,90 @@
 }
 .sp-panel:focus-visible {
   outline: none;
+}
+/* Privacy & Security follows Firewall's policy-page rhythm. */
+.sp-security .sp-panel,
+.sp-security .sp-ov,
+.sp-security .sp-stack-y {
+  gap: 18px;
+}
+.sp-policy-summary .fw-policy-stats {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  row-gap: 20px;
+}
+.sp-security .sp-listening[data-grade="resilient"] { --tone: #4da8ff; }
+.sp-security .sp-listening[data-grade="satisfactory"] { --tone: #30d158; }
+.sp-security .sp-listening[data-grade="elevated"] { --tone: #f5c228; }
+.sp-security .sp-listening[data-grade="critical"] { --tone: #ff453a; }
+@container content (max-width: 560px) {
+  .sp-listening .fw-hero__state {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .sp-listening .sp-radar {
+    align-self: center;
+  }
+}
+.sp-policy-layers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-policy-layer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 70px;
+  padding: 12px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--sp-line);
+  background: transparent;
+  color: var(--sp-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+.sp-policy-layer:hover {
+  background: var(--sp-well);
+}
+.sp-policy-layer:focus-visible {
+  outline: 2px solid var(--sp-ink);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.sp-policy-layer__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.sp-policy-layer__text b {
+  font-size: 13px;
+  font-weight: 500;
+}
+.sp-policy-layer__text small {
+  color: var(--sp-muted);
+  font-size: 11px;
+}
+.sp-policy-layer > svg {
+  flex: none;
+  color: var(--sp-muted);
+}
+.sp-policy-layer [data-state="pass"] { color: var(--sp-ok); }
+.sp-policy-layer [data-state="warn"] { color: var(--sp-warn); }
+.sp-policy-layer [data-state="fail"] { color: var(--sp-danger); }
+@container content (max-width: 760px) {
+  .sp-policy-layers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container content (max-width: 440px) {
+  .sp-policy-layers { grid-template-columns: minmax(0, 1fr); }
+  .sp-policy-summary .fw-policy-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sp-policy-summary .fw-policy-stats > div:nth-child(odd) { padding-left: 0; border-left: 0; }
 }
 /* Match the Command & Control cards in both Firewall and Privacy & Security. */
 .sp .ov-tile {

@@ -31,6 +31,20 @@ export interface Actor {
   account?: Account;
 }
 
+/**
+ * An email the command asks for, sent once the change commits (lib/mail). `to` is who a notice is for (an account,
+ * "office", "unit:<id>") or one address, for someone with no account.
+ */
+export interface MailIntent {
+  to: string | { email: string; name?: string };
+  templateId: string;
+  vars: Record<string, string | number>;
+  /** Where the email's button goes: a path on the Hub. */
+  href?: string;
+  /** The same event asked for twice is one email. */
+  dedupe?: string;
+}
+
 export interface Ctx {
   state: GovernanceState;
   actor: Actor;
@@ -39,6 +53,8 @@ export interface Ctx {
   iso: string;
   drafts: AuditDraft[];
   effects: Effect[];
+  /** Emails to send once the change commits. */
+  mail: MailIntent[];
   /** The reference data (ranking frameworks, dictionary, lists) the rules check against. */
   ref: Reference;
 }
@@ -54,7 +70,7 @@ export const SYSTEM: Actor = { id: SYSTEM_ACTOR.id, name: SYSTEM_ACTOR.name, rol
 export const GUEST: Actor = { id: "guest", name: "Access request form", role: "Not signed in", grants: [] };
 
 export function makeCtx(state: GovernanceState, actor: Actor, ref: Reference, now = new Date()): Ctx {
-  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], ref };
+  return { state, actor, now, day: today(now), iso: now.toISOString(), drafts: [], effects: [], mail: [], ref };
 }
 
 export function log(
@@ -99,15 +115,27 @@ export function fill(ctx: Ctx, templateId: string, vars: Record<string, string |
   return t ? { subject: sub(t.subject), body: sub(t.body), enabled: t.enabled } : { subject: "", body: "", enabled: false };
 }
 
-/** Post an in-app notification built from a template, if the template is switched on. */
-export function notify(ctx: Ctx, to: string, templateId: string, vars: Record<string, string | number>, href: string) {
+/**
+ * Tell someone, from a template, if the template is switched on: a notice in the Hub, an email, or both, as the
+ * template's channel says. The email goes out once the change commits, to whoever would see the notice and takes
+ * that kind of email (lib/mail/recipients.ts).
+ */
+export function notify(ctx: Ctx, to: string, templateId: string, vars: Record<string, string | number>, href: string, dedupe?: string) {
   const msg = fill(ctx, templateId, vars);
   if (!msg.enabled) return;
   const t = ctx.state.config.templates.find((x) => x.id === templateId);
+  if (t && t.channel !== "In-app") ctx.mail.push({ to, templateId, vars, href, dedupe });
   if (t && t.channel === "Email") return;
   const notice: Notice = { id: nextId(ctx, "notice", "NT-"), at: ctx.iso, to, text: msg.body, href, templateId, readBy: [] };
   ctx.state.notices.unshift(notice);
   ctx.state.notices = ctx.state.notices.slice(0, 300);
+}
+
+/** Email one address from a template, if it is switched on: a receipt or an answer for someone with no account. */
+export function emailTo(ctx: Ctx, to: { email: string; name?: string }, templateId: string, vars: Record<string, string | number>, href?: string, dedupe?: string) {
+  const t = ctx.state.config.templates.find((x) => x.id === templateId);
+  if (!t?.enabled || !isEmail(to.email)) return;
+  ctx.mail.push({ to: { email: to.email.trim().toLowerCase(), name: to.name }, templateId, vars, href, dedupe });
 }
 
 export const MAX = { name: 120, text: 2000, note: 600 };

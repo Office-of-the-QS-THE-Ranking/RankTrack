@@ -6,10 +6,11 @@
  * icons for SDGs, cards for people, a small table for rows, the mix for counts, the lines and totals for a
  * budget, typed names in ink for signatures.
  */
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { useViews } from "@/components/reference/ReferenceProvider";
 import { Face } from "@/components/ui/Face";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, isIconName, type IconName } from "@/components/ui/Icon";
+import { toast } from "@/components/ui/toast";
 import { LinkGlyph } from "@/components/workspace/LinkGlyph";
 import { cleanLink, LINK_KIND_LABEL, linkKind } from "@/lib/governance/workspace";
 import { budgetItemLabel, budgetSourceLabel, budgetTotals, lineAmount, partName, partsOf, sourceSummary } from "@/lib/forms/budget";
@@ -105,18 +106,8 @@ export function AnswerView({ spec, value, ctx }: { spec: FieldSpec; value: Value
                   {p.role && <em>{p.role}</em>}
                 </span>
                 <span className="fm-a-people__reach">
-                  {p.phone && (
-                    <a href={`tel:${p.phone.replace(/[^\d+]/g, "")}`}>
-                      <Icon name="phone" size={12} />
-                      {p.phone}
-                    </a>
-                  )}
-                  {p.email && (
-                    <a href={`mailto:${p.email}`}>
-                      <Icon name="mail" size={12} />
-                      {p.email}
-                    </a>
-                  )}
+                  {p.phone && <CopyLine icon="phone" value={p.phone} what="Number" />}
+                  {p.email && <CopyLine icon="mail" value={p.email} what="Email" />}
                 </span>
               </li>
             ))}
@@ -334,7 +325,8 @@ export function SourceSummaryTable({ budget, value, source, ctx, lines = true, p
         <tr>
           <th scope="col">Item</th>
           {payee && <th scope="col">Paid to</th>}
-          <th scope="col">{label}</th>
+          {/* The office's table sits under the question that names the source, so its amounts need no long heading. */}
+          <th scope="col">{payee ? "Amount" : label}</th>
         </tr>
       </thead>
       {shown.map((c) => (
@@ -377,17 +369,66 @@ export function SourceSummaryTable({ budget, value, source, ctx, lines = true, p
   );
 }
 
-/** Every shown section of a response, its answers read back. `onEdit` adds an Edit button per section. */
-export function AnswerSections({ sections, ctx, onEdit, compact = false }: { sections: SectionSpec[]; ctx: FormContext; onEdit?: (sectionId: string) => void; compact?: boolean }) {
+/** A person's number or email, copied with a click instead of opening a phone or mail app. */
+function CopyLine({ icon, value, what }: { icon: IconName; value: string; what: string }) {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast(`${what} copied.`, "ok");
+    } catch {
+      toast(`Could not copy the ${what.toLowerCase()}. Select it and copy it.`, "error");
+    }
+  };
   return (
-    <div className={`fm-answers${compact ? " fm-answers--compact" : ""}`}>
+    <button type="button" className="fm-a-people__copy" onClick={copy} aria-label={`Copy ${what.toLowerCase()} ${value}`} title="">
+      <Icon name={icon} size={12} />
+      <span>{value}</span>
+      <Icon name="copy" size={12} className="fm-a-people__copyicon" />
+    </button>
+  );
+}
+
+/**
+ * Every shown section of a response, its answers read back. `onEdit` adds an Edit button per section. The `feature`
+ * look is the response window's: each section heads with its icon and its place among the response's parts
+ * (`step`), short answers sit in soft tiles and long ones span the card, and the answers rise in, one after another.
+ */
+export function AnswerSections({
+  sections,
+  ctx,
+  onEdit,
+  compact = false,
+  feature = false,
+  step,
+}: {
+  sections: SectionSpec[];
+  ctx: FormContext;
+  onEdit?: (sectionId: string) => void;
+  compact?: boolean;
+  feature?: boolean;
+  step?: { at: number; of: number };
+}) {
+  return (
+    <div className={`fm-answers${compact ? " fm-answers--compact" : ""}${feature ? " fm-answers--feature" : ""}`}>
       {sections.map((s) => {
         const fields = s.fields.filter((f) => f.type !== "note" && fieldShows(s, f, ctx.answers, ctx.fields));
         if (!fields.length) return null;
         return (
           <section key={s.id} className="fm-answers__section" aria-label={s.title}>
             <header className="fm-answers__head">
-              <h3>{s.title}</h3>
+              {feature && (
+                <span className="fm-answers__icon" aria-hidden="true">
+                  <Icon name={isIconName(s.icon) ? s.icon : "clipboard"} size={18} />
+                </span>
+              )}
+              <span className="fm-answers__titles">
+                {feature && step && (
+                  <small className="fm-answers__step">
+                    Part {step.at + 1} of {step.of}
+                  </small>
+                )}
+                <h3>{s.title}</h3>
+              </span>
               {onEdit && (
                 <button type="button" className="btn btn--sm btn--ghost" onClick={() => onEdit(s.id)}>
                   <Icon name="pen" size={14} /> Edit
@@ -395,8 +436,8 @@ export function AnswerSections({ sections, ctx, onEdit, compact = false }: { sec
               )}
             </header>
             <dl className="fm-answers__list">
-              {fields.map((f) => (
-                <div key={f.id} className="fm-answers__item" data-type={f.type}>
+              {fields.map((f, i) => (
+                <div key={f.id} className="fm-answers__item" data-type={f.type} style={feature ? ({ "--i": Math.min(i, 8) } as CSSProperties) : undefined}>
                   <dt>{f.label}</dt>
                   <dd>
                     <AnswerView spec={f} value={ctx.answers[f.id]} ctx={ctx} />

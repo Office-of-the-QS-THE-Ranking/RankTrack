@@ -12,6 +12,7 @@ import { cleanRich, isRich, plainText } from "@/lib/rich-text";
 import { evidenceById, evidenceList, requirementUnit } from "../records";
 import type { EvidenceFile, EvidenceLink, EvidenceRecord, EvidenceReference } from "../types";
 import { can, clean, cleanText, deny, invalid, log, nextId, notify, ok, unitById, type Ctx } from "./core";
+import { mailDate } from "@/lib/mail/messages";
 import { publishStory } from "./mutations";
 import { needsApproval, openRequest, workflowOn } from "./requests";
 import { raiseAlert } from "./security";
@@ -84,6 +85,12 @@ function linksOf(list: unknown, url: unknown): EvidenceLink[] | string {
     if (!out.some((x) => x.url === u)) out.push({ url: u, label: clean(l.label, EVIDENCE_LIMITS.linkLabel) });
   }
   return out;
+}
+
+/** The submitter's receipt by email: what the Office received, from which unit, and its reference when it has one. */
+function receipt(ctx: Ctx, title: string, unit: string, href: string, reference?: string) {
+  if (!ctx.actor.account) return;
+  notify(ctx, ctx.actor.id, "tpl-receipt", { name: ctx.actor.name, title, unit, date: mailDate(ctx.iso), ...(reference && { reference }) }, href);
 }
 
 /** What the submission cites: each with a title, and a link only when it is a full address. Blank rows are dropped. */
@@ -174,6 +181,7 @@ export function submitEvidence(ctx: Ctx, cmd: Extract<Command, { type: "evidence
   ctx.state.records.evidence[id] = rec;
   log(ctx, "evidence.submit", "Data", evRes(rec), "Success", `${unit.name}${place.programId ? ` · ${unitById(ctx, place.programId)?.name}` : ""} · ${mapped.length} indicators · ${rec.files.length} files`);
   notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: rec.title }, `/admin/unit-submissions?item=${id}`);
+  receipt(ctx, rec.title, unit.name, `/portal/submit#${id}`, id);
   return ok(`Received as ${id}.`, { data: id });
 }
 
@@ -271,6 +279,7 @@ export function respond(ctx: Ctx, id: string, text: string, file?: { name: strin
   };
   log(ctx, "evidence.resubmit", "Data", evRes(e), "Success", f ? `Corrected file ${f}` : "Reply without a new file");
   notify(ctx, "office", "tpl-submitted", { unit: unit?.name ?? e.unitSlug, title: `${e.title} (resubmitted)` }, `/admin/unit-submissions?item=${e.id}`);
+  receipt(ctx, `${e.title} (resubmitted)`, unit?.name ?? e.unitSlug, `/portal/submit#${e.id}`, e.id);
   return ok("Resubmitted. The reviewer has been notified and the item is back in the queue.");
 }
 
@@ -287,6 +296,7 @@ export function submitValues(ctx: Ctx, unitSlug: string, values: { id: string; l
   for (const v of good) ctx.state.records.values[v.id] = { value: v.value.trim(), source: clean(v.source, 200), status: "For review", by: ctx.actor.id, at: ctx.iso };
   log(ctx, "data.submit", "Data", target, "Success", good.map((v) => `${v.label}: ${v.value}`).join("; ").slice(0, 300));
   notify(ctx, "office", "tpl-submitted", { unit: unit.name, title: `${good.length} reporting-period ${good.length === 1 ? "value" : "values"}` }, "/admin/unit-submissions");
+  receipt(ctx, `${good.length} reporting-period ${good.length === 1 ? "value" : "values"}`, unit.name, "/portal");
   return ok(`${good.length} ${good.length === 1 ? "value" : "values"} sent for validation.`);
 }
 

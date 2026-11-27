@@ -2167,6 +2167,8 @@ export type Database = {
           period: string
           program_id: string | null
           result: string
+          review_approvals: Json
+          review_step: number | null
           sdgs: number[]
           stage: number
           status: string
@@ -2194,6 +2196,8 @@ export type Database = {
           period: string
           program_id?: string | null
           result?: string
+          review_approvals?: Json
+          review_step?: number | null
           sdgs?: number[]
           stage: number
           status: string
@@ -2221,6 +2225,8 @@ export type Database = {
           period?: string
           program_id?: string | null
           result?: string
+          review_approvals?: Json
+          review_step?: number | null
           sdgs?: number[]
           stage?: number
           status?: string
@@ -2890,6 +2896,144 @@ export type Database = {
           name?: string
           ord?: number
           unit_id?: string
+        }
+        Relationships: []
+      }
+      mail_outbox: {
+        Row: {
+          account_id: string | null
+          attempts: number
+          body_text: string
+          created_at: string
+          dedupe_key: string | null
+          html: string
+          id: string
+          label: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          provider: string | null
+          provider_ref: string | null
+          required: boolean
+          sent_at: string | null
+          status: string
+          subject: string
+          template_id: string
+          to_email: string
+          to_name: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          attempts?: number
+          body_text: string
+          created_at?: string
+          dedupe_key?: string | null
+          html: string
+          id?: string
+          label: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          provider?: string | null
+          provider_ref?: string | null
+          required?: boolean
+          sent_at?: string | null
+          status?: string
+          subject: string
+          template_id: string
+          to_email: string
+          to_name?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          attempts?: number
+          body_text?: string
+          created_at?: string
+          dedupe_key?: string | null
+          html?: string
+          id?: string
+          label?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          provider?: string | null
+          provider_ref?: string | null
+          required?: boolean
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template_id?: string
+          to_email?: string
+          to_name?: string | null
+        }
+        Relationships: []
+      }
+      mail_settings: {
+        Row: {
+          connected_at: string | null
+          connected_by: string | null
+          from_email: string | null
+          from_name: string
+          hourly_limit: number
+          id: number
+          last_error: string | null
+          provider: string | null
+          reply_to: string | null
+          retention_days: number
+          secret_hint: string | null
+          secret_sealed: string | null
+          sending: boolean
+          smtp_host: string | null
+          smtp_port: number | null
+          smtp_user: string | null
+          status: string
+          status_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          connected_at?: string | null
+          connected_by?: string | null
+          from_email?: string | null
+          from_name?: string
+          hourly_limit?: number
+          id?: number
+          last_error?: string | null
+          provider?: string | null
+          reply_to?: string | null
+          retention_days?: number
+          secret_hint?: string | null
+          secret_sealed?: string | null
+          sending?: boolean
+          smtp_host?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          status?: string
+          status_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          connected_at?: string | null
+          connected_by?: string | null
+          from_email?: string | null
+          from_name?: string
+          hourly_limit?: number
+          id?: number
+          last_error?: string | null
+          provider?: string | null
+          reply_to?: string | null
+          retention_days?: number
+          secret_hint?: string | null
+          secret_sealed?: string | null
+          sending?: boolean
+          smtp_host?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          status?: string
+          status_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -4817,6 +4961,96 @@ export type Database = {
         }
         Relationships: []
       }
+      web_analytics_events: {
+        Row: {
+          area: string
+          at: string
+          browser: string | null
+          country: string | null
+          device: string | null
+          host: string | null
+          id: number
+          kind: string
+          name: string | null
+          os: string | null
+          path: string
+          props: Json | null
+          referrer: string | null
+          route: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visitor: string
+        }
+        Insert: {
+          area: string
+          at?: string
+          browser?: string | null
+          country?: string | null
+          device?: string | null
+          host?: string | null
+          id?: never
+          kind: string
+          name?: string | null
+          os?: string | null
+          path: string
+          props?: Json | null
+          referrer?: string | null
+          route: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor: string
+        }
+        Update: {
+          area?: string
+          at?: string
+          browser?: string | null
+          country?: string | null
+          device?: string | null
+          host?: string | null
+          id?: never
+          kind?: string
+          name?: string | null
+          os?: string | null
+          path?: string
+          props?: Json | null
+          referrer?: string | null
+          route?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor?: string
+        }
+        Relationships: []
+      }
+      web_analytics_settings: {
+        Row: {
+          dev_enabled: boolean
+          enabled: boolean
+          id: number
+          retention_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          dev_enabled?: boolean
+          enabled?: boolean
+          id?: number
+          retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          dev_enabled?: boolean
+          enabled?: boolean
+          id?: number
+          retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       workflow_steps: {
         Row: {
           approver: string
@@ -5031,10 +5265,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      office_save: {
-        Args: { profile: Json; sections: Json }
-        Returns: undefined
-      }
       assistant_job_usage: {
         Args: { p_day_start: string; p_since: string }
         Returns: {
@@ -5230,6 +5460,60 @@ export type Database = {
       }
       hub_snapshot: { Args: { p_recent_since: string }; Returns: Json }
       hub_table: { Args: { p_name: string }; Returns: string }
+      mail_claim: {
+        Args: { p_limit?: number }
+        Returns: {
+          account_id: string | null
+          attempts: number
+          body_text: string
+          created_at: string
+          dedupe_key: string | null
+          html: string
+          id: string
+          label: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          provider: string | null
+          provider_ref: string | null
+          required: boolean
+          sent_at: string | null
+          status: string
+          subject: string
+          template_id: string
+          to_email: string
+          to_name: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mail_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mail_enqueue: { Args: { p_hold?: string; p_rows: Json }; Returns: number }
+      mail_purge: { Args: never; Returns: number }
+      mail_release: { Args: { p_ids: string[] }; Returns: undefined }
+      mail_summary: { Args: { p_days?: number }; Returns: Json }
+      office_save: {
+        Args: { profile: Json; sections: Json }
+        Returns: undefined
+      }
+      web_analytics_purge: { Args: never; Returns: number }
+      web_analytics_recent_events: {
+        Args: { p_area?: string; p_from: string; p_limit?: number }
+        Returns: Json
+      }
+      web_analytics_record: { Args: { p_rows: Json }; Returns: undefined }
+      web_analytics_summary: {
+        Args: {
+          p_area?: string
+          p_from: string
+          p_prev_from: string
+          p_step: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

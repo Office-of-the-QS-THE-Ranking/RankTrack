@@ -2435,6 +2435,42 @@ html[data-theme="dark"]:has(body > .app),
   text-decoration: none;
   transition: background-color var(--t) ease;
 }
+.side__crumb--rolling {
+  flex: 1;
+}
+.side__crumb-window {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+.side__crumb-label {
+  display: block;
+  width: max-content;
+  padding-inline: 10px;
+}
+.side__crumb-window[data-overflow] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+}
+.side__crumb-window[data-overflow] .side__crumb-label {
+  animation: side-crumb-roll var(--crumb-duration) ease-in-out infinite;
+}
+.side__crumb-window:is(:hover, :focus-visible) .side__crumb-label {
+  animation-play-state: paused;
+}
+@keyframes side-crumb-roll {
+  0%, 20%, 100% { transform: translateX(0); }
+  50%, 70% { transform: translateX(var(--crumb-travel)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .side__crumb-window[data-overflow] {
+    overflow-x: auto;
+  }
+  .side__crumb-window[data-overflow] .side__crumb-label {
+    animation: none;
+  }
+}
 @media (hover: hover) {
   .side__crumb:hover {
     background: rgb(var(--hair) / 0.045);

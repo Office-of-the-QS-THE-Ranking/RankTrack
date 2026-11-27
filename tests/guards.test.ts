@@ -76,8 +76,8 @@ describe("store migrations", () => {
       const sql = readFileSync(path.join(dir, file), "utf8").replace(/--.*$/gm, "");
       // form_responses and the analytics_, assistant_ and review_ tables live outside the store on purpose (Digital Forms'
       // responses and team copies; the analytics engine's catalog and facts; the assistant's models, ledgers and index;
-      // evidence review's text, terms and suggestions; the firewall's settings, rules and request log), so servers never cache them.
-      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits", "form_responses"].includes(t) && !t.startsWith("analytics_") && !t.startsWith("assistant_") && !t.startsWith("review_") && !t.startsWith("firewall_"));
+      // evidence review's text, terms and suggestions; the firewall's settings, rules and request log; Web Analytics' settings and page views), so servers never cache them.
+      const edits = [...sql.matchAll(/\b(?:update|insert\s+into|delete\s+from)\s+public\.(\w+)/gi)].map((m) => m[1]).filter((t) => !["hub_meta", "hub_auth_allow", "hub_rate_limits", "form_responses"].includes(t) && !t.startsWith("analytics_") && !t.startsWith("assistant_") && !t.startsWith("review_") && !t.startsWith("firewall_") && !t.startsWith("web_analytics_"));
       if (edits.length) expect(sql, file).toMatch(/update\s+public\.hub_meta\s+set\s+version\s*=\s*version\s*\+\s*1/i);
     }
   });

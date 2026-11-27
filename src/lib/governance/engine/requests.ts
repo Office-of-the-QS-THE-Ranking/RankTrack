@@ -12,7 +12,7 @@ import { profileOf } from "../person-details";
 import { canWith, grantCheck, grantsFor, roleLabel } from "../rbac";
 import type { ApprovalRequest, RequestPayload, StepApprover, WorkflowKey } from "../types";
 import { APPROVERS, SUBMISSIONS, approverBlock, approverFits, nextStep, stepOn } from "../workflow-steps";
-import { accountById, can, clean, cleanText, deny, invalid, isEmail, log, nextId, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
+import { accountById, can, clean, cleanText, deny, emailTo, invalid, isEmail, log, nextId, nameOf, notify, ok, readUnitEmails, unitById, type Actor, type Ctx } from "./core";
 import { addAssignment, addDataGrant, createAccount, createUnit, publishDocument, publishStory } from "./mutations";
 import { validUnitEmblem } from "../unit-emblems";
 
@@ -158,6 +158,26 @@ function apply(ctx: Ctx, req: ApprovalRequest, unitId?: string): string | null {
   }
 }
 
+/**
+ * Email the person an account request was for. Someone who sent the Request access form hears either way, with the
+ * approver's note when it is declined. Someone an administrator asked an account for never asked themselves: they
+ * get the invitation once it is approved, and nothing if it isn't.
+ */
+function tellApplicant(ctx: Ctx, req: ApprovalRequest, decision: "Approved" | "Rejected", note?: string) {
+  const p = req.payload;
+  if (p.kind !== "account-access") return;
+  const to = { email: p.email, name: p.name };
+  const role = roleOf(p.roleId, ctx.state.config.rolePermissions)?.name ?? "";
+  // Students are kept with the Office, which isn't a unit they would recognise as theirs.
+  const unit = p.roleId === ROLE.student ? "" : (unitById(ctx, p.unitId)?.name ?? "");
+  if (req.requesterId === "guest") {
+    if (decision === "Approved") emailTo(ctx, to, "tpl-access-approved", { name: p.name, reference: req.id, email: p.email, role, unit }, "/signin", `access-approved:${req.id}`);
+    else emailTo(ctx, to, "tpl-access-declined", { name: p.name, reference: req.id, comment: note ?? "" }, `/signin?track=${req.id}`, `access-declined:${req.id}`);
+  } else if (decision === "Approved") {
+    emailTo(ctx, to, "tpl-invite", { name: p.name, inviter: nameOf(ctx, req.requesterId), unit, role }, "/signin", `invite:${req.id}`);
+  }
+}
+
 export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", note?: string, unitId?: string): CommandResult {
   const req = ctx.state.requests.find((r) => r.id === id);
   if (!req) return invalid("That request no longer exists.");
@@ -174,6 +194,7 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
     returnPost(ctx, req);
     log(ctx, "request.reject", "Approval", res, "Success", text);
     if (wf.notify) notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "rejected", approver: ctx.actor.name }, "/admin/command-control/process-pipelines");
+    tellApplicant(ctx, req, "Rejected", text);
     return ok("Request rejected.");
   }
   // steps switched off are passed without stopping
@@ -193,6 +214,7 @@ export function decide(ctx: Ctx, id: string, decision: "Approved" | "Rejected", 
   req.completedAt = ctx.iso;
   log(ctx, "request.approve", "Approval", res, "Success", "Final approval; change applied");
   if (wf.notify) notify(ctx, req.requesterId, "tpl-decision", { title: req.title, decision: "approved", approver: ctx.actor.name }, "/admin/command-control/process-pipelines");
+  tellApplicant(ctx, req, "Approved");
   return ok("Approved and applied.");
 }
 

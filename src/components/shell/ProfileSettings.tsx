@@ -988,10 +988,7 @@ function Notifications({ viewer }: { viewer: Viewer }) {
               <Icon name="mail" size={15} />
             </span>
             <span className="pfm__item-text">
-              <b>
-                Email
-                <span className="pfm__tag">Coming soon</span>
-              </b>
+              <b>Email</b>
               <span>Sent to {viewer.email}</span>
             </span>
             <Toggle on={prefs.email} label="Receive notifications by email" disabled={busy} onChange={(on) => void save({ ...prefs, email: on })} />

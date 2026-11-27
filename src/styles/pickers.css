@@ -349,13 +349,19 @@ input.pick-proxy {
   opacity: 0.3;
   cursor: var(--cursor-default);
 }
-.pick-date--range {
-  height: auto;
-  min-height: 44px;
-}
+/* A range reads on one line; DateField swaps to short months when the long ones don't fit. */
 .pick-date--range .pick-trigger__label {
-  white-space: normal;
-  line-height: 1.4;
+  position: relative;
+  white-space: nowrap;
+}
+.pick-date__sizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .pick-cal__range-hint {
   margin: 0 0 8px;

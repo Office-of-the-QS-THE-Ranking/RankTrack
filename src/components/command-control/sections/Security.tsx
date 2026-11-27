@@ -13,8 +13,8 @@ import { EmptyNote, Field, Hint, Pill, ReadOnly, Sheet, StatusPill, Switch, Tabs
 
 /*
  * Command & Control › Privacy & Security. Overview scores the policy against a short list of checks and sends each
- * failing one to the tab that fixes it; the other tabs draw each setting as what it does (a session timeline,
- * a lockout counter, a classification ladder, key rotation rings) with the control beside it. Styles: security.css (sp-*).
+ * failing one to the tab that fixes it. Summary headers, metrics and save footers reuse Firewall’s
+ * presentation; policy controls retain their existing actions. Styles: security.css and firewall.css.
  */
 
 type Tab = "Overview" | "Sign-in" | "Access reviews" | "Privacy" | "Alerts" | "Protection";
@@ -176,7 +176,7 @@ export function Security() {
     ) : undefined;
   const close = () => setCreating(null);
   return (
-    <div className="sp">
+    <div className="sp sp-security">
       <Tabs
         label="Privacy and security"
         idBase="sp"
@@ -196,7 +196,8 @@ export function Security() {
         ]}
       />
       {!edit && <ReadOnly>View only.</ReadOnly>}
-      <TabPanel idBase="sp" index={tabs.indexOf(tab)} className="sp-panel">
+      <TabPanel idBase="sp" index={tabs.indexOf(tab)} className="sp-panel fw-policy">
+        {tab !== "Overview" && tab !== "Access reviews" && <PolicySummary tab={tab} sec={sec} />}
         {tab === "Overview" && <Overview sec={sec} checks={checks} go={setTab} />}
         {tab === "Sign-in" && <SignIn sec={sec} />}
         {tab === "Access reviews" && <Reviews sec={sec} starting={creating === "review"} onDone={close} />}
@@ -208,17 +209,61 @@ export function Security() {
   );
 }
 
+/** Use the same summary surface and metrics as Firewall's Rules and Settings. */
+function SecurityHeader({ title, stats, status, attention = false }: {
+  title: string;
+  stats: [string, string | number][];
+  status: string;
+  attention?: boolean;
+}) {
+  return (
+    <header className="fw-hero fw-policy-hero sp-policy-summary" data-mode={attention ? "log" : "on"}>
+      <div className="fw-policy-hero__heading">
+        <div>
+          <span className="sp-eyebrow">Privacy &amp; security</span>
+          <h2 className="fw-hero__title">{title}</h2>
+        </div>
+        <span className="fw-policy-mode"><i aria-hidden="true" />{status}</span>
+      </div>
+      <dl className="fw-policy-stats">
+        {stats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="num">{value}</dd></div>)}
+      </dl>
+    </header>
+  );
+}
+
+function PolicySummary({ tab, sec }: { tab: Tab; sec: SecurityPolicy }) {
+  const { data } = useConsole();
+  const edit = viewerCan(data.viewer, "security", "edit");
+  const status = edit ? "Policy controls" : "View only";
+  if (tab === "Sign-in") return <SecurityHeader title="Sign-in & sessions" status={status} stats={[
+    ["2-step verification", sec.mfa.mode], ["Idle sign-out", `${sec.session.idleMinutes} min`], ["Session limit", `${sec.session.absoluteHours} hours`],
+  ]} />;
+  if (tab === "Privacy") return <SecurityHeader title="Privacy management" status={status} stats={[
+    ["Open requests", sec.subjectRequests.filter(isOpenDsr).length], ["Assessments", sec.assessments.length], ["Breach reporting", `${sec.privacy.breachHours} hours`],
+  ]} />;
+  if (tab === "Alerts") {
+    const open = sec.alerts.filter(a => a.status === "Open");
+    const incidents = sec.incidents.filter(i => i.status !== "Closed").length;
+    return <SecurityHeader title="Alerts & incidents" status={open.length || incidents ? "Needs review" : "No open items"} attention={open.length + incidents > 0} stats={[
+      ["Open alerts", open.length], ["High severity", open.filter(a => a.severity === "High").length], ["Open incidents", incidents],
+    ]} />;
+  }
+  return <SecurityHeader title="Data protection" status={status} stats={[
+    ["Blocked export classes", sec.exports.blocked.length], ["Public evidence links", sec.sharing.externalLinks ? "Allowed" : "Off"], ["Keys due for rotation", sec.keys.filter(k => nextRotation(k) <= data.day).length],
+  ]} />;
+}
+
 function SaveBar({ dirty, onSave, onReset }: { dirty: boolean; onSave: () => void; onReset: () => void }) {
   if (!dirty) return null;
   return (
-    <div className="sp-save">
-      <span className="sp-save__dot" aria-hidden="true" />
-      <span className="sp-save__text">Unsaved changes</span>
+    <div className="fw-edit-footer">
+      <span>Unsaved changes</span>
       <button type="button" className="btn btn--sm" onClick={onReset}>
         Discard
       </button>
       <button type="button" className="btn btn--sm btn--dark" onClick={onSave}>
-        Save
+        Save changes
       </button>
     </div>
   );
@@ -261,6 +306,8 @@ function Overview({ sec, checks, go }: { sec: SecurityPolicy; checks: Check[]; g
   const listed = (show === "To fix" ? checks.filter((c) => c.state !== "pass") : checks).slice().sort((a, b) => order[a.state] - order[b.state]);
   const TICKS = 60;
   const lit = Math.round((score / 100) * TICKS);
+  const failing = checks.filter(c => c.state === "fail").length;
+  const warnings = checks.filter(c => c.state === "warn").length;
 
   const openAlerts = sec.alerts.filter((a) => a.status === "Open").length;
   const openInc = sec.incidents.filter((i) => i.status !== "Closed").length;
@@ -273,66 +320,65 @@ function Overview({ sec, checks, go }: { sec: SecurityPolicy; checks: Check[]; g
 
   return (
     <div className="sp-ov">
-      <section className="sp-hero" data-grade={grade.key} aria-labelledby="sp-hero-title">
-        <div className="sp-hero__grid" aria-hidden="true" />
-        <div className="sp-radar" role="img" aria-label={`Security score ${score} of 100, ${grade.label}`}>
-          <svg viewBox="0 0 220 220" aria-hidden="true">
-            <circle className="sp-radar__ring" cx="110" cy="110" r="72" />
-            <circle className="sp-radar__ring" cx="110" cy="110" r="52" />
-            <circle className="sp-radar__ring sp-radar__ring--dash" cx="110" cy="110" r="88" />
-            {Array.from({ length: TICKS }, (_, i) => {
-              const deg = (i / TICKS) * 360 - 90;
-              const r2 = i % 5 === 0 ? 108 : 104;
-              // The wave's phase is the tick's angle behind the sweep (5s per turn), so the
-              // crests travel round the ring in step with the sweep's bright edge.
-              const wave = { animationDelay: `${i * 14}ms, ${Math.round((i / TICKS) * 5000) - 5000}ms` } as CSSProperties;
-              return (
-                <g key={i} transform={`rotate(${deg.toFixed(2)} 110 110)`}>
-                  <line className={i < lit ? "sp-radar__tick is-lit" : "sp-radar__tick"} style={wave} x1="206" y1="110" x2={110 + r2} y2="110" />
-                </g>
-              );
-            })}
-          </svg>
-          <span className="sp-radar__sweep" aria-hidden="true" />
-          <span className="sp-radar__core">
-            <b className="num">{score}</b>
-            <small>of 100</small>
-          </span>
-        </div>
-        <div className="sp-hero__body">
-          <span className="sp-eyebrow sp-eyebrow--plain">
-            Security Posture: Listening for Leaks
-          </span>
-          <h2 id="sp-hero-title" className="sp-hero__title">
-            {grade.label}
-          </h2>
-        </div>
-        <ul className="sp-layers" aria-label="Protection layers">
-          {LAYERS.map((l) => {
-            const mine = checks.filter((c) => c.layer === l.key);
-            const worst: State = mine.some((c) => c.state === "fail") ? "fail" : mine.some((c) => c.state === "warn") ? "warn" : "pass";
-            return (
-              <li key={l.key}>
-                <button type="button" className="sp-layer" data-state={worst} onClick={() => go(l.tab)}>
-                  <span className="sp-layer__top">
-                    <Icon name={l.icon} size={14} />
-                    <span>{l.key}</span>
-                    <Icon name="arrow-up-right" size={12} className="sp-go" aria-hidden="true" />
-                  </span>
-                  <span className="sp-layer__segs" aria-hidden="true">
-                    {mine.map((c) => (
-                      <i key={c.id} data-state={c.state} />
-                    ))}
-                  </span>
-                  <span className="sr-only">
-                    {mine.filter((c) => c.state === "pass").length} of {mine.length} pass
-                  </span>
-                </button>
-              </li>
-            );
+      <section className="fw-hero sp-listening" data-grade={grade.key} aria-labelledby="sp-hero-title">
+        <header className="fw-hero__head">
+          <div className="fw-hero__state">
+            <div className="sp-radar" role="img" aria-label={`Security score ${score} of 100, ${grade.label}`}>
+              <svg viewBox="0 0 220 220" aria-hidden="true">
+                <circle className="sp-radar__ring" cx="110" cy="110" r="72" />
+                <circle className="sp-radar__ring" cx="110" cy="110" r="52" />
+                <circle className="sp-radar__ring sp-radar__ring--dash" cx="110" cy="110" r="88" />
+                {Array.from({ length: TICKS }, (_, i) => {
+                  const deg = (i / TICKS) * 360 - 90;
+                  const r2 = i % 5 === 0 ? 108 : 104;
+                  // The wave's phase is the tick's angle behind the sweep (5s per turn), so the
+                  // crests travel round the ring in step with the sweep's bright edge.
+                  const wave = { animationDelay: `${i * 14}ms, ${Math.round((i / TICKS) * 5000) - 5000}ms` } as CSSProperties;
+                  return (
+                    <g key={i} transform={`rotate(${deg.toFixed(2)} 110 110)`}>
+                      <line className={i < lit ? "sp-radar__tick is-lit" : "sp-radar__tick"} style={wave} x1="206" y1="110" x2={110 + r2} y2="110" />
+                    </g>
+                  );
+                })}
+              </svg>
+              <span className="sp-radar__sweep" aria-hidden="true" />
+              <span className="sp-radar__core">
+                <b className="num">{score}</b>
+                <small>of 100</small>
+              </span>
+            </div>
+            <div>
+              <span className="sp-eyebrow sp-eyebrow--plain">Security Posture: Listening for Leaks</span>
+              <h2 id="sp-hero-title" className="fw-hero__title">{grade.label}</h2>
+            </div>
+          </div>
+          <span className="fw-policy-mode">{checks.length} policy checks</span>
+        </header>
+        <dl className="fw-metrics">
+          {([
+            ["Policy score", `${score}/100`], ["Passing", checks.length - failing - warnings],
+            ["Failing", failing], ["To strengthen", warnings], ["Open alerts", openAlerts],
+          ] as const).map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="num">{value}</dd></div>)}
+        </dl>
+      </section>
+
+      <Tile id="sp-layers" title={<Head icon="layers">Protection layers</Head>} aside={<span className="fw-card-hint">Select a layer to review its controls</span>}>
+        <ul className="sp-policy-layers">
+          {LAYERS.map(layer => {
+            const mine = checks.filter(c => c.layer === layer.key);
+            const passing = mine.filter(c => c.state === "pass").length;
+            const state: State = mine.some(c => c.state === "fail") ? "fail" : mine.some(c => c.state === "warn") ? "warn" : "pass";
+            return <li key={layer.key}>
+              <button type="button" className="sp-policy-layer" onClick={() => go(layer.tab)}>
+                <span className="sp-row__icon" aria-hidden="true"><Icon name={layer.icon} size={16} /></span>
+                <span className="sp-policy-layer__text"><b>{layer.key}</b><small>{passing} of {mine.length} checks pass</small></span>
+                <span className="sp-check__mark" data-state={state} aria-label={state === "pass" ? "Passes" : "Needs attention"}><Icon name={STATE_ICON[state]} size={14} /></span>
+                <Icon name="chevron" size={14} aria-hidden="true" />
+              </button>
+            </li>;
           })}
         </ul>
-      </section>
+      </Tile>
 
       <div className="sp-bento">
         <Tile
@@ -696,12 +742,10 @@ function Reviews({ sec, starting, onDone }: { sec: SecurityPolicy; starting: boo
   const pending = running.reduce((n, r) => n + r.accountIds.filter((a) => !r.decisions[a]).length, 0);
   return (
     <div className="sp-stack-y">
-      <div className="sp-kpis">
-        <Kpi label="Running" value={running.length} icon="refresh" />
-        <Kpi label="Overdue" value={overdue} icon="clock" tone={overdue ? "danger" : undefined} />
-        <Kpi label="Awaiting a decision" value={pending} icon="users" />
-        <Kpi label="Access revoked" value={revoked} icon="user-minus" />
-      </div>
+      <SecurityHeader title="Access reviews" status={overdue ? "Reviews overdue" : "Review schedule"} attention={overdue > 0} stats={[
+        ["Running", running.length], ["Overdue", overdue], ["Awaiting a decision", pending], ["Access revoked", revoked],
+      ]} />
+      <div className="fw-section-heading"><h3>Review history</h3><p>Confirm who still needs access.</p></div>
       {sec.reviews.length ? (
         <ul className="sp-reviews">
           {sec.reviews.map((r) => {
@@ -790,18 +834,6 @@ function Reviews({ sec, starting, onDone }: { sec: SecurityPolicy; starting: boo
           </Field>
         </div>
       </Sheet>
-    </div>
-  );
-}
-
-function Kpi({ label, value, icon, tone }: { label: string; value: ReactNode; icon: IconName; tone?: "danger" }) {
-  return (
-    <div className="sp-kpi" data-tone={tone}>
-      <span className="sp-kpi__icon" aria-hidden="true">
-        <Icon name={icon} size={15} />
-      </span>
-      <b className="sp-kpi__n num">{value}</b>
-      <span className="sp-kpi__label">{label}</span>
     </div>
   );
 }
