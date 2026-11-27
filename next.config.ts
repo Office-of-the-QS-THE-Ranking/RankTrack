@@ -72,6 +72,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   turbopack: { root: path.resolve(__dirname) },
   experimental: {
+    agentUpgrade: "security",
     // Two root layouts (app/(hub) and the portal demo's app/(demo)): unmatched addresses get app/global-not-found.tsx.
     globalNotFound: true,
     // A workspace tab visited in the last 30 s opens from memory instead of rendering again. Every
